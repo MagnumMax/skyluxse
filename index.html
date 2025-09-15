@@ -1,0 +1,998 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SkyLuxse | Interactive SPA Prototype</title>
+    
+    <!-- Tailwind CSS via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Chart.js via CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- SortableJS via CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+
+    <style>
+        /* Vercel/Geist inspired design system */
+        :root {
+            --background: 0 0% 100%;
+            --foreground: 222.2 84% 4.9%;
+            --card: 0 0% 100%;
+            --card-foreground: 222.2 84% 4.9%;
+            --popover: 0 0% 100%;
+            --popover-foreground: 222.2 84% 4.9%;
+            --primary: 222.2 47.4% 11.2%;
+            --primary-foreground: 210 40% 98%;
+            --secondary: 210 40% 96.1%;
+            --secondary-foreground: 222.2 47.4% 11.2%;
+            --muted: 210 40% 96.1%;
+            --muted-foreground: 215.4 16.3% 46.9%;
+            --accent: 210 40% 96.1%;
+            --accent-foreground: 222.2 47.4% 11.2%;
+            --destructive: 0 84.2% 60.2%;
+            --destructive-foreground: 210 40% 98%;
+            --border: 214.3 31.8% 91.4%;
+            --input: 214.3 31.8% 91.4%;
+            --ring: 222.2 84% 4.9%;
+            --radius: 0.5rem;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f9fafb; /* gray-50 */
+            color: hsl(var(--foreground));
+        }
+
+        .geist-card {
+            background-color: hsl(var(--card));
+            border: 1px solid hsl(var(--border));
+            border-radius: var(--radius);
+            box-shadow: 0 1px 2px 0 rgba(0,0,0,0.05);
+        }
+
+        .geist-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: var(--radius);
+            font-weight: 500;
+            padding: 0.5rem 1rem;
+            transition: background-color 0.2s;
+        }
+        .geist-button-primary {
+            background-color: hsl(var(--primary));
+            color: hsl(var(--primary-foreground));
+        }
+        .geist-button-primary:hover {
+            background-color: hsl(var(--primary) / 0.9);
+        }
+        .geist-button-secondary {
+            background-color: hsl(var(--secondary));
+            color: hsl(var(--secondary-foreground));
+            border: 1px solid hsl(var(--border));
+        }
+        .geist-button-secondary:hover {
+            background-color: hsl(var(--accent));
+        }
+
+        .kanban-card.sortable-ghost {
+            background: hsl(var(--accent));
+            border: 2px dashed hsl(var(--border));
+            opacity: 0.5;
+        }
+
+        /* Hide scrollbar but allow scrolling */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        .modal-overlay {
+            transition: opacity 0.2s ease-in-out;
+        }
+        .modal-content {
+            transition: transform 0.2s ease-in-out;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <!-- Page: Login -->
+    <div id="page-login" class="flex items-center justify-center h-screen bg-gray-50">
+        <div class="w-full max-w-sm p-8 space-y-6 geist-card">
+            <div class="text-center">
+                <h1 class="text-2xl font-bold">SkyLuxse Platform</h1>
+                <p class="text-gray-500">Войдите в свой аккаунт</p>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <label for="email" class="block text-sm font-medium text-gray-700">Email</label>
+                    <input type="email" id="email" value="manager@skyluxse.ae" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:ring-black focus:border-black">
+                </div>
+                <div>
+                    <label for="password" class="block text-sm font-medium text-gray-700">Пароль</label>
+                    <input type="password" id="password" value="••••••••" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:ring-black focus:border-black">
+                </div>
+            </div>
+            <button id="login-button" class="w-full geist-button geist-button-primary">Войти</button>
+        </div>
+    </div>
+
+    <!-- Main Application Wrapper -->
+    <div id="app-container" class="hidden h-screen w-screen overflow-hidden">
+        <div class="flex h-full">
+            <!-- Component: Sidebar -->
+            <aside id="sidebar" class="bg-white border-r border-gray-200 w-64 flex-shrink-0 flex flex-col transition-transform duration-300 ease-in-out md:translate-x-0 -translate-x-full fixed md:static h-full z-20">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h1 class="text-xl font-bold">SkyLuxse</h1>
+                </div>
+                <nav id="sidebar-nav" class="flex-grow p-4 space-y-2"></nav>
+                <div id="sidebar-profile" class="p-4 border-t border-gray-200">
+                    <!-- Profile info will be injected here -->
+                </div>
+            </aside>
+            
+            <!-- Content Area -->
+            <main id="main-content" class="flex-1 flex flex-col overflow-hidden">
+                <!-- Component: Header -->
+                <header class="flex items-center justify-between p-4 bg-white border-b border-gray-200 flex-shrink-0">
+                    <button id="burger-menu" class="p-2 md:hidden">
+                        <!-- Burger icon will be injected -->
+                    </button>
+                    <h2 id="page-title" class="text-xl font-semibold"></h2>
+                    <div></div> <!-- Spacer -->
+                </header>
+
+                <!-- Page content will be rendered here -->
+                <div id="content-area" class="flex-1 overflow-y-auto p-6 bg-gray-50">
+                    
+                    <!-- Page: Dashboard -->
+                    <section id="page-dashboard" class="page hidden">
+                        <div class="grid grid-cols-1 gap-6 lg:grid-cols-4">
+                            <!-- Metric Cards -->
+                            <div class="geist-card p-6 lg:col-span-1">
+                                <h3 class="text-sm font-medium text-gray-500">Утилизация парка</h3>
+                                <p class="text-3xl font-bold mt-2">87%</p>
+                            </div>
+                            <div class="geist-card p-6 lg:col-span-1">
+                                <h3 class="text-sm font-medium text-gray-500">Авто в аренде</h3>
+                                <p class="text-3xl font-bold mt-2">42 / 50</p>
+                            </div>
+                            <div class="geist-card p-6 lg:col-span-1">
+                                <h3 class="text-sm font-medium text-gray-500">Средний доход на авто (RevPAR)</h3>
+                                <p class="text-3xl font-bold mt-2">$250/день</p>
+                            </div>
+                             <div class="geist-card p-6 lg:col-span-1">
+                                <h3 class="text-sm font-medium text-gray-500">Новые клиенты (неделя)</h3>
+                                <p class="text-3xl font-bold mt-2">15</p>
+                            </div>
+
+                            <!-- Charts -->
+                            <div class="geist-card p-6 lg:col-span-2">
+                                <h3 class="font-semibold">Заказы за неделю</h3>
+                                <canvas id="bookings-chart" class="max-h-80"></canvas>
+                            </div>
+                            <div class="geist-card p-6 lg:col-span-2">
+                                <h3 class="font-semibold">Популярность классов авто</h3>
+                                <canvas id="car-class-chart" class="max-h-80"></canvas>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Page: Reports (for CEO) -->
+                    <section id="page-reports" class="page hidden">
+                        <div class="space-y-6">
+                            <div class="geist-card p-6">
+                                <h3 class="text-lg font-semibold mb-4">Финансовая сводка (Сентябрь 2024)</h3>
+                                <div class="grid grid-cols-3 gap-4 text-center">
+                                    <div>
+                                        <p class="text-sm text-gray-500">Выручка</p>
+                                        <p class="text-2xl font-bold">$152,430</p>
+                                    </div>
+                                    <div>
+                                        <p class="text-sm text-gray-500">Расходы</p>
+                                        <p class="text-2xl font-bold">$45,120</p>
+                                    </div>
+                                    <div>
+                                        <p class="text-sm text-gray-500">Прибыль</p>
+                                        <p class="text-2xl font-bold text-green-600">$107,310</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="geist-card p-6">
+                                <h3 class="text-lg font-semibold mb-4">Топ-5 автомобилей по доходности (Сентябрь 2024)</h3>
+                                <ul id="top-cars-report" class="space-y-3">
+                                    <!-- Report data will be injected -->
+                                </ul>
+                            </div>
+                        </div>
+                    </section>
+                    
+                    <!-- Page: Bookings (Kanban) -->
+                    <section id="page-bookings" class="page hidden h-full">
+                         <div class="flex items-center justify-between mb-4">
+                            <div class="flex space-x-2">
+                                <input type="text" placeholder="Поиск..." class="px-3 py-2 border border-gray-300 rounded-md shadow-sm w-64">
+                            </div>
+                        </div>
+                        <div id="kanban-board" class="flex space-x-4 h-[calc(100%-4rem)] overflow-x-auto pb-4 no-scrollbar">
+                            <!-- Kanban columns will be rendered here -->
+                        </div>
+                    </section>
+                    
+                    <!-- Page: Fleet Calendar -->
+                    <section id="page-fleet-calendar" class="page hidden">
+                        <div class="geist-card p-4">
+                            <h2 class="text-lg font-semibold text-center mb-4">Календарь загрузки (15-21 Сентября)</h2>
+                            <div class="grid grid-cols-8 text-center text-sm font-medium text-gray-500 border-b">
+                                <div class="col-span-1">Авто</div>
+                                <div>ПН, 15</div><div>ВТ, 16</div><div>СР, 17</div><div>ЧТ, 18</div><div>ПТ, 19</div><div>СБ, 20</div><div>ВС, 21</div>
+                            </div>
+                            <div id="calendar-body" class="divide-y divide-gray-200">
+                                <!-- Calendar rows will be injected -->
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Page: Generic Table View -->
+                    <section id="page-table-view" class="page hidden">
+                        <div class="geist-card">
+                             <div class="p-4 flex justify-between items-center">
+                                 <h3 id="table-title" class="text-lg font-semibold"></h3>
+                                 <button id="add-new-button" class="geist-button geist-button-primary">Добавить</button>
+                             </div>
+                             <div class="overflow-x-auto">
+                                <table class="w-full text-left">
+                                    <thead class="bg-gray-50 border-b border-t">
+                                        <tr id="table-head">
+                                            <!-- Table headers will be injected -->
+                                        </tr>
+                                    </thead>
+                                    <tbody id="table-body" class="divide-y">
+                                        <!-- Table rows will be injected -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </section>
+
+                     <!-- Mobile Pages Wrapper -->
+                    <div id="mobile-view" class="hidden h-full">
+                        <!-- Page: Mobile Driver Tasks -->
+                        <section id="page-driver-tasks" class="page h-full">
+                            <div class="space-y-4 max-w-lg mx-auto">
+                               <h2 class="text-2xl font-bold text-center">Задачи на сегодня</h2>
+                               <div id="driver-tasks-list" class="space-y-4">
+                                   <!-- Driver task cards will be rendered here -->
+                               </div>
+                            </div>
+                        </section>
+
+                        <!-- Page: Mobile Driver Task Detail -->
+                        <section id="page-driver-task-detail" class="page hidden h-full">
+                            <div class="max-w-lg mx-auto">
+                                <button class="back-to-tasks mb-4 text-gray-600 flex items-center">
+                                    <!-- Back icon will be injected -->
+                                    <span class="ml-2">Назад к задачам</span>
+                                </button>
+                                <div id="driver-task-detail-content" class="geist-card p-6 space-y-6">
+                                   <!-- Task details will be rendered here -->
+                                </div>
+                            </div>
+                        </section>
+                    </div>
+
+                </div>
+            </main>
+        </div>
+    </div>
+    
+    <!-- Component: Detail Side Panel -->
+    <div id="detail-panel" class="fixed top-0 right-0 h-full w-full max-w-md bg-white border-l border-gray-200 shadow-lg transform translate-x-full transition-transform duration-300 ease-in-out z-30 flex flex-col">
+        <!-- Side panel content will be injected -->
+    </div>
+    <div id="panel-overlay" class="fixed inset-0 bg-black bg-opacity-30 hidden z-20"></div>
+
+    <!-- Component: Add Car Modal -->
+    <div id="add-car-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-40 modal-overlay">
+        <div class="geist-card w-full max-w-lg transform scale-95 modal-content">
+             <div class="p-6 border-b flex justify-between items-center">
+                <h2 class="text-xl font-semibold">Добавить автомобиль</h2>
+                <button id="close-modal-btn" class="p-2 text-gray-500 hover:text-black">&times;</button>
+            </div>
+            <div class="p-6 space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Название</label>
+                    <input type="text" id="car-name-input" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md">
+                </div>
+                 <div>
+                    <label class="block text-sm font-medium text-gray-700">Номер</label>
+                    <input type="text" id="car-plate-input" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md">
+                </div>
+                 <div>
+                    <label class="block text-sm font-medium text-gray-700">Цвет</label>
+                    <input type="text" id="car-color-input" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md">
+                </div>
+                 <div>
+                    <label class="block text-sm font-medium text-gray-700">Год</label>
+                    <input type="number" id="car-year-input" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md">
+                </div>
+            </div>
+            <div class="p-6 border-t bg-gray-50 flex justify-end space-x-2">
+                <button id="cancel-add-car-btn" class="geist-button geist-button-secondary">Отмена</button>
+                <button id="save-car-btn" class="geist-button geist-button-primary">Сохранить</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Component: Role Switcher -->
+    <div class="fixed bottom-4 right-4 z-50 geist-card p-2 shadow-2xl">
+        <div class="flex items-center space-x-2">
+            <span class="text-sm font-medium">Роль:</span>
+            <select id="role-switcher" class="p-2 border border-gray-300 rounded-md text-sm">
+                <option value="manager">Менеджер</option>
+                <option value="ceo">CEO</option>
+                <option value="driver">Водитель</option>
+            </select>
+        </div>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+
+        // --- MOCK DATA ---
+        const MOCK_DATA = {
+            cars: [
+                { id: 1, name: 'Rolls-Royce Ghost', plate: 'X123XX', status: 'Available', mileage: 15000, class: 'Luxury', imageUrl: 'https://picsum.photos/seed/ghost/100/60', color: 'Black', year: 2023 },
+                { id: 2, name: 'Mercedes G-Wagen', plate: 'Y456YY', status: 'In Rent', mileage: 25000, class: 'SUV', imageUrl: 'https://picsum.photos/seed/gwagen/100/60', color: 'White', year: 2022 },
+                { id: 3, name: 'Lamborghini Huracan', plate: 'Z789ZZ', status: 'Available', mileage: 8000, class: 'Sport', imageUrl: 'https://picsum.photos/seed/huracan/100/60', color: 'Green', year: 2023 },
+                { id: 4, name: 'Bentley Continental', plate: 'A111AA', status: 'Maintenance', mileage: 32000, class: 'Luxury', imageUrl: 'https://picsum.photos/seed/bentley/100/60', color: 'Silver', year: 2021 },
+                { id: 5, name: 'Ferrari 488 Spider', plate: 'B222BB', status: 'Available', mileage: 12000, class: 'Sport', imageUrl: 'https://picsum.photos/seed/ferrari/100/60', color: 'Red', year: 2022 }
+            ],
+            drivers: [
+                { id: 1, name: 'Иванов Иван', status: 'Available' },
+                { id: 2, name: 'Петров Петр', status: 'On Task' },
+                { id: 3, name: 'Сидоров Сидор', status: 'Available' }
+            ],
+            clients: [
+                { id: 1, name: 'John Doe', phone: '+971 50 123 4567', email: 'john.doe@email.com', status: 'VIP', outstanding: 0, turnover: 25400 },
+                { id: 2, name: 'Jane Smith', phone: '+971 55 987 6543', email: 'jane.smith@email.com', status: 'Gold', outstanding: 150, turnover: 12500 },
+                { id: 3, name: 'Alex Johnson', phone: '+971 52 555 8899', email: 'alex.j@email.com', status: 'Silver', outstanding: 0, turnover: 3200 }
+            ],
+            bookings: [
+                { id: 1052, clientName: 'John Doe', carName: 'Mercedes G-Wagen', startDate: '2024-09-15', endDate: '2024-09-18', startTime: '14:00', endTime: '18:00', driverId: 2, status: 'in-rent', carId: 2, history: [{ts: '2024-09-14 10:05', event: 'Заказ создан'}, {ts: '2024-09-14 10:15', event: 'Водитель П.Петров назначен'}] },
+                { id: 1053, clientName: 'Jane Smith', carName: 'Lamborghini Huracan', startDate: '2024-09-16', endDate: '2024-09-17', startTime: '10:00', endTime: '20:00', driverId: 1, status: 'preparation', carId: 3, history: [{ts: '2024-09-15 11:30', event: 'Заказ создан'}] },
+                { id: 1054, clientName: 'Alex Johnson', carName: 'Rolls-Royce Ghost', startDate: '2024-09-18', endDate: '2024-09-21', startTime: '11:00', endTime: '11:00', driverId: null, status: 'new', carId: 1, history: [{ts: '2024-09-16 09:00', event: 'Заказ создан'}] },
+                { id: 1055, clientName: 'John Doe', carName: 'Ferrari 488 Spider', startDate: '2024-09-17', endDate: '2024-09-19', startTime: '16:00', endTime: '16:00', driverId: 3, status: 'delivery', carId: 5, history: [{ts: '2024-09-16 14:25', event: 'Заказ создан'}, {ts: '2024-09-16 14:30', event: 'Водитель С.Сидоров назначен'}] },
+                { id: 1056, clientName: 'Jane Smith', carName: 'Bentley Continental', startDate: '2024-09-20', endDate: '2024-09-21', startTime: '09:00', endTime: '19:00', driverId: 2, status: 'preparation', carId: 4, history: [{ts: '2024-09-19 18:00', event: 'Заказ создан'}, {ts: '2024-09-19 18:05', event: 'Водитель П.Петров назначен'}] },
+                { id: 1057, clientName: 'Alex Johnson', carName: 'Mercedes G-Wagen', startDate: '2024-09-20', endDate: '2024-09-20', startTime: '15:00', endTime: '22:00', driverId: 2, status: 'settlement', carId: 2, history: [{ts: '2024-09-19 18:00', event: 'Заказ создан'}, {ts: '2024-09-19 18:05', event: 'Водитель П.Петров назначен'}] }
+            ]
+        };
+        const KANBAN_STATUSES = {
+            'new': 'Новая Заявка',
+            'preparation': 'Подготовка Авто',
+            'delivery': 'Ожидает доставки',
+            'in-rent': 'В Аренде',
+            'settlement': 'Возврат и Расчет'
+        };
+
+        // --- LUCIDE ICONS HELPER ---
+        const lucideIcons = {
+            menu: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/></svg>',
+            x: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>',
+            layoutDashboard: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>',
+            kanban: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 5v11"/><path d="M12 5v6"/><path d="M18 5v14"/></svg>',
+            calendar: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></svg>',
+            car: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><path d="M19 17a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z"/><path d="M5 17a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z"/><path d="M12 17H8"/><path d="m5 11 1-3h8l1 3"/><path d="M2 12h20"/></svg>',
+            users: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
+            logOut: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>',
+            chevronLeft: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>',
+            user: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',
+            phone: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>',
+            mapPin: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>',
+            check: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>',
+            camera: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>',
+            fileText: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg>'
+        };
+        const getIcon = (name, classes = 'w-5 h-5') => {
+            const svg = lucideIcons[name] || '';
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = svg;
+            const svgEl = tempDiv.firstChild;
+            if (svgEl) {
+                classes.split(' ').forEach(c => svgEl.classList.add(c));
+            }
+            return svgEl ? svgEl.outerHTML : '';
+        };
+        
+        // --- APP STATE ---
+        let appState = {
+            currentRole: 'manager',
+            currentPage: '',
+        };
+
+        const ROLES_CONFIG = {
+            manager: {
+                name: 'О. Менеджер',
+                email: 'manager@skyluxse.ae',
+                defaultPage: 'bookings',
+                nav: [
+                    { id: 'bookings', name: 'Заказы', icon: 'kanban' },
+                    { id: 'fleet-calendar', name: 'Календарь', icon: 'calendar' },
+                    { id: 'fleet-table', name: 'Автомобили', icon: 'car' },
+                    { id: 'clients-table', name: 'Клиенты', icon: 'users' }
+                ]
+            },
+            ceo: {
+                name: 'CEO',
+                email: 'ceo@skyluxse.ae',
+                defaultPage: 'dashboard',
+                nav: [
+                    { id: 'dashboard', name: 'Дашборд', icon: 'layoutDashboard' },
+                    { id: 'reports', name: 'Отчеты', icon: 'fileText' }
+                ]
+            },
+            driver: {
+                name: 'Водитель',
+                email: 'driver@skyluxse.ae',
+                defaultPage: 'driver-tasks',
+                nav: [] // Driver uses mobile view, no sidebar
+            }
+        };
+        
+        // --- DOM Elements ---
+        const sidebar = document.getElementById('sidebar');
+        const mainContent = document.getElementById('main-content');
+        const appContainer = document.getElementById('app-container');
+        const mobileViewContainer = document.getElementById('mobile-view');
+        const desktopPages = Array.from(document.querySelectorAll('#content-area > section.page'));
+
+        // --- RENDER FUNCTIONS ---
+        const renderSidebar = () => {
+            const roleConfig = ROLES_CONFIG[appState.currentRole];
+            const navEl = document.getElementById('sidebar-nav');
+            const profileEl = document.getElementById('sidebar-profile');
+            
+            navEl.innerHTML = roleConfig.nav.map(item => `
+                <a href="#/app/${item.id}" class="flex items-center p-2 space-x-3 rounded-md hover:bg-gray-100 text-gray-700" data-page="${item.id}">
+                    ${getIcon(item.icon, 'w-6 h-6')}
+                    <span class="font-medium">${item.name}</span>
+                </a>
+            `).join('');
+
+            profileEl.innerHTML = `
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center font-bold text-gray-600">
+                        ${roleConfig.name.substring(0,1)}
+                    </div>
+                    <div>
+                        <p class="font-semibold text-sm">${roleConfig.name}</p>
+                        <p class="text-xs text-gray-500">${roleConfig.email}</p>
+                    </div>
+                    <button class="ml-auto p-2 text-gray-500 hover:text-black">
+                        ${getIcon('logOut', 'w-5 h-5')}
+                    </button>
+                </div>
+            `;
+            updateActiveLink();
+        };
+
+        const updateActiveLink = () => {
+            document.querySelectorAll('#sidebar-nav a').forEach(a => {
+                a.classList.remove('bg-gray-100', 'font-bold');
+                const pageId = appState.currentPage.split('/')[0];
+                if (a.dataset.page === pageId) {
+                    a.classList.add('bg-gray-100', 'font-bold');
+                }
+            });
+        };
+        
+        const renderKanbanBoard = () => {
+            const board = document.getElementById('kanban-board');
+            if (!board) return;
+            board.innerHTML = Object.entries(KANBAN_STATUSES).map(([statusKey, statusValue]) => `
+                <div class="flex-shrink-0 w-80 bg-gray-100 rounded-lg">
+                    <div class="p-4 border-b">
+                        <h3 class="font-semibold">${statusValue}</h3>
+                    </div>
+                    <div class="p-2 space-y-2 h-full kanban-column" data-status="${statusKey}">
+                        ${MOCK_DATA.bookings
+                            .filter(b => b.status === statusKey)
+                            .map(booking => `
+                                <div class="geist-card p-4 cursor-pointer kanban-card" data-booking-id="${booking.id}">
+                                    <p class="font-semibold text-sm">${booking.carName}</p>
+                                    <p class="text-xs text-gray-600">${booking.clientName}</p>
+                                    <div class="text-xs text-gray-500 mt-2">
+                                        <span>${booking.startDate}</span> - <span>${booking.endDate}</span>
+                                    </div>
+                                </div>
+                            `).join('')
+                        }
+                    </div>
+                </div>
+            `).join('');
+
+            document.querySelectorAll('.kanban-column').forEach(col => {
+                new Sortable(col, {
+                    group: 'kanban',
+                    animation: 150,
+                    ghostClass: 'sortable-ghost'
+                });
+            });
+        };
+
+        const renderDetailPanel = (type, id) => {
+            const panel = document.getElementById('detail-panel');
+            let content = '';
+
+            if (type === 'bookings') {
+                const booking = MOCK_DATA.bookings.find(b => b.id == id);
+                if (!booking) return;
+                const client = MOCK_DATA.clients.find(c => c.name === booking.clientName) || {};
+                
+                const driverOptions = MOCK_DATA.drivers.map(d => 
+                    `<option value="${d.id}" ${booking.driverId === d.id ? 'selected' : ''}>${d.name}</option>`
+                ).join('');
+                
+                content = `
+                    <div class="p-6 border-b flex justify-between items-center">
+                        <h2 class="text-xl font-semibold">Заказ #${booking.id}</h2>
+                        <button id="close-panel-btn" class="p-2 text-gray-500 hover:text-black">${getIcon('x')}</button>
+                    </div>
+                    <div class="flex-1 overflow-y-auto p-6 space-y-6">
+                         <div>
+                            <h3 class="font-semibold mb-2">Детали бронирования</h3>
+                            <div class="space-y-3 text-sm">
+                               <p><strong>Авто:</strong> ${booking.carName}</p>
+                               <p><strong>Даты:</strong> ${booking.startDate} - ${booking.endDate}</p>
+                               <div>
+                                 <label class="block font-medium text-gray-700">Водитель</label>
+                                 <select class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md">
+                                    <option value="">Не назначен</option>
+                                    ${driverOptions}
+                                 </select>
+                               </div>
+                            </div>
+                         </div>
+                         <div>
+                            <h3 class="font-semibold mb-2">Клиент</h3>
+                            <div class="space-y-2 text-sm">
+                               <p><strong>Имя:</strong> ${client.name || 'N/A'}</p>
+                               <p><strong>Телефон:</strong> ${client.phone || 'N/A'}</p>
+                            </div>
+                         </div>
+                         <div>
+                            <h3 class="font-semibold mb-2">История</h3>
+                            <ul class="space-y-2 text-sm text-gray-600">
+                            ${(booking.history || []).map(h => `<li class="flex items-start"><span class="text-gray-400 mr-2 mt-1">${getIcon('check','w-4 h-4')}</span><div><p>${h.event}</p><p class="text-xs text-gray-400">${h.ts}</p></div></li>`).join('')}
+                            </ul>
+                         </div>
+                    </div>
+                    <div class="p-6 border-t bg-gray-50 flex space-x-2">
+                        <button class="flex-1 geist-button geist-button-secondary">Сохранить</button>
+                    </div>`;
+            } else if (type === 'fleet-table') {
+                 const car = MOCK_DATA.cars.find(c => c.id == id);
+                 if (!car) return;
+                 content = `
+                    <div class="p-6 border-b flex justify-between items-center">
+                        <h2 class="text-xl font-semibold">${car.name}</h2>
+                        <button id="close-panel-btn" class="p-2 text-gray-500 hover:text-black">${getIcon('x')}</button>
+                    </div>
+                    <div class="flex-1 overflow-y-auto p-6 space-y-4 text-sm">
+                        <img src="${car.imageUrl.replace('100/60', '400/240')}" class="w-full rounded-lg object-cover mb-4">
+                        <p><strong>Номер:</strong> ${car.plate}</p>
+                        <p><strong>Статус:</strong> ${car.status}</p>
+                        <p><strong>Пробег:</strong> ${car.mileage} км</p>
+                        <p><strong>Класс:</strong> ${car.class}</p>
+                        <p><strong>Цвет:</strong> ${car.color}</p>
+                        <p><strong>Год:</strong> ${car.year}</p>
+                    </div>`;
+            } else if (type === 'clients-table') {
+                 const client = MOCK_DATA.clients.find(c => c.id == id);
+                 if (!client) return;
+                 const clientHistory = MOCK_DATA.bookings.filter(b => b.clientName === client.name);
+                 content = `
+                    <div class="p-6 border-b flex justify-between items-center">
+                        <h2 class="text-xl font-semibold">${client.name}</h2>
+                        <button id="close-panel-btn" class="p-2 text-gray-500 hover:text-black">${getIcon('x')}</button>
+                    </div>
+                    <div class="flex-1 overflow-y-auto p-6 space-y-6">
+                        <div>
+                            <h3 class="font-semibold mb-2">Контактная информация</h3>
+                            <div class="space-y-2 text-sm">
+                                <p><strong>Телефон:</strong> ${client.phone}</p>
+                                <p><strong>Email:</strong> ${client.email}</p>
+                                <p><strong>Статус:</strong> ${client.status}</p>
+                                <p><strong>Задолженность:</strong> $${client.outstanding}</p>
+                                <p><strong>Общий оборот:</strong> $${client.turnover.toLocaleString()}</p>
+                            </div>
+                        </div>
+                        <div>
+                            <h3 class="font-semibold mb-2">История заказов</h3>
+                            <ul class="space-y-3 text-sm">
+                                ${clientHistory.map(b => `
+                                    <li class="p-3 bg-gray-50 rounded-md">
+                                        <p class="font-medium">${b.carName}</p>
+                                        <p class="text-xs text-gray-500">${b.startDate} to ${b.endDate}</p>
+                                    </li>
+                                `).join('') || '<p class="text-xs text-gray-500">Нет истории заказов.</p>'}
+                            </ul>
+                        </div>
+                    </div>`;
+            }
+
+            panel.innerHTML = content;
+            panel.classList.remove('translate-x-full');
+            document.getElementById('panel-overlay').classList.remove('hidden');
+            document.getElementById('close-panel-btn').addEventListener('click', closePanel);
+        };
+        
+        const closePanel = () => {
+            document.getElementById('detail-panel').classList.add('translate-x-full');
+            document.getElementById('panel-overlay').classList.add('hidden');
+        };
+
+        const renderTableView = (dataType) => {
+            const tableTitleEl = document.getElementById('table-title');
+            const tableHeadEl = document.getElementById('table-head');
+            const tableBodyEl = document.getElementById('table-body');
+            const addButton = document.getElementById('add-new-button');
+            let data, columns;
+
+            addButton.style.display = 'none';
+
+            if (dataType === 'fleet-table') {
+                tableTitleEl.textContent = 'Автомобили';
+                data = MOCK_DATA.cars;
+                columns = [
+                    { key: 'imageUrl', label: 'Фото' },
+                    { key: 'name', label: 'Название' },
+                    { key: 'plate', label: 'Номер' },
+                    { key: 'color', label: 'Цвет' },
+                    { key: 'year', label: 'Год' },
+                    { key: 'status', label: 'Статус' },
+                ];
+                addButton.style.display = 'inline-flex';
+            } else if (dataType === 'clients-table') {
+                tableTitleEl.textContent = 'Клиенты';
+                data = MOCK_DATA.clients;
+                columns = [
+                    { key: 'name', label: 'Имя' },
+                    { key: 'status', label: 'Статус' },
+                    { key: 'turnover', label: 'Оборот' },
+                    { key: 'outstanding', label: 'Задолженность' },
+                    { key: 'phone', label: 'Телефон' },
+                ];
+            }
+
+            tableHeadEl.innerHTML = `
+                ${columns.map(c => `<th class="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">${c.label}</th>`).join('')}
+                <th class="px-6 py-3"></th>
+            `;
+
+            const clientStatusColors = { VIP: 'bg-yellow-100 text-yellow-800', Gold: 'bg-amber-100 text-amber-800', Silver: 'bg-gray-100 text-gray-800' };
+            const carStatusColors = { Available: 'bg-green-100 text-green-800', 'In Rent': 'bg-blue-100 text-blue-800', Maintenance: 'bg-red-100 text-red-800' };
+
+            tableBodyEl.innerHTML = data.map(row => `
+                <tr class="hover:bg-gray-50">
+                    ${columns.map(c => {
+                        let cellContent = row[c.key];
+                        if (c.key === 'imageUrl') {
+                            cellContent = `<img src="${row.imageUrl}" class="w-16 h-10 object-cover rounded-md">`;
+                        }
+                        if (c.key === 'status') {
+                            if(dataType === 'clients-table') {
+                                cellContent = `<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${clientStatusColors[row.status] || ''}">${row.status}</span>`;
+                            } else {
+                                cellContent = `<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${carStatusColors[row.status] || ''}">${row.status}</span>`;
+                            }
+                        }
+                        if (c.key === 'outstanding' || c.key === 'turnover') {
+                             cellContent = `$${row[c.key].toLocaleString()}`;
+                        }
+                        return `<td class="px-6 py-4 whitespace-nowrap text-sm">${cellContent}</td>`
+                    }).join('')}
+                    <td class="px-6 py-4 text-right text-sm font-medium">
+                        <a href="#/app/${dataType}/${row.id}" class="text-indigo-600 hover:text-indigo-900">Edit</a>
+                    </td>
+                </tr>
+            `).join('');
+        };
+        
+        const renderDriverTasks = () => {
+            const listEl = document.getElementById('driver-tasks-list');
+            if (!listEl) return;
+            const driverId = 2; // Mock current driver
+            const tasks = MOCK_DATA.bookings.filter(b => b.driverId === driverId && ['delivery', 'preparation', 'settlement'].includes(b.status))
+                                           .sort((a,b) => a.startTime.localeCompare(b.startTime));
+
+            listEl.innerHTML = tasks.map(task => {
+                let taskType = '';
+                if (task.status === 'preparation') taskType = 'Забрать со стоянки';
+                if (task.status === 'delivery') taskType = 'Доставить клиенту';
+                if (task.status === 'settlement') taskType = 'Забрать у клиента';
+                return `
+                <div class="geist-card p-4 cursor-pointer" data-task-id="${task.id}">
+                    <div class="flex justify-between items-center">
+                        <div>
+                             <p class="font-semibold">${taskType}: ${task.carName}</p>
+                             <p class="text-sm text-gray-600">Клиент: ${task.clientName}</p>
+                        </div>
+                        <span class="text-lg font-bold">${task.startTime}</span>
+                    </div>
+                </div>
+            `}).join('') || '<p class="text-center text-gray-500 mt-8">Нет задач на сегодня</p>';
+        };
+        
+        const renderDriverTaskDetail = (taskId) => {
+            const task = MOCK_DATA.bookings.find(b => b.id == taskId);
+            if(!task) return;
+            
+            const client = MOCK_DATA.clients.find(c => c.name === task.clientName);
+            const contentEl = document.getElementById('driver-task-detail-content');
+
+            contentEl.innerHTML = `
+                <h2 class="text-2xl font-bold">Доставка: ${task.carName}</h2>
+                <div class="space-y-4">
+                    <div>
+                        <h3 class="font-semibold text-gray-500">Клиент</h3>
+                        <div class="flex items-center justify-between mt-2">
+                           <span>${client.name}</span>
+                           <a href="tel:${client.phone}" class="p-3 bg-gray-100 rounded-full">${getIcon('phone')}</a>
+                        </div>
+                    </div>
+                    <div>
+                        <h3 class="font-semibold text-gray-500">Адрес</h3>
+                        <div class="flex items-center justify-between mt-2">
+                           <span>Dubai Marina, Princess Tower</span>
+                           <a href="#" class="p-3 bg-gray-100 rounded-full">${getIcon('mapPin')}</a>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                   <h3 class="font-semibold text-gray-500 mb-2">Чек-лист</h3>
+                   <div class="space-y-2">
+                       <label class="flex items-center"><input type="checkbox" class="h-4 w-4 rounded border-gray-300 text-black focus:ring-black"> <span class="ml-2">Документы проверены</span></label>
+                       <label class="flex items-center"><input type="checkbox" class="h-4 w-4 rounded border-gray-300 text-black focus:ring-black"> <span class="ml-2">Осмотр кузова</span></label>
+                   </div>
+                </div>
+                <button class="w-full geist-button geist-button-secondary flex items-center justify-center">${getIcon('camera')} <span class="ml-2">Добавить фото повреждений</span></button>
+                <button class="w-full geist-button geist-button-primary">Завершить задачу</button>
+            `;
+        };
+        
+        const renderCalendar = () => {
+             const calendarBody = document.getElementById('calendar-body');
+             if(!calendarBody) return;
+
+             const calendarStartDate = 15; // Day of the month
+             const calendarDays = 7;
+
+             calendarBody.innerHTML = MOCK_DATA.cars.map(car => {
+                 const bookingsForCar = MOCK_DATA.bookings.filter(b => b.carId === car.id);
+                 const bookingsHtml = bookingsForCar.map(booking => {
+                     const startDay = parseInt(booking.startDate.slice(-2));
+                     const endDay = parseInt(booking.endDate.slice(-2));
+                     const offset = ((startDay - calendarStartDate) / calendarDays) * 100;
+                     const duration = ((endDay - startDay + 1) / calendarDays) * 100;
+
+                     if (startDay < calendarStartDate + calendarDays && endDay >= calendarStartDate) {
+                         return `<a href="#/app/bookings/${booking.id}" class="absolute bg-blue-100 hover:bg-blue-200 cursor-pointer h-full rounded-md flex flex-col items-center justify-center text-xs text-blue-800 font-medium p-1 overflow-hidden calendar-booking" 
+                                      style="left: ${Math.max(0, offset)}%; width: ${duration}%;">
+                                    <span class="font-semibold whitespace-nowrap">${booking.clientName}</span>
+                                    <span class="font-normal whitespace-nowrap">${booking.startTime} - ${booking.endTime}</span>
+                                 </a>`;
+                     }
+                     return '';
+                 }).join('');
+
+                 return `
+                     <div class="grid grid-cols-8 items-center h-20">
+                         <div class="col-span-1 px-2 flex flex-col items-center justify-center text-center">
+                             <img src="${car.imageUrl}" alt="${car.name}" class="w-16 h-10 object-cover rounded-md">
+                             <p class="font-semibold text-xs mt-1 truncate w-full">${car.name}</p>
+                         </div>
+                         <div class="col-span-7 h-full p-1 relative border-l">
+                             ${bookingsHtml}
+                         </div>
+                     </div>
+                 `
+             }).join('');
+        }
+        
+        const renderReports = () => {
+            const topCarsEl = document.getElementById('top-cars-report');
+            if(!topCarsEl) return;
+            topCarsEl.innerHTML = MOCK_DATA.cars.slice(0,5)
+                .sort((a,b) => (b.mileage * 0.1) - (a.mileage * 0.1)) // mock revenue
+                .map((car, index) => `
+                <li class="flex items-center justify-between py-2 border-b last:border-b-0">
+                    <div class="flex items-center">
+                        <span class="text-gray-500 font-bold w-6">${index + 1}.</span>
+                        <img src="${car.imageUrl}" class="w-12 h-8 object-cover rounded-md mx-4">
+                        <span class="font-semibold">${car.name}</span>
+                    </div>
+                    <span class="font-bold text-lg">$${((5-index)*2500 + 1000).toLocaleString()}</span>
+                </li>
+            `).join('');
+        }
+
+        // --- CHARTS ---
+        let bookingsChart, carClassChart;
+        const initCharts = () => {
+            const bookingsCtx = document.getElementById('bookings-chart')?.getContext('2d');
+            const carClassCtx = document.getElementById('car-class-chart')?.getContext('2d');
+            if(!bookingsCtx || !carClassCtx) return;
+
+            if (bookingsChart) bookingsChart.destroy();
+            bookingsChart = new Chart(bookingsCtx, {
+                type: 'bar',
+                data: { labels: ['ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ', 'ВС'], datasets: [{ label: 'Заказы', data: [5, 8, 6, 10, 7, 12, 9], backgroundColor: 'hsl(var(--primary))', borderRadius: 4 }] },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+
+            if (carClassChart) carClassChart.destroy();
+            carClassChart = new Chart(carClassCtx, {
+                type: 'doughnut',
+                data: { labels: ['Luxury', 'SUV', 'Sport'], datasets: [{ data: [ MOCK_DATA.cars.filter(c => c.class === 'Luxury').length, MOCK_DATA.cars.filter(c => c.class === 'SUV').length, MOCK_DATA.cars.filter(c => c.class === 'Sport').length ], backgroundColor: ['hsl(var(--primary))', 'hsl(var(--secondary-foreground))', 'hsl(var(--muted-foreground))'], }] },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        };
+
+        // --- LAYOUT MANAGER ---
+        const updateLayoutForRole = (role) => {
+            const isDriver = role === 'driver';
+            sidebar.classList.toggle('hidden', isDriver);
+            mainContent.classList.toggle('w-full', isDriver);
+            mainContent.classList.toggle('flex-1', !isDriver);
+            desktopPages.forEach(p => p.classList.toggle('hidden', isDriver));
+            mobileViewContainer.classList.toggle('hidden', !isDriver);
+        };
+
+        // --- SPA ROUTING ---
+        const router = () => {
+            const hash = window.location.hash || `#/app/${ROLES_CONFIG[appState.currentRole].defaultPage}`;
+            const [_, page, param, id] = hash.split('/');
+            
+            appState.currentPage = param;
+            closePanel(); // Close any open panels on navigation
+
+            document.querySelectorAll('.page').forEach(p => p.classList.add('hidden'));
+
+            let pageId = `page-${appState.currentPage}`;
+            let pageTitle = '';
+            
+            if (appState.currentPage && appState.currentPage.endsWith('-table')) {
+                 pageId = 'page-table-view';
+                 renderTableView(appState.currentPage);
+                 if (id) renderDetailPanel(appState.currentPage, id);
+            } else if (appState.currentPage === 'driver-task-detail') {
+                 pageId = 'page-driver-task-detail';
+                 renderDriverTaskDetail(id); 
+            } else if (appState.currentPage === 'bookings' && id) {
+                 renderDetailPanel('bookings', id);
+            }
+
+            const targetPage = document.getElementById(pageId);
+            if (targetPage) {
+                targetPage.classList.remove('hidden');
+                const roleConfig = ROLES_CONFIG[appState.currentRole];
+                const navItem = roleConfig.nav.find(i => i.id.startsWith(appState.currentPage.split('/')[0]));
+                pageTitle = navItem ? navItem.name : (roleConfig.defaultPage === appState.currentPage ? 'Задачи' : '');
+                document.getElementById('page-title').textContent = pageTitle;
+            } else {
+                 const defaultPage = ROLES_CONFIG[appState.currentRole].defaultPage;
+                 const defaultPageEl = document.getElementById(`page-${defaultPage}`)
+                 if (defaultPageEl) {
+                    defaultPageEl.classList.remove('hidden');
+                    if (appState.currentRole === 'driver') renderDriverTasks(); // Fix for empty driver page
+                 }
+                 window.location.hash = `#/app/${defaultPage}`;
+            }
+            
+            updateActiveLink();
+            
+            // Render content for specific pages
+            if(appState.currentPage === 'bookings') renderKanbanBoard();
+            if(appState.currentPage === 'dashboard') initCharts();
+            if(appState.currentPage === 'driver-tasks') renderDriverTasks();
+            if(appState.currentPage === 'fleet-calendar') renderCalendar();
+            if(appState.currentPage === 'reports') renderReports();
+        };
+        
+        // --- MODAL HANDLING ---
+        const carModal = document.getElementById('add-car-modal');
+        const openCarModal = () => carModal.classList.replace('hidden', 'flex');
+        const closeCarModal = () => carModal.classList.replace('flex', 'hidden');
+
+        // --- EVENT LISTENERS ---
+        document.getElementById('login-button').addEventListener('click', () => {
+            document.getElementById('page-login').classList.add('hidden');
+            appContainer.classList.remove('hidden');
+            initApp();
+        });
+
+        document.getElementById('role-switcher').addEventListener('change', (e) => {
+            appState.currentRole = e.target.value;
+            initApp();
+        });
+
+        document.getElementById('sidebar-nav').addEventListener('click', (e) => {
+            if(window.innerWidth < 768) sidebar.classList.add('-translate-x-full');
+        });
+        
+        document.getElementById('burger-menu').addEventListener('click', () => {
+            sidebar.classList.toggle('-translate-x-full');
+        });
+        
+        document.getElementById('panel-overlay').addEventListener('click', closePanel);
+
+        appContainer.addEventListener('click', e => {
+            const link = e.target.closest('a');
+            // Handle links inside tables etc. to open panels
+            if(link && link.href.includes('/app/')) {
+                 const [,,,page,id] = link.hash.split('/');
+                 if(page.endsWith('-table') || page === 'bookings') {
+                     renderDetailPanel(page, id);
+                 }
+            }
+
+            // Kanban card click
+            const kanbanCard = e.target.closest('.kanban-card');
+            if (kanbanCard) window.location.hash = `#/app/bookings/${kanbanCard.dataset.bookingId}`;
+            
+            // Driver task card click
+            const driverTaskCard = e.target.closest('#driver-tasks-list .geist-card');
+            if (driverTaskCard) window.location.hash = `#/app/driver-task-detail/${driverTaskCard.dataset.taskId}`;
+
+            // Back to tasks click
+            const backBtn = e.target.closest('.back-to-tasks');
+            if (backBtn) window.location.hash = '#/app/driver-tasks';
+        });
+
+        document.getElementById('add-new-button').addEventListener('click', () => {
+            if (appState.currentPage === 'fleet-table') openCarModal();
+        });
+        document.getElementById('close-modal-btn').addEventListener('click', closeCarModal);
+        document.getElementById('cancel-add-car-btn').addEventListener('click', closeCarModal);
+        document.getElementById('save-car-btn').addEventListener('click', () => {
+            const newCar = {
+                id: MOCK_DATA.cars.length + 1, name: document.getElementById('car-name-input').value, plate: document.getElementById('car-plate-input').value, color: document.getElementById('car-color-input').value, year: document.getElementById('car-year-input').value, status: 'Available', mileage: 0, class: 'Luxury', imageUrl: 'https://picsum.photos/seed/newcar/100/60'
+            };
+            MOCK_DATA.cars.push(newCar);
+            renderTableView('fleet-table');
+            closeCarModal();
+        });
+
+
+        window.addEventListener('hashchange', router);
+
+        // --- APP INITIALIZATION ---
+        const initApp = () => {
+            document.querySelector('#burger-menu').innerHTML = getIcon('menu');
+            const backBtn = document.querySelector('.back-to-tasks');
+            if (backBtn && !backBtn.innerHTML.includes('svg')) {
+                 backBtn.insertAdjacentHTML('afterbegin', getIcon('chevronLeft'));
+            }
+            updateLayoutForRole(appState.currentRole);
+            renderSidebar();
+            // Reset hash to default page for the new role to trigger router correctly
+            window.location.hash = `#/app/${ROLES_CONFIG[appState.currentRole].defaultPage}`;
+            router();
+        };
+        
+    });
+    </script>
+</body>
+</html>
