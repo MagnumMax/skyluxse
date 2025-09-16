@@ -14,10 +14,13 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     
     <!-- Chart.js via CDN -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
 
     <!-- SortableJS via CDN -->
-    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js" defer></script>
+
+    <!-- QR Code Generator via CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js" defer></script>
 
     <style>
         /* Vercel/Geist inspired design system */
@@ -64,13 +67,18 @@
             border-radius: var(--radius);
             font-weight: 500;
             padding: 0.5rem 1rem;
-            transition: background-color 0.2s;
+            transition: all 0.2s;
         }
+        .geist-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
         .geist-button-primary {
             background-color: hsl(var(--primary));
             color: hsl(var(--primary-foreground));
         }
-        .geist-button-primary:hover {
+        .geist-button-primary:hover:not(:disabled) {
             background-color: hsl(var(--primary) / 0.9);
         }
         .geist-button-secondary {
@@ -78,7 +86,7 @@
             color: hsl(var(--secondary-foreground));
             border: 1px solid hsl(var(--border));
         }
-        .geist-button-secondary:hover {
+        .geist-button-secondary:hover:not(:disabled) {
             background-color: hsl(var(--accent));
         }
 
@@ -102,6 +110,76 @@
         }
         .modal-content {
             transition: transform 0.2s ease-in-out;
+        }
+        
+        /* Calendar specific styles */
+        .calendar-booking {
+            min-width: 60px;
+            min-height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            border-radius: 4px;
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            color: #1f2937; /* Darker text for better contrast */
+            font-weight: 500;
+            font-size: 0.7rem;
+        }
+        
+        .calendar-booking:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.05);
+        }
+        
+        .calendar-row {
+            position: relative;
+            min-height: 50px;
+        }
+        
+        .calendar-day-cell {
+            position: relative;
+            background-color: #f9fafb;
+            border-left: 1px solid #e5e7eb;
+        }
+        
+        /* Improve calendar cell appearance */
+        .calendar-day-cell::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image: repeating-linear-gradient(45deg, transparent, transparent 5px, rgba(229, 231, 235, 0.5) 5px, rgba(229, 231, 235, 0.5) 6px);
+        }
+        
+        /* Responsive improvements */
+        @media (max-width: 768px) {
+            .calendar-booking {
+                min-width: 60px;
+                font-size: 0.65rem;
+                padding: 2px;
+            }
+            
+            .calendar-row {
+                min-height: 50px;
+            }
+            
+            /* Adjust grid for smaller screens */
+            #page-fleet-calendar .grid-cols-10 {
+                grid-template-columns: repeat(8, minmax(0, 1fr));
+            }
+            
+            #page-fleet-calendar .col-span-2 {
+                grid-column: span 1 / span 1;
+            }
+            
+            #page-fleet-calendar .col-span-8 {
+                grid-column: span 7 / span 7;
+            }
         }
     </style>
 </head>
@@ -150,7 +228,7 @@
                         <!-- Burger icon will be injected -->
                     </button>
                     <h2 id="page-title" class="text-xl font-semibold"></h2>
-                    <div></div> <!-- Spacer -->
+                    <button id="page-action-button" class="geist-button geist-button-primary hidden"></button>
                 </header>
 
                 <!-- Page content will be rendered here -->
@@ -220,27 +298,119 @@
                     
                     <!-- Page: Bookings (Kanban) -->
                     <section id="page-bookings" class="page hidden h-full">
-                         <div class="flex items-center justify-between mb-4">
-                            <div class="flex space-x-2">
-                                <input type="text" placeholder="Поиск..." class="px-3 py-2 border border-gray-300 rounded-md shadow-sm w-64">
-                            </div>
-                        </div>
-                        <div id="kanban-board" class="flex space-x-4 h-[calc(100%-4rem)] overflow-x-auto pb-4 no-scrollbar">
+                        <div id="kanban-board" class="flex space-x-4 h-full overflow-x-auto pb-4 no-scrollbar">
                             <!-- Kanban columns will be rendered here -->
                         </div>
                     </section>
                     
                     <!-- Page: Fleet Calendar -->
                     <section id="page-fleet-calendar" class="page hidden">
-                        <div class="geist-card p-4">
-                            <h2 class="text-lg font-semibold text-center mb-4">Календарь загрузки (15-21 Сентября)</h2>
-                            <div class="grid grid-cols-8 text-center text-sm font-medium text-gray-500 border-b">
-                                <div class="col-span-1">Авто</div>
-                                <div>ПН, 15</div><div>ВТ, 16</div><div>СР, 17</div><div>ЧТ, 18</div><div>ПТ, 19</div><div>СБ, 20</div><div>ВС, 21</div>
+                        <div class="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                                <h2 class="text-2xl font-bold text-gray-900">Календарь загрузки</h2>
+                                <p class="text-gray-600 mt-1">15-21 Сентября 2024</p>
+                            </div>
+                            <div class="mt-4 sm:mt-0 flex space-x-3 relative">
+                                <button class="flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
+                                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                    </svg>
+                                    Сегодня
+                                </button>
+                                <button id="fleet-calendar-filter-toggle" class="flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
+                                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 0 1 1-1h1.586a1 1 0 0 1 .707.293l2 2A1 1 0 0 1 8 6h8a1 1 0 0 1 .707-.293l2-2a1 1 0 0 1 .707-.293H21a1 1 0 1 1 0 2H3a1 1 0 0 1-1-1zM3 10a1 1 0 0 1 1-1h1.586a1 1 0 0 1 .707.293l2 2A1 1 0 0 1 8 12h8a1 1 0 0 1 .707-.293l2-2a1 1 0 0 1 .707-.293H21a1 1 0 1 1 0 2H3a1 1 0 0 1-1-1zM12 16a1 1 0 0 1 1-1h2.586a1 1 0 0 1 .707.293l2 2A1 1 0 0 1 18 18h2a1 1 0 1 1 0 2h-1.586a1 1 0 0 1-.707-.293l-2-2a1 1 0 0 1-.707-.293H13a1 1 0 0 1-1-1z"></path>
+                                    </svg>
+                                    Фильтры
+                                </button>
+                                <div id="fleet-calendar-filter-dropdown" class="hidden absolute top-full left-0 bg-white border border-gray-300 rounded-md shadow-lg z-10 mt-2 w-80 p-4">
+                                    <div class="flex flex-wrap gap-4 items-end">
+                                        <div class="flex-1">
+                                            <label class="block text-sm font-medium text-gray-700 mb-1">Класс авто</label>
+                                            <select id="fleet-calendar-class-filter" class="px-3 py-2 border border-gray-300 rounded-md text-sm w-full">
+                                                <option value="">Все классы</option>
+                                                <option value="Luxury">Люкс</option>
+                                                <option value="SUV">Внедорожники</option>
+                                                <option value="Sport">Спорткары</option>
+                                            </select>
+                                        </div>
+                                        <div class="flex-1">
+                                            <label class="block text-sm font-medium text-gray-700 mb-1">Статус</label>
+                                            <select id="fleet-calendar-status-filter" class="px-3 py-2 border border-gray-300 rounded-md text-sm w-full">
+                                                <option value="">Все статусы</option>
+                                                <option value="Available">Доступно</option>
+                                                <option value="In Rent">В аренде</option>
+                                                <option value="Maintenance">На обслуживании</option>
+                                            </select>
+                                        </div>
+                                        <button id="fleet-calendar-clear-filters" class="p-2 text-gray-500 hover:text-gray-700 rounded">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <path d="M18 6 6 18"/>
+                                                <path d="m6 6 12 12"/>
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </div>
+                                <button class="flex items-center px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700">
+                                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                                    </svg>
+                                    Новый заказ
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="geist-card overflow-hidden">
+                            <div class="grid grid-cols-10 bg-gray-50 border-b">
+                                <div class="col-span-2 py-3 px-4 text-sm font-medium text-gray-500">Авто</div>
+                                <div class="py-3 px-4 text-center text-sm font-medium text-gray-900">ПН<span class="block text-xs text-gray-500 mt-1">15</span></div>
+                                <div class="py-3 px-4 text-center text-sm font-medium text-gray-900">ВТ<span class="block text-xs text-gray-500 mt-1">16</span></div>
+                                <div class="py-3 px-4 text-center text-sm font-medium text-gray-900">СР<span class="block text-xs text-gray-500 mt-1">17</span></div>
+                                <div class="py-3 px-4 text-center text-sm font-medium text-gray-900">ЧТ<span class="block text-xs text-gray-500 mt-1">18</span></div>
+                                <div class="py-3 px-4 text-center text-sm font-medium text-gray-900">ПТ<span class="block text-xs text-gray-500 mt-1">19</span></div>
+                                <div class="py-3 px-4 text-center text-sm font-medium text-gray-900">СБ<span class="block text-xs text-gray-500 mt-1">20</span></div>
+                                <div class="py-3 px-4 text-center text-sm font-medium text-gray-900">ВС<span class="block text-xs text-gray-500 mt-1">21</span></div>
                             </div>
                             <div id="calendar-body" class="divide-y divide-gray-200">
                                 <!-- Calendar rows will be injected -->
                             </div>
+                        </div>
+                        
+                        <div class="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div class="geist-card p-4">
+                                <div class="flex items-center">
+                                    <div class="flex-shrink-0 w-3 h-3 bg-blue-500 rounded-full"></div>
+                                    <div class="ml-3">
+                                        <p class="text-sm font-medium text-gray-900">Забронировано</p>
+                                        <p class="text-sm text-gray-500">Авто в аренде</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="geist-card p-4">
+                                <div class="flex items-center">
+                                    <div class="flex-shrink-0 w-3 h-3 bg-green-500 rounded-full"></div>
+                                    <div class="ml-3">
+                                        <p class="text-sm font-medium text-gray-900">Доступно</p>
+                                        <p class="text-sm text-gray-500">Свободные авто</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="geist-card p-4">
+                                <div class="flex items-center">
+                                    <div class="flex-shrink-0 w-3 h-3 bg-yellow-500 rounded-full"></div>
+                                    <div class="ml-3">
+                                        <p class="text-sm font-medium text-gray-900">Обслуживание</p>
+                                        <p class="text-sm text-gray-500">Авто на ТО</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+                    
+                    <!-- Page: Tasks -->
+                    <section id="page-tasks" class="page hidden">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6" id="tasks-board">
+                           <!-- Task columns will be injected here -->
                         </div>
                     </section>
 
@@ -249,7 +419,6 @@
                         <div class="geist-card">
                              <div class="p-4 flex justify-between items-center">
                                  <h3 id="table-title" class="text-lg font-semibold"></h3>
-                                 <button id="add-new-button" class="geist-button geist-button-primary">Добавить</button>
                              </div>
                              <div class="overflow-x-auto">
                                 <table class="w-full text-left">
@@ -303,36 +472,17 @@
     </div>
     <div id="panel-overlay" class="fixed inset-0 bg-black bg-opacity-30 hidden z-20"></div>
 
-    <!-- Component: Add Car Modal -->
-    <div id="add-car-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-40 modal-overlay">
-        <div class="geist-card w-full max-w-lg transform scale-95 modal-content">
-             <div class="p-6 border-b flex justify-between items-center">
-                <h2 class="text-xl font-semibold">Добавить автомобиль</h2>
-                <button id="close-modal-btn" class="p-2 text-gray-500 hover:text-black">&times;</button>
-            </div>
-            <div class="p-6 space-y-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">Название</label>
-                    <input type="text" id="car-name-input" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md">
-                </div>
-                 <div>
-                    <label class="block text-sm font-medium text-gray-700">Номер</label>
-                    <input type="text" id="car-plate-input" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md">
-                </div>
-                 <div>
-                    <label class="block text-sm font-medium text-gray-700">Цвет</label>
-                    <input type="text" id="car-color-input" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md">
-                </div>
-                 <div>
-                    <label class="block text-sm font-medium text-gray-700">Год</label>
-                    <input type="number" id="car-year-input" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md">
-                </div>
-            </div>
-            <div class="p-6 border-t bg-gray-50 flex justify-end space-x-2">
-                <button id="cancel-add-car-btn" class="geist-button geist-button-secondary">Отмена</button>
-                <button id="save-car-btn" class="geist-button geist-button-primary">Сохранить</button>
-            </div>
+    <!-- Component: Add/Edit Modals -->
+    <div id="generic-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-40 modal-overlay">
+        <div class="geist-card w-full max-w-lg transform scale-95 modal-content" id="generic-modal-content">
+            <!-- Modal content will be injected -->
         </div>
+    </div>
+    
+     <!-- Component: Document Viewer Modal -->
+    <div id="doc-viewer-modal" class="fixed inset-0 bg-black bg-opacity-75 hidden items-center justify-center z-50 modal-overlay p-4">
+        <button id="close-doc-viewer" class="absolute top-4 right-4 text-white text-4xl">&times;</button>
+        <img id="doc-viewer-image" src="" class="max-h-full max-w-full">
     </div>
 
     <!-- Component: Role Switcher -->
@@ -353,11 +503,11 @@
         // --- MOCK DATA ---
         const MOCK_DATA = {
             cars: [
-                { id: 1, name: 'Rolls-Royce Ghost', plate: 'X123XX', status: 'Available', mileage: 15000, class: 'Luxury', imageUrl: 'https://picsum.photos/seed/ghost/100/60', color: 'Black', year: 2023 },
-                { id: 2, name: 'Mercedes G-Wagen', plate: 'Y456YY', status: 'In Rent', mileage: 25000, class: 'SUV', imageUrl: 'https://picsum.photos/seed/gwagen/100/60', color: 'White', year: 2022 },
-                { id: 3, name: 'Lamborghini Huracan', plate: 'Z789ZZ', status: 'Available', mileage: 8000, class: 'Sport', imageUrl: 'https://picsum.photos/seed/huracan/100/60', color: 'Green', year: 2023 },
-                { id: 4, name: 'Bentley Continental', plate: 'A111AA', status: 'Maintenance', mileage: 32000, class: 'Luxury', imageUrl: 'https://picsum.photos/seed/bentley/100/60', color: 'Silver', year: 2021 },
-                { id: 5, name: 'Ferrari 488 Spider', plate: 'B222BB', status: 'Available', mileage: 12000, class: 'Sport', imageUrl: 'https://picsum.photos/seed/ferrari/100/60', color: 'Red', year: 2022 }
+                { id: 1, name: 'Rolls-Royce Ghost', plate: 'X123XX', status: 'Available', mileage: 15000, class: 'Luxury', imageUrl: 'https://picsum.photos/seed/ghost/100/60', color: 'Black', year: 2023, insuranceExpiry: '2025-10-05', mulkiyaExpiry: '2025-11-20', documents: ['https://picsum.photos/seed/doc1/400/300', 'https://picsum.photos/seed/doc2/400/300'], inspections: [{date: '2024-09-10', driver: 'Иванов И.', photos: ['https://picsum.photos/seed/dmg1/100/80', 'https://picsum.photos/seed/dmg2/100/80']}] },
+                { id: 2, name: 'Mercedes G-Wagen', plate: 'Y456YY', status: 'In Rent', mileage: 25000, class: 'SUV', imageUrl: 'https://picsum.photos/seed/gwagen/100/60', color: 'White', year: 2022, insuranceExpiry: '2025-08-15', mulkiyaExpiry: '2025-09-10', documents: [], inspections: [] },
+                { id: 3, name: 'Lamborghini Huracan', plate: 'Z789ZZ', status: 'Available', mileage: 8000, class: 'Sport', imageUrl: 'https://picsum.photos/seed/huracan/100/60', color: 'Green', year: 2023, insuranceExpiry: '2026-01-20', mulkiyaExpiry: '2026-02-15', documents: [], inspections: [] },
+                { id: 4, name: 'Bentley Continental', plate: 'A111AA', status: 'Maintenance', mileage: 32000, class: 'Luxury', imageUrl: 'https://picsum.photos/seed/bentley/100/60', color: 'Silver', year: 2021, insuranceExpiry: '2025-07-30', mulkiyaExpiry: '2025-08-25', documents: [], inspections: [] },
+                { id: 5, name: 'Ferrari 488 Spider', plate: 'B222BB', status: 'Available', mileage: 12000, class: 'Sport', imageUrl: 'https://picsum.photos/seed/ferrari/100/60', color: 'Red', year: 2022, insuranceExpiry: '2025-12-01', mulkiyaExpiry: '2026-01-05', documents: [], inspections: [] }
             ],
             drivers: [
                 { id: 1, name: 'Иванов Иван', status: 'Available' },
@@ -365,17 +515,24 @@
                 { id: 3, name: 'Сидоров Сидор', status: 'Available' }
             ],
             clients: [
-                { id: 1, name: 'John Doe', phone: '+971 50 123 4567', email: 'john.doe@email.com', status: 'VIP', outstanding: 0, turnover: 25400 },
-                { id: 2, name: 'Jane Smith', phone: '+971 55 987 6543', email: 'jane.smith@email.com', status: 'Gold', outstanding: 150, turnover: 12500 },
-                { id: 3, name: 'Alex Johnson', phone: '+971 52 555 8899', email: 'alex.j@email.com', status: 'Silver', outstanding: 0, turnover: 3200 }
+                { id: 1, name: 'John Doe', phone: '+971 50 123 4567', email: 'john.doe@email.com', status: 'VIP', outstanding: 0, turnover: 25400, documents: [{name: 'Emirates ID', url: 'https://picsum.photos/seed/id1/400/300'}, {name: 'Driving License', url: 'https://picsum.photos/seed/lic1/400/300'}] },
+                { id: 2, name: 'Jane Smith', phone: '+971 55 987 6543', email: 'jane.smith@email.com', status: 'Gold', outstanding: 150, turnover: 12500, documents: [{name: 'Passport', url: 'https://picsum.photos/seed/id2/400/300'}] },
+                { id: 3, name: 'Alex Johnson', phone: '+971 52 555 8899', email: 'alex.j@email.com', status: 'Silver', outstanding: 0, turnover: 3200, documents: [] }
             ],
             bookings: [
-                { id: 1052, clientName: 'John Doe', carName: 'Mercedes G-Wagen', startDate: '2024-09-15', endDate: '2024-09-18', startTime: '14:00', endTime: '18:00', driverId: 2, status: 'in-rent', carId: 2, history: [{ts: '2024-09-14 10:05', event: 'Заказ создан'}, {ts: '2024-09-14 10:15', event: 'Водитель П.Петров назначен'}] },
-                { id: 1053, clientName: 'Jane Smith', carName: 'Lamborghini Huracan', startDate: '2024-09-16', endDate: '2024-09-17', startTime: '10:00', endTime: '20:00', driverId: 1, status: 'preparation', carId: 3, history: [{ts: '2024-09-15 11:30', event: 'Заказ создан'}] },
-                { id: 1054, clientName: 'Alex Johnson', carName: 'Rolls-Royce Ghost', startDate: '2024-09-18', endDate: '2024-09-21', startTime: '11:00', endTime: '11:00', driverId: null, status: 'new', carId: 1, history: [{ts: '2024-09-16 09:00', event: 'Заказ создан'}] },
-                { id: 1055, clientName: 'John Doe', carName: 'Ferrari 488 Spider', startDate: '2024-09-17', endDate: '2024-09-19', startTime: '16:00', endTime: '16:00', driverId: 3, status: 'delivery', carId: 5, history: [{ts: '2024-09-16 14:25', event: 'Заказ создан'}, {ts: '2024-09-16 14:30', event: 'Водитель С.Сидоров назначен'}] },
-                { id: 1056, clientName: 'Jane Smith', carName: 'Bentley Continental', startDate: '2024-09-20', endDate: '2024-09-21', startTime: '09:00', endTime: '19:00', driverId: 2, status: 'preparation', carId: 4, history: [{ts: '2024-09-19 18:00', event: 'Заказ создан'}, {ts: '2024-09-19 18:05', event: 'Водитель П.Петров назначен'}] },
-                { id: 1057, clientName: 'Alex Johnson', carName: 'Mercedes G-Wagen', startDate: '2024-09-20', endDate: '2024-09-20', startTime: '15:00', endTime: '22:00', driverId: 2, status: 'settlement', carId: 2, history: [{ts: '2024-09-19 18:00', event: 'Заказ создан'}, {ts: '2024-09-19 18:05', event: 'Водитель П.Петров назначен'}] }
+                { id: 1052, clientName: 'John Doe', carName: 'Mercedes G-Wagen', startDate: '2024-09-15', endDate: '2024-09-18', startTime: '14:00', endTime: '18:00', driverId: 2, status: 'in-rent', carId: 2, totalAmount: 3200, paidAmount: 3200, history: [{ts: '2024-09-14 10:05', event: 'Заказ создан'}, {ts: '2024-09-14 10:15', event: 'Водитель П.Петров назначен'}] },
+                { id: 1053, clientName: 'Jane Smith', carName: 'Lamborghini Huracan', startDate: '2024-09-16', endDate: '2024-09-17', startTime: '10:00', endTime: '20:00', driverId: 1, status: 'preparation', carId: 3, totalAmount: 4500, paidAmount: 2000, targetTime: new Date().getTime() + 2 * 60 * 60 * 1000, history: [{ts: '2024-09-15 11:30', event: 'Заказ создан'}] },
+                { id: 1054, clientName: 'Alex Johnson', carName: 'Rolls-Royce Ghost', startDate: '2024-09-18', endDate: '2024-09-21', startTime: '11:00', endTime: '11:00', driverId: null, status: 'new', carId: 1, totalAmount: 8000, paidAmount: 0, targetTime: new Date().getTime() + 1 * 24 * 60 * 60 * 1000, history: [{ts: '2024-09-16 09:00', event: 'Заказ создан'}] },
+                { id: 1055, clientName: 'John Doe', carName: 'Ferrari 488 Spider', startDate: '2024-09-17', endDate: '2024-09-19', startTime: '16:00', endTime: '16:00', driverId: 3, status: 'delivery', carId: 5, totalAmount: 5500, paidAmount: 5500, targetTime: new Date().getTime() + 4 * 60 * 60 * 1000, history: [{ts: '2024-09-16 14:25', event: 'Заказ создан'}, {ts: '2024-09-16 14:30', event: 'Водитель С.Сидоров назначен'}] },
+                { id: 1056, clientName: 'Jane Smith', carName: 'Bentley Continental', startDate: '2024-09-20', endDate: '2024-09-21', startTime: '09:00', endTime: '19:00', driverId: 2, status: 'preparation', carId: 4, totalAmount: 3800, paidAmount: 3800, targetTime: new Date().getTime() + 2 * 24 * 60 * 60 * 1000, history: [{ts: '2024-09-19 18:00', event: 'Заказ создан'}, {ts: '2024-09-19 18:05', event: 'Водитель П.Петров назначен'}] },
+                { id: 1057, clientName: 'Alex Johnson', carName: 'Mercedes G-Wagen', startDate: '2024-09-20', endDate: '2024-09-20', startTime: '15:00', endTime: '22:00', driverId: 2, status: 'settlement', carId: 2, totalAmount: 1200, paidAmount: 1200, history: [{ts: '2024-09-19 18:00', event: 'Заказ создан'}, {ts: '2024-09-19 18:05', event: 'Водитель П.Петров назначен'}] },
+                { id: 1058, clientName: 'John Doe', carName: 'Lamborghini Huracan', startDate: '2024-09-21', endDate: '2024-09-22', startTime: '12:00', endTime: '12:00', driverId: 2, status: 'delivery', carId: 3, totalAmount: 4500, paidAmount: 4500, targetTime: new Date().getTime() + 3 * 24 * 60 * 60 * 1000, history: [{ts: '2024-09-20 10:00', event: 'Заказ создан'}] },
+            ],
+            tasks: [
+                {id: 1, title: 'Доставить G-Wagen #1052', assigneeId: 2, status: 'inprogress', deadline: '2024-09-15 14:00', bookingId: 1052, priority: 'Высокий', description: 'Подготовить автомобиль после мойки и доставить клиенту к 14:00. Проверить уровень топлива перед выездом.'},
+                {id: 2, title: 'Забрать Huracan #1053', assigneeId: 1, status: 'todo', deadline: '2024-09-17 20:00', bookingId: 1053, priority: 'Средний', description: 'Забрать автомобиль после завершения аренды, зафиксировать пробег и сделать фото кузова.'},
+                {id: 3, title: 'Отвезти Continental в химчистку', assigneeId: 3, status: 'todo', deadline: '2024-09-18 10:00', priority: 'Низкий', description: 'Доставить автомобиль в партнерскую химчистку и договориться о выдаче на вечер.'},
+                {id: 4, title: 'Документы от клиента A.Johnson', assigneeId: 2, status: 'done', deadline: '2024-09-14 18:00', bookingId: 1057, priority: 'Средний', description: 'Проверить оригиналы документов клиента и загрузить сканы в систему.'},
             ]
         };
         const KANBAN_STATUSES = {
@@ -393,7 +550,7 @@
             layoutDashboard: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>',
             kanban: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 5v11"/><path d="M12 5v6"/><path d="M18 5v14"/></svg>',
             calendar: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></svg>',
-            car: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><path d="M19 17a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z"/><path d="M5 17a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z"/><path d="M12 17H8"/><path d="m5 11 1-3h8l1 3"/><path d="M2 12h20"/></svg>',
+            car: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/><path d="M2 17H2a2 2 0 0 0 2-2V5c0-1.1.9-2 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 0 2 2h0"/><polyline points="5 17 9 13 15 13 19 17"/></svg>',
             users: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
             logOut: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>',
             chevronLeft: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>',
@@ -402,23 +559,37 @@
             mapPin: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>',
             check: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>',
             camera: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>',
-            fileText: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg>'
+            fileText: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg>',
+            clock: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
+            clipboardCheck: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 14 2 2 4-4"/></svg>',
+            copy: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="8" height="14" x="9" y="9" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>'
         };
+        const iconCache = new Map();
         const getIcon = (name, classes = 'w-5 h-5') => {
-            const svg = lucideIcons[name] || '';
-            const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = svg;
-            const svgEl = tempDiv.firstChild;
-            if (svgEl) {
-                classes.split(' ').forEach(c => svgEl.classList.add(c));
+            const cacheKey = `${name}|${classes}`;
+            if (iconCache.has(cacheKey)) {
+                return iconCache.get(cacheKey);
             }
-            return svgEl ? svgEl.outerHTML : '';
+
+            const svg = lucideIcons[name];
+            if (!svg) return '';
+
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = svg.trim();
+            const svgEl = tempDiv.firstChild;
+            if (!svgEl) return '';
+
+            classes.split(' ').filter(Boolean).forEach(c => svgEl.classList.add(c));
+            const renderedSvg = svgEl.outerHTML;
+            iconCache.set(cacheKey, renderedSvg);
+            return renderedSvg;
         };
         
         // --- APP STATE ---
         let appState = {
             currentRole: 'manager',
             currentPage: '',
+            timerInterval: null,
         };
 
         const ROLES_CONFIG = {
@@ -428,6 +599,7 @@
                 defaultPage: 'bookings',
                 nav: [
                     { id: 'bookings', name: 'Заказы', icon: 'kanban' },
+                    { id: 'tasks', name: 'Задачи', icon: 'clipboardCheck' },
                     { id: 'fleet-calendar', name: 'Календарь', icon: 'calendar' },
                     { id: 'fleet-table', name: 'Автомобили', icon: 'car' },
                     { id: 'clients-table', name: 'Клиенты', icon: 'users' }
@@ -439,7 +611,8 @@
                 defaultPage: 'dashboard',
                 nav: [
                     { id: 'dashboard', name: 'Дашборд', icon: 'layoutDashboard' },
-                    { id: 'reports', name: 'Отчеты', icon: 'fileText' }
+                    { id: 'reports', name: 'Отчеты', icon: 'fileText' },
+                    { id: 'tasks', name: 'Задачи', icon: 'clipboardCheck' },
                 ]
             },
             driver: {
@@ -455,7 +628,9 @@
         const mainContent = document.getElementById('main-content');
         const appContainer = document.getElementById('app-container');
         const mobileViewContainer = document.getElementById('mobile-view');
+        const detailPanel = document.getElementById('detail-panel');
         const desktopPages = Array.from(document.querySelectorAll('#content-area > section.page'));
+        const pageActionButton = document.getElementById('page-action-button');
 
         // --- RENDER FUNCTIONS ---
         const renderSidebar = () => {
@@ -500,46 +675,61 @@
         const renderKanbanBoard = () => {
             const board = document.getElementById('kanban-board');
             if (!board) return;
-            board.innerHTML = Object.entries(KANBAN_STATUSES).map(([statusKey, statusValue]) => `
-                <div class="flex-shrink-0 w-80 bg-gray-100 rounded-lg">
+            const groupedBookings = Object.keys(KANBAN_STATUSES).reduce((acc, key) => {
+                acc[key] = [];
+                return acc;
+            }, {});
+
+            MOCK_DATA.bookings.forEach(booking => {
+                if (!groupedBookings[booking.status]) groupedBookings[booking.status] = [];
+                groupedBookings[booking.status].push(booking);
+            });
+
+            board.innerHTML = Object.entries(KANBAN_STATUSES).map(([statusKey, statusValue]) => {
+                const bookings = groupedBookings[statusKey] || [];
+                return `
+                <div class="flex-shrink-0 w-60 bg-gray-100 rounded-lg">
                     <div class="p-4 border-b">
                         <h3 class="font-semibold">${statusValue}</h3>
                     </div>
                     <div class="p-2 space-y-2 h-full kanban-column" data-status="${statusKey}">
-                        ${MOCK_DATA.bookings
-                            .filter(b => b.status === statusKey)
-                            .map(booking => `
+                        ${bookings
+                            .map(booking => {
+                                const timerHtml = ['new', 'preparation', 'delivery'].includes(booking.status)
+                                ? `<div class="card-timer text-xs text-red-600 flex items-center mt-2" data-target-time="${booking.targetTime}"></div>` : '';
+                                return `
                                 <div class="geist-card p-4 cursor-pointer kanban-card" data-booking-id="${booking.id}">
                                     <p class="font-semibold text-sm">${booking.carName}</p>
                                     <p class="text-xs text-gray-600">${booking.clientName}</p>
                                     <div class="text-xs text-gray-500 mt-2">
                                         <span>${booking.startDate}</span> - <span>${booking.endDate}</span>
                                     </div>
-                                </div>
-                            `).join('')
+                                    ${timerHtml}
+                                </div>`
+                            }).join('')
                         }
                     </div>
                 </div>
-            `).join('');
+            `;
+            }).join('');
 
             document.querySelectorAll('.kanban-column').forEach(col => {
-                new Sortable(col, {
-                    group: 'kanban',
-                    animation: 150,
-                    ghostClass: 'sortable-ghost'
-                });
+                new Sortable(col, { group: 'kanban', animation: 150, ghostClass: 'sortable-ghost' });
             });
+
+            startTimers();
         };
 
         const renderDetailPanel = (type, id) => {
-            const panel = document.getElementById('detail-panel');
+            const panel = detailPanel;
             let content = '';
 
             if (type === 'bookings') {
                 const booking = MOCK_DATA.bookings.find(b => b.id == id);
                 if (!booking) return;
                 const client = MOCK_DATA.clients.find(c => c.name === booking.clientName) || {};
-                
+                const dueAmount = (booking.totalAmount || 0) - (booking.paidAmount || 0);
+
                 const driverOptions = MOCK_DATA.drivers.map(d => 
                     `<option value="${d.id}" ${booking.driverId === d.id ? 'selected' : ''}>${d.name}</option>`
                 ).join('');
@@ -565,10 +755,30 @@
                             </div>
                          </div>
                          <div>
-                            <h3 class="font-semibold mb-2">Клиент</h3>
-                            <div class="space-y-2 text-sm">
-                               <p><strong>Имя:</strong> ${client.name || 'N/A'}</p>
-                               <p><strong>Телефон:</strong> ${client.phone || 'N/A'}</p>
+                            <h3 class="font-semibold mb-2">Финансы</h3>
+                            <div class="text-sm space-y-2">
+                                <p class="flex justify-between"><span>Сумма:</span> <strong>$${booking.totalAmount}</strong></p>
+                                <p class="flex justify-between"><span>Оплачено:</span> <span class="text-green-600">$${booking.paidAmount}</span></p>
+                                <p class="flex justify-between border-t pt-2 mt-2"><span>Осталось:</span> <strong class="text-red-600">$${dueAmount}</strong></p>
+                            </div>
+                         </div>
+                         <div class="geist-card p-4">
+                            <h4 class="font-medium mb-2 text-sm">Сгенерировать ссылку на оплату</h4>
+                            <div class="space-y-3">
+                                <input type="number" value="${dueAmount}" placeholder="Сумма" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md stripe-amount-input">
+                                <select class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md stripe-reason-select">
+                                    <option>Доплата по аренде</option>
+                                    <option>Продление</option>
+                                    <option>Дополнительные мили</option>
+                                </select>
+                                <button type="button" class="w-full geist-button geist-button-secondary text-sm generate-stripe-link" data-booking-id="${booking.id}">Создать Stripe ссылку</button>
+                                <div id="stripe-link-result" class="hidden space-y-2">
+                                    <div class="flex items-center justify-between bg-gray-100 rounded-md px-3 py-2 gap-3">
+                                        <a id="stripe-link-anchor" href="#" target="_blank" rel="noopener" class="text-blue-600 hover:underline break-all flex-1">—</a>
+                                        <button type="button" class="copy-stripe-link p-2 text-gray-500 hover:text-black rounded-md" title="Скопировать ссылку">${getIcon('copy', 'w-4 h-4')}</button>
+                                    </div>
+                                    <p id="stripe-copy-feedback" class="text-xs text-green-600 hidden">Ссылка скопирована</p>
+                                </div>
                             </div>
                          </div>
                          <div>
@@ -577,9 +787,6 @@
                             ${(booking.history || []).map(h => `<li class="flex items-start"><span class="text-gray-400 mr-2 mt-1">${getIcon('check','w-4 h-4')}</span><div><p>${h.event}</p><p class="text-xs text-gray-400">${h.ts}</p></div></li>`).join('')}
                             </ul>
                          </div>
-                    </div>
-                    <div class="p-6 border-t bg-gray-50 flex space-x-2">
-                        <button class="flex-1 geist-button geist-button-secondary">Сохранить</button>
                     </div>`;
             } else if (type === 'fleet-table') {
                  const car = MOCK_DATA.cars.find(c => c.id == id);
@@ -589,14 +796,31 @@
                         <h2 class="text-xl font-semibold">${car.name}</h2>
                         <button id="close-panel-btn" class="p-2 text-gray-500 hover:text-black">${getIcon('x')}</button>
                     </div>
-                    <div class="flex-1 overflow-y-auto p-6 space-y-4 text-sm">
-                        <img src="${car.imageUrl.replace('100/60', '400/240')}" class="w-full rounded-lg object-cover mb-4">
-                        <p><strong>Номер:</strong> ${car.plate}</p>
-                        <p><strong>Статус:</strong> ${car.status}</p>
-                        <p><strong>Пробег:</strong> ${car.mileage} км</p>
-                        <p><strong>Класс:</strong> ${car.class}</p>
-                        <p><strong>Цвет:</strong> ${car.color}</p>
-                        <p><strong>Год:</strong> ${car.year}</p>
+                    <div class="flex-1 overflow-y-auto p-6 space-y-6">
+                        <img src="${car.imageUrl.replace('100/60', '400/240')}" class="w-full rounded-lg object-cover">
+                        <div>
+                            <h3 class="font-semibold mb-2">Документы</h3>
+                            <div class="text-sm space-y-2">
+                                <p><strong>Страховка до:</strong> ${car.insuranceExpiry}</p>
+                                <p><strong>Mulkiya до:</strong> ${car.mulkiyaExpiry}</p>
+                            </div>
+                            <div class="grid grid-cols-2 gap-2 mt-2">
+                                ${car.documents.map(doc => `<img src="${doc}" class="rounded-md cursor-pointer doc-image">`).join('')}
+                            </div>
+                        </div>
+                        <div>
+                            <h3 class="font-semibold mb-2">История инспекций</h3>
+                            <ul class="space-y-3 text-sm">
+                            ${car.inspections.map(insp => `
+                                <li class="p-3 bg-gray-50 rounded-md">
+                                    <p class="font-medium">${insp.date} - ${insp.driver}</p>
+                                    <div class="flex space-x-2 mt-2">
+                                        ${insp.photos.map(p => `<img src="${p}" class="w-16 h-12 object-cover rounded cursor-pointer doc-image">`).join('')}
+                                    </div>
+                                </li>
+                            `).join('') || '<p class="text-xs text-gray-500">Нет инспекций.</p>'}
+                            </ul>
+                        </div>
                     </div>`;
             } else if (type === 'clients-table') {
                  const client = MOCK_DATA.clients.find(c => c.id == id);
@@ -639,7 +863,7 @@
         };
         
         const closePanel = () => {
-            document.getElementById('detail-panel').classList.add('translate-x-full');
+            detailPanel.classList.add('translate-x-full');
             document.getElementById('panel-overlay').classList.add('hidden');
         };
 
@@ -647,33 +871,16 @@
             const tableTitleEl = document.getElementById('table-title');
             const tableHeadEl = document.getElementById('table-head');
             const tableBodyEl = document.getElementById('table-body');
-            const addButton = document.getElementById('add-new-button');
             let data, columns;
-
-            addButton.style.display = 'none';
 
             if (dataType === 'fleet-table') {
                 tableTitleEl.textContent = 'Автомобили';
                 data = MOCK_DATA.cars;
-                columns = [
-                    { key: 'imageUrl', label: 'Фото' },
-                    { key: 'name', label: 'Название' },
-                    { key: 'plate', label: 'Номер' },
-                    { key: 'color', label: 'Цвет' },
-                    { key: 'year', label: 'Год' },
-                    { key: 'status', label: 'Статус' },
-                ];
-                addButton.style.display = 'inline-flex';
+                columns = [ { key: 'imageUrl', label: 'Фото' }, { key: 'name', label: 'Название' }, { key: 'status', label: 'Статус' }, { key: 'plate', label: 'Номер' }, { key: 'color', label: 'Цвет' }, { key: 'year', label: 'Год' } ];
             } else if (dataType === 'clients-table') {
                 tableTitleEl.textContent = 'Клиенты';
                 data = MOCK_DATA.clients;
-                columns = [
-                    { key: 'name', label: 'Имя' },
-                    { key: 'status', label: 'Статус' },
-                    { key: 'turnover', label: 'Оборот' },
-                    { key: 'outstanding', label: 'Задолженность' },
-                    { key: 'phone', label: 'Телефон' },
-                ];
+                columns = [ { key: 'name', label: 'Имя' }, { key: 'status', label: 'Статус' }, { key: 'turnover', label: 'Оборот' }, { key: 'outstanding', label: 'Задолженность' }, { key: 'phone', label: 'Телефон' } ];
             }
 
             tableHeadEl.innerHTML = `
@@ -688,19 +895,12 @@
                 <tr class="hover:bg-gray-50">
                     ${columns.map(c => {
                         let cellContent = row[c.key];
-                        if (c.key === 'imageUrl') {
-                            cellContent = `<img src="${row.imageUrl}" class="w-16 h-10 object-cover rounded-md">`;
-                        }
+                        if (c.key === 'imageUrl') cellContent = `<img src="${row.imageUrl}" class="w-16 h-10 object-cover rounded-md">`;
                         if (c.key === 'status') {
-                            if(dataType === 'clients-table') {
-                                cellContent = `<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${clientStatusColors[row.status] || ''}">${row.status}</span>`;
-                            } else {
-                                cellContent = `<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${carStatusColors[row.status] || ''}">${row.status}</span>`;
-                            }
+                            if(dataType === 'clients-table') cellContent = `<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${clientStatusColors[row.status] || ''}">${row.status}</span>`;
+                            else cellContent = `<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${carStatusColors[row.status] || ''}">${row.status}</span>`;
                         }
-                        if (c.key === 'outstanding' || c.key === 'turnover') {
-                             cellContent = `$${row[c.key].toLocaleString()}`;
-                        }
+                        if (c.key === 'outstanding' || c.key === 'turnover') cellContent = `$${row[c.key].toLocaleString()}`;
                         return `<td class="px-6 py-4 whitespace-nowrap text-sm">${cellContent}</td>`
                     }).join('')}
                     <td class="px-6 py-4 text-right text-sm font-medium">
@@ -722,6 +922,8 @@
                 if (task.status === 'preparation') taskType = 'Забрать со стоянки';
                 if (task.status === 'delivery') taskType = 'Доставить клиенту';
                 if (task.status === 'settlement') taskType = 'Забрать у клиента';
+                const targetTime = new Date(`${task.startDate}T${task.startTime}:00`).getTime();
+                const timerHtml = `<div class="card-timer text-xs text-red-600 flex items-center mt-2" data-target-time="${targetTime}"></div>`;
                 return `
                 <div class="geist-card p-4 cursor-pointer" data-task-id="${task.id}">
                     <div class="flex justify-between items-center">
@@ -731,8 +933,10 @@
                         </div>
                         <span class="text-lg font-bold">${task.startTime}</span>
                     </div>
+                    ${timerHtml}
                 </div>
             `}).join('') || '<p class="text-center text-gray-500 mt-8">Нет задач на сегодня</p>';
+            startTimers();
         };
         
         const renderDriverTaskDetail = (taskId) => {
@@ -741,10 +945,11 @@
             
             const client = MOCK_DATA.clients.find(c => c.name === task.clientName);
             const contentEl = document.getElementById('driver-task-detail-content');
+            const dueAmount = (task.totalAmount || 0) - (task.paidAmount || 0);
 
             contentEl.innerHTML = `
                 <h2 class="text-2xl font-bold">Доставка: ${task.carName}</h2>
-                <div class="space-y-4">
+                <div class="space-y-6">
                     <div>
                         <h3 class="font-semibold text-gray-500">Клиент</h3>
                         <div class="flex items-center justify-between mt-2">
@@ -752,58 +957,178 @@
                            <a href="tel:${client.phone}" class="p-3 bg-gray-100 rounded-full">${getIcon('phone')}</a>
                         </div>
                     </div>
-                    <div>
+                     <div>
                         <h3 class="font-semibold text-gray-500">Адрес</h3>
                         <div class="flex items-center justify-between mt-2">
                            <span>Dubai Marina, Princess Tower</span>
                            <a href="#" class="p-3 bg-gray-100 rounded-full">${getIcon('mapPin')}</a>
                         </div>
                     </div>
+                    <div>
+                        <h3 class="font-semibold text-gray-500 mb-2">Документы клиента</h3>
+                        <div class="space-y-2 text-sm">
+                           ${client.documents.map(doc => `<a href="#" class="text-blue-600 hover:underline client-doc-link" data-url="${doc.url}">${doc.name}</a>`).join('<br>')}
+                        </div>
+                    </div>
                 </div>
-                <div>
-                   <h3 class="font-semibold text-gray-500 mb-2">Чек-лист</h3>
-                   <div class="space-y-2">
-                       <label class="flex items-center"><input type="checkbox" class="h-4 w-4 rounded border-gray-300 text-black focus:ring-black"> <span class="ml-2">Документы проверены</span></label>
-                       <label class="flex items-center"><input type="checkbox" class="h-4 w-4 rounded border-gray-300 text-black focus:ring-black"> <span class="ml-2">Осмотр кузова</span></label>
-                   </div>
+                <div class="geist-card p-4 mt-6">
+                    <h4 class="font-medium mb-2 text-sm">Оплата</h4>
+                    <div class="space-y-3">
+                        <input type="number" id="payment-amount" value="${dueAmount}" placeholder="Сумма" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md">
+                        <button id="generate-qr-btn" class="w-full geist-button geist-button-secondary text-sm">Сгенерировать QR-код для оплаты</button>
+                        <div id="qrcode-container" class="flex justify-center p-4 bg-gray-50 rounded-md hidden"></div>
+                    </div>
                 </div>
-                <button class="w-full geist-button geist-button-secondary flex items-center justify-center">${getIcon('camera')} <span class="ml-2">Добавить фото повреждений</span></button>
-                <button class="w-full geist-button geist-button-primary">Завершить задачу</button>
+                <div class="space-y-4 mt-6">
+                    <h3 class="font-semibold text-gray-500">Прикрепить фото</h3>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Фото договора</label>
+                        <input type="file" accept="image/*" id="contract-photo" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md">
+                        <div id="contract-preview" class="mt-2 hidden">
+                            <img id="contract-img" class="max-w-full h-32 object-cover rounded-md">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Фото авто (до 4 шт.)</label>
+                        <input type="file" accept="image/*" multiple id="car-photos" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md">
+                        <div id="car-previews" class="grid grid-cols-2 gap-2 mt-2"></div>
+                    </div>
+                </div>
+                <div class="mt-6">
+                    <label class="flex items-center"><input id="doc-check" type="checkbox" class="h-4 w-4 rounded border-gray-300"> <span class="ml-2">Документы проверены</span></label>
+                </div>
+                <button id="complete-task-btn" disabled class="w-full geist-button geist-button-primary mt-4">Завершить задачу</button>
             `;
+
+            // Event listeners for photo attachments
+            const contractInput = document.getElementById('contract-photo');
+            const contractPreview = document.getElementById('contract-preview');
+            const contractImg = document.getElementById('contract-img');
+
+            if (contractInput) {
+                contractInput.addEventListener('change', function(e) {
+                    const file = e.target.files[0];
+                    if (file) {
+                        const reader = new FileReader();
+                        reader.onload = function(e) {
+                            contractImg.src = e.target.result;
+                            contractPreview.classList.remove('hidden');
+                        };
+                        reader.readAsDataURL(file);
+                    }
+                });
+            }
+
+            const carInput = document.getElementById('car-photos');
+            const carPreviews = document.getElementById('car-previews');
+
+            if (carInput) {
+                carInput.addEventListener('change', function(e) {
+                    const files = Array.from(e.target.files).slice(0, 4); // Limit to 4
+                    carPreviews.innerHTML = '';
+                    files.forEach(file => {
+                        const reader = new FileReader();
+                        reader.onload = function(e) {
+                            const img = document.createElement('img');
+                            img.src = e.target.result;
+                            img.className = 'w-full h-32 object-cover rounded-md';
+                            const div = document.createElement('div');
+                            div.appendChild(img);
+                            carPreviews.appendChild(div);
+                        };
+                        reader.readAsDataURL(file);
+                    });
+                });
+            }
         };
         
         const renderCalendar = () => {
              const calendarBody = document.getElementById('calendar-body');
              if(!calendarBody) return;
-
+        
+             const classFilterValue = document.getElementById('fleet-calendar-class-filter')?.value || '';
+             const statusFilterValue = document.getElementById('fleet-calendar-status-filter')?.value || '';
+        
+             let filteredCars = MOCK_DATA.cars;
+             if (classFilterValue) {
+                 filteredCars = filteredCars.filter(car => car.class === classFilterValue);
+             }
+             if (statusFilterValue) {
+                 filteredCars = filteredCars.filter(car => car.status === statusFilterValue);
+             }
+        
              const calendarStartDate = 15; // Day of the month
              const calendarDays = 7;
+             
+             // Get today's date to highlight current day
+             const today = new Date();
+             const todayDate = today.getDate();
+             const isCurrentWeek = today.getFullYear() === 2024 && today.getMonth() === 8; // September is month 8 (0-indexed)
 
-             calendarBody.innerHTML = MOCK_DATA.cars.map(car => {
-                 const bookingsForCar = MOCK_DATA.bookings.filter(b => b.carId === car.id);
+             calendarBody.innerHTML = filteredCars.map(car => {
+                 // Determine car status color
+                 let carStatusColor = 'bg-green-100 text-green-800'; // Default to available
+                 if (car.status === 'In Rent') carStatusColor = 'bg-blue-100 text-blue-800';
+                 else if (car.status === 'Maintenance') carStatusColor = 'bg-yellow-100 text-yellow-800';
+                 
+                 // Filter out bookings with status "Available"
+                 const bookingsForCar = MOCK_DATA.bookings.filter(b => b.carId === car.id && b.status !== 'available');
                  const bookingsHtml = bookingsForCar.map(booking => {
                      const startDay = parseInt(booking.startDate.slice(-2));
                      const endDay = parseInt(booking.endDate.slice(-2));
                      const offset = ((startDay - calendarStartDate) / calendarDays) * 100;
                      const duration = ((endDay - startDay + 1) / calendarDays) * 100;
-
+                     
+                     // Determine booking status color with less saturated colors
+                     let bookingColor = 'bg-blue-300';
+                     let bookingColorValue = '#93c5fd'; // blue-300
+                     if (booking.status === 'in-rent') {
+                         bookingColor = 'bg-blue-300';
+                         bookingColorValue = '#93c5fd'; // blue-300
+                     } else if (booking.status === 'preparation') {
+                         bookingColor = 'bg-purple-300';
+                         bookingColorValue = '#d8b4fe'; // purple-300
+                     } else if (booking.status === 'delivery') {
+                         bookingColor = 'bg-indigo-300';
+                         bookingColorValue = '#a5b4fc'; // indigo-300
+                     } else if (booking.status === 'settlement') {
+                         bookingColor = 'bg-teal-300';
+                         bookingColorValue = '#6ee7b7'; // teal-300
+                     }
+             
                      if (startDay < calendarStartDate + calendarDays && endDay >= calendarStartDate) {
-                         return `<a href="#/app/bookings/${booking.id}" class="absolute bg-blue-100 hover:bg-blue-200 cursor-pointer h-full rounded-md flex flex-col items-center justify-center text-xs text-blue-800 font-medium p-1 overflow-hidden calendar-booking" 
-                                      style="left: ${Math.max(0, offset)}%; width: ${duration}%;">
-                                    <span class="font-semibold whitespace-nowrap">${booking.clientName}</span>
-                                    <span class="font-normal whitespace-nowrap">${booking.startTime} - ${booking.endTime}</span>
-                                 </a>`;
+                         return `<div class="absolute calendar-booking calendar-booking-clickable text-gray-800 font-medium overflow-hidden shadow-sm hover:opacity-90 transition-all duration-200 cursor-pointer"
+                                       data-booking-id="${booking.id}"
+                                       style="left: ${Math.max(0, offset)}%; width: ${duration}%; background-color: ${bookingColorValue}; top: 2px; bottom: 2px; font-size: 0.7rem;">
+                                         <span class="font-semibold whitespace-nowrap truncate w-full text-center px-1">${booking.startDate} - ${booking.endDate}</span>
+                                         <span class="font-normal whitespace-nowrap truncate w-full text-center px-1">${booking.startTime} - ${booking.endTime}</span>
+                                      </div>`;
                      }
                      return '';
                  }).join('');
-
+             
+                 const statusIcon = car.status === 'Available'
+                     ? '<span class="w-3 h-3 rounded-full bg-green-500 absolute bottom-0 right-0 m-0.5" title="Доступен"></span>'
+                     : car.status === 'In Rent'
+                     ? '<span class="w-3 h-3 rounded-full bg-blue-500 absolute bottom-0 right-0 m-0.5" title="В аренде"></span>'
+                     : '<span class="w-3 h-3 rounded-full bg-yellow-500 absolute bottom-0 right-0 m-0.5" title="Обслуживание"></span>';
+             
                  return `
-                     <div class="grid grid-cols-8 items-center h-20">
-                         <div class="col-span-1 px-2 flex flex-col items-center justify-center text-center">
-                             <img src="${car.imageUrl}" alt="${car.name}" class="w-16 h-10 object-cover rounded-md">
-                             <p class="font-semibold text-xs mt-1 truncate w-full">${car.name}</p>
+                     <div class="grid grid-cols-10 items-center calendar-row hover:bg-gray-50 transition-colors" style="min-height: 50px;">
+                         <div class="col-span-2 px-4 py-2 flex items-center relative">
+                             <div class="relative">
+                                 <img src="${car.imageUrl}" alt="${car.name}" class="w-10 h-6 object-cover rounded-md">
+                                 ${statusIcon}
+                             </div>
+                             <div class="ml-3">
+                                 <p class="font-semibold text-xs truncate">${car.name}</p>
+                                 <div class="flex items-center">
+                                     <span class="text-xs text-gray-500 mr-2">${car.plate}</span>
+                                     <span class="text-xs text-gray-500">${car.color}</span>
+                                 </div>
+                             </div>
                          </div>
-                         <div class="col-span-7 h-full p-1 relative border-l">
+                         <div class="col-span-8 h-full relative calendar-day-cell">
                              ${bookingsHtml}
                          </div>
                      </div>
@@ -827,6 +1152,91 @@
                 </li>
             `).join('');
         }
+        
+        const renderTasksPage = () => {
+            const board = document.getElementById('tasks-board');
+            if (!board) return;
+
+            const statuses = { todo: 'К выполнению', inprogress: 'В работе', done: 'Выполнено' };
+            board.innerHTML = Object.entries(statuses).map(([statusKey, statusValue]) => {
+                const tasks = MOCK_DATA.tasks.filter(t => t.status === statusKey);
+                return `
+                    <div class="geist-card">
+                        <h3 class="p-4 font-semibold border-b">${statusValue}</h3>
+                        <div class="p-4 space-y-3">
+                           ${tasks.map(task => {
+                               const assignee = MOCK_DATA.drivers.find(d => d.id === task.assigneeId);
+                               const deadlineTimestamp = task.deadline ? new Date(task.deadline.replace(' ', 'T')).getTime() : NaN;
+                               let countdownBlock = '';
+                               if (task.status === 'done') {
+                                   countdownBlock = `<div class="flex items-center text-xs text-green-600 mt-2">${getIcon('check', 'w-3 h-3 mr-1')}Завершена</div>`;
+                               } else if (!Number.isNaN(deadlineTimestamp)) {
+                                   countdownBlock = `<div class="flex items-center text-xs text-gray-500 mt-2 task-countdown" data-target-time="${deadlineTimestamp}">${getIcon('clock', 'w-3 h-3 inline mr-1')}—</div>`;
+                               }
+                               return `
+                               <div class="p-3 bg-gray-50 rounded-md cursor-pointer task-card" data-task-id="${task.id}">
+                                  <p class="font-medium text-sm">${task.title}</p>
+                                  <div class="flex justify-between items-center text-xs text-gray-500 mt-2">
+                                     <span>${assignee ? assignee.name : 'N/A'}</span>
+                                     <span>${task.deadline}</span>
+                                  </div>
+                                  ${countdownBlock}
+                               </div>`
+                           }).join('') || '<p class="text-xs text-gray-500">Нет задач</p>'}
+                        </div>
+                    </div>
+                `
+            }).join('');
+
+            startTimers();
+        };
+
+        const openTaskDetailModal = (taskId) => {
+            const task = MOCK_DATA.tasks.find(t => t.id == taskId);
+            if (!task) return;
+
+            const assignee = MOCK_DATA.drivers.find(d => d.id === task.assigneeId);
+            const booking = task.bookingId ? MOCK_DATA.bookings.find(b => b.id === task.bookingId) : null;
+            const statusLabels = { todo: 'К выполнению', inprogress: 'В работе', done: 'Завершено' };
+            const statusBadge = statusLabels[task.status] || task.status;
+
+            openModal(`
+                <div class="p-6 border-b flex justify-between items-center">
+                    <h2 class="text-xl font-semibold">${task.title}</h2>
+                    <button class="p-2 text-gray-500 hover:text-black close-modal-btn">&times;</button>
+                </div>
+                <div class="p-6 space-y-5 text-sm">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-xs uppercase tracking-wide text-gray-500">Ответственный</p>
+                            <p class="font-medium mt-1">${assignee ? assignee.name : 'Не назначен'}</p>
+                        </div>
+                        <span class="px-3 py-1 rounded-full bg-gray-100 text-gray-700 text-xs font-semibold">${statusBadge}</span>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-gray-600">
+                        <div>
+                            <p class="font-semibold text-gray-500">Дедлайн</p>
+                            <p class="mt-1">${task.deadline}</p>
+                        </div>
+                        <div>
+                            <p class="font-semibold text-gray-500">Приоритет</p>
+                            <p class="mt-1">${task.priority || '—'}</p>
+                        </div>
+                    </div>
+                    ${task.description ? `<div>
+                        <p class="font-semibold text-gray-500">Описание</p>
+                        <p class="mt-1 text-gray-700 leading-relaxed">${task.description}</p>
+                    </div>` : ''}
+                    ${booking ? `<div class="border-t pt-4">
+                        <p class="font-semibold text-gray-500 mb-2">Связанный заказ</p>
+                        <div class="flex flex-col space-y-2">
+                            <span><strong>#${booking.id}</strong> · ${booking.carName}</span>
+                            <a class="text-blue-600 hover:underline text-sm" href="#/app/bookings/${booking.id}">Открыть детали бронирования</a>
+                        </div>
+                    </div>` : ''}
+                </div>
+            `);
+        };
 
         // --- CHARTS ---
         let bookingsChart, carClassChart;
@@ -843,9 +1253,22 @@
             });
 
             if (carClassChart) carClassChart.destroy();
+            const carClassOrder = ['Luxury', 'SUV', 'Sport'];
+            const classCounts = MOCK_DATA.cars.reduce((acc, car) => {
+                acc[car.class] = (acc[car.class] || 0) + 1;
+                return acc;
+            }, {});
+            const carClassData = carClassOrder.map(cls => classCounts[cls] || 0);
+
             carClassChart = new Chart(carClassCtx, {
                 type: 'doughnut',
-                data: { labels: ['Luxury', 'SUV', 'Sport'], datasets: [{ data: [ MOCK_DATA.cars.filter(c => c.class === 'Luxury').length, MOCK_DATA.cars.filter(c => c.class === 'SUV').length, MOCK_DATA.cars.filter(c => c.class === 'Sport').length ], backgroundColor: ['hsl(var(--primary))', 'hsl(var(--secondary-foreground))', 'hsl(var(--muted-foreground))'], }] },
+                data: {
+                    labels: carClassOrder,
+                    datasets: [{
+                        data: carClassData,
+                        backgroundColor: ['hsl(var(--primary))', 'hsl(var(--secondary-foreground))', 'hsl(var(--muted-foreground))'],
+                    }]
+                },
                 options: { responsive: true, maintainAspectRatio: false }
             });
         };
@@ -859,9 +1282,69 @@
             desktopPages.forEach(p => p.classList.toggle('hidden', isDriver));
             mobileViewContainer.classList.toggle('hidden', !isDriver);
         };
+        
+        // --- KANBAN CARD TIMERS ---
+        const startTimers = () => {
+            if (appState.timerInterval) clearInterval(appState.timerInterval);
+
+            const updateCountdowns = () => {
+                const now = new Date().getTime();
+
+                document.querySelectorAll('.card-timer').forEach(timerEl => {
+                    const targetTime = parseInt(timerEl.dataset.targetTime, 10);
+                    if (!targetTime) return;
+                    const diff = targetTime - now;
+
+                    if (diff <= 0) {
+                        timerEl.innerHTML = `Просрочено`;
+                        timerEl.classList.add('text-red-600');
+                        return;
+                    }
+                    const d = Math.floor(diff / (1000 * 60 * 60 * 24));
+                    const h = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                    const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                    timerEl.innerHTML = `${getIcon('clock', 'w-3 h-3 inline mr-1')} ${d}д ${h}ч ${m}м`;
+                });
+
+                document.querySelectorAll('.task-countdown').forEach(timerEl => {
+                    const targetTime = parseInt(timerEl.dataset.targetTime, 10);
+                    if (!targetTime || Number.isNaN(targetTime)) return;
+
+                    const diff = targetTime - now;
+                    timerEl.classList.remove('text-green-600', 'text-amber-500', 'text-red-600');
+
+                    if (diff <= 0) {
+                        timerEl.innerHTML = `${getIcon('clock', 'w-3 h-3 inline mr-1')} Просрочено`;
+                        timerEl.classList.add('text-red-600');
+                        return;
+                    }
+
+                    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+                    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                    const parts = [];
+                    if (days > 0) parts.push(`${days}д`);
+                    parts.push(`${hours}ч`);
+                    parts.push(`${minutes}м`);
+                    timerEl.innerHTML = `${getIcon('clock', 'w-3 h-3 inline mr-1')} ${parts.join(' ')}`;
+
+                    if (diff <= 2 * 60 * 60 * 1000) {
+                        timerEl.classList.add('text-red-600');
+                    } else if (diff <= 6 * 60 * 60 * 1000) {
+                        timerEl.classList.add('text-amber-500');
+                    } else {
+                        timerEl.classList.add('text-green-600');
+                    }
+                });
+            };
+
+            updateCountdowns();
+            appState.timerInterval = setInterval(updateCountdowns, 1000);
+        };
 
         // --- SPA ROUTING ---
         const router = () => {
+            if (appState.timerInterval) clearInterval(appState.timerInterval);
             const hash = window.location.hash || `#/app/${ROLES_CONFIG[appState.currentRole].defaultPage}`;
             const [_, page, param, id] = hash.split('/');
             
@@ -871,7 +1354,6 @@
             document.querySelectorAll('.page').forEach(p => p.classList.add('hidden'));
 
             let pageId = `page-${appState.currentPage}`;
-            let pageTitle = '';
             
             if (appState.currentPage && appState.currentPage.endsWith('-table')) {
                  pageId = 'page-table-view';
@@ -887,18 +1369,27 @@
             const targetPage = document.getElementById(pageId);
             if (targetPage) {
                 targetPage.classList.remove('hidden');
-                const roleConfig = ROLES_CONFIG[appState.currentRole];
-                const navItem = roleConfig.nav.find(i => i.id.startsWith(appState.currentPage.split('/')[0]));
-                pageTitle = navItem ? navItem.name : (roleConfig.defaultPage === appState.currentPage ? 'Задачи' : '');
-                document.getElementById('page-title').textContent = pageTitle;
             } else {
                  const defaultPage = ROLES_CONFIG[appState.currentRole].defaultPage;
                  const defaultPageEl = document.getElementById(`page-${defaultPage}`)
                  if (defaultPageEl) {
                     defaultPageEl.classList.remove('hidden');
-                    if (appState.currentRole === 'driver') renderDriverTasks(); // Fix for empty driver page
                  }
                  window.location.hash = `#/app/${defaultPage}`;
+            }
+
+            const roleConfig = ROLES_CONFIG[appState.currentRole];
+            const navItem = roleConfig.nav.find(i => i.id.startsWith(appState.currentPage.split('/')[0]));
+            const pageTitle = navItem ? navItem.name : (roleConfig.defaultPage === appState.currentPage ? 'Задачи' : '');
+            document.getElementById('page-title').textContent = pageTitle;
+            
+            pageActionButton.classList.add('hidden');
+            if(appState.currentPage === 'tasks') {
+                pageActionButton.textContent = "Добавить задачу";
+                pageActionButton.classList.remove('hidden');
+            } else if(appState.currentPage === 'fleet-table') {
+                pageActionButton.textContent = "Добавить авто";
+                pageActionButton.classList.remove('hidden');
             }
             
             updateActiveLink();
@@ -907,15 +1398,61 @@
             if(appState.currentPage === 'bookings') renderKanbanBoard();
             if(appState.currentPage === 'dashboard') initCharts();
             if(appState.currentPage === 'driver-tasks') renderDriverTasks();
-            if(appState.currentPage === 'fleet-calendar') renderCalendar();
+            if(appState.currentPage === 'driver-tasks') startTimers();
+            if(appState.currentPage === 'fleet-calendar') {
+                renderCalendar();
+                const filterToggle = document.getElementById('fleet-calendar-filter-toggle');
+                const dropdown = document.getElementById('fleet-calendar-filter-dropdown');
+                const classFilter = document.getElementById('fleet-calendar-class-filter');
+                const statusFilter = document.getElementById('fleet-calendar-status-filter');
+                const clearFiltersBtn = document.getElementById('fleet-calendar-clear-filters');
+                if (filterToggle && dropdown) {
+                    filterToggle.addEventListener('click', () => {
+                        dropdown.classList.toggle('hidden');
+                    });
+                }
+                if (classFilter) {
+                    classFilter.addEventListener('change', () => {
+                        renderCalendar();
+                        dropdown.classList.add('hidden');
+                    });
+                }
+                if (statusFilter) {
+                    statusFilter.addEventListener('change', () => {
+                        renderCalendar();
+                        dropdown.classList.add('hidden');
+                    });
+                }
+                if (clearFiltersBtn) {
+                    clearFiltersBtn.addEventListener('click', () => {
+                        if (classFilter) classFilter.value = '';
+                        if (statusFilter) statusFilter.value = '';
+                        renderCalendar();
+                        dropdown.classList.add('hidden');
+                    });
+                }
+            }
             if(appState.currentPage === 'reports') renderReports();
+            if(appState.currentPage === 'tasks') renderTasksPage();
         };
         
         // --- MODAL HANDLING ---
-        const carModal = document.getElementById('add-car-modal');
-        const openCarModal = () => carModal.classList.replace('hidden', 'flex');
-        const closeCarModal = () => carModal.classList.replace('flex', 'hidden');
+        const genericModal = document.getElementById('generic-modal');
+        const genericModalContent = document.getElementById('generic-modal-content');
+        
+        const openModal = (content) => {
+            genericModalContent.innerHTML = content;
+            genericModal.classList.replace('hidden', 'flex');
+        }
+        const closeModal = () => genericModal.classList.replace('flex', 'hidden');
 
+        const docViewer = document.getElementById('doc-viewer-modal');
+        const openDocViewer = (url) => {
+            document.getElementById('doc-viewer-image').src = url;
+            docViewer.classList.replace('hidden', 'flex');
+        }
+        const closeDocViewer = () => docViewer.classList.replace('flex', 'hidden');
+        
         // --- EVENT LISTENERS ---
         document.getElementById('login-button').addEventListener('click', () => {
             document.getElementById('page-login').classList.add('hidden');
@@ -940,41 +1477,204 @@
 
         appContainer.addEventListener('click', e => {
             const link = e.target.closest('a');
-            // Handle links inside tables etc. to open panels
             if(link && link.href.includes('/app/')) {
                  const [,,,page,id] = link.hash.split('/');
-                 if(page.endsWith('-table') || page === 'bookings') {
+                 if(id && (page.endsWith('-table') || page === 'bookings')) {
                      renderDetailPanel(page, id);
                  }
             }
 
-            // Kanban card click
+            const taskCard = e.target.closest('.task-card');
+            if (taskCard) {
+                openTaskDetailModal(taskCard.dataset.taskId);
+                return;
+            }
+
             const kanbanCard = e.target.closest('.kanban-card');
             if (kanbanCard) window.location.hash = `#/app/bookings/${kanbanCard.dataset.bookingId}`;
             
-            // Driver task card click
             const driverTaskCard = e.target.closest('#driver-tasks-list .geist-card');
             if (driverTaskCard) window.location.hash = `#/app/driver-task-detail/${driverTaskCard.dataset.taskId}`;
 
-            // Back to tasks click
             const backBtn = e.target.closest('.back-to-tasks');
             if (backBtn) window.location.hash = '#/app/driver-tasks';
+            
+            const calendarBooking = e.target.closest('.calendar-booking-clickable');
+            if (calendarBooking && appState.currentPage === 'fleet-calendar') {
+                const bookingId = calendarBooking.dataset.bookingId;
+                renderDetailPanel('bookings', bookingId);
+                e.preventDefault();
+                return;
+            }
+            
+            const docImage = e.target.closest('.doc-image');
+            if(docImage) openDocViewer(docImage.src);
+
+            const clientDocLink = e.target.closest('.client-doc-link');
+            if(clientDocLink) {
+                e.preventDefault();
+                openDocViewer(clientDocLink.dataset.url);
+            }
+            
+            // Handle calendar buttons
+            if (e.target.closest('button') && e.target.closest('button').textContent.includes('Сегодня')) {
+                // In a real app, this would scroll to today's date or refresh the view
+                alert('Календарь обновлен до текущей даты');
+            }
+            
+            // Handle new booking button
+            if (e.target.closest('button') && e.target.closest('button').textContent.includes('Новый заказ')) {
+                // This would open a modal to create a new booking
+                openModal(`
+                    <div class="p-6 border-b flex justify-between items-center">
+                        <h2 class="text-xl font-semibold">Новый заказ</h2>
+                        <button class="p-2 text-gray-500 hover:text-black close-modal-btn">&times;</button>
+                    </div>
+                    <div class="p-6 space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Клиент</label>
+                            <select class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md">
+                                ${MOCK_DATA.clients.map(client => `<option>${client.name}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Автомобиль</label>
+                            <select class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md">
+                                ${MOCK_DATA.cars.filter(car => car.status === 'Available').map(car => `<option>${car.name}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Дата начала</label>
+                                <input type="date" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Дата окончания</label>
+                                <input type="date" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="p-6 border-t bg-gray-50 flex justify-end space-x-3">
+                        <button class="geist-button geist-button-secondary close-modal-btn">Отмена</button>
+                        <button class="geist-button geist-button-primary">Создать заказ</button>
+                    </div>
+                `);
+            }
+             
+            // Event delegation for dynamically added elements inside panels/modals
+            if (e.target.id === 'doc-check') {
+                document.getElementById('complete-task-btn').disabled = !e.target.checked;
+            }
+            if (e.target.id === 'generate-qr-btn') {
+                const qrContainer = document.getElementById('qrcode-container');
+                const amount = document.getElementById('payment-amount').value;
+                qrContainer.innerHTML = '';
+                new QRCode(qrContainer, `https://stripe.com/pay/mock_link_for_${amount}`);
+                qrContainer.classList.remove('hidden');
+            }
         });
 
-        document.getElementById('add-new-button').addEventListener('click', () => {
-            if (appState.currentPage === 'fleet-table') openCarModal();
-        });
-        document.getElementById('close-modal-btn').addEventListener('click', closeCarModal);
-        document.getElementById('cancel-add-car-btn').addEventListener('click', closeCarModal);
-        document.getElementById('save-car-btn').addEventListener('click', () => {
-            const newCar = {
-                id: MOCK_DATA.cars.length + 1, name: document.getElementById('car-name-input').value, plate: document.getElementById('car-plate-input').value, color: document.getElementById('car-color-input').value, year: document.getElementById('car-year-input').value, status: 'Available', mileage: 0, class: 'Luxury', imageUrl: 'https://picsum.photos/seed/newcar/100/60'
-            };
-            MOCK_DATA.cars.push(newCar);
-            renderTableView('fleet-table');
-            closeCarModal();
+        detailPanel.addEventListener('click', e => {
+            const stripeBtn = e.target.closest('.generate-stripe-link');
+            if (stripeBtn) {
+                const amountInput = detailPanel.querySelector('.stripe-amount-input');
+                const reasonSelect = detailPanel.querySelector('.stripe-reason-select');
+                const amountValue = amountInput ? amountInput.value : '';
+                const reasonValue = reasonSelect ? reasonSelect.value : '';
+                const bookingId = stripeBtn.dataset.bookingId;
+                const sanitizedAmount = amountValue ? amountValue.toString().replace(',', '.') : '0';
+                const reasonSlug = reasonValue ? reasonValue.toLowerCase().replace(/[^a-zа-я0-9]+/gi, '-').replace(/^-+|-+$/g, '') : 'payment';
+                const linkToken = Math.random().toString(36).slice(2, 8);
+                const stripeLink = `https://pay.stripe.com/mock/skyluxse-${bookingId}-${reasonSlug}-${linkToken}?amount=${encodeURIComponent(sanitizedAmount || '0')}`;
+
+                const resultContainer = detailPanel.querySelector('#stripe-link-result');
+                const anchor = detailPanel.querySelector('#stripe-link-anchor');
+                const copyBtn = detailPanel.querySelector('.copy-stripe-link');
+                const feedback = detailPanel.querySelector('#stripe-copy-feedback');
+
+                if (anchor) {
+                    anchor.href = stripeLink;
+                    anchor.textContent = stripeLink;
+                }
+                if (copyBtn) {
+                    copyBtn.dataset.link = stripeLink;
+                }
+                if (feedback) {
+                    feedback.textContent = 'Ссылка скопирована';
+                    feedback.classList.add('hidden');
+                }
+                if (resultContainer) {
+                    resultContainer.classList.remove('hidden');
+                }
+                return;
+            }
+
+            const copyStripeBtn = e.target.closest('.copy-stripe-link');
+            if (copyStripeBtn) {
+                const linkValue = copyStripeBtn.dataset.link;
+                const feedback = detailPanel.querySelector('#stripe-copy-feedback');
+                const showFeedback = (text, success = true) => {
+                    if (feedback) {
+                        feedback.textContent = text;
+                        feedback.classList.toggle('text-green-600', success);
+                        feedback.classList.toggle('text-red-600', !success);
+                        feedback.classList.remove('hidden');
+                    }
+                };
+
+                if (linkValue) {
+                    if (navigator.clipboard && navigator.clipboard.writeText) {
+                        navigator.clipboard.writeText(linkValue)
+                            .then(() => showFeedback('Ссылка скопирована'))
+                            .catch(() => {
+                                showFeedback('Не удалось скопировать автоматически', false);
+                            });
+                    } else {
+                        showFeedback('Скопируйте ссылку вручную: ' + linkValue, false);
+                    }
+                }
+            }
         });
 
+        pageActionButton.addEventListener('click', () => {
+            if(appState.currentPage === 'tasks') {
+                 openModal(`
+                     <div class="p-6 border-b flex justify-between items-center">
+                        <h2 class="text-xl font-semibold">Новая задача</h2>
+                        <button class="p-2 text-gray-500 hover:text-black close-modal-btn">&times;</button>
+                    </div>
+                    <div class="p-6 space-y-4">
+                        <input type="text" placeholder="Название задачи" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md">
+                        <select class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md">${MOCK_DATA.drivers.map(d=>`<option>${d.name}</option>`).join('')}</select>
+                        <input type="datetime-local" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md">
+                    </div>
+                     <div class="p-6 border-t bg-gray-50 flex justify-end">
+                        <button class="geist-button geist-button-primary">Сохранить</button>
+                    </div>
+                 `);
+            }
+            if (appState.currentPage === 'fleet-table') {
+                 openModal(`
+                    <div class="p-6 border-b flex justify-between items-center">
+                        <h2 class="text-xl font-semibold">Добавить автомобиль</h2>
+                        <button class="p-2 text-gray-500 hover:text-black close-modal-btn">&times;</button>
+                    </div>
+                    <div class="p-6 space-y-4">
+                        <input type="text" placeholder="Название" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md">
+                        <input type="text" placeholder="Номер" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md">
+                    </div>
+                     <div class="p-6 border-t bg-gray-50 flex justify-end">
+                        <button class="geist-button geist-button-primary">Сохранить</button>
+                    </div>
+                 `);
+            }
+        });
+        
+        genericModal.addEventListener('click', e => {
+            if(e.target.classList.contains('close-modal-btn')) closeModal();
+        });
+        
+        document.getElementById('close-doc-viewer').addEventListener('click', closeDocViewer);
 
         window.addEventListener('hashchange', router);
 
@@ -987,9 +1687,12 @@
             }
             updateLayoutForRole(appState.currentRole);
             renderSidebar();
-            // Reset hash to default page for the new role to trigger router correctly
-            window.location.hash = `#/app/${ROLES_CONFIG[appState.currentRole].defaultPage}`;
-            router();
+            const targetHash = `#/app/${ROLES_CONFIG[appState.currentRole].defaultPage}`;
+            if (window.location.hash !== targetHash) {
+                window.location.hash = targetHash;
+            } else {
+                router();
+            }
         };
         
     });
