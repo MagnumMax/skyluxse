@@ -639,7 +639,7 @@
             const profileEl = document.getElementById('sidebar-profile');
             
             navEl.innerHTML = roleConfig.nav.map(item => `
-                <a href="#/app/${item.id}" class="flex items-center p-2 space-x-3 rounded-md hover:bg-gray-100 text-gray-700" data-page="${item.id}">
+                <a href="/${appState.currentRole}/${item.id}" class="flex items-center p-2 space-x-3 rounded-md hover:bg-gray-100 text-gray-700" data-page="${item.id}">
                     ${getIcon(item.icon, 'w-6 h-6')}
                     <span class="font-medium">${item.name}</span>
                 </a>
@@ -904,7 +904,7 @@
                         return `<td class="px-6 py-4 whitespace-nowrap text-sm">${cellContent}</td>`
                     }).join('')}
                     <td class="px-6 py-4 text-right text-sm font-medium">
-                        <a href="#/app/${dataType}/${row.id}" class="text-indigo-600 hover:text-indigo-900">Edit</a>
+                        <a href="/${appState.currentRole}/${dataType}/#${row.id}" class="text-indigo-600 hover:text-indigo-900">Edit</a>
                     </td>
                 </tr>
             `).join('');
@@ -1231,7 +1231,7 @@
                         <p class="font-semibold text-gray-500 mb-2">Связанный заказ</p>
                         <div class="flex flex-col space-y-2">
                             <span><strong>#${booking.id}</strong> · ${booking.carName}</span>
-                            <a class="text-blue-600 hover:underline text-sm" href="#/app/bookings/${booking.id}">Открыть детали бронирования</a>
+                            <a class="text-blue-600 hover:underline text-sm" href="/${appState.currentRole}/bookings/#${booking.id}">Открыть детали бронирования</a>
                         </div>
                     </div>` : ''}
                 </div>
@@ -1345,44 +1345,68 @@
         // --- SPA ROUTING ---
         const router = () => {
             if (appState.timerInterval) clearInterval(appState.timerInterval);
-            const hash = window.location.hash || `#/app/${ROLES_CONFIG[appState.currentRole].defaultPage}`;
-            const [_, page, param, id] = hash.split('/');
-            
-            appState.currentPage = param;
+            const path = window.location.pathname;
+            const hash = window.location.hash;
+
+            // Parse path for role and page - format: /role/page
+            const pathParts = path.split('/').filter(Boolean);
+            const role = pathParts[0] || appState.currentRole;
+            const page = pathParts[1] || ROLES_CONFIG[appState.currentRole]?.defaultPage || 'dashboard';
+            const selector = hash.substring(1) || null; // Remove # from hash
+
+            // Update current state
+            appState.currentRole = role;
+            appState.currentPage = page;
+
             closePanel(); // Close any open panels on navigation
 
             document.querySelectorAll('.page').forEach(p => p.classList.add('hidden'));
 
             let pageId = `page-${appState.currentPage}`;
-            
-            if (appState.currentPage && appState.currentPage.endsWith('-table')) {
-                 pageId = 'page-table-view';
-                 renderTableView(appState.currentPage);
-                 if (id) renderDetailPanel(appState.currentPage, id);
-            } else if (appState.currentPage === 'driver-task-detail') {
-                 pageId = 'page-driver-task-detail';
-                 renderDriverTaskDetail(id); 
-            } else if (appState.currentPage === 'bookings' && id) {
-                 renderDetailPanel('bookings', id);
+
+            // Handle detail views using hash selector
+            if (selector && ['fleet-table', 'clients-table', 'bookings', 'fleet-calendar', 'driver-task-detail'].includes(appState.currentPage)) {
+                if (appState.currentPage.endsWith('-table')) {
+                    pageId = 'page-table-view';
+                    renderTableView(appState.currentPage);
+                    renderDetailPanel(appState.currentPage, selector);
+                } else if (appState.currentPage === 'bookings') {
+                    renderDetailPanel('bookings', selector);
+                } else if (appState.currentPage === 'fleet-calendar') {
+                    // Calendar booking detail will be handled by click handler
+                } else if (appState.currentPage === 'driver-task-detail') {
+                    pageId = 'page-driver-task-detail';
+                    renderDriverTaskDetail(selector);
+                }
             }
 
             const targetPage = document.getElementById(pageId);
             if (targetPage) {
                 targetPage.classList.remove('hidden');
             } else {
-                 const defaultPage = ROLES_CONFIG[appState.currentRole].defaultPage;
-                 const defaultPageEl = document.getElementById(`page-${defaultPage}`)
-                 if (defaultPageEl) {
+                // Fallback to default page for the role
+                const defaultPage = ROLES_CONFIG[appState.currentRole]?.defaultPage || 'dashboard';
+                const defaultPageEl = document.getElementById(`page-${defaultPage}`);
+                if (defaultPageEl) {
                     defaultPageEl.classList.remove('hidden');
-                 }
-                 window.location.hash = `#/app/${defaultPage}`;
+                    appState.currentPage = defaultPage;
+                }
+                // Update URL to correct path
+                const newUrl = `/${appState.currentRole}/${appState.currentPage}${hash}`;
+                history.replaceState(null, null, newUrl);
             }
 
             const roleConfig = ROLES_CONFIG[appState.currentRole];
-            const navItem = roleConfig.nav.find(i => i.id.startsWith(appState.currentPage.split('/')[0]));
+            const navItem = roleConfig.nav.find(i => i.id === appState.currentPage);
             const pageTitle = navItem ? navItem.name : (roleConfig.defaultPage === appState.currentPage ? 'Задачи' : '');
             document.getElementById('page-title').textContent = pageTitle;
-            
+
+            // Update URL to maintain hash if present
+            const newUrl = `/${appState.currentRole}/${appState.currentPage}${hash}`;
+            if (window.location.pathname + window.location.hash !== newUrl) {
+                history.replaceState(null, null, newUrl);
+            }
+
             pageActionButton.classList.add('hidden');
             if(appState.currentPage === 'tasks') {
                 pageActionButton.textContent = "Добавить задачу";
@@ -1391,9 +1415,9 @@
                 pageActionButton.textContent = "Добавить авто";
                 pageActionButton.classList.remove('hidden');
             }
-            
+
             updateActiveLink();
-            
+
             // Render content for specific pages
             if(appState.currentPage === 'bookings') renderKanbanBoard();
             if(appState.currentPage === 'dashboard') initCharts();
@@ -1477,11 +1501,19 @@
 
         appContainer.addEventListener('click', e => {
             const link = e.target.closest('a');
-            if(link && link.href.includes('/app/')) {
-                 const [,,,page,id] = link.hash.split('/');
-                 if(id && (page.endsWith('-table') || page === 'bookings')) {
-                     renderDetailPanel(page, id);
-                 }
+            if(link && link.pathname.includes(appState.currentRole)) {
+                  const hash = link.hash;
+                  if(hash && hash.startsWith('#')) {
+                      const selector = hash.substring(1);
+                      const pathParts = link.pathname.split('/');
+                      const page = pathParts[2];
+                      if(selector && (page.endsWith('-table') || page === 'bookings')) {
+                          e.preventDefault();
+                          renderDetailPanel(page, selector);
+                          // Update URL with hash for selector
+                          history.pushState(null, null, `${link.pathname}${hash}`);
+                      }
+                  }
             }
 
             const taskCard = e.target.closest('.task-card');
@@ -1491,19 +1523,34 @@
             }
 
             const kanbanCard = e.target.closest('.kanban-card');
-            if (kanbanCard) window.location.hash = `#/app/bookings/${kanbanCard.dataset.bookingId}`;
-            
+            if (kanbanCard) {
+                e.preventDefault();
+                const bookingId = kanbanCard.dataset.bookingId;
+                history.pushState(null, null, `/${appState.currentRole}/bookings/#${bookingId}`);
+                router();
+            }
+
             const driverTaskCard = e.target.closest('#driver-tasks-list .geist-card');
-            if (driverTaskCard) window.location.hash = `#/app/driver-task-detail/${driverTaskCard.dataset.taskId}`;
+            if (driverTaskCard) {
+                e.preventDefault();
+                const taskId = driverTaskCard.dataset.taskId;
+                history.pushState(null, null, `/${appState.currentRole}/driver-task-detail/#${taskId}`);
+                router();
+            }
 
             const backBtn = e.target.closest('.back-to-tasks');
-            if (backBtn) window.location.hash = '#/app/driver-tasks';
+            if (backBtn) {
+                e.preventDefault();
+                history.pushState(null, null, `/${appState.currentRole}/driver-tasks`);
+                router();
+            }
             
             const calendarBooking = e.target.closest('.calendar-booking-clickable');
             if (calendarBooking && appState.currentPage === 'fleet-calendar') {
                 const bookingId = calendarBooking.dataset.bookingId;
-                renderDetailPanel('bookings', bookingId);
                 e.preventDefault();
+                renderDetailPanel('bookings', bookingId);
+                history.pushState(null, null, `/${appState.currentRole}/fleet-calendar/#${bookingId}`);
                 return;
             }
             
@@ -1518,12 +1565,14 @@
             
             // Handle calendar buttons
             if (e.target.closest('button') && e.target.closest('button').textContent.includes('Сегодня')) {
+                e.preventDefault();
                 // In a real app, this would scroll to today's date or refresh the view
                 alert('Календарь обновлен до текущей даты');
             }
             
             // Handle new booking button
             if (e.target.closest('button') && e.target.closest('button').textContent.includes('Новый заказ')) {
+                e.preventDefault();
                 // This would open a modal to create a new booking
                 openModal(`
                     <div class="p-6 border-b flex justify-between items-center">
@@ -1676,7 +1725,7 @@
         
         document.getElementById('close-doc-viewer').addEventListener('click', closeDocViewer);
 
-        window.addEventListener('hashchange', router);
+        window.addEventListener('popstate', router);
 
         // --- APP INITIALIZATION ---
         const initApp = () => {
@@ -1687,12 +1736,13 @@
             }
             updateLayoutForRole(appState.currentRole);
             renderSidebar();
-            const targetHash = `#/app/${ROLES_CONFIG[appState.currentRole].defaultPage}`;
-            if (window.location.hash !== targetHash) {
-                window.location.hash = targetHash;
-            } else {
-                router();
+
+            // Handle initial URL - redirect root to default role/page
+            if (window.location.pathname === '/' || window.location.pathname === '') {
+                const targetPath = `/${appState.currentRole}/${ROLES_CONFIG[appState.currentRole].defaultPage}`;
+                history.replaceState(null, null, targetPath);
             }
+            router();
         };
         
     });
