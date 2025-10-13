@@ -1,0 +1,100 @@
+import { MOCK_DATA } from '../data/index.js';
+
+export const OFFLINE_STORAGE_KEY = 'skyluxse-offline-queue';
+
+export function loadOfflineQueue() {
+    try {
+        const stored = localStorage.getItem(OFFLINE_STORAGE_KEY);
+        appState.offline.queuedActions = stored ? JSON.parse(stored) : [];
+    } catch {
+        appState.offline.queuedActions = [];
+    }
+}
+
+export function persistOfflineQueue() {
+    try {
+        localStorage.setItem(OFFLINE_STORAGE_KEY, JSON.stringify(appState.offline.queuedActions));
+    } catch {
+        // ignore storage errors
+    }
+}
+
+export function enqueueOfflineAction(action) {
+    appState.offline.queuedActions.push({ ...action, ts: new Date().toISOString() });
+    persistOfflineQueue();
+}
+
+export function processOfflineAction(action) {
+    if (action.type === 'driver-task-complete') {
+        const booking = MOCK_DATA.bookings.find(b => String(b.id) === String(action.bookingId));
+        if (booking) {
+            booking.status = 'settlement';
+            booking.mileage = action.payload.odometer;
+            booking.fuelLevel = action.payload.fuelLevel;
+            booking.cashCollected = action.payload.cashValue;
+            booking.addonServices = action.payload.services;
+            booking.history = booking.history || [];
+            booking.history.push({ ts: new Date().toISOString().slice(0, 16).replace('T', ' '), event: 'Данные водителя синхронизированы' });
+        }
+        const relatedTask = MOCK_DATA.tasks.find(t => String(t.bookingId) === String(action.bookingId));
+        if (relatedTask) {
+            relatedTask.status = 'done';
+            relatedTask.completedPayload = action.payload;
+        }
+    }
+}
+
+export function syncOfflineQueue() {
+    if (!appState.offline.queuedActions.length) return;
+    const queueCopy = [...appState.offline.queuedActions];
+    queueCopy.forEach(processOfflineAction);
+    appState.offline.queuedActions = [];
+    persistOfflineQueue();
+}
+
+export const getStartOfWeek = () => {
+    const today = new Date();
+    const day = today.getDay();
+    const diff = day === 0 ? -6 : 1 - day; // Monday as start of week
+    const monday = new Date(today);
+    monday.setHours(0, 0, 0, 0);
+    monday.setDate(today.getDate() + diff);
+    return monday.toISOString().slice(0, 10);
+};
+
+export const appState = {
+    currentRole: 'operations',
+    currentPage: '',
+    timerInterval: null,
+    filters: {
+        bookings: { priority: 'all', type: 'all', driver: 'all', client: 'all' },
+        analytics: { range: '7d', segment: 'all', vehicleClass: 'all' },
+        calendar: { view: 'week', type: 'all' },
+        notifications: { channel: 'all', priority: 'all' },
+        tasks: { status: 'all', type: 'all', assignee: 'all' },
+        sales: { owner: 'all', source: 'all' }
+    },
+    offline: {
+        queuedActions: [],
+        lastSync: null,
+        enabled: false
+    },
+    clientContext: {
+        activeClientId: 1
+    },
+    driverContext: {
+        activeDriverId: 1,
+        tracking: {
+            enabled: false,
+            intervalId: null,
+            coordinates: null,
+            lastUpdated: null
+        }
+    },
+    calendarStart: null // will be initialized below
+};
+
+appState.calendarStart = getStartOfWeek();
+
+loadOfflineQueue();
+if (!appState.offline.enabled) syncOfflineQueue();
