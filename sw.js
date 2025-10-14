@@ -1,4 +1,4 @@
-const CACHE_NAME = 'skyluxse-cache-v1';
+const CACHE_NAME = 'skyluxse-cache-v2';
 const OFFLINE_URLS = [
   '/',
   '/index.html',

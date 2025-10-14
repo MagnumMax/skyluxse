@@ -13,10 +13,10 @@ export const renderDashboard = () => {
 
             const kpis = MOCK_DATA.analytics.kpis;
             const cards = [
-                { icon: 'layoutDashboard', label: 'Утилизация парка', value: formatPercent(kpis.fleetUtilization, 0), helper: 'Цель ≥ 90%', trend: '+4% WoW' },
-                { icon: 'clipboardCheck', label: 'SLA выполнено', value: formatPercent(kpis.slaCompliance, 0), helper: 'Критерий ≥ 85%', trend: '+2% WoW' },
-                { icon: 'users', label: 'Активные заказы', value: kpis.activeBookings.toString(), helper: 'На контроле у операций', trend: '+3 за день' },
-                { icon: 'activity', label: 'NPS клиентов', value: `${kpis.clientNps}`, helper: 'Цель ≥ 70', trend: '+1 балл' }
+                { icon: 'layoutDashboard', label: 'Fleet Utilization', value: formatPercent(kpis.fleetUtilization, 0), helper: 'Target ≥ 90%', trend: '+4% WoW' },
+                { icon: 'clipboardCheck', label: 'SLA Met', value: formatPercent(kpis.slaCompliance, 0), helper: 'Threshold ≥ 85%', trend: '+2% WoW' },
+                { icon: 'users', label: 'Active Bookings', value: kpis.activeBookings.toString(), helper: 'Monitored by operations', trend: '+3 per day' },
+                { icon: 'activity', label: 'Client NPS', value: `${kpis.clientNps}`, helper: 'Target ≥ 70', trend: '+1 pt' }
             ];
 
             kpiGrid.innerHTML = cards.map(card => `
@@ -53,9 +53,9 @@ export const renderDashboard = () => {
 
                 const formatBookingLabel = booking => `#${booking.id} · ${booking.carName}`;
                 const slaCards = [
-                    { key: 'overdue', label: 'Просрочено', description: 'Требует немедленных действий', border: 'border-rose-200', bg: 'bg-rose-50', text: 'text-rose-600' },
-                    { key: 'atRisk', label: 'Риск SLA', description: 'Планируйте проверку в ближайшие часы', border: 'border-amber-200', bg: 'bg-amber-50', text: 'text-amber-600' },
-                    { key: 'onTrack', label: 'В графике', description: 'Контрольные точки соблюдены', border: 'border-emerald-200', bg: 'bg-emerald-50', text: 'text-emerald-600' }
+                    { key: 'overdue', label: 'Overdue', description: 'Requires immediate action', border: 'border-rose-200', bg: 'bg-rose-50', text: 'text-rose-600' },
+                    { key: 'atRisk', label: 'SLA Risk', description: 'Plan a check in the next few hours', border: 'border-amber-200', bg: 'bg-amber-50', text: 'text-amber-600' },
+                    { key: 'onTrack', label: 'On Track', description: 'Milestones are on schedule', border: 'border-emerald-200', bg: 'bg-emerald-50', text: 'text-emerald-600' }
                 ];
 
                 slaContainer.innerHTML = slaCards.map(card => {
@@ -66,7 +66,7 @@ export const renderDashboard = () => {
                             <span class="text-sm font-medium ${card.text}">${card.label}</span>
                             <p class="text-2xl font-semibold mt-2 text-gray-900">${items.length}</p>
                             <p class="text-xs text-gray-600 mt-1">${card.description}</p>
-                            ${sample ? `<ul class="mt-3 space-y-1 text-xs text-gray-700">${sample}</ul>` : '<p class="mt-3 text-xs text-gray-400">Нет бронирований в этой группе</p>'}
+                            ${sample ? `<ul class="mt-3 space-y-1 text-xs text-gray-700">${sample}</ul>` : '<p class="mt-3 text-xs text-gray-400">No bookings in this group</p>'}
                         </div>
                     `;
                 }).join('');
@@ -74,7 +74,7 @@ export const renderDashboard = () => {
 
             const revenueRangeLabel = document.getElementById('dashboard-revenue-range');
             if (revenueRangeLabel) {
-                revenueRangeLabel.textContent = '7 дней';
+                revenueRangeLabel.textContent = '7 days';
             }
 
             const driverView = document.getElementById('dashboard-driver-view');
@@ -105,7 +105,7 @@ const renderDashboardCharts = () => {
                         labels,
                         datasets: [
                             {
-                                label: 'Выручка',
+                                label: 'Revenue',
                                 data: revenueValues,
                                 borderColor: '#111827',
                                 backgroundColor: 'rgba(17,24,39,0.08)',
@@ -114,7 +114,7 @@ const renderDashboardCharts = () => {
                                 yAxisID: 'y'
                             },
                             {
-                                label: 'Расходы',
+                                label: 'Expenses',
                                 data: expenseValues,
                                 borderColor: '#94a3b8',
                                 backgroundColor: 'rgba(148,163,184,0.12)',
@@ -123,7 +123,7 @@ const renderDashboardCharts = () => {
                                 yAxisID: 'y'
                             },
                             {
-                                label: 'Бронирования',
+                                label: 'Bookings',
                                 data: bookingsValues,
                                 borderColor: '#6366f1',
                                 backgroundColor: 'rgba(99,102,241,0.1)',
@@ -141,7 +141,7 @@ const renderDashboardCharts = () => {
                             y: {
                                 position: 'left',
                                 ticks: {
-                                    callback: value => `$${Math.round(value / 1000)}k`
+                                    callback: value => `AED ${Math.round(value / 1000)}k`
                                 },
                                 grid: { color: 'rgba(15,23,42,0.05)' }
                             },
@@ -173,13 +173,13 @@ const renderDashboardCharts = () => {
                         labels: driverLabels,
                         datasets: [
                             {
-                                label: 'Завершение задач',
+                                label: 'Task completion',
                                 data: completionRates,
                                 borderColor: '#6366f1',
                                 backgroundColor: 'rgba(99,102,241,0.25)'
                             },
                             {
-                                label: 'Оценка клиентов',
+                                label: 'Client rating',
                                 data: npsScores,
                                 borderColor: '#10b981',
                                 backgroundColor: 'rgba(16,185,129,0.2)'

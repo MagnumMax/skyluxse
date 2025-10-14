@@ -69,6 +69,36 @@
             border-right: 1px solid hsl(var(--border));
         }
 
+        #sidebar-collapse {
+            transition: color 0.2s ease;
+        }
+
+        #sidebar-collapse:hover {
+            color: rgba(42, 47, 78, 0.95);
+        }
+
+        @media (min-width: 768px) {
+            #sidebar.sidebar-collapsed {
+                width: 4.5rem;
+            }
+
+            #sidebar.sidebar-collapsed .sidebar-title,
+            #sidebar.sidebar-collapsed #sidebar-profile,
+            #sidebar.sidebar-collapsed .nav-link span {
+                display: none;
+            }
+
+            #sidebar.sidebar-collapsed nav {
+                padding-left: 1rem;
+                padding-right: 1rem;
+            }
+
+            #sidebar.sidebar-collapsed .nav-link {
+                justify-content: center;
+                gap: 0;
+            }
+        }
+
         #sidebar-nav .nav-link {
             color: rgba(35, 41, 64, 0.85);
             border: 1px solid transparent;
@@ -220,11 +250,6 @@
             color: hsl(var(--accent-foreground));
         }
 
-        #generic-modal-content.detail-modal {
-            max-height: 90vh;
-            overflow-y: auto;
-        }
-
         .kanban-card.sortable-ghost {
             background: hsl(var(--accent));
             border: 2px dashed hsl(var(--border));
@@ -357,8 +382,9 @@
         <div id="desktop-shell" class="flex h-full">
             <!-- Component: Sidebar -->
             <aside id="sidebar" class="bg-white border-r border-gray-200 w-64 flex-shrink-0 flex flex-col transition-transform duration-300 ease-in-out md:translate-x-0 -translate-x-full fixed md:static h-full z-20">
-                <div class="px-6 py-4 border-b border-gray-200">
-                    <h1 class="text-xl font-bold">SkyLuxse</h1>
+                <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+                    <h1 class="sidebar-title text-xl font-bold">SkyLuxse</h1>
+                    <button id="sidebar-collapse" type="button" class="ml-2 hidden md:inline-flex p-2 text-gray-400" aria-label="Свернуть панель" aria-expanded="true"></button>
                 </div>
                 <nav id="sidebar-nav" class="flex-grow p-4 space-y-2"></nav>
                 <div id="sidebar-profile" class="p-4 border-t border-gray-200">
@@ -717,6 +743,88 @@
                         </div>
                     </section>
 
+                    <!-- Page: Booking Detail -->
+                    <section id="page-booking-detail" class="page hidden">
+                        <div class="max-w-6xl mx-auto space-y-4">
+                            <button type="button" class="page-back-button inline-flex items-center text-sm text-gray-600 hover:text-gray-900" data-back-page="bookings">
+                                &larr; Back to bookings
+                            </button>
+                            <div id="booking-detail-content" class="geist-card overflow-hidden"></div>
+                        </div>
+                    </section>
+
+                    <!-- Page: Fleet Detail -->
+                    <section id="page-fleet-detail" class="page hidden">
+                        <div class="max-w-5xl mx-auto space-y-4">
+                            <button type="button" class="page-back-button inline-flex items-center text-sm text-gray-600 hover:text-gray-900" data-back-page="fleet-table">
+                                &larr; Back to fleet
+                            </button>
+                            <div id="fleet-detail-content" class="geist-card overflow-hidden"></div>
+                        </div>
+                    </section>
+
+                    <!-- Page: Client Detail -->
+                    <section id="page-client-detail" class="page hidden">
+                        <div class="max-w-5xl mx-auto space-y-4">
+                            <button type="button" class="page-back-button inline-flex items-center text-sm text-gray-600 hover:text-gray-900" data-back-page="clients-table">
+                                &larr; Back to clients
+                            </button>
+                            <div id="client-detail-content" class="geist-card overflow-hidden"></div>
+                        </div>
+                    </section>
+
+                    <!-- Page: Task Detail -->
+                    <section id="page-task-detail" class="page hidden">
+                        <div class="max-w-3xl mx-auto space-y-4">
+                            <button type="button" class="page-back-button inline-flex items-center text-sm text-gray-600 hover:text-gray-900" data-back-page="tasks">
+                                &larr; Back to tasks
+                            </button>
+                            <div id="task-detail-content" class="geist-card overflow-hidden"></div>
+                        </div>
+                    </section>
+
+                    <!-- Page: Maintenance Create -->
+                    <section id="page-maintenance-create" class="page hidden">
+                        <div class="max-w-3xl mx-auto space-y-4">
+                            <button type="button" class="page-back-button inline-flex items-center text-sm text-gray-600 hover:text-gray-900" data-back-page="fleet-calendar">
+                                &larr; Back to calendar
+                            </button>
+                            <div id="maintenance-create-content" class="geist-card overflow-hidden"></div>
+                        </div>
+                    </section>
+
+                    <!-- Page: Booking Create -->
+                    <section id="page-booking-create" class="page hidden">
+                        <div class="max-w-3xl mx-auto space-y-4">
+                            <button type="button" class="page-back-button inline-flex items-center text-sm text-gray-600 hover:text-gray-900" data-back-page="bookings">
+                                &larr; Back to bookings
+                            </button>
+                            <div id="booking-create-content" class="geist-card overflow-hidden"></div>
+                        </div>
+                    </section>
+
+                    <!-- Page: Vehicle Create -->
+                    <section id="page-vehicle-create" class="page hidden">
+                        <div class="max-w-3xl mx-auto space-y-4">
+                            <button type="button" class="page-back-button inline-flex items-center text-sm text-gray-600 hover:text-gray-900" data-back-page="fleet-table">
+                                &larr; Back to fleet
+                            </button>
+                            <div id="vehicle-create-content" class="geist-card overflow-hidden"></div>
+                        </div>
+                    </section>
+
+                    <!-- Page: Document Viewer -->
+                    <section id="page-document-viewer" class="page hidden">
+                        <div class="max-w-4xl mx-auto space-y-4 text-center">
+                            <button type="button" class="page-back-button inline-flex items-center justify-center text-sm text-gray-600 hover:text-gray-900" data-back-page="">
+                                &larr; Back
+                            </button>
+                            <div class="geist-card p-6">
+                                <img id="document-viewer-image" src="" alt="Document preview" class="mx-auto max-h-[70vh] w-full object-contain">
+                            </div>
+                        </div>
+                    </section>
+
                      <!-- Mobile Pages Wrapper -->
                     <div id="mobile-view" class="hidden h-full">
                         <!-- Page: Mobile Driver Tasks -->
@@ -767,19 +875,6 @@
         </div>
 
     </div>
-    <!-- Component: Add/Edit Modals -->
-    <div id="generic-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-40 modal-overlay">
-        <div class="geist-card w-full max-w-lg transform scale-95 modal-content" id="generic-modal-content">
-            <!-- Modal content will be injected -->
-        </div>
-    </div>
-    
-     <!-- Component: Document Viewer Modal -->
-    <div id="doc-viewer-modal" class="fixed inset-0 bg-black bg-opacity-75 hidden items-center justify-center z-50 modal-overlay p-4">
-        <button id="close-doc-viewer" class="absolute top-4 right-4 text-white text-4xl">&times;</button>
-        <img id="doc-viewer-image" src="" class="max-h-full max-w-full">
-    </div>
-
     <script type="module" src="src/main.js"></script>
 
 </body>

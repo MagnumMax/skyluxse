@@ -34,7 +34,7 @@ export function processOfflineAction(action) {
             booking.cashCollected = action.payload.cashValue;
             booking.addonServices = action.payload.services;
             booking.history = booking.history || [];
-            booking.history.push({ ts: new Date().toISOString().slice(0, 16).replace('T', ' '), event: 'Данные водителя синхронизированы' });
+            booking.history.push({ ts: new Date().toISOString().slice(0, 16).replace('T', ' '), event: 'Driver data synchronized' });
         }
         const relatedTask = MOCK_DATA.tasks.find(t => String(t.bookingId) === String(action.bookingId));
         if (relatedTask) {
@@ -67,10 +67,9 @@ export const appState = {
     currentPage: '',
     timerInterval: null,
     filters: {
-        bookings: { priority: 'all', type: 'all', driver: 'all', client: 'all' },
+        bookings: { priority: 'all', type: 'all', driver: 'all' },
         analytics: { range: '7d', segment: 'all', vehicleClass: 'all' },
         calendar: { view: 'week', type: 'all' },
-        notifications: { channel: 'all', priority: 'all' },
         tasks: { status: 'all', type: 'all', assignee: 'all' },
         sales: { owner: 'all', source: 'all' }
     },
@@ -78,6 +77,9 @@ export const appState = {
         queuedActions: [],
         lastSync: null,
         enabled: false
+    },
+    salesContext: {
+        activeLeadId: null
     },
     clientContext: {
         activeClientId: 1
@@ -95,6 +97,15 @@ export const appState = {
 };
 
 appState.calendarStart = getStartOfWeek();
+
+const salesPipeline = MOCK_DATA.salesPipeline;
+if (
+    salesPipeline &&
+    Array.isArray(salesPipeline.leads) &&
+    salesPipeline.leads.length > 0
+) {
+    appState.salesContext.activeLeadId = salesPipeline.leads[0].id;
+}
 
 loadOfflineQueue();
 if (!appState.offline.enabled) syncOfflineQueue();

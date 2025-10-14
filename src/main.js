@@ -26,7 +26,6 @@ import { renderAnalyticsPage, renderSalesPipeline, renderClientCard } from './re
 import { startTimers } from './render/timers.js';
 import { formatCurrency } from './render/utils.js';
 import { showToast } from './ui/toast.js';
-import { openModal, closeModal, openDocViewer, closeDocViewer } from './ui/modals.js';
 import { getIcon } from './ui/icons.js';
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -40,8 +39,16 @@ document.addEventListener('DOMContentLoaded', () => {
         const appContainer = document.getElementById('app-container');
         const desktopShell = document.getElementById('desktop-shell');
         const mobileViewContainer = document.getElementById('mobile-view');
-        const genericModal = document.getElementById('generic-modal');
-        const genericModalContent = document.getElementById('generic-modal-content');
+        const bookingDetailContent = document.getElementById('booking-detail-content');
+        const fleetDetailContent = document.getElementById('fleet-detail-content');
+        const clientDetailContent = document.getElementById('client-detail-content');
+        const taskDetailContent = document.getElementById('task-detail-content');
+        const maintenanceCreateContent = document.getElementById('maintenance-create-content');
+        const bookingCreateContent = document.getElementById('booking-create-content');
+        const vehicleCreateContent = document.getElementById('vehicle-create-content');
+        const documentViewerImage = document.getElementById('document-viewer-image');
+        const driverTaskDetailContent = document.getElementById('driver-task-detail-content');
+        const pageBackButtons = document.querySelectorAll('.page-back-button');
         const desktopPages = Array.from(document.querySelectorAll('#content-area > section.page'));
         const pageActionButton = document.getElementById('page-action-button');
         const loginRoleSelect = document.getElementById('login-role');
@@ -49,12 +56,52 @@ document.addEventListener('DOMContentLoaded', () => {
         const requestOtpBtn = document.getElementById('request-otp');
         const otpContainer = document.getElementById('otp-container');
         const otpInput = document.getElementById('otp');
+        const sidebarCollapseBtn = document.getElementById('sidebar-collapse');
 
         let calendarControlsBound = false;
+        const AUXILIARY_PAGES = [
+            'booking-detail',
+            'fleet-detail',
+            'client-detail',
+            'task-detail',
+            'maintenance-create',
+            'booking-create',
+            'vehicle-create',
+            'document-viewer'
+        ];
+
+        const getDetailPageId = (basePage) => {
+            if (basePage === 'bookings') return 'booking-detail';
+            if (basePage === 'fleet-table') return 'fleet-detail';
+            if (basePage === 'clients-table') return 'client-detail';
+            return basePage.replace('-table', '-detail');
+        };
+
+        pageBackButtons.forEach(button => {
+            button.addEventListener('click', (event) => {
+                event.preventDefault();
+                const targetPage = button.dataset.backPage;
+                if (targetPage) {
+                    window.location.hash = buildHash(appState.currentRole, targetPage);
+                } else {
+                    window.history.back();
+                }
+            });
+        });
 
         if (otpInput) {
             otpInput.setAttribute('disabled', 'disabled');
         }
+
+        const updateSidebarToggleState = () => {
+            if (!sidebarCollapseBtn) return;
+            const isCollapsed = sidebar.classList.contains('sidebar-collapsed');
+            sidebarCollapseBtn.innerHTML = isCollapsed
+                ? getIcon('chevronRight', 'w-5 h-5')
+                : getIcon('chevronLeft', 'w-5 h-5');
+            sidebarCollapseBtn.setAttribute('aria-expanded', String(!isCollapsed));
+            sidebarCollapseBtn.setAttribute('aria-label', isCollapsed ? 'Развернуть панель' : 'Свернуть панель');
+        };
 
         const renderSidebar = () => {
             const roleConfig = ROLES_CONFIG[appState.currentRole];
@@ -114,6 +161,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             }
             updateActiveLink();
+            updateSidebarToggleState();
         };
 
         const updateActiveLink = () => {
@@ -192,7 +240,12 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             const maintenanceBtn = document.getElementById('calendar-create-maintenance');
-            if (maintenanceBtn) maintenanceBtn.addEventListener('click', openMaintenanceModal);
+            if (maintenanceBtn) {
+                maintenanceBtn.addEventListener('click', () => {
+                    window.location.hash = buildHash(appState.currentRole, 'maintenance-create');
+                    router();
+                });
+            }
 
             const grid = document.getElementById('calendar-grid');
             if (grid && !grid.dataset.bound) {
@@ -201,7 +254,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (!target) return;
                     const bookingId = target.dataset.bookingId;
                     if (bookingId) {
-                        window.location.hash = buildHash(appState.currentRole, 'bookings', bookingId);
+                        window.location.hash = buildHash(appState.currentRole, 'booking-detail', bookingId);
+                        router();
                         return;
                     }
                     const calendarEventId = target.dataset.calendarEventId;
@@ -217,16 +271,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const renderDetailPanel = (type, id) => {
             let content = '';
-            let useDetailModalSizing = true;
-            const applyModalSizing = () => {
-                if (genericModalContent) {
-                    genericModalContent.classList.add('max-w-6xl', 'w-11/12', 'md:w-5/6', 'xl:w-3/4', 'detail-modal');
-                }
-            };
+            let targetContainer = null;
 
             if (type === 'bookings') {
                 const booking = MOCK_DATA.bookings.find(b => b.id == id);
-                if (!booking) return;
+                if (!booking || !bookingDetailContent) return false;
+                targetContainer = bookingDetailContent;
                 const client = MOCK_DATA.clients.find(c => c.name === booking.clientName) || {};
                 const dueAmount = (booking.totalAmount || 0) - (booking.paidAmount || 0);
                 const formatAed = (value) => {
@@ -284,85 +334,145 @@ document.addEventListener('DOMContentLoaded', () => {
                             <span class="mt-1 text-gray-400">${getIcon('check', 'w-4 h-4')}</span>
                             <div>
                                 <p class="text-sm font-medium text-gray-800">${h.event}</p>
-                                <p class="text-xs text-gray-400">${h.ts}</p>
+                                <p class="text-xs text-gray-500">${h.ts || '—'}</p>
                             </div>
                         </li>
                     `).join('')
-                    : '<li class="text-sm text-gray-500">No history.</li>';
+                    : '<li class="text-sm text-gray-500">No history records</li>';
+
+                const documentButtons = Array.isArray(booking.documents) && booking.documents.length
+                    ? booking.documents.map(doc => `
+                        <button class="doc-image relative group">
+                            <img src="${doc}" alt="Document preview" class="w-28 h-20 object-cover rounded-md border border-gray-200">
+                            <span class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white text-xs">View</span>
+                        </button>
+                    `).join('')
+                    : '<p class="text-xs text-gray-500">No documents uploaded</p>';
+
+                const driverAssignmentControls = `
+                    <div class="space-y-2">
+                        <label class="block text-xs font-medium text-gray-500">Driver</label>
+                        <select class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm" ${isDriverAssignmentLocked ? 'disabled' : ''}>
+                            <option value="">Select driver</option>
+                            ${driverOptions}
+                        </select>
+                        ${isDriverAssignmentLocked
+                            ? '<p class="text-xs text-amber-600">Driver will be auto-assigned after confirmation</p>'
+                            : '<button class="geist-button geist-button-secondary text-xs">Assign driver</button>'}
+                    </div>`;
 
                 content = `
-                    <div class="p-6 border-b flex justify-between items-center">
-                        <div>
-                            <h2 class="text-xl font-semibold">Booking #${booking.id}</h2>
-                            <p class="text-sm text-gray-500">${client.name || 'Unknown client'} · ${booking.channel?.toUpperCase() || '—'}</p>
-                        </div>
-                        <button class="close-modal-btn p-2 text-gray-500 hover:text-black" aria-label="Close">${getIcon('x')}</button>
-                    </div>
-                    <div class="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
-                        <div class="grid gap-4 md:grid-cols-3">
-                            <div class="geist-card p-5 md:col-span-2">
-                                <h3 class="font-semibold mb-3 text-gray-800">Booking details</h3>
-                                <div class="space-y-3 text-sm text-gray-700">
-                                    <p><span class="text-gray-500">Vehicle:</span> <strong>${booking.carName}</strong></p>
-                                    <p><span class="text-gray-500">Dates:</span> ${formatDateTime(booking.startDate, booking.startTime)} — ${formatDateTime(booking.endDate, booking.endTime)}</p>
-                                    <p><span class="text-gray-500">Locations:</span> <span class="flex flex-wrap items-center gap-2">${formatLocationLink(booking.pickupLocation)} <span class="text-gray-400">→</span> ${formatLocationLink(booking.dropoffLocation)}</span></p>
-                                    <div>
-                                        <label class="block font-medium text-gray-700 mb-1">Driver</label>
-                                        <select class="w-full px-3 py-2 border border-gray-300 rounded-md ${isDriverAssignmentLocked ? 'bg-gray-100 cursor-not-allowed text-gray-500' : ''}" ${isDriverAssignmentLocked ? 'disabled title="Assign a driver after leaving New booking stage"' : ''}>
-                                            <option value="">Unassigned</option>
-                                            ${driverOptions}
-                                        </select>
-                                        ${isDriverAssignmentLocked ? '<p class="mt-2 text-xs text-gray-500">Назначите водителя после перехода из стадии New booking.</p>' : ''}
-                                    </div>
-                                </div>
+                    <div class="p-6 border-b">
+                        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                            <div>
+                                <p class="text-xs uppercase tracking-wide text-gray-500">${BOOKING_PRIORITIES[booking.priority]?.label || 'Booking'}</p>
+                                <h2 class="text-2xl font-semibold mt-1">${booking.carName}</h2>
+                                <p class="text-sm text-gray-500 mt-1">Client ${client.name || booking.clientName} · ${booking.startDate} → ${booking.endDate}</p>
                             </div>
-                            <div class="geist-card p-5 space-y-3 md:col-span-1">
-                                <div>
-                                    <h3 class="font-semibold text-gray-800">Finances</h3>
-                                    <div class="text-sm text-gray-700 space-y-1 mt-2">
-                                        <p class="flex justify-between"><span>Total</span> <strong>${formatAed(booking.totalAmount)}</strong></p>
-                                        <p class="flex justify-between"><span>Paid</span> <span class="text-emerald-600">${formatAed(booking.paidAmount)}</span></p>
-                                        <p class="flex justify-between border-t pt-2 mt-2"><span>Due</span> <strong class="${dueAmount > 0 ? 'text-rose-600' : 'text-gray-900'}">${formatAed(dueAmount)}</strong></p>
+                            <div class="text-right">
+                                <p class="text-sm text-gray-500">Outstanding</p>
+                                <p class="text-2xl font-semibold ${dueAmount > 0 ? 'text-amber-600' : 'text-emerald-600'}">${formatAed(dueAmount)}</p>
+                                <p class="text-xs text-gray-500 mt-1">Paid ${formatAed(booking.paidAmount)}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="p-6 space-y-6">
+                        <div class="grid gap-6 lg:grid-cols-[2fr,1fr]">
+                            <div class="space-y-6">
+                                <div class="geist-card p-4 border border-gray-200 rounded-xl">
+                                    <h3 class="font-semibold text-gray-800 mb-4">Timeline</h3>
+                                    <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3 text-sm text-gray-600">
+                                        <div>
+                                            <p class="font-semibold text-gray-500">Pickup</p>
+                                            <p class="mt-1">${formatDateTime(booking.startDate, booking.startTime)}</p>
+                                            <p class="mt-1 flex items-center gap-2">${getIcon('mapPin', 'w-4 h-4 text-gray-400')}${formatLocationLink(booking.pickupLocation)}</p>
+                                        </div>
+                                        <div>
+                                            <p class="font-semibold text-gray-500">Return</p>
+                                            <p class="mt-1">${formatDateTime(booking.endDate, booking.endTime)}</p>
+                                            <p class="mt-1 flex items-center gap-2">${getIcon('mapPin', 'w-4 h-4 text-gray-400')}${formatLocationLink(booking.dropoffLocation)}</p>
+                                        </div>
+                                        <div>
+                                            <p class="font-semibold text-gray-500">Mileage / fuel</p>
+                                            <p class="mt-1">${booking.mileage || '—'} km</p>
+                                            <p class="text-xs text-gray-400">Fuel ${booking.fuelLevel || 'N/A'}</p>
+                                        </div>
                                     </div>
                                 </div>
-                                <div class="pt-3 border-t">
-                                    <h4 class="font-medium text-sm text-gray-700 mb-2">Generate payment link</h4>
-                                    <div class="space-y-3">
-                                        <input type="number" value="${Math.max(dueAmount, 0)}" placeholder="Amount" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md stripe-amount-input">
-                                        <select class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md stripe-reason-select">
-                                            <option>Rental top-up</option>
-                                            <option>Extension</option>
-                                            <option>Additional mileage</option>
-                                        </select>
-                                        <button type="button" class="w-full geist-button geist-button-secondary text-sm generate-stripe-link" data-booking-id="${booking.id}">Create Stripe link</button>
-                                        <div id="stripe-link-result" class="hidden space-y-2">
-                                            <div class="flex items-center justify-between bg-gray-100 rounded-md px-3 py-2 gap-3">
-                                                <a id="stripe-link-anchor" href="#" target="_blank" rel="noopener" class="text-blue-600 hover:underline break-all flex-1">—</a>
-                                                <button type="button" class="copy-stripe-link p-2 text-gray-500 hover:text-black rounded-md" title="Copy link">${getIcon('copy', 'w-4 h-4')}</button>
-                                            </div>
-                                            <p id="stripe-copy-feedback" class="text-xs text-emerald-600 hidden">Link copied</p>
+                                <div class="geist-card p-4 border border-gray-200 rounded-xl">
+                                    <h3 class="font-semibold text-gray-800 mb-4">Documents</h3>
+                                    <div class="flex flex-wrap gap-3">${documentButtons}</div>
+                                </div>
+                                <div class="geist-card p-4 border border-gray-200 rounded-xl">
+                                    <h3 class="font-semibold text-gray-800 mb-4">Driver assignment</h3>
+                                    <div class="grid gap-4 md:grid-cols-2">
+                                        ${driverAssignmentControls}
+                                        <div class="space-y-2">
+                                            <p class="text-xs uppercase tracking-wide text-gray-500">Status</p>
+                                            <span class="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${KANBAN_STATUS_META[booking.status]?.badgeClass || 'bg-gray-100 text-gray-600'}">
+                                                ${KANBAN_STATUS_META[booking.status]?.label || booking.status}
+                                            </span>
+                                            ${assignedDriver ? `<p class="text-xs text-gray-500">Assigned to ${assignedDriver.name}</p>` : ''}
                                         </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                        <div class="geist-card p-6">
-                            <h3 class="font-semibold text-gray-800 mb-4">Activity history</h3>
-                            <ul class="space-y-3">
-                                ${bookingHistoryHtml}
-                            </ul>
+                            <div class="space-y-6">
+                                <div class="geist-card p-4 border border-gray-200 rounded-xl">
+                                    <h3 class="font-semibold text-gray-800 mb-3">Client</h3>
+                                    <div class="space-y-1 text-sm text-gray-600">
+                                        <p class="font-semibold text-gray-900">${client.name || booking.clientName}</p>
+                                        <p>${client.email || '—'}</p>
+                                        <p>${client.phone || '—'}</p>
+                                        <p class="text-xs text-gray-500">Country ${client.country || '—'}</p>
+                                    </div>
+                                </div>
+                                <div class="geist-card p-4 border border-gray-200 rounded-xl" id="payment-actions">
+                                    <h3 class="font-semibold text-gray-800 mb-3">Payments</h3>
+                                    <div class="space-y-2 text-sm text-gray-600">
+                                        <p>Total ${formatAed(booking.totalAmount)}</p>
+                                        <p>Deposit ${formatAed(booking.deposit)}</p>
+                                        <div class="pt-3 border-t">
+                                            <h4 class="font-medium text-sm text-gray-700 mb-2">Generate payment link</h4>
+                                            <div class="space-y-3">
+                                                <input type="number" value="${Math.max(dueAmount, 0)}" placeholder="Amount" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md stripe-amount-input">
+                                                <select class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md stripe-reason-select">
+                                                    <option>Rental top-up</option>
+                                                    <option>Extension</option>
+                                                    <option>Additional mileage</option>
+                                                </select>
+                                                <button type="button" class="w-full geist-button geist-button-secondary text-sm generate-stripe-link" data-booking-id="${booking.id}">Create Stripe link</button>
+                                                <div id="stripe-link-result" class="hidden space-y-2">
+                                                    <div class="flex items-center justify-between bg-gray-100 rounded-md px-3 py-2 gap-3">
+                                                        <a id="stripe-link-anchor" href="#" target="_blank" rel="noopener" class="text-blue-600 hover:underline break-all flex-1">—</a>
+                                                        <button type="button" class="copy-stripe-link p-2 text-gray-500 hover:text-black rounded-md" title="Copy link">${getIcon('copy', 'w-4 h-4')}</button>
+                                                    </div>
+                                                    <p id="stripe-copy-feedback" class="text-xs text-emerald-600 hidden">Link copied</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="geist-card p-4 border border-gray-200 rounded-xl">
+                                    <h3 class="font-semibold text-gray-800 mb-3">Activity</h3>
+                                    <ul class="space-y-3">
+                                        ${bookingHistoryHtml}
+                                    </ul>
+                                </div>
+                            </div>
                         </div>
                     </div>`;
             } else if (type === 'fleet-table') {
                  const car = MOCK_DATA.cars.find(c => c.id == id);
-                 if (!car) return;
+                 if (!car || !fleetDetailContent) return false;
+                 targetContainer = fleetDetailContent;
                  content = `
-                    <div class="p-6 border-b flex justify-between items-center">
+                    <div class="p-6 border-b">
                         <h2 class="text-xl font-semibold">${car.name}</h2>
-                        <button class="close-modal-btn p-2 text-gray-500 hover:text-black" aria-label="Close">${getIcon('x')}</button>
+                        <p class="text-sm text-gray-500 mt-1">${car.plate} · ${car.year} · ${car.color}</p>
                     </div>
-                    <div class="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
-                        <img src="${car.imageUrl.replace('100/60', '400/240')}" class="w-full rounded-lg object-cover">
+                    <div class="p-6 space-y-6">
+                        <img src="${car.imageUrl.replace('100/60', '400/240')}" class="w-full rounded-lg object-cover" alt="${car.name}">
                         <div>
                             <h3 class="font-semibold mb-2">Documents</h3>
                             <div class="text-sm space-y-2">
@@ -370,7 +480,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 <p><strong>Mulkiya until:</strong> ${car.mulkiyaExpiry}</p>
                             </div>
                             <div class="grid grid-cols-2 gap-2 mt-2">
-                                ${car.documents.map(doc => `<img src="${doc}" class="rounded-md cursor-pointer doc-image">`).join('')}
+                                ${car.documents.map(doc => `<img src="${doc}" class="rounded-md cursor-pointer doc-image" alt="Vehicle document">`).join('')}
                             </div>
                         </div>
                         <div>
@@ -380,7 +490,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 <li class="p-3 bg-gray-50 rounded-md">
                                     <p class="font-medium">${insp.date} - ${insp.driver}</p>
                                     <div class="flex space-x-2 mt-2">
-                                        ${insp.photos.map(p => `<img src="${p}" class="w-16 h-12 object-cover rounded cursor-pointer doc-image">`).join('')}
+                                        ${insp.photos.map(p => `<img src="${p}" class="w-16 h-12 object-cover rounded cursor-pointer doc-image" alt="Inspection photo">`).join('')}
                                     </div>
                                 </li>
                             `).join('') || '<p class="text-xs text-gray-500">No inspections.</p>'}
@@ -389,19 +499,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>`;
             } else if (type === 'clients-table') {
                 const client = MOCK_DATA.clients.find(c => c.id == id);
-                if (!client) return;
+                if (!client || !clientDetailContent) return false;
+                targetContainer = clientDetailContent;
 
-                useDetailModalSizing = false;
                 const pipeline = MOCK_DATA.salesPipeline || {};
                 const leads = Array.isArray(pipeline.leads) ? pipeline.leads : [];
                 const lead = leads.find(item => Number(item.clientId) === Number(client.id)) || null;
                 const workspaceDetails = MOCK_DATA.salesWorkspace?.leadDetails || {};
                 const detail = lead ? workspaceDetails[lead.id] || null : null;
-
-                if (genericModalContent) {
-                    genericModalContent.classList.remove('max-w-lg');
-                    genericModalContent.classList.add('max-w-5xl', 'md:w-4/5', 'w-11/12', 'sales-modal');
-                }
 
                 const clientCardHtml = renderClientCard(lead, client, detail);
                 const leadContext = lead
@@ -409,24 +514,19 @@ document.addEventListener('DOMContentLoaded', () => {
                     : '';
 
                 content = `
-                    <div class="p-6 border-b flex justify-between items-center">
-                        <div>
-                            <h2 class="text-xl font-semibold">${client.name}</h2>
-                            ${leadContext}
-                        </div>
-                        <button class="close-modal-btn p-2 text-gray-500 hover:text-black" aria-label="Close">${getIcon('x')}</button>
+                    <div class="p-6 border-b">
+                        <h2 class="text-xl font-semibold">${client.name}</h2>
+                        ${leadContext}
                     </div>
-                    <div class="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
+                    <div class="p-6 space-y-6">
                         ${clientCardHtml}
                     </div>`;
             }
 
-            if (!content) return;
+            if (!content || !targetContainer) return false;
 
-            openModal(content);
-            if (useDetailModalSizing) {
-                applyModalSizing();
-            }
+            targetContainer.innerHTML = content;
+            return true;
         };
         
         const renderVehicleCell = (car) => {
@@ -594,11 +694,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
             tableHeadEl.innerHTML = `${columns.map(col => `<th class="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider text-left">${col.label}</th>`).join('')}<th class="px-6 py-3"></th>`;
 
+            const detailPage = dataType.endsWith('-table') ? getDetailPageId(dataType) : dataType;
+
             tableBodyEl.innerHTML = rows.map(row => `
                 <tr class="hover:bg-gray-50">
                     ${columns.map(col => `<td class="px-6 py-4 align-top text-sm text-gray-700">${col.render(row)}</td>`).join('')}
                     <td class="px-6 py-4 text-right text-sm font-medium">
-                        <a href="${buildHash(appState.currentRole, dataType, row.id)}" class="text-indigo-600 hover:text-indigo-900">View details</a>
+                        <a href="${buildHash(appState.currentRole, detailPage, row.id)}" class="text-indigo-600 hover:text-indigo-900">View details</a>
                     </td>
                 </tr>
             `).join('');
@@ -606,7 +708,7 @@ document.addEventListener('DOMContentLoaded', () => {
             tableBodyEl.querySelectorAll('.doc-badge[data-doc-url]').forEach(button => {
                 button.addEventListener('click', () => {
                     const url = button.dataset.docUrl;
-                    if (url) openDocViewer(url);
+                    if (url) openDocumentPage(url);
                 });
             });
         };
@@ -821,10 +923,10 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const renderDriverTaskDetail = (taskId) => {
             const task = MOCK_DATA.bookings.find(b => b.id == taskId);
-            if(!task) return;
+            const contentEl = driverTaskDetailContent;
+            if(!task || !contentEl) return false;
             
             const client = MOCK_DATA.clients.find(c => c.name === task.clientName) || {};
-            const contentEl = document.getElementById('driver-task-detail-content');
             const dueAmount = (task.totalAmount || 0) - (task.paidAmount || 0);
             const taskLabels = {
                 preparation: 'Vehicle preparation',
@@ -987,6 +1089,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     });
                 });
             }
+            return true;
         };
         
         const renderCalendar = () => {
@@ -1201,7 +1304,184 @@ document.addEventListener('DOMContentLoaded', () => {
             `).join('');
         }
 
-const renderTasksPage = () => {
+        const PRIORITY_ICON_META = {
+            high: { icon: 'priorityHigh', className: 'text-rose-500', label: 'High priority' },
+            medium: { icon: 'priorityMedium', className: 'text-amber-500', label: 'Medium priority' },
+            low: { icon: 'priorityLow', className: 'text-emerald-500', label: 'Low priority' }
+        };
+
+        const deadlineDateFormatter = new Intl.DateTimeFormat('ru-RU', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+        });
+        const deadlineTimeFormatter = new Intl.DateTimeFormat('ru-RU', {
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+        const DEADLINE_SOON_THRESHOLD_MS = 6 * 60 * 60 * 1000;
+
+        const normalizePriorityValue = (priority) => {
+            const value = (priority || '').toString().trim().toLowerCase();
+            if (!value) return '';
+            if (['high', 'высокий'].includes(value)) return 'high';
+            if (['medium', 'средний'].includes(value)) return 'medium';
+            if (['low', 'низкий'].includes(value)) return 'low';
+            return '';
+        };
+
+        const getPriorityMeta = (priority) => {
+            const normalized = normalizePriorityValue(priority);
+            return normalized ? PRIORITY_ICON_META[normalized] : null;
+        };
+
+        const getPriorityIconHtml = (priority, size = 'w-4 h-4') => {
+            const meta = getPriorityMeta(priority);
+            if (!meta) return '';
+            return `<span class="inline-flex items-center justify-center ${meta.className}" title="${meta.label}">${getIcon(meta.icon, size)}</span>`;
+        };
+
+        const escapeHtml = (value) => {
+            return String(value ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        };
+
+        const getTaskLocationDetails = (task) => {
+            if (!task?.geo) return null;
+            const pickup = task.geo.pickup || '';
+            const dropoff = task.geo.dropoff || '';
+            if (!pickup && !dropoff) return null;
+
+            if (task.type === 'delivery') {
+                return { label: 'Destination', value: dropoff || pickup };
+            }
+            if (task.type === 'pickup') {
+                return { label: 'Pickup location', value: pickup || dropoff };
+            }
+            if (task.type === 'maintenance') {
+                return { label: 'Service location', value: dropoff || pickup };
+            }
+
+            const value = pickup && dropoff ? `${pickup} → ${dropoff}` : pickup || dropoff;
+            return value ? { label: 'Location', value } : null;
+        };
+
+        const formatRequiredInputLabel = (key) => {
+            return (key || '')
+                .replace(/[_-]+/g, ' ')
+                .replace(/([a-z])([A-Z])/g, '$1 $2')
+                .replace(/\s+/g, ' ')
+                .trim()
+                .replace(/^./, char => char.toUpperCase());
+        };
+
+        const normalizeRequiredInputConfig = (input) => {
+            if (!input) return null;
+            if (typeof input === 'string') {
+                const key = input.trim();
+                if (!key) return null;
+                return {
+                    key,
+                    label: formatRequiredInputLabel(key),
+                    type: 'text',
+                    multiple: false,
+                    accept: ''
+                };
+            }
+            const key = (input.key || '').trim();
+            if (!key) return null;
+            return {
+                key,
+                label: input.label || formatRequiredInputLabel(key),
+                type: input.type || 'text',
+                multiple: Boolean(input.multiple),
+                accept: input.accept || ''
+            };
+        };
+
+        const getTaskRequiredInputs = (task) => {
+            if (!task) return [];
+            const items = Array.isArray(task.requiredInputs) ? task.requiredInputs : [];
+            return items.map(normalizeRequiredInputConfig).filter(Boolean);
+        };
+
+        const getTaskDeadlineMeta = (task) => {
+            if (!task?.deadline) return null;
+            const timestamp = new Date(task.deadline.replace(' ', 'T')).getTime();
+            if (!Number.isFinite(timestamp)) return null;
+
+            const dateLabel = deadlineDateFormatter.format(timestamp);
+            const timeLabel = deadlineTimeFormatter.format(timestamp);
+            const now = Date.now();
+            const diff = timestamp - now;
+            const state = task.status === 'done'
+                ? 'completed'
+                : diff < 0
+                ? 'overdue'
+                : diff <= DEADLINE_SOON_THRESHOLD_MS
+                ? 'soon'
+                : 'scheduled';
+
+            const stateConfig = {
+                overdue: {
+                    statusLabel: 'Overdue',
+                    icon: 'alertTriangle',
+                    iconClass: 'text-rose-500',
+                    dateClass: 'text-rose-600',
+                    pillClass: 'bg-rose-50 text-rose-700',
+                    showPill: true,
+                    showCountdown: false
+                },
+                soon: {
+                    statusLabel: 'Due soon',
+                    icon: 'clock',
+                    iconClass: 'text-amber-500',
+                    dateClass: 'text-amber-600',
+                    pillClass: 'bg-amber-50 text-amber-700',
+                    showPill: true,
+                    showCountdown: true
+                },
+                scheduled: {
+                    statusLabel: 'Scheduled',
+                    icon: 'clock',
+                    iconClass: 'text-gray-400',
+                    dateClass: 'text-gray-500',
+                    pillClass: 'bg-gray-100 text-gray-600',
+                    showPill: false,
+                    showCountdown: false
+                },
+                completed: {
+                    statusLabel: 'Completed',
+                    icon: 'check',
+                    iconClass: 'text-emerald-500',
+                    dateClass: 'text-emerald-600',
+                    pillClass: 'bg-emerald-50 text-emerald-700',
+                    showPill: false,
+                    showCountdown: false
+                }
+            }[state] || null;
+
+            if (!stateConfig) return null;
+
+            return {
+                timestamp,
+                dateLabel,
+                timeLabel,
+                icon: stateConfig.icon,
+                iconClass: stateConfig.iconClass,
+                dateClass: stateConfig.dateClass,
+                statusLabel: stateConfig.statusLabel,
+                pillClass: stateConfig.pillClass,
+                showStatusPill: stateConfig.showPill,
+                showCountdown: stateConfig.showCountdown && diff > 0
+            };
+        };
+
+        const renderTasksPage = () => {
             const board = document.getElementById('tasks-board');
             if (!board) return;
 
@@ -1252,33 +1532,31 @@ const renderTasksPage = () => {
                            ${tasks.map(task => {
                                const assignee = MOCK_DATA.drivers.find(d => d.id === task.assigneeId);
                                const typeMeta = TASK_TYPES[task.type] || { label: task.type, color: 'bg-gray-100 text-gray-600' };
-                               const priorityBadge = task.priority ? `<span class=\"inline-flex items-center px-2 py-1 text-[10px] font-medium rounded-md ${task.priority === 'High' ? 'bg-rose-50 text-rose-700 border border-rose-100' : task.priority === 'Medium' ? 'bg-amber-50 text-amber-700 border border-amber-100' : 'bg-slate-100 text-slate-600 border border-slate-200'}\">${task.priority}</span>` : '';
-                               const deadlineTimestamp = task.deadline ? new Date(task.deadline.replace(' ', 'T')).getTime() : NaN;
-                               const countdownBlock = (!Number.isNaN(deadlineTimestamp) && task.status !== 'done') ? `<div class=\"task-countdown text-xs text-amber-600 mt-2\" data-target-time=\"${deadlineTimestamp}\"></div>` : '';
-                               const checklistTotal = task.checklist ? task.checklist.length : 0;
-                               const checklistCompleted = task.checklist ? task.checklist.filter(item => item.completed).length : 0;
-                               const slaBadge = task.sla ? `<span class=\"inline-flex items-center px-2 py-1 text-[10px] font-medium rounded-md bg-slate-100 text-slate-700\">SLA ${task.sla.timerMinutes} min</span>` : '';
+                               const typeBadge = `<span class="inline-flex items-center rounded-md px-2.5 py-1 text-[11px] font-semibold shadow-sm ${typeMeta.color}">${typeMeta.label}</span>`;
+                               const locationDetails = getTaskLocationDetails(task);
+                               const deadlineMeta = getTaskDeadlineMeta(task);
+                               const deadlineSummary = deadlineMeta
+                                   ? `<div class="flex items-center gap-1 ${deadlineMeta.dateClass}">
+                                            ${getIcon(deadlineMeta.icon, 'w-3.5 h-3.5')}
+                                            <span>${deadlineMeta.dateLabel} · ${deadlineMeta.timeLabel}</span>
+                                      </div>`
+                                   : '<span class="text-gray-400">—</span>';
+                               const countdownBlock = deadlineMeta?.showCountdown
+                                   ? `<div class="task-countdown mt-2 text-[11px] font-medium text-right text-gray-500" data-target-time="${deadlineMeta.timestamp}"></div>`
+                                   : '';
                                return `
-                               <div class=\"p-3 bg-gray-50 rounded-md border border-transparent hover:border-gray-200 hover:bg-white transition cursor-pointer task-card\" data-task-id=\"${task.id}\">
-                                  <div class=\"flex items-start justify-between\">
-                                      <div>
-                                          <div class=\"flex items-center gap-2\">
-                                              <span class=\"inline-flex items-center px-2 py-1 text-xs font-medium rounded-md ${typeMeta.color}\">${typeMeta.label}</span>
-                                              ${priorityBadge}
-                                          </div>
-                                          <p class=\"mt-2 font-semibold text-sm text-gray-900\">${task.title}</p>
-                                          ${task.geo?.pickup ? `<p class=\"text-xs text-gray-500\">${task.geo.pickup}${task.geo.dropoff ? ' → ' + task.geo.dropoff : ''}</p>` : ''}
-                                      </div>
-                                      <div class=\"text-right text-xs text-gray-500 space-y-1\">
-                                          <span>${task.deadline || '—'}</span>
-                                          ${slaBadge}
-                                      </div>
+                               <div class="task-card group rounded-2xl border border-indigo-100/70 bg-white/80 p-4 shadow-sm transition-all duration-150 hover:-translate-y-0.5 hover:border-indigo-200 hover:shadow-lg cursor-pointer" data-task-id="${task.id}">
+                                  <div class="flex items-start gap-2">
+                                      ${typeBadge}
                                   </div>
-                                  <div class=\"flex items-center justify-between text-xs text-gray-600 mt-2\">
+                                  <div class="mt-3 space-y-1">
+                                      <p class="font-semibold text-sm text-gray-900 leading-snug">${task.title}</p>
+                                      ${locationDetails ? `<p class="text-xs text-gray-500">${locationDetails.value}</p>` : ''}
+                                  </div>
+                                  <div class="mt-4 flex items-center justify-between text-[11px] text-gray-500">
                                       <span>${assignee ? assignee.name : 'Unassigned'}</span>
-                                      <span>Checklist: ${checklistTotal ? `${checklistCompleted}/${checklistTotal}` : '—'}</span>
+                                      ${deadlineSummary}
                                   </div>
-                                  ${task.description ? `<p class=\"text-xs text-gray-500 mt-2 overflow-hidden text-ellipsis\">${task.description}</p>` : ''}
                                   ${countdownBlock}
                                </div>`
                            }).join('') || '<p class="text-xs text-gray-500">No tasks</p>'}
@@ -1290,38 +1568,83 @@ const renderTasksPage = () => {
             startTimers();
         };
 
-        const openTaskDetailModal = (taskId) => {
+        const renderTaskDetailPage = (taskId) => {
             const task = MOCK_DATA.tasks.find(t => t.id == taskId);
-            if (!task) return;
+            if (!task || !taskDetailContent) return false;
 
             const assignee = MOCK_DATA.drivers.find(d => d.id === task.assigneeId);
             const booking = task.bookingId ? MOCK_DATA.bookings.find(b => b.id === task.bookingId) : null;
             const statusLabels = { todo: 'To do', inprogress: 'In progress', done: 'Completed' };
             const statusBadge = statusLabels[task.status] || task.status;
             const typeMeta = TASK_TYPES[task.type] || { label: task.type };
-            const checklistHtml = task.checklist && task.checklist.length
-                ? task.checklist.map(item => `
-                    <label class="flex items-center gap-2 text-sm ${item.completed ? 'text-emerald-600' : 'text-gray-700'}">
-                        <input type="checkbox" class="task-checklist-toggle" data-task-id="${task.id}" data-item-id="${item.id}" ${item.completed ? 'checked' : ''}>
-                        <span>${item.label}${item.required ? ' <span class=\"text-rose-500\">*</span>' : ''}</span>
-                    </label>
-                `).join('')
-                : '<p class="text-xs text-gray-500">No checklist required</p>';
-
-            const requiredInputs = task.requiredInputs && task.requiredInputs.length
-                ? `<p class="text-xs text-gray-500">Required data: ${task.requiredInputs.map(input => `<span class=\"font-medium text-gray-900\">${input}</span>`).join(', ')}</p>`
+            const priorityMeta = getPriorityMeta(task.priority);
+            const priorityDisplay = priorityMeta
+                ? `<span class="inline-flex items-center gap-2 text-sm font-medium text-gray-700">
+                        ${getPriorityIconHtml(task.priority, 'w-5 h-5')}
+                        <span>${task.priority || priorityMeta.label}</span>
+                   </span>`
+                : (task.priority
+                    ? `<span class="text-sm font-medium text-gray-700">${task.priority}</span>`
+                    : '<span class="text-xs text-gray-500">—</span>');
+            const locationDetails = getTaskLocationDetails(task);
+            const deadlineMeta = getTaskDeadlineMeta(task);
+            const formattedDeadline = deadlineMeta
+                ? `${deadlineMeta.dateLabel} · ${deadlineMeta.timeLabel}`
+                : (task.deadline || 'Not set');
+            const deadlineStatusBadge = deadlineMeta?.showStatusPill
+                ? `<span class="inline-flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-medium ${deadlineMeta.pillClass}">
+                        ${getIcon(deadlineMeta.icon, 'w-3 h-3')}
+                        <span>${deadlineMeta.statusLabel}</span>
+                   </span>`
+                : '';
+            if (!task.requiredDataValues) task.requiredDataValues = {};
+            const requiredInputConfigs = getTaskRequiredInputs(task);
+            const requiredInputsBlock = requiredInputConfigs.length
+                ? `<div>
+                        <p class="font-semibold text-gray-500">Required data</p>
+                        <div class="mt-3 space-y-3">
+                            ${requiredInputConfigs.map(config => {
+                                const storedValue = task.requiredDataValues?.[config.key];
+                                if (config.type === 'file') {
+                                    const storedFiles = Array.isArray(storedValue) ? storedValue : [];
+                                    const acceptAttr = config.accept ? `accept="${config.accept}"` : '';
+                                    const multipleAttr = config.multiple ? 'multiple' : '';
+                                    const summaryText = storedFiles.length ? `Загружено: ${storedFiles.map(name => escapeHtml(name)).join(', ')}` : '';
+                                    const summaryClass = storedFiles.length ? '' : 'hidden';
+                                    return `<label class="block text-xs font-medium text-gray-600">
+                                                <span>${escapeHtml(config.label)}</span>
+                                                <input type="file"
+                                                    class="task-required-input mt-1 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                                                    data-task-id="${task.id}"
+                                                    data-required-key="${config.key}"
+                                                    data-input-type="${config.type}"
+                                                    ${multipleAttr}
+                                                    ${acceptAttr}>
+                                                <p class="task-required-input-info ${summaryClass} mt-1 text-xs text-gray-400">${summaryText}</p>
+                                            </label>`;
+                                }
+                                const inputTypeAttr = config.type === 'number' ? 'number' : 'text';
+                                const valueAttr = storedValue != null ? escapeHtml(storedValue) : '';
+                                return `<label class="block text-xs font-medium text-gray-600">
+                                            <span>${escapeHtml(config.label)}</span>
+                                            <input type="${inputTypeAttr}"
+                                                class="task-required-input mt-1 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                                                data-task-id="${task.id}"
+                                                data-required-key="${config.key}"
+                                                data-input-type="${config.type}"
+                                                value="${valueAttr}">
+                                        </label>`;
+                            }).join('')}
+                        </div>
+                    </div>`
                 : '';
 
-            const locationInfo = task.geo ? `<p class="text-xs text-gray-500">Route: ${task.geo.pickup}${task.geo.dropoff ? ' → ' + task.geo.dropoff : ''}</p>` : '';
-            const slaInfo = task.sla ? `<p class="text-xs text-gray-500">SLA: ${task.sla.timerMinutes} minutes</p>` : '';
-
-            openModal(`
+            taskDetailContent.innerHTML = `
                 <div class="p-6 border-b flex justify-between items-center">
                     <div>
                         <p class="text-xs uppercase tracking-wide text-gray-500">${typeMeta.label}</p>
                         <h2 class="text-xl font-semibold mt-1">${task.title}</h2>
                     </div>
-                    <button class="p-2 text-gray-500 hover:text-black close-modal-btn">&times;</button>
                 </div>
                 <div class="p-6 space-y-5 text-sm">
                     <div class="flex items-center justify-between">
@@ -1334,68 +1657,110 @@ const renderTasksPage = () => {
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-gray-600">
                         <div>
                             <p class="font-semibold text-gray-500">Deadline</p>
-                            <p class="mt-1">${task.deadline || 'Not set'}</p>
+                            <div class="mt-1 space-y-1">
+                                <p>${formattedDeadline}</p>
+                                ${deadlineStatusBadge}
+                            </div>
                         </div>
                         <div>
                             <p class="font-semibold text-gray-500">Priority</p>
-                            <p class="mt-1">${task.priority || '—'}</p>
+                            <div class="mt-1 flex items-center gap-2">${priorityDisplay}</div>
                         </div>
-                        ${task.sla ? `<div><p class="font-semibold text-gray-500">SLA</p><p class="mt-1">${task.sla.timerMinutes} minutes</p></div>` : ''}
-                        ${task.geo ? `<div><p class="font-semibold text-gray-500">Location</p><p class="mt-1">${task.geo.pickup}${task.geo.dropoff ? ' → ' + task.geo.dropoff : ''}</p></div>` : ''}
+                        ${locationDetails ? `<div><p class="font-semibold text-gray-500">${locationDetails.label}</p><p class="mt-1 text-gray-700">${locationDetails.value}</p></div>` : ''}
                     </div>
-                    ${task.description ? `<div>
-                        <p class="font-semibold text-gray-500">Description</p>
-                        <p class="mt-1 text-gray-700 leading-relaxed">${task.description}</p>
-                    </div>` : ''}
-                    <div class="space-y-2">
-                        <p class="font-semibold text-gray-500">Checklist</p>
-                        <div class="space-y-2">
-                            ${checklistHtml}
-                        </div>
-                        ${requiredInputs}
-                    </div>
+                    ${requiredInputsBlock}
                     ${booking ? `<div class="border-t pt-4">
                         <p class="font-semibold text-gray-500 mb-2">Related booking</p>
                         <div class="flex flex-col space-y-2">
                             <span><strong>#${booking.id}</strong> · ${booking.carName}</span>
-                            <a class="text-blue-600 hover:underline text-sm" href="${buildHash(appState.currentRole, 'bookings', booking.id)}">Open booking details</a>
+                            <a class="text-blue-600 hover:underline text-sm" href="${buildHash(appState.currentRole, 'booking-detail', booking.id)}">Open booking details</a>
                         </div>
                     </div>` : ''}
                 </div>
                 <div class="px-6 pb-6 flex justify-end">
                     <button id="task-complete-btn" class="geist-button geist-button-primary text-sm">Complete task</button>
                 </div>
-            `);
+            `;
 
-            document.querySelectorAll('.task-checklist-toggle').forEach(input => {
-                input.addEventListener('change', (event) => {
-                    const itemId = event.target.dataset.itemId;
-                    const item = task.checklist?.find(entry => entry.id === itemId);
-                    if (item) {
-                        item.completed = event.target.checked;
-                        event.target.parentElement.classList.toggle('text-emerald-600', event.target.checked);
-                        renderTasksPage();
+            const requiredInputMap = new Map(requiredInputConfigs.map(config => [config.key, config]));
+            taskDetailContent.querySelectorAll('.task-required-input').forEach(input => {
+                const key = input.dataset.requiredKey;
+                const config = requiredInputMap.get(key) || {};
+                const inputType = input.dataset.inputType || config.type || 'text';
+                if (!task.requiredDataValues) task.requiredDataValues = {};
+                const handler = (event) => {
+                    if (!task.requiredDataValues) task.requiredDataValues = {};
+                    if (inputType === 'file') {
+                        const files = Array.from(event.target.files || []);
+                        task.requiredDataValues[key] = files.map(file => file.name);
+                        const infoEl = event.target.closest('label')?.querySelector('.task-required-input-info');
+                        if (infoEl) {
+                            if (files.length) {
+                                infoEl.textContent = `Загружено: ${files.map(file => file.name).join(', ')}`;
+                                infoEl.classList.remove('hidden');
+                            } else {
+                                infoEl.textContent = '';
+                                infoEl.classList.add('hidden');
+                            }
+                        }
+                        if (files.length) {
+                            event.target.classList.remove('border-rose-400', 'ring-1', 'ring-rose-100', 'focus:ring-rose-200', 'focus:border-rose-400');
+                        }
+                    } else {
+                        const currentValue = event.target.value;
+                        task.requiredDataValues[key] = currentValue;
+                        if (currentValue.trim()) {
+                            event.target.classList.remove('border-rose-400', 'ring-1', 'ring-rose-100', 'focus:ring-rose-200', 'focus:border-rose-400');
+                        }
                     }
-                });
+                };
+                input.addEventListener(inputType === 'file' ? 'change' : 'input', handler);
             });
 
-            const completeBtn = document.getElementById('task-complete-btn');
+            const completeBtn = taskDetailContent.querySelector('#task-complete-btn');
             if (completeBtn) {
                 completeBtn.addEventListener('click', () => {
-                    const hasChecklist = Array.isArray(task.checklist) && task.checklist.length;
-                    if (hasChecklist) {
-                        const incompleteRequired = task.checklist.some(item => item.required && !item.completed);
-                        if (incompleteRequired) {
-                            showToast('Complete required checklist items before finishing', 'error');
+                    if (requiredInputConfigs.length) {
+                        if (!task.requiredDataValues) task.requiredDataValues = {};
+                        let hasMissing = false;
+                        requiredInputConfigs.forEach(config => {
+                            const storedValue = task.requiredDataValues[config.key];
+                            const isFilled = config.type === 'file'
+                                ? Array.isArray(storedValue) && storedValue.length > 0
+                                : (storedValue ?? '').toString().trim().length > 0;
+                            const inputEl = taskDetailContent.querySelector(`.task-required-input[data-required-key="${config.key}"]`);
+                            if (inputEl) {
+                                if (!isFilled) {
+                                    inputEl.classList.add('border-rose-400', 'ring-1', 'ring-rose-100', 'focus:ring-rose-200', 'focus:border-rose-400');
+                                } else {
+                                    inputEl.classList.remove('border-rose-400', 'ring-1', 'ring-rose-100', 'focus:ring-rose-200', 'focus:border-rose-400');
+                                }
+                                if (config.type === 'file') {
+                                    const infoEl = inputEl.closest('label')?.querySelector('.task-required-input-info');
+                                    if (infoEl && !isFilled) {
+                                        infoEl.classList.add('hidden');
+                                        infoEl.textContent = '';
+                                    }
+                                }
+                            }
+                            if (!isFilled) {
+                                hasMissing = true;
+                            }
+                        });
+                        if (hasMissing) {
+                            showToast('Заполните обязательные поля перед завершением задачи', 'error');
                             return;
                         }
                     }
+
                     task.status = 'done';
                     showToast('Task marked as completed', 'success');
-                    closeModal();
+                    window.location.hash = buildHash(appState.currentRole, 'tasks');
                     renderTasksPage();
                 });
             }
+
+            return true;
         };
 
         // --- LAYOUT MANAGER ---
@@ -1412,7 +1777,6 @@ const renderTasksPage = () => {
 
             if (!isDesktop) {
                 desktopPages.forEach(page => page.classList.add('hidden'));
-                    closeModal();
             }
         };
         
@@ -1426,9 +1790,16 @@ const renderTasksPage = () => {
             let normalizedSelector = selector;
             let needsUpdate = !parsedHash.isCanonical;
 
+            if (!isDefaultSelector(normalizedSelector)) {
+                if (page === 'bookings' || page.endsWith('-table')) {
+                    page = getDetailPageId(page);
+                    needsUpdate = true;
+                }
+            }
+
             if (layout === 'desktop' && roleConfig?.nav?.length) {
                 const allowedPages = roleConfig.nav.map(item => item.id);
-                if (!allowedPages.includes(page) && !page.endsWith('-table')) {
+                if (!allowedPages.includes(page) && !page.endsWith('-table') && !AUXILIARY_PAGES.includes(page)) {
                     page = roleConfig.defaultPage;
                     normalizedSelector = HASH_DEFAULT_SELECTOR;
                     needsUpdate = true;
@@ -1459,8 +1830,6 @@ const renderTasksPage = () => {
             appState.currentRole = role;
             appState.currentPage = page;
 
-            closeModal(); // Close any open modals on navigation
-
             document.querySelectorAll('.page').forEach(p => p.classList.add('hidden'));
 
             let pageId = `page-${appState.currentPage}`;
@@ -1468,17 +1837,53 @@ const renderTasksPage = () => {
             if (appState.currentPage.endsWith('-table')) {
                 pageId = 'page-table-view';
                 renderTableView(appState.currentPage);
-                if (!isDefaultSelector(normalizedSelector)) {
-                    renderDetailPanel(appState.currentPage, normalizedSelector);
+            } else if (appState.currentPage === 'booking-detail') {
+                if (isDefaultSelector(normalizedSelector) || !renderDetailPanel('bookings', normalizedSelector)) {
+                    page = 'bookings';
+                    normalizedSelector = HASH_DEFAULT_SELECTOR;
+                    needsUpdate = true;
                 }
-            } else if (!isDefaultSelector(normalizedSelector) && ['bookings', 'fleet-calendar', 'driver-task-detail'].includes(appState.currentPage)) {
-                if (appState.currentPage === 'bookings') {
-                    renderDetailPanel('bookings', normalizedSelector);
-                } else if (appState.currentPage === 'fleet-calendar') {
-                    // Calendar booking detail will be handled by click handler
-                } else if (appState.currentPage === 'driver-task-detail') {
-                    pageId = 'page-driver-task-detail';
-                    renderDriverTaskDetail(normalizedSelector);
+            } else if (appState.currentPage === 'fleet-detail') {
+                if (isDefaultSelector(normalizedSelector) || !renderDetailPanel('fleet-table', normalizedSelector)) {
+                    page = 'fleet-table';
+                    normalizedSelector = HASH_DEFAULT_SELECTOR;
+                    needsUpdate = true;
+                }
+            } else if (appState.currentPage === 'client-detail') {
+                if (isDefaultSelector(normalizedSelector) || !renderDetailPanel('clients-table', normalizedSelector)) {
+                    page = 'clients-table';
+                    normalizedSelector = HASH_DEFAULT_SELECTOR;
+                    needsUpdate = true;
+                }
+            } else if (appState.currentPage === 'task-detail') {
+                if (isDefaultSelector(normalizedSelector) || !renderTaskDetailPage(normalizedSelector)) {
+                    page = 'tasks';
+                    normalizedSelector = HASH_DEFAULT_SELECTOR;
+                    needsUpdate = true;
+                }
+            } else if (appState.currentPage === 'driver-task-detail') {
+                pageId = 'page-driver-task-detail';
+                const rendered = renderDriverTaskDetail(normalizedSelector);
+                if (!rendered) {
+                    page = 'driver-tasks';
+                    normalizedSelector = HASH_DEFAULT_SELECTOR;
+                    needsUpdate = true;
+                }
+            } else if (appState.currentPage === 'maintenance-create') {
+                pageId = 'page-maintenance-create';
+                renderMaintenanceForm();
+            } else if (appState.currentPage === 'booking-create') {
+                pageId = 'page-booking-create';
+                renderBookingCreateForm();
+            } else if (appState.currentPage === 'vehicle-create') {
+                pageId = 'page-vehicle-create';
+                renderVehicleCreateForm();
+            } else if (appState.currentPage === 'document-viewer') {
+                pageId = 'page-document-viewer';
+                if (!renderDocumentViewer(normalizedSelector)) {
+                    page = roleConfig?.defaultPage || 'dashboard';
+                    normalizedSelector = HASH_DEFAULT_SELECTOR;
+                    needsUpdate = true;
                 }
             }
 
@@ -1536,17 +1941,17 @@ const renderTasksPage = () => {
             }
         };
         
-        // --- MODAL HANDLING ---
-        function openMaintenanceModal() {
+        const renderMaintenanceForm = () => {
+            if (!maintenanceCreateContent) return false;
             const defaultDate = appState.calendarStart || getStartOfWeek();
             const defaultStart = `${defaultDate}T09:00`;
             const defaultEnd = `${defaultDate}T18:00`;
             const carOptions = MOCK_DATA.cars.map(car => `<option value="${car.id}">${car.name} · ${car.plate}</option>`).join('');
 
-            openModal(`
-                <div class="p-6 border-b flex justify-between items-center">
+            maintenanceCreateContent.innerHTML = `
+                <div class="p-6 border-b">
                     <h2 class="text-xl font-semibold">Schedule maintenance</h2>
-                    <button class="close-modal-btn p-2 text-gray-500 hover:text-black" aria-label="Close">&times;</button>
+                    <p class="text-sm text-gray-500 mt-1">Create a maintenance slot for a vehicle</p>
                 </div>
                 <div class="p-6 space-y-4">
                     <div>
@@ -1579,27 +1984,171 @@ const renderTasksPage = () => {
                     </div>
                 </div>
                 <div class="p-4 border-t bg-gray-50 flex justify-end gap-2">
-                    <button type="button" class="close-modal-btn geist-button geist-button-secondary">Cancel</button>
+                    <button type="button" id="maintenance-cancel-btn" class="geist-button geist-button-secondary">Cancel</button>
                     <button type="button" id="maintenance-save-btn" class="geist-button geist-button-primary">Save</button>
                 </div>
-            `);
+            `;
 
-            const saveBtn = document.getElementById('maintenance-save-btn');
+            const saveBtn = maintenanceCreateContent.querySelector('#maintenance-save-btn');
             if (saveBtn) {
                 saveBtn.addEventListener('click', () => {
-                    closeModal();
                     showToast('Maintenance slot created (demo)', 'success');
+                    window.location.hash = buildHash(appState.currentRole, 'fleet-calendar');
                 });
             }
-        }
 
-        const docViewer = document.getElementById('doc-viewer-modal');
-        const openDocViewer = (url) => {
-            document.getElementById('doc-viewer-image').src = url;
-            docViewer.classList.replace('hidden', 'flex');
-        }
-        const closeDocViewer = () => docViewer.classList.replace('flex', 'hidden');
-        
+            const cancelBtn = maintenanceCreateContent.querySelector('#maintenance-cancel-btn');
+            if (cancelBtn) {
+                cancelBtn.addEventListener('click', () => {
+                    window.location.hash = buildHash(appState.currentRole, 'fleet-calendar');
+                });
+            }
+
+            return true;
+        };
+
+        const renderBookingCreateForm = () => {
+            if (!bookingCreateContent) return false;
+            const templateBooking = MOCK_DATA.bookings.find(b => b.status === 'new') || MOCK_DATA.bookings[0];
+            const templateClient = templateBooking ? MOCK_DATA.clients.find(client => Number(client.id) === Number(templateBooking.clientId)) : null;
+            const templateCar = templateBooking ? MOCK_DATA.cars.find(car => Number(car.id) === Number(templateBooking.carId)) : null;
+            const clientOptions = MOCK_DATA.clients.map(client => `
+                <option value="${client.id}" ${templateClient && Number(templateClient.id) === Number(client.id) ? 'selected' : ''}>
+                    ${client.name}
+                </option>
+            `).join('');
+            const carOptions = MOCK_DATA.cars
+                .filter(car => car.status === 'Available' || (templateCar && Number(templateCar.id) === Number(car.id)))
+                .map(car => `
+                    <option value="${car.id}" ${templateCar && Number(templateCar.id) === Number(car.id) ? 'selected' : ''}>
+                        ${car.name}
+                    </option>
+                `).join('');
+
+            bookingCreateContent.innerHTML = `
+                <div class="p-6 border-b">
+                    <h2 class="text-xl font-semibold">New booking</h2>
+                    <p class="text-sm text-gray-500 mt-1">Fill in booking details to add a new rental</p>
+                </div>
+                <form class="p-6 space-y-6" id="booking-create-form">
+                    <div class="grid gap-4 md:grid-cols-2">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Client</label>
+                            <select class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md" name="client">
+                                <option value="">Select client</option>
+                                ${clientOptions}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Vehicle</label>
+                            <select class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md" name="vehicle">
+                                <option value="">Select vehicle</option>
+                                ${carOptions}
+                            </select>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4 md:col-span-2">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Start date</label>
+                                <input type="date" value="${templateBooking?.startDate || ''}" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md" name="start">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">End date</label>
+                                <input type="date" value="${templateBooking?.endDate || ''}" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md" name="end">
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4 md:col-span-2">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Pickup location</label>
+                                <input type="text" value="${templateBooking?.pickupLocation || ''}" placeholder="e.g. SkyLuxse HQ" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md" name="pickup">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Drop-off location</label>
+                                <input type="text" value="${templateBooking?.dropoffLocation || ''}" placeholder="e.g. Palm Jumeirah" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md" name="dropoff">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Amount (AED)</label>
+                            <input type="number" value="${templateBooking?.totalAmount || ''}" min="0" step="50" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md" name="amount">
+                        </div>
+                    </div>
+                </form>
+                <div class="p-6 border-t bg-gray-50 flex justify-end space-x-3">
+                    <button type="button" id="booking-create-cancel" class="geist-button geist-button-secondary">Cancel</button>
+                    <button type="submit" form="booking-create-form" class="geist-button geist-button-primary">Create booking</button>
+                </div>
+            `;
+
+            const form = bookingCreateContent.querySelector('#booking-create-form');
+            form?.addEventListener('submit', (event) => {
+                event.preventDefault();
+                showToast('Booking saved (demo)', 'success');
+                window.location.hash = buildHash(appState.currentRole, 'bookings');
+            });
+
+            const cancelBtn = bookingCreateContent.querySelector('#booking-create-cancel');
+            cancelBtn?.addEventListener('click', () => {
+                window.location.hash = buildHash(appState.currentRole, 'bookings');
+            });
+
+            return true;
+        };
+
+        const renderVehicleCreateForm = () => {
+            if (!vehicleCreateContent) return false;
+            vehicleCreateContent.innerHTML = `
+                <div class="p-6 border-b">
+                    <h2 class="text-xl font-semibold">Add vehicle</h2>
+                    <p class="text-sm text-gray-500 mt-1">Register a new car in the fleet</p>
+                </div>
+                <form class="p-6 space-y-4" id="vehicle-create-form">
+                    <input type="text" placeholder="Name" class="w-full px-3 py-2 border border-gray-300 rounded-md" name="name" required>
+                    <input type="text" placeholder="Plate number" class="w-full px-3 py-2 border border-gray-300 rounded-md" name="plate" required>
+                    <input type="text" placeholder="Color" class="w-full px-3 py-2 border border-gray-300 rounded-md" name="color">
+                </form>
+                <div class="p-6 border-t bg-gray-50 flex justify-end space-x-3">
+                    <button type="button" id="vehicle-create-cancel" class="geist-button geist-button-secondary">Cancel</button>
+                    <button type="submit" form="vehicle-create-form" class="geist-button geist-button-primary">Save</button>
+                </div>
+            `;
+
+            const form = vehicleCreateContent.querySelector('#vehicle-create-form');
+            form?.addEventListener('submit', (event) => {
+                event.preventDefault();
+                showToast('Vehicle added (demo)', 'success');
+                window.location.hash = buildHash(appState.currentRole, 'fleet-table');
+            });
+
+            vehicleCreateContent.querySelector('#vehicle-create-cancel')?.addEventListener('click', () => {
+                window.location.hash = buildHash(appState.currentRole, 'fleet-table');
+            });
+
+            return true;
+        };
+
+        const renderDocumentViewer = (encodedSelector) => {
+            if (!documentViewerImage) return false;
+            if (!encodedSelector || encodedSelector === HASH_DEFAULT_SELECTOR) return false;
+            try {
+                const decoded = atob(decodeURIComponent(encodedSelector));
+                documentViewerImage.src = decoded;
+                documentViewerImage.alt = 'Document preview';
+                return true;
+            } catch {
+                return false;
+            }
+        };
+
+        const openDocumentPage = (url) => {
+            if (!url) return;
+            try {
+                const encoded = encodeURIComponent(btoa(url));
+                window.location.hash = buildHash(appState.currentRole, 'document-viewer', encoded);
+                router();
+            } catch {
+                showToast('Cannot open document', 'error');
+            }
+        };
+
         // --- EVENT LISTENERS ---
         if (loginRoleSelect) {
             loginRoleSelect.addEventListener('change', (e) => {
@@ -1663,24 +2212,36 @@ const renderTasksPage = () => {
         document.getElementById('burger-menu').addEventListener('click', () => {
             sidebar.classList.toggle('-translate-x-full');
         });
-        
-        // overlay no longer used; modal component handles backdrop internally
 
+        if (sidebarCollapseBtn) {
+            sidebarCollapseBtn.addEventListener('click', () => {
+                const collapsed = sidebar.classList.toggle('sidebar-collapsed');
+                if (collapsed) {
+                    sidebar.classList.remove('-translate-x-full');
+                }
+                updateSidebarToggleState();
+            });
+            updateSidebarToggleState();
+        }
+        
         appContainer.addEventListener('click', e => {
             const link = e.target.closest('a');
             if(link && link.hash && link.hash.startsWith('#')) {
-                  const { page, selector, canonical } = parseHash(link.hash);
+                  const { page, selector } = parseHash(link.hash);
                   if(!isDefaultSelector(selector) && (page.endsWith('-table') || page === 'bookings')) {
                       e.preventDefault();
-                      renderDetailPanel(page, selector);
-                      window.location.hash = canonical;
+                      const detailPage = getDetailPageId(page);
+                      window.location.hash = buildHash(appState.currentRole, detailPage, selector);
+                      router();
                       return;
                   }
             }
 
             const taskCard = e.target.closest('.task-card');
             if (taskCard) {
-                openTaskDetailModal(taskCard.dataset.taskId);
+                e.preventDefault();
+                window.location.hash = buildHash(appState.currentRole, 'task-detail', taskCard.dataset.taskId);
+                router();
                 return;
             }
 
@@ -1688,7 +2249,7 @@ const renderTasksPage = () => {
             if (kanbanCard) {
                 e.preventDefault();
                 const bookingId = kanbanCard.dataset.bookingId;
-                window.location.hash = buildHash(appState.currentRole, 'bookings', bookingId);
+                window.location.hash = buildHash(appState.currentRole, 'booking-detail', bookingId);
                 router();
             }
 
@@ -1711,101 +2272,36 @@ const renderTasksPage = () => {
             if (calendarBooking && appState.currentPage === 'fleet-calendar') {
                 const bookingId = calendarBooking.dataset.bookingId;
                 e.preventDefault();
-                renderDetailPanel('bookings', bookingId);
-                window.location.hash = buildHash(appState.currentRole, 'fleet-calendar', bookingId);
+                window.location.hash = buildHash(appState.currentRole, 'booking-detail', bookingId);
+                router();
                 return;
             }
             
             const docImage = e.target.closest('.doc-image');
-            if(docImage) openDocViewer(docImage.src);
+            if(docImage) {
+                e.preventDefault();
+                openDocumentPage(docImage.src);
+                return;
+            }
 
             const clientDocLink = e.target.closest('.client-doc-link');
             if(clientDocLink) {
                 e.preventDefault();
-                openDocViewer(clientDocLink.dataset.url);
+                openDocumentPage(clientDocLink.dataset.url);
+                return;
             }
             
             // Handle new booking button
             if (e.target.closest('button') && e.target.closest('button').textContent.includes('New booking')) {
                 e.preventDefault();
-                const templateBooking = MOCK_DATA.bookings.find(b => b.status === 'new') || MOCK_DATA.bookings[0];
-                const templateClient = templateBooking ? MOCK_DATA.clients.find(client => Number(client.id) === Number(templateBooking.clientId)) : null;
-                const templateCar = templateBooking ? MOCK_DATA.cars.find(car => Number(car.id) === Number(templateBooking.carId)) : null;
-                const clientOptions = MOCK_DATA.clients.map(client => `
-                    <option value="${client.id}" ${templateClient && Number(templateClient.id) === Number(client.id) ? 'selected' : ''}>
-                        ${client.name}
-                    </option>
-                `).join('');
-                const carOptions = MOCK_DATA.cars
-                    .filter(car => car.status === 'Available' || (templateCar && Number(templateCar.id) === Number(car.id)))
-                    .map(car => `
-                        <option value="${car.id}" ${templateCar && Number(templateCar.id) === Number(car.id) ? 'selected' : ''}>
-                            ${car.name}
-                        </option>
-                    `).join('');
-                const startDateValue = templateBooking?.startDate || '';
-                const endDateValue = templateBooking?.endDate || '';
-                const pickupLocation = templateBooking?.pickupLocation || '';
-                const dropoffLocation = templateBooking?.dropoffLocation || '';
-                const totalAmountValue = templateBooking?.totalAmount || '';
-
-                openModal(`
-                    <div class="p-6 border-b flex justify-between items-center">
-                        <h2 class="text-xl font-semibold">New booking</h2>
-                        <button class="p-2 text-gray-500 hover:text-black close-modal-btn">&times;</button>
-                    </div>
-                    <div class="p-6 space-y-6">
-                        <div class="grid gap-4 md:grid-cols-2">
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700">Client</label>
-                                <select class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md">
-                                    <option value="">Select client</option>
-                                    ${clientOptions}
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700">Vehicle</label>
-                                <select class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md">
-                                    <option value="">Select vehicle</option>
-                                    ${carOptions}
-                                </select>
-                            </div>
-                            <div class="grid grid-cols-2 gap-4 md:col-span-2">
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700">Start date</label>
-                                    <input type="date" value="${startDateValue}" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md">
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700">End date</label>
-                                    <input type="date" value="${endDateValue}" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md">
-                                </div>
-                            </div>
-                            <div class="grid grid-cols-2 gap-4 md:col-span-2">
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700">Pickup location</label>
-                                    <input type="text" value="${pickupLocation}" placeholder="e.g. SkyLuxse HQ" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md">
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700">Drop-off location</label>
-                                    <input type="text" value="${dropoffLocation}" placeholder="e.g. Palm Jumeirah" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md">
-                                </div>
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700">Amount (AED)</label>
-                                <input type="number" value="${totalAmountValue}" min="0" step="50" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md">
-                            </div>
-                        </div>
-                    </div>
-                    <div class="p-6 border-t bg-gray-50 flex justify-end space-x-3">
-                        <button class="geist-button geist-button-secondary close-modal-btn">Cancel</button>
-                        <button class="geist-button geist-button-primary">Create booking</button>
-                    </div>
-                `);
+                window.location.hash = buildHash(appState.currentRole, 'booking-create');
+                router();
+                return;
             }
 
             const finesBtn = e.target.closest('.check-fines-btn');
             if (finesBtn) {
-                const resultEl = genericModalContent?.querySelector('#fines-result');
+                const resultEl = finesBtn.closest('.geist-card')?.querySelector('#fines-result') || document.getElementById('fines-result');
                 if (resultEl) {
                     const hasFine = Math.random() < 0.35;
                     if (hasFine) {
@@ -1839,18 +2335,18 @@ const renderTasksPage = () => {
             }
             if (e.target.id === 'complete-task-btn') {
                 const bookingId = e.target.dataset.bookingId;
-                const odometerValue = genericModalContent?.querySelector('#driver-odometer')?.value.trim();
-                const fuelLevel = genericModalContent?.querySelector('#driver-fuel')?.value;
+                const odometerValue = driverTaskDetailContent?.querySelector('#driver-odometer')?.value.trim();
+                const fuelLevel = driverTaskDetailContent?.querySelector('#driver-fuel')?.value;
                 if (!odometerValue || !fuelLevel) {
                     showToast('Fill in mileage and fuel level before completing', 'error');
                     return;
                 }
-                const cashValue = parseFloat(genericModalContent?.querySelector('#driver-cash')?.value || '0') || 0;
-                const services = Array.from(genericModalContent?.querySelectorAll('.driver-service:checked') || []).map(input => ({
+                const cashValue = parseFloat(driverTaskDetailContent?.querySelector('#driver-cash')?.value || '0') || 0;
+                const services = Array.from(driverTaskDetailContent?.querySelectorAll('.driver-service:checked') || []).map(input => ({
                     code: input.dataset.code,
                     amount: parseFloat(input.dataset.amount || '0') || 0
                 }));
-                const finesText = genericModalContent?.querySelector('#fines-result')?.textContent.trim();
+                const finesText = driverTaskDetailContent?.querySelector('#fines-result')?.textContent.trim();
                 const payload = {
                     odometer: odometerValue,
                     fuelLevel,
@@ -1881,18 +2377,18 @@ const renderTasksPage = () => {
                     syncOfflineQueue();
                 }
 
-                closeModal();
+                window.location.hash = buildHash(appState.currentRole, 'driver-tasks');
                 renderDriverTasks();
                 renderTasksPage();
                 showToast('Driver task completed', 'success');
             }
         });
 
-        genericModalContent?.addEventListener('click', e => {
+        bookingDetailContent?.addEventListener('click', e => {
             const stripeBtn = e.target.closest('.generate-stripe-link');
             if (stripeBtn) {
-                const amountInput = genericModalContent?.querySelector('.stripe-amount-input');
-                const reasonSelect = genericModalContent?.querySelector('.stripe-reason-select');
+                const amountInput = bookingDetailContent.querySelector('.stripe-amount-input');
+                const reasonSelect = bookingDetailContent.querySelector('.stripe-reason-select');
                 const amountValue = amountInput ? amountInput.value : '';
                 const reasonValue = reasonSelect ? reasonSelect.value : '';
                 const bookingId = stripeBtn.dataset.bookingId;
@@ -1901,10 +2397,10 @@ const renderTasksPage = () => {
                 const linkToken = Math.random().toString(36).slice(2, 8);
                 const stripeLink = `https://pay.stripe.com/mock/skyluxse-${bookingId}-${reasonSlug}-${linkToken}?amount=${encodeURIComponent(sanitizedAmount || '0')}`;
 
-                const resultContainer = genericModalContent?.querySelector('#stripe-link-result');
-                const anchor = genericModalContent?.querySelector('#stripe-link-anchor');
-                const copyBtn = genericModalContent?.querySelector('.copy-stripe-link');
-                const feedback = genericModalContent?.querySelector('#stripe-copy-feedback');
+                const resultContainer = bookingDetailContent.querySelector('#stripe-link-result');
+                const anchor = bookingDetailContent.querySelector('#stripe-link-anchor');
+                const copyBtn = bookingDetailContent.querySelector('.copy-stripe-link');
+                const feedback = bookingDetailContent.querySelector('#stripe-copy-feedback');
 
                 if (anchor) {
                     anchor.href = stripeLink;
@@ -1926,7 +2422,7 @@ const renderTasksPage = () => {
             const copyStripeBtn = e.target.closest('.copy-stripe-link');
             if (copyStripeBtn) {
                 const linkValue = copyStripeBtn.dataset.link;
-                const feedback = genericModalContent?.querySelector('#stripe-copy-feedback');
+                const feedback = bookingDetailContent.querySelector('#stripe-copy-feedback');
                 const showFeedback = (text, success = true) => {
                     if (feedback) {
                         feedback.textContent = text;
@@ -1950,44 +2446,15 @@ const renderTasksPage = () => {
             }
         });
 
-        genericModalContent?.addEventListener('input', e => {
-            if (['driver-odometer', 'driver-fuel'].includes(e.target.id)) {
-                const docChecked = document.getElementById('doc-check')?.checked;
-                const formValid = !!document.getElementById('driver-odometer')?.value && !!document.getElementById('driver-fuel')?.value;
-                const completeBtn = document.getElementById('complete-task-btn');
-                if (docChecked && completeBtn) {
-                    completeBtn.disabled = !formValid;
-                }
-            }
-        });
-
         pageActionButton.addEventListener('click', () => {
             if(appState.currentPage === 'tasks') {
-                 openTaskCreationModal();
-            }
-            if (appState.currentPage === 'fleet-table') {
-                 openModal(`
-                    <div class="p-6 border-b flex justify-between items-center">
-                        <h2 class="text-xl font-semibold">Add vehicle</h2>
-                        <button class="p-2 text-gray-500 hover:text-black close-modal-btn">&times;</button>
-                    </div>
-                    <div class="p-6 space-y-4">
-                        <input type="text" placeholder="Name" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md">
-                        <input type="text" placeholder="Plate number" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md">
-                    </div>
-                     <div class="p-6 border-t bg-gray-50 flex justify-end">
-                        <button class="geist-button geist-button-primary">Save</button>
-                    </div>
-                 `);
+                 showToast('Task creation flow is not available in this demo build', 'info');
+            } else if (appState.currentPage === 'fleet-table') {
+                 window.location.hash = buildHash(appState.currentRole, 'vehicle-create');
+                 router();
             }
         });
         
-        genericModal.addEventListener('click', e => {
-            if (e.target.closest('.close-modal-btn')) closeModal();
-        });
-        
-        document.getElementById('close-doc-viewer').addEventListener('click', closeDocViewer);
-
         window.addEventListener('popstate', router);
         window.addEventListener('hashchange', router);
 

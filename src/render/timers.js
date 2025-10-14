@@ -13,14 +13,14 @@ export const startTimers = () => {
             const diff = targetTime - now;
 
             if (diff <= 0) {
-                timerEl.innerHTML = `Просрочено`;
+                timerEl.innerHTML = `Overdue`;
                 timerEl.classList.add('text-red-600');
                 return;
             }
             const d = Math.floor(diff / (1000 * 60 * 60 * 24));
             const h = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
             const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-            timerEl.innerHTML = `${getIcon('clock', 'w-3 h-3 inline mr-1')} ${d}д ${h}ч ${m}м`;
+            timerEl.innerHTML = `${getIcon('clock', 'w-3 h-3 inline mr-1')} ${d}d ${h}h ${m}m`;
         });
 
         document.querySelectorAll('.task-countdown').forEach(timerEl => {
@@ -31,7 +31,7 @@ export const startTimers = () => {
             timerEl.classList.remove('text-green-600', 'text-amber-500', 'text-red-600');
 
             if (diff <= 0) {
-                timerEl.innerHTML = `${getIcon('clock', 'w-3 h-3 inline mr-1')} Просрочено`;
+                timerEl.innerHTML = `${getIcon('clock', 'w-3 h-3 inline mr-1')} Overdue`;
                 timerEl.classList.add('text-red-600');
                 return;
             }
@@ -40,9 +40,9 @@ export const startTimers = () => {
             const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
             const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
             const parts = [];
-            if (days > 0) parts.push(`${days}д`);
-            parts.push(`${hours}ч`);
-            parts.push(`${minutes}м`);
+            if (days > 0) parts.push(`${days}d`);
+            parts.push(`${hours}h`);
+            parts.push(`${minutes}m`);
             timerEl.innerHTML = `${getIcon('clock', 'w-3 h-3 inline mr-1')} ${parts.join(' ')}`;
 
             if (diff <= 2 * 60 * 60 * 1000) {

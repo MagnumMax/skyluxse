@@ -16,7 +16,6 @@ const bindKanbanFilters = () => {
     const prioritySelect = document.getElementById('kanban-filter-priority');
     const typeSelect = document.getElementById('kanban-filter-type');
     const driverSelect = document.getElementById('kanban-filter-driver');
-    const clientSelect = document.getElementById('kanban-filter-client');
     const resetBtn = document.getElementById('kanban-reset-filters');
     const createBtn = document.getElementById('kanban-create-booking');
 
@@ -26,11 +25,6 @@ const bindKanbanFilters = () => {
         driverSelect.dataset.optionsReady = 'true';
     }
 
-    if (clientSelect && !clientSelect.dataset.optionsReady) {
-        const clientOptions = MOCK_DATA.clients.map(client => `<option value="${client.id}">${client.name}</option>`).join('');
-        clientSelect.insertAdjacentHTML('beforeend', clientOptions);
-        clientSelect.dataset.optionsReady = 'true';
-    }
 
     if (prioritySelect) {
         prioritySelect.addEventListener('change', (event) => {
@@ -50,25 +44,18 @@ const bindKanbanFilters = () => {
             renderKanbanBoard();
         });
     }
-    if (clientSelect) {
-        clientSelect.addEventListener('change', (event) => {
-            appState.filters.bookings.client = event.target.value;
-            renderKanbanBoard();
-        });
-    }
     if (resetBtn) {
         resetBtn.addEventListener('click', () => {
-            appState.filters.bookings = { priority: 'all', type: 'all', driver: 'all', client: 'all' };
+            appState.filters.bookings = { priority: 'all', type: 'all', driver: 'all' };
             if (prioritySelect) prioritySelect.value = 'all';
             if (typeSelect) typeSelect.value = 'all';
             if (driverSelect) driverSelect.value = 'all';
-            if (clientSelect) clientSelect.value = 'all';
             renderKanbanBoard();
         });
     }
     if (createBtn) {
         createBtn.addEventListener('click', () => {
-            showToast('Создание заказа инициируется из Kommo. Функция скоро появится в SkyLuxse.', 'info');
+            showToast('Booking creation starts in Kommo. The feature is coming soon to SkyLuxse.', 'info');
         });
     }
 
@@ -82,31 +69,22 @@ const applyKanbanAutomations = (booking, newStatus) => {
             booking.driverId = availableDriver.id;
             availableDriver.status = 'On Task';
             booking.history = booking.history || [];
-            booking.history.push({ ts: new Date().toISOString().slice(0, 16).replace('T', ' '), event: `Автоматически назначен водитель ${availableDriver.name}` });
-            showToast(`Назначен водитель ${availableDriver.name}`, 'success');
+            booking.history.push({ ts: new Date().toISOString().slice(0, 16).replace('T', ' '), event: `Driver ${availableDriver.name} assigned automatically` });
+            showToast(`Driver ${availableDriver.name} assigned`, 'success');
         }
     }
 
     if (newStatus === 'delivery' && !booking.targetTime) {
         booking.targetTime = Date.now() + 2 * 60 * 60 * 1000;
         booking.history = booking.history || [];
-        booking.history.push({ ts: new Date().toISOString().slice(0, 16).replace('T', ' '), event: 'Назначено контрольное время доставки (+2 часа)' });
+        booking.history.push({ ts: new Date().toISOString().slice(0, 16).replace('T', ' '), event: 'Delivery checkpoint set (+2 hours)' });
     }
 
     if (newStatus === 'settlement') {
         booking.targetTime = null;
         booking.history = booking.history || [];
-        booking.history.push({ ts: new Date().toISOString().slice(0, 16).replace('T', ' '), event: 'Заказ переведен в расчет' });
-        MOCK_DATA.notifications.unshift({
-            id: `NTC-${Date.now()}`,
-            title: `Завершение заказа #${booking.id}`,
-            channel: 'email',
-            priority: 'medium',
-            roleScope: ['operations', 'sales'],
-            createdAt: new Date().toISOString(),
-            status: 'pending'
-        });
-        showToast(`Создано уведомление о завершении заказа #${booking.id}`, 'success');
+        booking.history.push({ ts: new Date().toISOString().slice(0, 16).replace('T', ' '), event: 'Booking moved to settlement' });
+        showToast(`Booking #${booking.id} moved to settlement`, 'success');
     }
 };
 
@@ -129,7 +107,7 @@ const handleKanbanMove = (event) => {
     const allowedTransitions = KANBAN_STATUS_META[originStatus]?.allowedTransitions || [];
     if (!allowedTransitions.includes(targetStatus)) {
         event.from.insertBefore(event.item, event.from.children[event.oldIndex]);
-        showToast('Переход запрещен бизнес-правилами', 'error');
+        showToast('Transition blocked by business rules', 'error');
         renderKanbanBoard();
         return;
     }
@@ -138,7 +116,7 @@ const handleKanbanMove = (event) => {
     booking.history = booking.history || [];
     booking.history.push({
         ts: new Date().toISOString().slice(0, 16).replace('T', ' '),
-        event: `Статус изменен на ${KANBAN_STATUS_META[targetStatus].label}`
+        event: `Status changed to ${KANBAN_STATUS_META[targetStatus].label}`
     });
 
     applyKanbanAutomations(booking, targetStatus);
@@ -155,12 +133,10 @@ export const renderKanbanBoard = () => {
     const prioritySelect = document.getElementById('kanban-filter-priority');
     const typeSelect = document.getElementById('kanban-filter-type');
     const driverSelect = document.getElementById('kanban-filter-driver');
-    const clientSelect = document.getElementById('kanban-filter-client');
 
     if (prioritySelect) prioritySelect.value = filters.priority;
     if (typeSelect) typeSelect.value = filters.type;
     if (driverSelect) driverSelect.value = filters.driver;
-    if (clientSelect) clientSelect.value = filters.client;
 
     const driverMap = new Map(MOCK_DATA.drivers.map(driver => [driver.id, driver]));
 
@@ -171,7 +147,6 @@ export const renderKanbanBoard = () => {
             if (filters.driver === 'unassigned' && booking.driverId) return false;
             if (filters.driver !== 'unassigned' && String(booking.driverId || '') !== filters.driver) return false;
         }
-        if (filters.client !== 'all' && String(booking.clientId || '') !== filters.client) return false;
         return true;
     });
 
@@ -206,7 +181,7 @@ export const renderKanbanBoard = () => {
                         return `
                         <div class="geist-card p-4 space-y-3 cursor-pointer kanban-card border-l-4 ${priorityMeta.border}" data-booking-id="${booking.id}">
                             <div class="flex items-center justify-between">
-                                <span class="px-2 py-1 rounded-full text-xs font-semibold ${priorityMeta.badge}">${priorityMeta.label || 'Приоритет'}</span>
+                                <span class="px-2 py-1 rounded-full text-xs font-semibold ${priorityMeta.badge}">${priorityMeta.label || 'Priority'}</span>
                                 <span class="text-xs text-gray-500">${typeMeta ? typeMeta.label : ''}</span>
                             </div>
                             <div>
@@ -215,11 +190,11 @@ export const renderKanbanBoard = () => {
                             </div>
                             <div class="flex items-center justify-between text-xs text-gray-500">
                                 <span>${booking.startDate} → ${booking.endDate}</span>
-                                <span>${driver ? driver.name.split(' ')[0] : 'Без водителя'}</span>
+                                <span>${driver ? driver.name.split(' ')[0] : 'No driver'}</span>
                             </div>
                             ${timerHtml}
                         </div>`;
-                    }).join('') || '<div class="text-xs text-gray-400 text-center py-2">Нет заказов</div>'}
+                    }).join('') || '<div class="text-xs text-gray-400 text-center py-2">No bookings</div>'}
             </div>
         </div>
     `;

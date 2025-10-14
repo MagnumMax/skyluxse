@@ -33,31 +33,31 @@ const getSegmentMix = (segment) => {
     if (!selected) return mix;
     return [
         selected,
-        { segment: 'Другие', share: Math.max(0, 1 - selected.share) }
+        { segment: 'Other', share: Math.max(0, 1 - selected.share) }
     ];
 };
 
 const buildAnalyticsInsights = (segment, vehicleClass) => {
     const insights = [];
     const kpis = MOCK_DATA.analytics.kpis;
-    insights.push(`Средний доход на авто держится на уровне ${formatCurrency(kpis.avgRevenuePerCar)} в день.`);
+    insights.push(`Average revenue per car remains at ${formatCurrency(kpis.avgRevenuePerCar)} per day.`);
     const leadingSegment = MOCK_DATA.analytics.segmentMix.reduce((acc, cur) => (cur.share > acc.share ? cur : acc));
     if (segment !== 'all') {
         const selected = MOCK_DATA.analytics.segmentMix.find(item => item.segment.toLowerCase() === segment);
         if (selected) {
-            insights.push(`Сегмент ${selected.segment} генерирует ${formatPercent(selected.share, 0)} текущей выручки.`);
+            insights.push(`The ${selected.segment} segment generates ${formatPercent(selected.share, 0)} of current revenue.`);
         }
     } else {
-        insights.push(`Лидирует сегмент ${leadingSegment.segment} (${formatPercent(leadingSegment.share, 0)}).`);
+        insights.push(`The leading segment is ${leadingSegment.segment} (${formatPercent(leadingSegment.share, 0)}).`);
     }
     const forecast = MOCK_DATA.analytics.forecast[0];
-    insights.push(`Прогноз на ${forecast.week}: ${formatCurrency(forecast.expectedRevenue)} и ${forecast.expectedBookings} бронирований.`);
+    insights.push(`Forecast for ${forecast.week}: ${formatCurrency(forecast.expectedRevenue)} and ${forecast.expectedBookings} bookings.`);
     if (vehicleClass !== 'all') {
         const carClassMap = new Map(MOCK_DATA.cars.map(car => [car.id, car.class]));
         const classBookings = MOCK_DATA.bookings.filter(booking => carClassMap.get(booking.carId) === vehicleClass);
         if (classBookings.length) {
             const classRevenue = classBookings.reduce((sum, booking) => sum + (booking.totalAmount || 0), 0);
-            insights.push(`${vehicleClass} класс: ${classBookings.length} активных заказов, выручка ${formatCurrency(classRevenue)}.`);
+            insights.push(`${vehicleClass} class: ${classBookings.length} active bookings, revenue ${formatCurrency(classRevenue)}.`);
         }
     }
     return insights;
@@ -116,7 +116,7 @@ export const renderAnalyticsPage = () => {
             labels: revenueSeries.map(item => item.date),
             datasets: [
                 {
-                    label: 'Выручка',
+                    label: 'Revenue',
                     data: revenueValues,
                     borderColor: '#111827',
                     backgroundColor: 'rgba(17,24,39,0.12)',
@@ -124,7 +124,7 @@ export const renderAnalyticsPage = () => {
                     fill: true
                 },
                 {
-                    label: 'Расходы',
+                    label: 'Expenses',
                     data: expenseValues,
                     borderColor: '#f97316',
                     backgroundColor: 'rgba(249,115,22,0.1)',
@@ -139,7 +139,7 @@ export const renderAnalyticsPage = () => {
             plugins: { legend: { position: 'bottom' } },
             scales: {
                 y: {
-                    ticks: { callback: value => `$${Math.round(value / 1000)}k` }
+                    ticks: { callback: value => `AED ${Math.round(value / 1000)}k` }
                 },
                 x: { grid: { display: false } }
             }
@@ -178,14 +178,14 @@ export const renderAnalyticsPage = () => {
                 datasets: [
                     {
                         type: 'bar',
-                        label: 'Выручка',
+                        label: 'Revenue',
                         data: forecastData.map(item => item.expectedRevenue),
                         backgroundColor: '#1f2937',
                         yAxisID: 'y'
                     },
                     {
                         type: 'line',
-                        label: 'Бронирования',
+                        label: 'Bookings',
                         data: forecastData.map(item => item.expectedBookings),
                         borderColor: '#6366f1',
                         tension: 0.3,
@@ -201,7 +201,7 @@ export const renderAnalyticsPage = () => {
                 scales: {
                     y: {
                         position: 'left',
-                        ticks: { callback: value => `$${Math.round(value / 1000)}k` }
+                        ticks: { callback: value => `AED ${Math.round(value / 1000)}k` }
                     },
                     y1: {
                         position: 'right',
@@ -229,7 +229,7 @@ const computeLeadOwner = (lead) => {
     const pipeline = MOCK_DATA.salesPipeline || {};
     const owners = pipeline.owners || [];
     const owner = owners.find(o => o.id === lead.ownerId);
-    return owner ? owner.name : 'Неизвестный';
+    return owner ? owner.name : 'Unknown';
 };
 
 const getFilteredLeads = () => {
@@ -243,8 +243,8 @@ const getFilteredLeads = () => {
     });
 };
 
-const dateFormatter = new Intl.DateTimeFormat('ru-RU', { day: '2-digit', month: 'short' });
-const dateTimeFormatter = new Intl.DateTimeFormat('ru-RU', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+const dateFormatter = new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short' });
+const dateTimeFormatter = new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
 
 const DOCUMENT_STATUS_CLASS = {
     verified: 'bg-emerald-100 text-emerald-700',
@@ -255,11 +255,11 @@ const DOCUMENT_STATUS_CLASS = {
 };
 
 const DOCUMENT_STATUS_LABEL = {
-    verified: 'Проверено',
-    signed: 'Подписано',
-    pending: 'Ожидание',
-    'pending-review': 'Проверка',
-    missing: 'Отсутствует'
+    verified: 'Verified',
+    signed: 'Signed',
+    pending: 'Pending',
+    'pending-review': 'Under review',
+    missing: 'Missing'
 };
 
 const TASK_STATUS_CLASS = {
@@ -269,33 +269,24 @@ const TASK_STATUS_CLASS = {
     upcoming: 'bg-slate-100 text-slate-600'
 };
 
-const AVAILABILITY_META = {
-    available: { badge: 'bg-emerald-100 text-emerald-700', icon: 'check', label: 'Доступно' },
-    conflict: { badge: 'bg-amber-100 text-amber-700', icon: 'alertTriangle', label: 'Конфликт' },
-    maintenance: { badge: 'bg-amber-100 text-amber-700', icon: 'alertTriangle', label: 'Плановое обслуживание' },
-    unknown: { badge: 'bg-gray-100 text-gray-600', icon: 'clock', label: 'Требует проверки' }
-};
-
 const TIMELINE_META = {
-    system: { icon: 'activity', class: 'bg-slate-100 text-slate-600', label: 'Система' },
-    call: { icon: 'phone', class: 'bg-indigo-100 text-indigo-700', label: 'Звонок' },
-    meeting: { icon: 'users', class: 'bg-blue-100 text-blue-700', label: 'Встреча' },
-    document: { icon: 'fileText', class: 'bg-amber-100 text-amber-700', label: 'Документ' },
-    proposal: { icon: 'fileText', class: 'bg-purple-100 text-purple-700', label: 'Предложение' },
-    task: { icon: 'check', class: 'bg-slate-100 text-slate-600', label: 'Задача' },
-    email: { icon: 'mail', class: 'bg-slate-100 text-slate-600', label: 'Письмо' },
-    success: { icon: 'check', class: 'bg-emerald-100 text-emerald-700', label: 'Успех' }
+    system: { icon: 'activity', class: 'bg-slate-100 text-slate-600', label: 'System' },
+    call: { icon: 'phone', class: 'bg-indigo-100 text-indigo-700', label: 'Call' },
+    meeting: { icon: 'users', class: 'bg-blue-100 text-blue-700', label: 'Meeting' },
+    document: { icon: 'fileText', class: 'bg-amber-100 text-amber-700', label: 'Document' },
+    proposal: { icon: 'fileText', class: 'bg-purple-100 text-purple-700', label: 'Proposal' },
+    task: { icon: 'check', class: 'bg-slate-100 text-slate-600', label: 'Task' },
+    email: { icon: 'mail', class: 'bg-slate-100 text-slate-600', label: 'Email' },
+    success: { icon: 'check', class: 'bg-emerald-100 text-emerald-700', label: 'Success' },
+    preparation: { icon: 'wrench', class: 'bg-blue-100 text-blue-700', label: 'Preparation' },
+    delivery: { icon: 'truck', class: 'bg-emerald-100 text-emerald-700', label: 'Delivery' },
+    pickup: { icon: 'truck', class: 'bg-amber-100 text-amber-700', label: 'Pickup' },
+    settlement: { icon: 'creditCard', class: 'bg-indigo-100 text-indigo-700', label: 'Settlement' }
 };
 
-const formatLeadCount = (count) => {
-    if (!count) return 'Нет активных лидов';
-    const lastTwo = count % 100;
-    const lastDigit = count % 10;
-    let noun = 'лидов';
-    if (lastTwo < 11 || lastTwo > 14) {
-        if (lastDigit === 1) noun = 'лид';
-        else if (lastDigit >= 2 && lastDigit <= 4) noun = 'лида';
-    }
+const formatRequestCount = (count) => {
+    if (!count) return 'No active requests';
+    const noun = count === 1 ? 'request' : 'requests';
     return `${count} ${noun}`;
 };
 
@@ -332,59 +323,27 @@ const getClientForLead = (lead, detail) => {
     return (MOCK_DATA.clients || []).find(client => Number(client.id) === Number(clientId)) || null;
 };
 
-const computeAvailabilityForMatch = (carId, request) => {
-    const events = (MOCK_DATA.calendarEvents || []).filter(event => Number(event.carId) === Number(carId));
-    if (!request || !request.start || !request.end) {
-        return events.length
-            ? { status: 'unknown', message: 'Проверьте календарь вручную' }
-            : { status: 'available', message: 'Свободен в календаре' };
+export const renderClientCard = (lead, client, detail) => {
+    if (!client) {
+        return '<p class="text-sm text-gray-500">No client data available.</p>';
     }
-    const start = new Date(request.start);
-    const end = new Date(request.end);
-    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
-        return { status: 'unknown', message: 'Неверные даты' };
-    }
-    const conflicts = events
-        .filter(event => {
-            const eventStart = new Date(event.start);
-            const eventEnd = new Date(event.end);
-            return start < eventEnd && end > eventStart;
-        })
-        .sort((a, b) => new Date(a.start) - new Date(b.start));
-
-    if (!conflicts.length) {
-        const lastEvent = events
-            .filter(event => new Date(event.end) <= start)
-            .sort((a, b) => new Date(b.end) - new Date(a.end))[0];
-        if (lastEvent) {
-            return { status: 'available', message: `Свободен после ${formatDateShort(lastEvent.end)}` };
-        }
-        return { status: 'available', message: 'Свободен в выбранные даты' };
-    }
-
-    const conflict = conflicts[0];
-    const status = conflict.type === 'maintenance' ? 'maintenance' : 'conflict';
-    return {
-        status,
-        message: `${conflict.title} · ${formatDateShort(conflict.start)} — ${formatDateShort(conflict.end)}`
-    };
-};
-
-const renderClientCard = (lead, client, detail) => {
     const loyaltyClassMap = {
         VIP: 'bg-purple-100 text-purple-700',
         Gold: 'bg-amber-100 text-amber-700',
         Silver: 'bg-slate-100 text-slate-600'
     };
-    const loyaltyClass = loyaltyClassMap[client.status] || 'bg-gray-100 text-gray-600';
+    const statusLabel = client.status || '—';
+    const loyaltyClass = loyaltyClassMap[statusLabel] || 'bg-gray-100 text-gray-600';
+    const segmentLabel = client.segment || '—';
+    const companyLabel = client.company || lead?.company || '—';
     const rentals = (client.rentals || []).slice(0, 2);
     const documents = (detail && detail.documents && detail.documents.length)
         ? detail.documents
         : (client.documents || []);
-    const financials = detail?.financials;
+    const financials = detail?.financials || client.financials;
     const payments = (client.payments || []).slice(0, 2);
     const notifications = (client.preferences?.notifications || []).join(', ') || '—';
-    const language = client.preferences?.language || 'ru';
+    const language = client.preferences?.language || '—';
 
     const documentsHtml = documents.length
         ? documents.map(doc => {
@@ -392,21 +351,21 @@ const renderClientCard = (lead, client, detail) => {
             const badgeClass = DOCUMENT_STATUS_CLASS[statusKey] || 'bg-gray-100 text-gray-600';
             const statusLabel = DOCUMENT_STATUS_LABEL[statusKey] || doc.status || '—';
             const metaParts = [
-                doc.source ? `Источник: ${doc.source}` : '',
-                doc.expiry ? `Срок ${formatDateShort(doc.expiry)}` : '',
-                doc.updatedAt ? `Обновлено ${formatDateTimeValue(doc.updatedAt)}` : ''
+                doc.source ? `Source: ${doc.source}` : '',
+                doc.expiry ? `Valid until ${formatDateShort(doc.expiry)}` : '',
+                doc.updatedAt ? `Updated ${formatDateTimeValue(doc.updatedAt)}` : ''
             ].filter(Boolean).join(' · ');
             return `
                 <li class="flex items-start justify-between gap-3">
                     <div>
                         <p class="text-sm font-medium text-gray-800">${doc.name}</p>
-                        <p class="text-xs text-gray-500">${metaParts || 'Нет метаданных'}</p>
+                        <p class="text-xs text-gray-500">${metaParts || 'No metadata'}</p>
                     </div>
                     <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${badgeClass}">${statusLabel}</span>
                 </li>
             `;
         }).join('')
-        : '<li class="text-sm text-gray-500">Документов нет</li>';
+        : '<li class="text-sm text-gray-500">No documents</li>';
 
     const rentalsHtml = rentals.length
         ? rentals.map(rental => `
@@ -418,17 +377,17 @@ const renderClientCard = (lead, client, detail) => {
                 <span class="text-xs text-gray-500">${formatCurrency(rental.totalAmount || 0)}</span>
             </li>
         `).join('')
-        : '<li class="text-sm text-gray-500">История аренд недоступна</li>';
+        : '<li class="text-sm text-gray-500">Rental history unavailable</li>';
 
     const upcomingHtml = (financials?.upcoming || []).length
         ? financials.upcoming.map(item => `
             <li class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
                 <span>${item.label}</span>
                 <span class="font-medium text-gray-900">${formatCurrency(item.amount || 0)}</span>
-                <span class="text-xs text-gray-400">до ${formatDateShort(item.dueDate)}</span>
+                <span class="text-xs text-gray-400">due ${formatDateShort(item.dueDate)}</span>
             </li>
         `).join('')
-        : '<li class="text-xs text-gray-500">Ожидаемых платежей нет</li>';
+        : '<li class="text-xs text-gray-500">No expected payments</li>';
 
     const paymentsHtml = payments.length
         ? payments.map(payment => `
@@ -438,7 +397,7 @@ const renderClientCard = (lead, client, detail) => {
                 <span class="text-xs text-gray-400">${payment.status || ''}</span>
             </li>
         `).join('')
-        : '<li class="text-xs text-gray-500">Нет транзакций</li>';
+        : '<li class="text-xs text-gray-500">No transactions</li>';
 
     const outstandingValue = formatCurrency((financials && financials.outstanding) ?? client.outstanding ?? 0);
     const lastSync = financials?.lastSync ? formatDateTimeValue(financials.lastSync) : '—';
@@ -447,12 +406,12 @@ const renderClientCard = (lead, client, detail) => {
         <div class="space-y-5">
             <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                 <div>
-                    <p class="text-xs uppercase text-gray-500">Клиент</p>
+                    <p class="text-xs uppercase text-gray-500">Client</p>
                     <h4 class="text-lg font-semibold text-gray-900">${client.name}</h4>
-                    <p class="text-sm text-gray-500">${client.segment || '—'} · ${lead.company}</p>
+                    <p class="text-sm text-gray-500">${segmentLabel} · ${companyLabel}</p>
                 </div>
                 <div class="flex flex-col items-start sm:items-end gap-2">
-                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${loyaltyClass}">${client.status}</span>
+                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${loyaltyClass}">${statusLabel}</span>
                     <p class="text-xs text-gray-400">LTV ${formatCurrency(client.lifetimeValue || 0)}</p>
                 </div>
             </div>
@@ -461,26 +420,26 @@ const renderClientCard = (lead, client, detail) => {
                     <div class="text-sm text-gray-700 space-y-1">
                         <p class="flex items-center gap-2">${getIcon('phone', 'w-4 h-4')}<span>${client.phone || '—'}</span></p>
                         <p class="flex items-center gap-2">${getIcon('mail', 'w-4 h-4')}<span>${client.email || '—'}</span></p>
-                        <p class="text-xs text-gray-500">Уведомления: ${notifications} · Язык: ${language}</p>
+                        <p class="text-xs text-gray-500">Notifications: ${notifications} · Language: ${language}</p>
                     </div>
                     <div>
-                        <h5 class="text-xs uppercase text-gray-500 tracking-wide mb-2">История аренд</h5>
+                        <h5 class="text-xs uppercase text-gray-500 tracking-wide mb-2">Rental history</h5>
                         <ul class="space-y-2">${rentalsHtml}</ul>
                     </div>
                 </div>
                 <div class="space-y-3">
                     <div>
-                        <h5 class="text-xs uppercase text-gray-500 tracking-wide mb-2">Документы и валидация</h5>
+                        <h5 class="text-xs uppercase text-gray-500 tracking-wide mb-2">Documents and validation</h5>
                         <ul class="space-y-2">${documentsHtml}</ul>
                     </div>
                     <div class="p-3 rounded-lg bg-slate-50 border border-slate-100">
-                        <p class="text-xs uppercase text-gray-500 tracking-wide">Финансы (Zoho)</p>
-                        <p class="text-sm text-gray-700 mt-1">Задолженность: <span class="font-semibold text-gray-900">${outstandingValue}</span></p>
+                        <p class="text-xs uppercase text-gray-500 tracking-wide">Finances (Zoho)</p>
+                        <p class="text-sm text-gray-700 mt-1">Outstanding balance: <span class="font-semibold text-gray-900">${outstandingValue}</span></p>
                         <ul class="mt-2 space-y-1 text-xs text-gray-600">${upcomingHtml}</ul>
-                        <p class="text-xs text-gray-400 mt-2">Синхронизация: ${lastSync}</p>
+                        <p class="text-xs text-gray-400 mt-2">Synced: ${lastSync}</p>
                     </div>
                     <div>
-                        <h5 class="text-xs uppercase text-gray-500 tracking-wide mb-2">Последние платежи</h5>
+                        <h5 class="text-xs uppercase text-gray-500 tracking-wide mb-2">Recent payments</h5>
                         <ul class="space-y-1 text-xs text-gray-600">${paymentsHtml}</ul>
                     </div>
                 </div>
@@ -489,132 +448,21 @@ const renderClientCard = (lead, client, detail) => {
     `;
 };
 
-const renderDealBuilderCard = (lead, detail, stageMeta) => {
-    const request = detail?.request || {};
-    const requestStart = request.start || lead.requestedStart;
-    const requestEnd = request.end || lead.requestedEnd;
-    const fleetSize = request.fleetSize || lead.fleetSize || 1;
-    const pickup = request.pickup || lead.pickupLocation || '—';
-    const dropoff = request.dropoff || lead.dropoffLocation || '—';
-    const vehicles = detail?.vehicleMatches || [];
-    const resourceConflicts = detail?.resourceConflicts || [];
-    const pricing = detail?.pricing;
-    const stageLabel = stageMeta?.name || lead.stage;
-
-    const vehiclesHtml = vehicles.length
-        ? vehicles.map(match => {
-            const car = (MOCK_DATA.cars || []).find(item => Number(item.id) === Number(match.carId));
-            const availability = computeAvailabilityForMatch(match.carId, { start: requestStart, end: requestEnd });
-            const availabilityMeta = AVAILABILITY_META[availability.status] || AVAILABILITY_META.unknown;
-            return `
-                <li class="border border-slate-200 rounded-lg p-3 bg-white/80">
-                    <div class="flex items-center justify-between gap-3">
-                        <div>
-                            <p class="text-sm font-semibold text-gray-900">${car?.name || `Авто #${match.carId}`}</p>
-                            <p class="text-xs text-gray-500">${car?.class || '—'} · ${car?.status || '—'}</p>
-                        </div>
-                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${availabilityMeta.badge}">
-                            ${getIcon(availabilityMeta.icon, 'w-3.5 h-3.5')}
-                            <span class="ml-1">${availabilityMeta.label}</span>
-                        </span>
-                    </div>
-                    <p class="text-xs text-gray-500 mt-2">${availability.message}</p>
-                    <p class="text-xs text-gray-400 mt-1">Согласованность: ${match.fitScore || 0}%</p>
-                </li>
-            `;
-        }).join('')
-        : '<li class="text-sm text-gray-500">Нет предложенных автомобилей</li>';
-
-    const conflictsHtml = resourceConflicts.length
-        ? resourceConflicts.map(conflict => {
-            const severity = (conflict.severity || 'medium').toLowerCase();
-            const badgeClass = severity === 'high'
-                ? 'bg-rose-100 text-rose-700'
-                : severity === 'low'
-                    ? 'bg-emerald-100 text-emerald-700'
-                    : 'bg-amber-100 text-amber-700';
-            return `
-                <li class="flex items-start gap-2 text-xs text-gray-600">
-                    <span class="inline-flex items-center justify-center w-6 h-6 rounded-full ${badgeClass}">
-                        ${getIcon('alertTriangle', 'w-3.5 h-3.5')}
-                    </span>
-                    <span>${conflict.message}</span>
-                </li>
-            `;
-        }).join('')
-        : '<li class="text-xs text-gray-500">Блокеров не выявлено</li>';
-
-    const pricingHtml = pricing
-        ? `
-            <div class="space-y-2 text-sm text-gray-700">
-                <div class="flex items-center justify-between">
-                    <span>База</span>
-                    <span class="font-medium text-gray-900">${formatCurrency(pricing.base || 0)}</span>
-                </div>
-                ${(pricing.addons || []).map(addon => `
-                    <div class="flex items-center justify-between text-xs">
-                        <span>+ ${addon.label}</span>
-                        <span>${formatCurrency(addon.amount || addon.price || 0)}</span>
-                    </div>
-                `).join('')}
-                ${(pricing.discounts || []).map(discount => `
-                    <div class="flex items-center justify-between text-xs text-emerald-600">
-                        <span>${discount.label}</span>
-                        <span>${formatCurrency(discount.amount || 0)}</span>
-                    </div>
-                `).join('')}
-                <div class="flex items-center justify-between pt-2 border-t border-slate-200">
-                    <span class="font-semibold text-gray-900">Итог</span>
-                    <span class="font-semibold text-gray-900">${formatCurrency(pricing.total || 0)} ${pricing.currency || ''}</span>
-                </div>
-            </div>
-        `
-        : '<p class="text-sm text-gray-500">Расчет стоимости появится после подготовки коммерческого предложения.</p>';
-
-    return `
-        <div class="space-y-5">
-            <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-                <div>
-                    <p class="text-xs uppercase text-gray-500">Текущая стадия</p>
-                    <h4 class="text-lg font-semibold text-gray-900">${stageLabel}</h4>
-                    <p class="text-xs text-gray-500">Окно: ${formatDateTimeValue(requestStart)} — ${formatDateTimeValue(requestEnd)} · ${fleetSize} авто</p>
-                </div>
-                <div class="text-xs text-gray-500 space-y-1">
-                    <p class="flex items-center gap-2">${getIcon('mapPin', 'w-3.5 h-3.5')}<span>${pickup}</span></p>
-                    <p class="flex items-center gap-2">${getIcon('mapPin', 'w-3.5 h-3.5')}<span>${dropoff}</span></p>
-                </div>
-            </div>
-            <div class="grid gap-4 md:grid-cols-2">
-                <div>
-                    <h5 class="text-xs uppercase text-gray-500 tracking-wide mb-2">Подбор автомобиля</h5>
-                    <ul class="space-y-3">${vehiclesHtml}</ul>
-                </div>
-                <div>
-                    <h5 class="text-xs uppercase text-gray-500 tracking-wide mb-2">Расчет стоимости</h5>
-                    ${pricingHtml}
-                </div>
-            </div>
-            <div>
-                <h5 class="text-xs uppercase text-gray-500 tracking-wide mb-2">Риски и ресурсы</h5>
-                <ul class="space-y-2">${conflictsHtml}</ul>
-            </div>
-        </div>
-    `;
-};
-
-const renderTimelineCard = (lead, detail) => {
+export const renderTimelineCard = (lead, detail) => {
     const timeline = (detail?.timeline || []).slice().sort((a, b) => new Date(a.ts) - new Date(b.ts));
     const documents = detail?.documents || [];
     const tasks = detail?.tasks || [];
     const financials = detail?.financials;
     const upcoming = financials?.upcoming || [];
-    const nextAction = lead.nextAction || '—';
-    const expectedClose = lead.expectedCloseDate ? formatDateShort(lead.expectedCloseDate) : '—';
+    const nextAction = lead?.nextAction || detail?.nextAction || '—';
+    const expectedClose = lead?.expectedCloseDate
+        ? formatDateShort(lead.expectedCloseDate)
+        : (detail?.expectedCloseDate ? formatDateShort(detail.expectedCloseDate) : '—');
 
     const timelineHtml = timeline.length
         ? timeline.map(event => {
             const typeMeta = TIMELINE_META[event.type] || TIMELINE_META.system;
-            const owner = event.owner ? `<span class="text-xs text-gray-500">Ответственный: ${event.owner}</span>` : '';
+            const owner = event.owner ? `<span class="text-xs text-gray-500">Owner: ${event.owner}</span>` : '';
             return `
                 <li class="relative pl-6">
                     <span class="absolute left-0 top-2 w-3 h-3 rounded-full border border-white ${typeMeta.class}"></span>
@@ -628,7 +476,7 @@ const renderTimelineCard = (lead, detail) => {
                 </li>
             `;
         }).join('')
-        : '<li class="text-sm text-gray-500">Нет активности по сделке</li>';
+        : '<li class="text-sm text-gray-500">No activity for this deal</li>';
 
     const documentStatesHtml = documents.length
         ? documents.map(doc => {
@@ -636,32 +484,32 @@ const renderTimelineCard = (lead, detail) => {
             const badgeClass = DOCUMENT_STATUS_CLASS[statusKey] || 'bg-gray-100 text-gray-600';
             const statusLabel = DOCUMENT_STATUS_LABEL[statusKey] || doc.status || '—';
             const metaParts = [
-                doc.source ? `Источник: ${doc.source}` : '',
-                doc.expiry ? `Срок ${formatDateShort(doc.expiry)}` : '',
-                doc.updatedAt ? `Обновлено ${formatDateTimeValue(doc.updatedAt)}` : ''
+                doc.source ? `Source: ${doc.source}` : '',
+                doc.expiry ? `Valid until ${formatDateShort(doc.expiry)}` : '',
+                doc.updatedAt ? `Updated ${formatDateTimeValue(doc.updatedAt)}` : ''
             ].filter(Boolean).join(' · ');
             return `
                 <li class="flex items-start justify-between gap-3">
                     <div>
                         <p class="text-sm font-medium text-gray-800">${doc.name}</p>
-                        <p class="text-xs text-gray-500">${metaParts || 'Нет метаданных'}</p>
+                        <p class="text-xs text-gray-500">${metaParts || 'No metadata'}</p>
                     </div>
                     <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${badgeClass}">${statusLabel}</span>
                 </li>
             `;
         }).join('')
-        : '<li class="text-sm text-gray-500">Документы не загружены</li>';
+        : '<li class="text-sm text-gray-500">Documents not uploaded</li>';
 
     const upcomingPaymentsHtml = upcoming.length
         ? upcoming.map(item => `
             <li class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 text-xs text-gray-600">
                 <span>${item.label}</span>
                 <span class="font-medium text-gray-900">${formatCurrency(item.amount || 0)}</span>
-                <span>до ${formatDateShort(item.dueDate)}</span>
+                <span>due ${formatDateShort(item.dueDate)}</span>
                 <span class="text-[10px] uppercase tracking-wide text-gray-400">${item.status || ''}</span>
             </li>
         `).join('')
-        : '<li class="text-xs text-gray-500">Ожидаемых платежей нет</li>';
+        : '<li class="text-xs text-gray-500">No expected payments</li>';
 
     const tasksHtml = tasks.length
         ? tasks.map(task => {
@@ -675,17 +523,17 @@ const renderTimelineCard = (lead, detail) => {
                 </li>
             `;
         }).join('')
-        : '<li class="text-xs text-gray-500">Оперативных задач нет</li>';
+        : '<li class="text-xs text-gray-500">No operational tasks</li>';
 
     return `
         <div class="space-y-5">
             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div>
-                    <h4 class="text-lg font-semibold text-gray-900">Таймлайн сделки</h4>
-                    <p class="text-xs text-gray-500">Следующее действие: ${nextAction}</p>
+                    <h4 class="text-lg font-semibold text-gray-900">Deal timeline</h4>
+                    <p class="text-xs text-gray-500">Next action: ${nextAction}</p>
                 </div>
                 <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-50 text-indigo-700 text-xs font-medium">
-                    ${getIcon('clock', 'w-4 h-4')}Закрытие до ${expectedClose}
+                    ${getIcon('clock', 'w-4 h-4')}Close by ${expectedClose}
                 </div>
             </div>
             <ol class="relative border-l border-slate-200 pl-4 space-y-4">
@@ -693,16 +541,16 @@ const renderTimelineCard = (lead, detail) => {
             </ol>
             <div class="grid gap-4 md:grid-cols-2">
                 <div>
-                    <h5 class="text-xs uppercase text-gray-500 tracking-wide mb-2">Документы и валидация</h5>
+                    <h5 class="text-xs uppercase text-gray-500 tracking-wide mb-2">Documents and validation</h5>
                     <ul class="space-y-2">${documentStatesHtml}</ul>
                 </div>
                 <div class="space-y-4">
                     <div>
-                        <h5 class="text-xs uppercase text-gray-500 tracking-wide mb-2">Платежи и депозиты</h5>
+                        <h5 class="text-xs uppercase text-gray-500 tracking-wide mb-2">Payments and deposits</h5>
                         <ul class="space-y-1">${upcomingPaymentsHtml}</ul>
                     </div>
                     <div>
-                        <h5 class="text-xs uppercase text-gray-500 tracking-wide mb-2">Задачи менеджера</h5>
+                        <h5 class="text-xs uppercase text-gray-500 tracking-wide mb-2">Manager tasks</h5>
                         <ul class="space-y-1">${tasksHtml}</ul>
                     </div>
                 </div>
@@ -714,7 +562,7 @@ const renderTimelineCard = (lead, detail) => {
 const renderOfferLibraryCard = (detail) => {
     const offers = detail?.offers || [];
     if (!offers.length) {
-        return '<p class="text-sm text-gray-500">Добавьте пакеты или выберите лид, чтобы увидеть рекомендации.</p>';
+        return '<p class="text-sm text-gray-500">Add packages or select a lead to see recommendations.</p>';
     }
 
     const cards = offers.map(offer => `
@@ -726,7 +574,7 @@ const renderOfferLibraryCard = (detail) => {
             <p class="text-sm text-gray-600 mt-2">${offer.description || ''}</p>
             <div class="flex items-center justify-between mt-3 text-sm text-gray-700">
                 <span class="font-semibold text-gray-900">${formatCurrency(offer.price || 0)}</span>
-                <button type="button" class="geist-button geist-button-secondary text-xs">Отправить клиенту</button>
+                <button type="button" class="geist-button geist-button-secondary text-xs">Send to client</button>
             </div>
         </div>
     `).join('');
@@ -734,8 +582,8 @@ const renderOfferLibraryCard = (detail) => {
     return `
         <div class="space-y-4">
             <div>
-                <h4 class="text-lg font-semibold text-gray-900">Библиотека предложений</h4>
-                <p class="text-sm text-gray-500">Готовые пакеты для upsell/кросс-продаж.</p>
+                <h4 class="text-lg font-semibold text-gray-900">Offer library</h4>
+                <p class="text-sm text-gray-500">Ready-made bundles for upsell and cross-sell.</p>
             </div>
             <div class="grid gap-4 md:grid-cols-2">
                 ${cards}
@@ -747,7 +595,7 @@ const renderOfferLibraryCard = (detail) => {
 const renderPlaybooksCard = (detail) => {
     const playbook = detail?.playbook;
     if (!playbook) {
-        return '<p class="text-sm text-gray-500">Выберите лид, чтобы получить чек-листы и подсказки.</p>';
+        return '<p class="text-sm text-gray-500">Select a lead to access checklists and tips.</p>';
     }
 
     const checklist = (playbook.checklist || []).map(item => {
@@ -760,36 +608,36 @@ const renderPlaybooksCard = (detail) => {
                 <span>${item.label}</span>
             </li>
         `;
-    }).join('') || '<li class="text-sm text-gray-500">Чек-лист пуст</li>';
+    }).join('') || '<li class="text-sm text-gray-500">Checklist is empty</li>';
 
     const quickActions = (playbook.quickActions || []).map(action => `
         <span class="inline-flex items-center px-3 py-1 rounded-full border border-slate-200 text-xs text-gray-600">${action.label}</span>
-    `).join('') || '<span class="text-xs text-gray-500">Нет быстрых действий</span>';
+    `).join('') || '<span class="text-xs text-gray-500">No quick actions</span>';
 
     const templates = (playbook.templates || []).map(template => `
         <li class="flex items-center justify-between text-sm text-gray-700">
             <span>${template.label}</span>
             <span class="text-xs text-gray-400 uppercase">${template.channel}</span>
         </li>
-    `).join('') || '<li class="text-sm text-gray-500">Шаблоны не добавлены</li>';
+    `).join('') || '<li class="text-sm text-gray-500">No templates added</li>';
 
     return `
         <div class="space-y-4">
             <div>
                 <h4 class="text-lg font-semibold text-gray-900">Playbook · ${playbook.scenario || '—'}</h4>
-                <p class="text-sm text-gray-500">Стандартизируйте коммуникацию и ускорьте закрытие сделки.</p>
+                <p class="text-sm text-gray-500">Standardize communication and accelerate closing.</p>
             </div>
             <div class="grid gap-4 md:grid-cols-3">
                 <div>
-                    <h5 class="text-xs uppercase text-gray-500 tracking-wide mb-2">Чек-лист</h5>
+                    <h5 class="text-xs uppercase text-gray-500 tracking-wide mb-2">Checklist</h5>
                     <ul class="space-y-2">${checklist}</ul>
                 </div>
                 <div>
-                    <h5 class="text-xs uppercase text-gray-500 tracking-wide mb-2">Быстрые действия</h5>
+                    <h5 class="text-xs uppercase text-gray-500 tracking-wide mb-2">Quick actions</h5>
                     <div class="flex flex-wrap gap-2">${quickActions}</div>
                 </div>
                 <div>
-                    <h5 class="text-xs uppercase text-gray-500 tracking-wide mb-2">Шаблоны</h5>
+                    <h5 class="text-xs uppercase text-gray-500 tracking-wide mb-2">Templates</h5>
                     <ul class="space-y-2">${templates}</ul>
                 </div>
             </div>
@@ -805,21 +653,21 @@ const renderAnalyticsCard = (detail, aggregated) => {
     const aggregatedBlock = `
         <div class="grid gap-4 md:grid-cols-3">
             <div>
-                <h5 class="text-xs uppercase text-gray-500 tracking-wide mb-2">Причины потерь</h5>
+                <h5 class="text-xs uppercase text-gray-500 tracking-wide mb-2">Loss reasons</h5>
                 <ul class="space-y-1 text-sm text-gray-700">
-                    ${aggLoss.length ? aggLoss.map(item => `<li class="flex items-center justify-between"><span>${item.reason}</span><span class="text-xs text-gray-400">${formatPercentValue(item.percent)}</span></li>`).join('') : '<li class="text-sm text-gray-500">Недостаточно данных</li>'}
+                    ${aggLoss.length ? aggLoss.map(item => `<li class="flex items-center justify-between"><span>${item.reason}</span><span class="text-xs text-gray-400">${formatPercentValue(item.percent)}</span></li>`).join('') : '<li class="text-sm text-gray-500">Not enough data</li>'}
                 </ul>
             </div>
             <div>
-                <h5 class="text-xs uppercase text-gray-500 tracking-wide mb-2">Популярность авто</h5>
+                <h5 class="text-xs uppercase text-gray-500 tracking-wide mb-2">Vehicle popularity</h5>
                 <ul class="space-y-1 text-sm text-gray-700">
-                    ${aggVehicle.length ? aggVehicle.map(item => `<li class="flex items-center justify-between"><span>${item.carName}</span><span class="text-xs text-gray-400">${formatPercentValue(item.winShare)} · ${formatCurrency(item.avgDeal || 0)}</span></li>`).join('') : '<li class="text-sm text-gray-500">Недостаточно данных</li>'}
+                    ${aggVehicle.length ? aggVehicle.map(item => `<li class="flex items-center justify-between"><span>${item.carName}</span><span class="text-xs text-gray-400">${formatPercentValue(item.winShare)} · ${formatCurrency(item.avgDeal || 0)}</span></li>`).join('') : '<li class="text-sm text-gray-500">Not enough data</li>'}
                 </ul>
             </div>
             <div>
-                <h5 class="text-xs uppercase text-gray-500 tracking-wide mb-2">Кампании</h5>
+                <h5 class="text-xs uppercase text-gray-500 tracking-wide mb-2">Campaigns</h5>
                 <ul class="space-y-1 text-sm text-gray-700">
-                    ${aggCampaign.length ? aggCampaign.map(item => `<li class="flex items-center justify-between"><span>${item.name}</span><span class="text-xs text-gray-400">${formatPercentValue(item.winRate)} · ${formatCurrency(item.revenue || 0)}</span></li>`).join('') : '<li class="text-sm text-gray-500">Недостаточно данных</li>'}
+                    ${aggCampaign.length ? aggCampaign.map(item => `<li class="flex items-center justify-between"><span>${item.name}</span><span class="text-xs text-gray-400">${formatPercentValue(item.winRate)} · ${formatCurrency(item.revenue || 0)}</span></li>`).join('') : '<li class="text-sm text-gray-500">Not enough data</li>'}
                 </ul>
             </div>
         </div>
@@ -829,11 +677,11 @@ const renderAnalyticsCard = (detail, aggregated) => {
         return `
             <div class="space-y-4">
                 <div>
-                    <h4 class="text-lg font-semibold text-gray-900">Аналитические срезы</h4>
-                    <p class="text-sm text-gray-500">Агрегированные причины отказов, популярность авто и эффективность кампаний.</p>
+                    <h4 class="text-lg font-semibold text-gray-900">Analytics snapshots</h4>
+                    <p class="text-sm text-gray-500">Aggregated loss reasons, vehicle popularity, and campaign performance.</p>
                 </div>
                 ${aggregatedBlock}
-                <p class="text-sm text-gray-500 border-t pt-4">Выберите лид, чтобы увидеть детальные инсайты по сделке.</p>
+                <p class="text-sm text-gray-500 border-t pt-4">Select a lead to view deal-specific insights.</p>
             </div>
         `;
     }
@@ -846,21 +694,21 @@ const renderAnalyticsCard = (detail, aggregated) => {
     const leadBlock = `
         <div class="grid gap-4 md:grid-cols-3">
             <div>
-                <h5 class="text-xs uppercase text-gray-500 tracking-wide mb-2">Риски по сделке</h5>
+                <h5 class="text-xs uppercase text-gray-500 tracking-wide mb-2">Deal risks</h5>
                 <ul class="space-y-1 text-sm text-gray-700">
-                    ${detailLoss.length ? detailLoss.map(item => `<li>${item.reason} · <span class="text-xs text-gray-400">${item.impact || ''}</span></li>`).join('') : '<li class="text-sm text-gray-500">Риски не выявлены</li>'}
+                    ${detailLoss.length ? detailLoss.map(item => `<li>${item.reason} · <span class="text-xs text-gray-400">${item.impact || ''}</span></li>`).join('') : '<li class="text-sm text-gray-500">No risks identified</li>'}
                 </ul>
             </div>
             <div>
-                <h5 class="text-xs uppercase text-gray-500 tracking-wide mb-2">Preferred авто</h5>
+                <h5 class="text-xs uppercase text-gray-500 tracking-wide mb-2">Preferred vehicles</h5>
                 <ul class="space-y-1 text-sm text-gray-700">
-                    ${detailVehicle.length ? detailVehicle.map(item => `<li class="flex items-center justify-between"><span>${item.carName}</span><span class="text-xs text-gray-400">${item.share || ''}</span></li>`).join('') : '<li class="text-sm text-gray-500">Нет данных</li>'}
+                    ${detailVehicle.length ? detailVehicle.map(item => `<li class="flex items-center justify-between"><span>${item.carName}</span><span class="text-xs text-gray-400">${item.share || ''}</span></li>`).join('') : '<li class="text-sm text-gray-500">No data</li>'}
                 </ul>
             </div>
             <div>
-                <h5 class="text-xs uppercase text-gray-500 tracking-wide mb-2">Кампании</h5>
+                <h5 class="text-xs uppercase text-gray-500 tracking-wide mb-2">Campaigns</h5>
                 <ul class="space-y-1 text-sm text-gray-700">
-                    ${detailCampaign.length ? detailCampaign.map(item => `<li class="flex items-center justify-between"><span>${item.name}</span><span class="text-xs text-gray-400">${item.winRate || ''} · ${formatCurrency(item.revenue || 0)}</span></li>`).join('') : '<li class="text-sm text-gray-500">Нет данных</li>'}
+                    ${detailCampaign.length ? detailCampaign.map(item => `<li class="flex items-center justify-between"><span>${item.name}</span><span class="text-xs text-gray-400">${item.winRate || ''} · ${formatCurrency(item.revenue || 0)}</span></li>`).join('') : '<li class="text-sm text-gray-500">No data</li>'}
                 </ul>
             </div>
         </div>
@@ -869,12 +717,12 @@ const renderAnalyticsCard = (detail, aggregated) => {
     return `
         <div class="space-y-4">
             <div>
-                <h4 class="text-lg font-semibold text-gray-900">Аналитические срезы</h4>
-                <p class="text-sm text-gray-500">Сравнение общих трендов и конкретной сделки.</p>
+                <h4 class="text-lg font-semibold text-gray-900">Analytics snapshots</h4>
+                <p class="text-sm text-gray-500">Compare aggregate trends with the selected deal.</p>
             </div>
             ${aggregatedBlock}
             <div class="border-t pt-4 space-y-3">
-                <h5 class="text-xs uppercase text-gray-500 tracking-wide">По активной сделке</h5>
+                <h5 class="text-xs uppercase text-gray-500 tracking-wide">For active deal</h5>
                 ${leadBlock}
             </div>
         </div>
@@ -953,27 +801,27 @@ export const renderSalesPipeline = () => {
 
     const summaryCards = [
         {
-            label: 'Сумма Pipeline',
+            label: 'Pipeline total',
             value: formatCurrency(totalValue),
-            helper: 'Все активные лиды',
+            helper: 'All active opportunities',
             icon: 'briefcase'
         },
         {
-            label: 'Взвешенный прогноз',
+            label: 'Weighted forecast',
             value: formatCurrency(weightedValue),
-            helper: 'Учитывая вероятность закрытия',
+            helper: 'Based on close probability',
             icon: 'target'
         },
         {
             label: 'Win rate',
             value: `${winRate || 0}%`,
-            helper: `${avgVelocity || 0} дн. средняя скорость`,
+            helper: `${avgVelocity || 0} days average velocity`,
             icon: 'trendingUp'
         },
         {
-            label: 'Активные лиды',
+            label: 'Active opportunities',
             value: totalLeads.toString(),
-            helper: 'Фильтрация по менеджеру и источнику',
+            helper: 'Filtered by owner and source',
             icon: 'users'
         }
     ];
@@ -1038,7 +886,7 @@ export const renderSalesPipeline = () => {
             data: {
                 labels: stages.map(stage => stage.name),
                 datasets: [{
-                    label: 'Сумма сделок',
+                    label: 'Deal value',
                     data: values,
                     backgroundColor: '#4c6ef5',
                     borderRadius: 6,
@@ -1052,7 +900,7 @@ export const renderSalesPipeline = () => {
                 scales: {
                     y: {
                         ticks: {
-                            callback: (value) => `$${Math.round(value / 1000)}k`
+                            callback: (value) => `AED ${Math.round(value / 1000)}k`
                         }
                     }
                 }
@@ -1061,7 +909,7 @@ export const renderSalesPipeline = () => {
     }
 
     const leadCountEl = document.getElementById('sales-lead-count');
-    if (leadCountEl) leadCountEl.textContent = formatLeadCount(leads.length);
+    if (leadCountEl) leadCountEl.textContent = formatRequestCount(leads.length);
 
     let activeLead = leads.find(lead => lead.id === appState.salesContext.activeLeadId) || null;
     if (!activeLead && leads.length) {
@@ -1085,7 +933,7 @@ export const renderSalesPipeline = () => {
                 const probability = Math.round((lead.probability || stageMeta.probability || 0) * 100);
                 const ownerName = computeLeadOwner(lead);
                 const closeDate = lead.expectedCloseDate ? formatDateShort(lead.expectedCloseDate) : '—';
-                const velocity = lead.velocityDays ? `${lead.velocityDays} дн.` : '—';
+                const velocity = lead.velocityDays ? `${lead.velocityDays} days` : '—';
                 return `
                     <button type="button" class="w-full text-left border rounded-xl px-4 py-3 transition ${isActive ? 'border-indigo-300 bg-white shadow-md' : 'border-slate-200 bg-white/70 hover:border-indigo-200'}" data-select-lead="${lead.id}">
                         <div class="flex items-center justify-between gap-2">
@@ -1099,13 +947,13 @@ export const renderSalesPipeline = () => {
                             <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">${getIcon('user', 'w-3 h-3')}<span>${ownerName}</span></span>
                             <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700">${probability}%</span>
                             <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-50 text-amber-700">${velocity}</span>
-                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">до ${closeDate}</span>
+                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">due ${closeDate}</span>
                         </div>
                     </button>
                 `;
             }).join('');
         } else {
-            leadListEl.innerHTML = '<p class="text-sm text-gray-500">Нет лидов по текущим фильтрам.</p>';
+        leadListEl.innerHTML = '<p class="text-sm text-gray-500">No leads match the current filters.</p>';
         }
     }
 
@@ -1133,7 +981,7 @@ export const renderSalesPipeline = () => {
                     </tr>
                 `;
             }).join('')
-            : '<tr><td colspan="7" class="px-4 py-6 text-center text-gray-500">Лидов нет</td></tr>';
+            : '<tr><td colspan="7" class="px-4 py-6 text-center text-gray-500">No leads</td></tr>';
     }
 
     const clientCardEl = document.getElementById('sales-client-card');
@@ -1141,19 +989,10 @@ export const renderSalesPipeline = () => {
         if (activeLead && client) {
             clientCardEl.innerHTML = renderClientCard(activeLead, client, detail);
         } else if (leads.length) {
-            clientCardEl.innerHTML = '<p class="text-sm text-gray-500">Выберите лид слева, чтобы увидеть 360°-карточку клиента.</p>';
+            clientCardEl.innerHTML = '<p class="text-sm text-gray-500">Select a lead to view the 360° client card.</p>';
         } else {
-            clientCardEl.innerHTML = '<p class="text-sm text-gray-500">Измените фильтры, чтобы увидеть рабочее место сделки.</p>';
+            clientCardEl.innerHTML = '<p class="text-sm text-gray-500">Adjust filters to view the deal workspace.</p>';
         }
-    }
-
-    const dealBuilderEl = document.getElementById('sales-deal-builder');
-    if (dealBuilderEl) {
-        dealBuilderEl.innerHTML = (activeLead && detail)
-            ? renderDealBuilderCard(activeLead, detail, stageMap.get(activeLead.stage))
-            : (leads.length
-                ? '<p class="text-sm text-gray-500">Подбор автомобиля и расчет сделки появятся после выбора лида.</p>'
-                : '<p class="text-sm text-gray-500">Измените фильтры, чтобы начать работу со сделкой.</p>');
     }
 
     const timelineEl = document.getElementById('sales-deal-timeline');
@@ -1161,8 +1000,8 @@ export const renderSalesPipeline = () => {
         timelineEl.innerHTML = (activeLead && detail)
             ? renderTimelineCard(activeLead, detail)
             : (leads.length
-                ? '<p class="text-sm text-gray-500">Таймлайн сделки и статусы документов появятся после выбора лида.</p>'
-                : '<p class="text-sm text-gray-500">Нет данных. Сбросьте фильтры, чтобы продолжить.</p>');
+            ? '<p class="text-sm text-gray-500">Deal timeline and document statuses will appear after you select a lead.</p>'
+                : '<p class="text-sm text-gray-500">No data. Reset filters to continue.</p>');
     }
 
     const offerLibraryEl = document.getElementById('sales-offer-library');
@@ -1170,8 +1009,8 @@ export const renderSalesPipeline = () => {
         offerLibraryEl.innerHTML = (activeLead && detail)
             ? renderOfferLibraryCard(detail)
             : (leads.length
-                ? '<p class="text-sm text-gray-500">Рекомендованные пакеты и допуслуги будут отображены для активной сделки.</p>'
-                : '<p class="text-sm text-gray-500">Нет лидов для отображения предложений.</p>');
+                ? '<p class="text-sm text-gray-500">Recommended packages and add-ons show once a deal is active.</p>'
+                : '<p class="text-sm text-gray-500">No leads available to display offers.</p>');
     }
 
     const playbooksEl = document.getElementById('sales-playbooks');
@@ -1179,8 +1018,8 @@ export const renderSalesPipeline = () => {
         playbooksEl.innerHTML = (activeLead && detail)
             ? renderPlaybooksCard(detail)
             : (leads.length
-                ? '<p class="text-sm text-gray-500">Контекстные подсказки и playbooks станут доступны после выбора лида.</p>'
-                : '<p class="text-sm text-gray-500">Сбросьте фильтры, чтобы увидеть playbook.</p>');
+            ? '<p class="text-sm text-gray-500">Contextual tips and playbooks become available after selecting a lead.</p>'
+            : '<p class="text-sm text-gray-500">Reset filters to view the playbook.</p>');
     }
 
     const analyticsEl = document.getElementById('sales-analytics');
