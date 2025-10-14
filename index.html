@@ -107,43 +107,6 @@
             animation: fadeIn 0.25s ease;
         }
 
-        .modern-portal-shell {
-            background: linear-gradient(180deg, rgba(244, 246, 252, 0.95) 0%, rgba(233, 237, 255, 0.95) 100%);
-        }
-
-        #client-portal-sidebar {
-            backdrop-filter: blur(18px);
-            border-right: 1px solid rgba(196, 201, 233, 0.5);
-        }
-
-        .portal-nav-link {
-            border-radius: var(--radius);
-            border: 1px solid transparent;
-            color: rgba(44, 51, 86, 0.85);
-            transition: all 0.2s ease;
-        }
-
-        .portal-nav-link:hover {
-            border-color: rgba(124, 144, 255, 0.2);
-            background: linear-gradient(135deg, rgba(124, 144, 255, 0.12), rgba(99, 110, 227, 0.08));
-        }
-
-        .portal-nav-link.nav-link-active,
-        .portal-nav-link.bg-gray-900 {
-            background: linear-gradient(135deg, rgba(99, 110, 227, 0.28), rgba(124, 144, 255, 0.18));
-            border-color: rgba(124, 144, 255, 0.45);
-            color: #fff;
-        }
-
-        .portal-nav-link.nav-link-active span,
-        .portal-nav-link.bg-gray-900 span {
-            color: #fff;
-        }
-
-        .portal-nav-link.nav-link-active svg {
-            color: #f1f4ff !important;
-        }
-
         select,
         input[type="text"],
         input[type="email"],
@@ -257,6 +220,11 @@
             color: hsl(var(--accent-foreground));
         }
 
+        #generic-modal-content.detail-modal {
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
         .kanban-card.sortable-ghost {
             background: hsl(var(--accent));
             border: 2px dashed hsl(var(--border));
@@ -353,38 +321,34 @@
     <div id="page-login" class="flex items-center justify-center h-screen bg-gray-50">
         <div class="w-full max-w-md p-10 space-y-6 geist-card">
             <div>
-                <h1 class="text-2xl font-bold">SkyLuxse Control Center</h1>
-                <p class="text-gray-500 mt-2">Выберите роль и пройдите авторизацию.</p>
+                <h1 class="text-2xl font-bold">SkyLuxse ERP</h1>
             </div>
             <div class="space-y-4">
                 <div>
-                    <label for="login-role" class="block text-sm font-medium text-gray-700">Роль</label>
+                    <label for="login-role" class="block text-sm font-medium text-gray-700">Role</label>
                     <select id="login-role" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:ring-black focus:border-black">
-                        <option value="operations">Операционный менеджер</option>
-                        <option value="sales">Менеджер по продажам</option>
-                        <option value="ceo">Руководство</option>
-                        <option value="driver">Водитель</option>
-                        <option value="client">Клиент</option>
+                        <option value="operations">Operations manager</option>
+                        <option value="sales">Sales manager</option>
+                        <option value="ceo">Executive team</option>
+                        <option value="driver">Driver</option>
                     </select>
                 </div>
                 <div>
-                    <label for="email" class="block text-sm font-medium text-gray-700">Email</label>
+                    <label for="email" class="block text-sm font-medium text-gray-700">Email/Phone</label>
                     <input type="email" id="email" value="ops@skyluxse.ae" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:ring-black focus:border-black">
                 </div>
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <div class="sm:col-span-2">
-                        <label for="password" class="block text-sm font-medium text-gray-700">Пароль (временно)</label>
-                        <input type="password" id="password" value="••••••••" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:ring-black focus:border-black">
-                    </div>
-                    <div class="sm:col-span-1">
-                        <label class="block text-sm font-medium text-gray-700">OTP</label>
-                        <input type="text" id="otp" placeholder="123456" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:ring-black focus:border-black" disabled>
-                        <button id="request-otp" class="mt-2 w-full geist-button geist-button-secondary text-xs" type="button">Отправить код</button>
-                        <p class="text-xs text-gray-400 mt-1">Поддержка MFA появится после интеграции.</p>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">One-time code</label>
+                    <div class="mt-1 space-y-2">
+                        <div id="otp-container" class="hidden space-y-1">
+                            <input type="text" id="otp" placeholder="123456" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-black focus:border-black">
+                            <p class="text-xs text-gray-400">MFA support will appear after integration.</p>
+                        </div>
+                        <button id="request-otp" class="w-full geist-button geist-button-secondary text-xs" type="button">Send code</button>
                     </div>
                 </div>
             </div>
-            <button id="login-button" class="w-full geist-button geist-button-primary">Войти</button>
+            <button id="login-button" class="w-full geist-button geist-button-primary">Sign in</button>
         </div>
     </div>
 
@@ -424,10 +388,10 @@
                                 <div class="geist-card p-6">
                                     <div class="flex items-center justify-between">
                                         <div>
-                                            <h3 class="text-lg font-semibold">Выручка и загрузка</h3>
-                                            <p class="text-sm text-gray-500">Динамика по дням</p>
+                                            <h3 class="text-lg font-semibold">Revenue and utilization</h3>
+                                            <p class="text-sm text-gray-500">Daily dynamics</p>
                                         </div>
-                                        <span class="text-xs font-medium text-gray-400" id="dashboard-revenue-range">7 дней</span>
+                                        <span class="text-xs font-medium text-gray-400" id="dashboard-revenue-range">7 days</span>
                                     </div>
                                     <div class="mt-4 h-64">
                                         <canvas id="dashboard-revenue-chart"></canvas>
@@ -436,10 +400,10 @@
                                 <div class="geist-card p-6">
                                     <div class="flex items-center justify-between">
                                         <div>
-                                            <h3 class="text-lg font-semibold">Эффективность водителей</h3>
-                                            <p class="text-sm text-gray-500">Завершенные задачи и SLA</p>
+                                            <h3 class="text-lg font-semibold">Driver performance</h3>
+                                            <p class="text-sm text-gray-500">Completed tasks and SLA</p>
                                         </div>
-                                        <button id="dashboard-driver-view" class="text-sm text-indigo-600 hover:underline">Вся статистика</button>
+                                        <button id="dashboard-driver-view" class="text-sm text-indigo-600 hover:underline">Full stats</button>
                                     </div>
                                     <div class="mt-4 h-64">
                                         <canvas id="dashboard-driver-chart"></canvas>
@@ -448,8 +412,8 @@
                             </div>
                             <div class="geist-card p-6">
                                 <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                                    <h3 class="text-lg font-semibold">Контроль SLA заказов</h3>
-                                    <span class="text-sm text-gray-500">Отслеживаем критические стадии и просрочки</span>
+                                    <h3 class="text-lg font-semibold">Order SLA control</h3>
+                                    <span class="text-sm text-gray-500">Monitoring critical stages and overdue tasks</span>
                                 </div>
                                 <div class="grid gap-4 md:grid-cols-3 mt-4" id="dashboard-sla-cards"></div>
                             </div>
@@ -462,39 +426,39 @@
                             <div class="geist-card p-6">
                                 <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                                     <div>
-                                        <h3 class="text-lg font-semibold">Аналитика бизнеса</h3>
-                                        <p class="text-sm text-gray-500">Фокус на SLA, утилизации и выручке по сегментам.</p>
+                                        <h3 class="text-lg font-semibold">Business analytics</h3>
+                                        <p class="text-sm text-gray-500">Focus on SLA, utilization, and revenue by segment.</p>
                                     </div>
                                     <div class="flex items-center gap-3 text-sm">
                                         <select id="analytics-range" class="px-3 py-2 border border-gray-300 rounded-md">
-                                            <option value="7d">Последние 7 дней</option>
-                                            <option value="30d">30 дней</option>
-                                            <option value="90d">90 дней</option>
+                                            <option value="7d">Last 7 days</option>
+                                            <option value="30d">30 days</option>
+                                            <option value="90d">90 days</option>
                                         </select>
                                         <select id="analytics-segment" class="px-3 py-2 border border-gray-300 rounded-md">
-                                            <option value="all">Все сегменты</option>
+                                            <option value="all">All segments</option>
                                             <option value="corporate">Corporate</option>
                                             <option value="leisure">Leisure</option>
                                         </select>
                                         <select id="analytics-class" class="px-3 py-2 border border-gray-300 rounded-md">
-                                            <option value="all">Все классы</option>
+                                            <option value="all">All classes</option>
                                             <option value="Luxury">Luxury</option>
                                             <option value="SUV">SUV</option>
                                             <option value="Sport">Sport</option>
                                         </select>
                                     </div>
                                 </div>
-                                <p class="text-sm text-gray-500 mt-4">Интерактивные графики и прогнозы загрузятся после инициализации.</p>
+                                <p class="text-sm text-gray-500 mt-4">Interactive charts and forecasts load after initialization.</p>
                             </div>
                             <div class="grid gap-4 lg:grid-cols-2">
                                 <div class="geist-card p-6">
-                                    <h3 class="text-lg font-semibold">Выручка и расходы</h3>
+                                    <h3 class="text-lg font-semibold">Revenue and expenses</h3>
                                     <div class="mt-4 h-64">
                                         <canvas id="analytics-revenue-chart"></canvas>
                                     </div>
                                 </div>
                                 <div class="geist-card p-6">
-                                    <h3 class="text-lg font-semibold">Сегменты клиентов</h3>
+                                    <h3 class="text-lg font-semibold">Customer segments</h3>
                                     <div class="mt-4 h-64">
                                         <canvas id="analytics-segment-chart"></canvas>
                                     </div>
@@ -502,7 +466,7 @@
                             </div>
                             <div class="grid gap-4 lg:grid-cols-2">
                                 <div class="geist-card p-6">
-                                    <h3 class="text-lg font-semibold">Прогноз заказов</h3>
+                                    <h3 class="text-lg font-semibold">Bookings forecast</h3>
                                     <div class="mt-4 h-64">
                                         <canvas id="analytics-forecast-chart"></canvas>
                                     </div>
@@ -520,26 +484,26 @@
                         <div class="space-y-6">
                             <div class="geist-card p-6">
                                 <div class="flex items-center justify-between mb-4">
-                                    <h3 class="text-lg font-semibold">Финансовая сводка</h3>
-                                    <span id="reports-period-label" class="text-sm text-gray-500">Последние 7 дней</span>
+                                    <h3 class="text-lg font-semibold">Financial summary</h3>
+                                    <span id="reports-period-label" class="text-sm text-gray-500">Last 7 days</span>
                                 </div>
                                 <div class="grid grid-cols-3 gap-4 text-center">
                                     <div>
-                                        <p class="text-sm text-gray-500">Выручка</p>
+                                        <p class="text-sm text-gray-500">Revenue</p>
                                         <p id="reports-revenue" class="text-2xl font-bold">—</p>
                                     </div>
                                     <div>
-                                        <p class="text-sm text-gray-500">Расходы</p>
+                                        <p class="text-sm text-gray-500">Expenses</p>
                                         <p id="reports-expenses" class="text-2xl font-bold">—</p>
                                     </div>
                                     <div>
-                                        <p class="text-sm text-gray-500">Прибыль</p>
+                                        <p class="text-sm text-gray-500">Profit</p>
                                         <p id="reports-profit" class="text-2xl font-bold text-green-600">—</p>
                                     </div>
                                 </div>
                             </div>
                             <div class="geist-card p-6">
-                                <h3 class="text-lg font-semibold mb-4">Топ-5 автомобилей по доходности (Сентябрь 2024)</h3>
+                                <h3 class="text-lg font-semibold mb-4">Top 5 vehicles by profitability (September 2024)</h3>
                                 <ul id="top-cars-report" class="space-y-3">
                                     <!-- Report data will be injected -->
                                 </ul>
@@ -552,99 +516,37 @@
                         <div class="space-y-6">
                             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                                 <div>
-                                    <h3 class="text-lg font-semibold">Pipeline продаж</h3>
-                                    <p class="text-sm text-gray-500">Статусы лидов, прогноз закрытия и скорость сделки из Kommo.</p>
-                                </div>
-                                <div class="flex items-center gap-2">
-                                    <button id="import-leads-btn" class="geist-button geist-button-secondary text-sm">Импорт из Kommo</button>
-                                    <button id="add-lead-btn" class="geist-button geist-button-primary text-sm">Новый лид</button>
+                                    <h3 class="text-lg font-semibold">Sales pipeline</h3>
+                                    <p class="text-sm text-gray-500">Lead status, close forecast, and velocity from Kommo.</p>
                                 </div>
                             </div>
-
                             <div class="grid gap-4 md:grid-cols-3" id="sales-pipeline-summary"></div>
 
-                            <div class="grid gap-6 lg:grid-cols-12">
-                                <div class="geist-card p-0 lg:col-span-8 overflow-hidden">
-                                    <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-                                        <div>
-                                            <h4 class="font-semibold text-gray-800">Канбан лидов</h4>
-                                            <p class="text-xs text-gray-500">Перетаскивание доступно для планирования, автоматизация подключится позже.</p>
-                                        </div>
-                                        <div class="text-right text-xs text-gray-500">
-                                            <p id="sales-kanban-total-value" class="font-semibold text-base text-gray-900"></p>
-                                            <p>Общая выручка в Pipeline</p>
-                                        </div>
+                            <div class="grid gap-6">
+                                <div class="geist-card p-6">
+                                    <div class="flex items-center justify-between mb-4">
+                                        <h4 class="font-semibold text-gray-800">Stage conversion</h4>
+                                        <span id="sales-pipeline-conversion" class="text-sm text-gray-500"></span>
                                     </div>
-                                    <div id="sales-kanban-board" class="grid gap-4 px-4 pb-6 lg:grid-cols-5 overflow-x-auto"></div>
-                                </div>
-
-                                <div class="lg:col-span-4 space-y-4">
-                                    <div class="geist-card p-6">
-                                        <div class="flex items-center justify-between mb-4">
-                                            <h4 class="font-semibold text-gray-800">Конверсия по стадиям</h4>
-                                            <span id="sales-pipeline-conversion" class="text-sm text-gray-500"></span>
-                                        </div>
-                                        <div class="overflow-x-auto">
-                                            <table class="w-full text-sm" id="sales-stage-table">
-                                                <thead class="text-xs uppercase text-gray-500 border-b">
-                                                    <tr>
-                                                        <th class="py-2 text-left">Стадия</th>
-                                                        <th class="py-2 text-right">Лиды</th>
-                                                        <th class="py-2 text-right">Сумма, $</th>
-                                                        <th class="py-2 text-right">Вероятность</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody class="divide-y text-gray-700"></tbody>
-                                            </table>
-                                        </div>
-                                    </div>
-                                    <div class="geist-card p-6">
-                                        <h4 class="font-semibold text-gray-800">Динамика воронки</h4>
-                                        <canvas id="sales-stage-chart" class="mt-4 h-48"></canvas>
-                                    </div>
-                                    <div class="geist-card p-6">
-                                        <h4 class="font-semibold text-gray-800">Скорость закрытия</h4>
-                                        <canvas id="sales-velocity-chart" class="mt-4 h-48"></canvas>
+                                    <div class="overflow-x-auto">
+                                        <table class="w-full text-sm" id="sales-stage-table">
+                                            <thead class="text-xs uppercase text-gray-500 border-b">
+                                                <tr>
+                                                    <th class="py-2 text-left">Stage</th>
+                                                    <th class="py-2 text-right">Leads</th>
+                                                    <th class="py-2 text-right">Value (AED)</th>
+                                                    <th class="py-2 text-right">Probability</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody class="divide-y text-gray-700"></tbody>
+                                        </table>
                                     </div>
                                 </div>
                             </div>
 
-                            <div class="geist-card p-6">
-                                <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
-                                    <div>
-                                        <h4 class="font-semibold text-gray-800">Контроль лидов</h4>
-                                        <p class="text-xs text-gray-500">Следите за ответственными, источниками и следующими действиями.</p>
-                                    </div>
-                                    <div class="flex items-center gap-2 text-xs text-gray-500">
-                                        <label class="flex items-center gap-2">
-                                            <span>Ответственный</span>
-                                            <select id="sales-owner-filter" class="px-3 py-2 border border-gray-300 rounded-md">
-                                                <option value="all">Все</option>
-                                            </select>
-                                        </label>
-                                        <label class="flex items-center gap-2">
-                                            <span>Источник</span>
-                                            <select id="sales-source-filter" class="px-3 py-2 border border-gray-300 rounded-md">
-                                                <option value="all">Все</option>
-                                            </select>
-                                        </label>
-                                    </div>
-                                </div>
-                                <div class="overflow-x-auto">
-                                    <table class="w-full text-sm" id="sales-leads-table">
-                                        <thead class="bg-gray-50 text-xs uppercase text-gray-500">
-                                            <tr>
-                                                <th class="px-4 py-3 text-left">Лид</th>
-                                                <th class="px-4 py-3 text-left">Компания</th>
-                                                <th class="px-4 py-3 text-left">Стадия</th>
-                                                <th class="px-4 py-3 text-right">Сумма</th>
-                                                <th class="px-4 py-3 text-left">Ответственный</th>
-                                                <th class="px-4 py-3 text-left">Источник</th>
-                                                <th class="px-4 py-3 text-left">Следующий шаг</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody class="divide-y"></tbody>
-                                    </table>
+                            <div class="space-y-4">
+                                <div class="geist-card p-6" id="sales-analytics">
+                                    <p class="text-sm text-gray-500">Analytics snapshots appear after selecting a lead.</p>
                                 </div>
                             </div>
                         </div>
@@ -655,42 +557,36 @@
                         <div class="flex flex-col h-full space-y-4">
                             <div class="geist-card p-4">
                                 <div class="flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
-                                    <div class="grid grid-cols-1 md:grid-cols-4 gap-3 w-full">
+                                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 w-full">
                                         <div>
-                                            <label class="block text-xs font-medium text-gray-500 mb-1">Приоритет</label>
+                                            <label class="block text-xs font-medium text-gray-500 mb-1">Priority</label>
                                             <select id="kanban-filter-priority" class="px-3 py-2 border border-gray-300 rounded-md text-sm w-full">
-                                                <option value="all">Все</option>
-                                                <option value="high">Высокий</option>
-                                                <option value="medium">Средний</option>
-                                                <option value="low">Низкий</option>
+                                                <option value="all">All</option>
+                                                <option value="high">High</option>
+                                                <option value="medium">Medium</option>
+                                                <option value="low">Low</option>
                                             </select>
                                         </div>
                                         <div>
-                                            <label class="block text-xs font-medium text-gray-500 mb-1">Тип заказа</label>
+                                            <label class="block text-xs font-medium text-gray-500 mb-1">Booking type</label>
                                             <select id="kanban-filter-type" class="px-3 py-2 border border-gray-300 rounded-md text-sm w-full">
-                                                <option value="all">Все</option>
+                                                <option value="all">All</option>
                                                 <option value="vip">VIP</option>
-                                                <option value="short">Краткосрочная</option>
-                                                <option value="corporate">Корпоративная</option>
+                                                <option value="short">Short-term</option>
+                                                <option value="corporate">Corporate</option>
                                             </select>
                                         </div>
                                         <div>
-                                            <label class="block text-xs font-medium text-gray-500 mb-1">Водитель</label>
+                                            <label class="block text-xs font-medium text-gray-500 mb-1">Driver</label>
                                             <select id="kanban-filter-driver" class="px-3 py-2 border border-gray-300 rounded-md text-sm w-full">
-                                                <option value="all">Все водители</option>
-                                                <option value="unassigned">Без водителя</option>
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <label class="block text-xs font-medium text-gray-500 mb-1">Клиент</label>
-                                            <select id="kanban-filter-client" class="px-3 py-2 border border-gray-300 rounded-md text-sm w-full">
-                                                <option value="all">Все клиенты</option>
+                                                <option value="all">All drivers</option>
+                                                <option value="unassigned">No driver</option>
                                             </select>
                                         </div>
                                     </div>
                                     <div class="flex items-center gap-3">
-                                        <button id="kanban-reset-filters" class="text-sm text-gray-500 hover:text-gray-800">Сбросить фильтры</button>
-                                        <button id="kanban-create-booking" class="geist-button geist-button-primary text-sm">Новый заказ</button>
+                                        <button id="kanban-reset-filters" class="text-sm text-gray-500 hover:text-gray-800">Reset filters</button>
+                                        <button id="kanban-create-booking" class="geist-button geist-button-primary text-sm">New booking</button>
                                     </div>
                                 </div>
                             </div>
@@ -705,49 +601,49 @@
                         <div class="space-y-4">
                             <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                                 <div>
-                                    <h2 class="text-2xl font-bold text-gray-900">Календарь загрузки</h2>
+                                    <h2 class="text-2xl font-bold text-gray-900">Utilization calendar</h2>
                                     <p id="calendar-range-label" class="text-gray-600 mt-1"></p>
                                 </div>
                                 <div class="flex flex-wrap items-center gap-2 relative">
-                                    <button id="calendar-prev" class="geist-button geist-button-secondary text-sm">Назад</button>
-                                    <button id="calendar-next" class="geist-button geist-button-secondary text-sm">Вперед</button>
-                                    <button id="calendar-today" class="geist-button geist-button-secondary text-sm">Сегодня</button>
+                                    <button id="calendar-prev" class="geist-button geist-button-secondary text-sm">Previous</button>
+                                    <button id="calendar-next" class="geist-button geist-button-secondary text-sm">Next</button>
+                                    <button id="calendar-today" class="geist-button geist-button-secondary text-sm">Today</button>
                                     <select id="calendar-view-select" class="px-3 py-2 border border-gray-300 rounded-md text-sm">
-                                        <option value="week">1 неделя</option>
-                                        <option value="two-week">2 недели</option>
+                                        <option value="week">1 week</option>
+                                        <option value="two-week">2 weeks</option>
                                     </select>
                                     <select id="calendar-type-filter" class="px-3 py-2 border border-gray-300 rounded-md text-sm">
-                                        <option value="all">Все события</option>
-                                        <option value="rental">Аренда</option>
-                                        <option value="maintenance">Обслуживание</option>
-                                        <option value="inspection">Инспекция</option>
-                                        <option value="detailing">Детейлинг</option>
+                                        <option value="all">All events</option>
+                                        <option value="rental">Rental</option>
+                                        <option value="maintenance">Maintenance</option>
+                                        <option value="inspection">Inspection</option>
+                                        <option value="detailing">Detailing</option>
                                     </select>
-                                    <button id="fleet-calendar-filter-toggle" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">Фильтры</button>
+                                    <button id="fleet-calendar-filter-toggle" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">Filters</button>
                                     <div id="fleet-calendar-filter-dropdown" class="hidden absolute top-full right-0 bg-white border border-gray-300 rounded-md shadow-lg z-10 mt-2 w-80 p-4">
                                         <div class="flex flex-wrap gap-4 items-end">
                                             <div class="flex-1">
-                                                <label class="block text-sm font-medium text-gray-700 mb-1">Класс авто</label>
+                                                <label class="block text-sm font-medium text-gray-700 mb-1">Vehicle class</label>
                                                 <select id="fleet-calendar-class-filter" class="px-3 py-2 border border-gray-300 rounded-md text-sm w-full">
-                                                    <option value="">Все классы</option>
-                                                    <option value="Luxury">Люкс</option>
-                                                    <option value="SUV">Внедорожники</option>
-                                                    <option value="Sport">Спорткары</option>
+                                                    <option value="">All classes</option>
+                                                    <option value="Luxury">Luxury</option>
+                                                    <option value="SUV">SUVs/option>
+                                                    <option value="Sport">Sports cars/option>
                                                 </select>
                                             </div>
                                             <div class="flex-1">
-                                                <label class="block text-sm font-medium text-gray-700 mb-1">Статус авто</label>
+                                                <label class="block text-sm font-medium text-gray-700 mb-1">Vehicle status</label>
                                                 <select id="fleet-calendar-status-filter" class="px-3 py-2 border border-gray-300 rounded-md text-sm w-full">
-                                                    <option value="">Все статусы</option>
-                                                    <option value="Available">Доступно</option>
-                                                    <option value="In Rent">В аренде</option>
-                                                    <option value="Maintenance">На обслуживании</option>
+                                                    <option value="">All statuses</option>
+                                                    <option value="Available">Available/option>
+                                                    <option value="In Rent">In rental/option>
+                                                    <option value="Maintenance">In maintenance/option>
                                                 </select>
                                             </div>
-                                            <button id="fleet-calendar-clear-filters" class="p-2 text-gray-500 hover:text-gray-700 rounded">Сбросить</button>
+                                            <button id="fleet-calendar-clear-filters" class="p-2 text-gray-500 hover:text-gray-700 rounded">Clear</button>
                                         </div>
                                     </div>
-                                    <button id="calendar-create-maintenance" class="geist-button geist-button-primary text-sm">Новое ТО</button>
+                                    <button id="calendar-create-maintenance" class="geist-button geist-button-primary text-sm">New maintenance</button>
                                 </div>
                             </div>
 
@@ -755,7 +651,6 @@
                                 <div id="calendar-grid" class="overflow-x-auto"></div>
                             </div>
 
-                            <div class="grid grid-cols-2 md:grid-cols-4 gap-3" id="calendar-legend"></div>
                         </div>
                     </section>
                     <!-- Page: Tasks -->
@@ -764,71 +659,40 @@
                             <div class="geist-card p-4">
                                 <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
                                     <div>
-                                        <label class="block text-xs font-medium text-gray-500 mb-1">Статус</label>
+                                        <label class="block text-xs font-medium text-gray-500 mb-1">Status</label>
                                         <select id="tasks-filter-status" class="px-3 py-2 border border-gray-300 rounded-md text-sm w-full">
-                                            <option value="all">Все</option>
-                                            <option value="todo">К выполнению</option>
-                                            <option value="inprogress">В работе</option>
-                                            <option value="done">Завершено</option>
+                                            <option value="all">All</option>
+                                            <option value="todo">To do</option>
+                                            <option value="inprogress">In progress</option>
+                                            <option value="done">Completed</option>
                                         </select>
                                     </div>
                                     <div>
-                                        <label class="block text-xs font-medium text-gray-500 mb-1">Тип задачи</label>
+                                        <label class="block text-xs font-medium text-gray-500 mb-1">Task type</label>
                                         <select id="tasks-filter-type" class="px-3 py-2 border border-gray-300 rounded-md text-sm w-full">
-                                            <option value="all">Все</option>
-                                            <option value="delivery">Доставка</option>
-                                            <option value="pickup">Забор</option>
-                                            <option value="maintenance">Обслуживание</option>
-                                            <option value="documents">Документы</option>
+                                            <option value="all">All</option>
+                                            <option value="delivery">Delivery</option>
+                                            <option value="pickup">Pickup</option>
+                                            <option value="maintenance">Maintenance</option>
+                                            <option value="documents">Documents</option>
                                         </select>
                                     </div>
                                     <div>
-                                        <label class="block text-xs font-medium text-gray-500 mb-1">Ответственный</label>
+                                        <label class="block text-xs font-medium text-gray-500 mb-1">Owner</label>
                                         <select id="tasks-filter-assignee" class="px-3 py-2 border border-gray-300 rounded-md text-sm w-full">
-                                            <option value="all">Все</option>
-                                            <option value="unassigned">Не назначено</option>
+                                            <option value="all">All</option>
+                                            <option value="unassigned">Unassigned</option>
                                         </select>
                                     </div>
                                     <div class="flex items-end justify-between gap-2 text-sm text-gray-500">
                                         <div id="tasks-sla-summary"></div>
-                                        <button id="tasks-clear-filters" class="text-sm text-gray-500 hover:text-gray-800">Сбросить</button>
+                                        <button id="tasks-clear-filters" class="text-sm text-gray-500 hover:text-gray-800">Clear</button>
                                     </div>
                                 </div>
                             </div>
                             <div class="grid grid-cols-1 md:grid-cols-3 gap-6" id="tasks-board">
                                <!-- Task columns will be injected here -->
                             </div>
-                        </div>
-                    </section>
-
-                    <!-- Page: Notifications -->
-                    <section id="page-notifications" class="page hidden">
-                        <div class="space-y-6" id="notifications-center">
-                            <div class="geist-card p-6">
-                                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                                    <div>
-                                        <h3 class="text-lg font-semibold">Центр уведомлений</h3>
-                                        <p class="text-sm text-gray-500">Управляйте email, SMS, push и вебхуками.</p>
-                                    </div>
-                                    <div class="flex items-center gap-3 text-sm">
-                                        <select id="notifications-filter-channel" class="px-3 py-2 border border-gray-300 rounded-md">
-                                            <option value="all">Все каналы</option>
-                                            <option value="email">Email</option>
-                                            <option value="sms">SMS</option>
-                                            <option value="push">Push</option>
-                                            <option value="webhook">Webhook</option>
-                                        </select>
-                                        <select id="notifications-filter-priority" class="px-3 py-2 border border-gray-300 rounded-md">
-                                            <option value="all">Любой приоритет</option>
-                                            <option value="high">Высокий</option>
-                                            <option value="medium">Средний</option>
-                                            <option value="low">Низкий</option>
-                                        </select>
-                                    </div>
-                                </div>
-                                <p class="text-sm text-gray-500 mt-4">Выбирайте события по каналам и приоритетам, чтобы контролировать отправку.</p>
-                            </div>
-                            <div id="notifications-list" class="space-y-3"></div>
                         </div>
                     </section>
 
@@ -861,23 +725,23 @@
                                <div class="geist-card p-4 space-y-3">
                                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                                        <div>
-                                           <p class="text-xs uppercase text-gray-400">Выбор водителя</p>
-                                           <h2 class="text-xl font-semibold text-gray-900">Мобильная смена</h2>
+                                           <p class="text-xs uppercase text-gray-400">Driver selection</p>
+                                           <h2 class="text-xl font-semibold text-gray-900">Mobile shift</h2>
                                        </div>
                                        <select id="driver-selector" class="px-3 py-2 border border-gray-300 rounded-md text-sm"></select>
                                    </div>
                                    <div id="driver-status-banner"></div>
                                    <div id="driver-location-card" class="border border-dashed border-gray-300 rounded-lg p-3 text-xs text-gray-600 space-y-2">
                                        <div class="flex items-center justify-between">
-                                           <span class="font-medium text-gray-700">GPS трекинг</span>
-                                           <button id="driver-toggle-tracking" class="geist-button geist-button-secondary text-xs">Включить GPS</button>
+                                           <span class="font-medium text-gray-700">GPS tracking</span>
+                                           <button id="driver-toggle-tracking" class="geist-button geist-button-secondary text-xs">Enable GPS</button>
                                        </div>
-                                       <p>Координаты: <span id="driver-current-coords" class="font-mono text-gray-800">—</span></p>
-                                       <p>Последнее обновление: <span id="driver-location-updated" class="text-gray-500">—</span></p>
+                                       <p>Coordinates: <span id="driver-current-coords" class="font-mono text-gray-800">—</span></p>
+                                       <p>Last update: <span id="driver-location-updated" class="text-gray-500">—</span></p>
                                    </div>
                                </div>
-                               <button id="driver-toggle-offline" class="w-full geist-button geist-button-secondary text-sm">Переключить офлайн-режим</button>
-                               <h2 class="text-2xl font-bold text-center">Задачи на сегодня</h2>
+                               <button id="driver-toggle-offline" class="w-full geist-button geist-button-secondary text-sm">Toggle offline mode</button>
+                               <h2 class="text-2xl font-bold text-center">Today’s tasks</h2>
                                <div id="driver-tasks-list" class="space-y-4">
                                    <!-- Driver task cards will be rendered here -->
                                </div>
@@ -889,7 +753,7 @@
                             <div class="max-w-lg mx-auto">
                                 <button class="back-to-tasks mb-4 text-gray-600 flex items-center">
                                     <!-- Back icon will be injected -->
-                                    <span class="ml-2">Назад к задачам</span>
+                                    <span class="ml-2">Back to tasks</span>
                                 </button>
                                 <div id="driver-task-detail-content" class="geist-card p-6 space-y-6">
                                    <!-- Task details will be rendered here -->
@@ -902,66 +766,7 @@
             </main>
         </div>
 
-        <!-- Client Portal Shell -->
-        <div id="portal-shell" class="hidden h-full w-full modern-portal-shell">
-            <div class="h-full flex flex-col">
-                <header class="bg-white border-b px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                    <div>
-                        <h2 class="text-xl font-semibold">SkyLuxse Client Portal</h2>
-                        <p class="text-sm text-gray-500">Self-service пространство клиента</p>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <button id="portal-role-switch" class="geist-button geist-button-secondary text-sm">Вернуться в панель</button>
-                        <button id="portal-support" class="geist-button geist-button-primary text-sm">Поддержка</button>
-                    </div>
-                </header>
-                <div class="flex flex-1 overflow-hidden">
-                    <aside id="client-portal-sidebar" class="hidden md:flex md:flex-col w-64 border-r border-gray-200 bg-white">
-                        <nav id="client-portal-nav" class="flex-1 overflow-y-auto py-4 space-y-1"></nav>
-                    </aside>
-                    <main id="client-portal" class="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
-                        <section id="page-client-dashboard" class="page portal-page hidden">
-                            <div class="geist-card p-6">
-                                <h3 class="text-lg font-semibold">Обзор аренды</h3>
-                                <p class="text-sm text-gray-500">Активные бронирования, платежи и уведомления появятся здесь.</p>
-                            </div>
-                        </section>
-                        <section id="page-client-rentals" class="page portal-page hidden">
-                            <div class="geist-card p-6">
-                                <h3 class="text-lg font-semibold">Аренды</h3>
-                                <p class="text-sm text-gray-500">История аренд и предстоящие поездки.</p>
-                            </div>
-                        </section>
-                        <section id="page-client-payments" class="page portal-page hidden">
-                            <div class="geist-card p-6">
-                                <h3 class="text-lg font-semibold">Платежи</h3>
-                                <p class="text-sm text-gray-500">Инвойсы, депозиты и история оплат.</p>
-                            </div>
-                        </section>
-                        <section id="page-client-documents" class="page portal-page hidden">
-                            <div class="geist-card p-6">
-                                <h3 class="text-lg font-semibold">Документы</h3>
-                                <p class="text-sm text-gray-500">Загрузка и статус ваших документов.</p>
-                            </div>
-                        </section>
-                        <section id="page-client-faq" class="page portal-page hidden">
-                            <div class="geist-card p-6">
-                                <h3 class="text-lg font-semibold">FAQ и поддержка</h3>
-                                <p class="text-sm text-gray-500">Ответы на популярные вопросы и база знаний.</p>
-                            </div>
-                        </section>
-                    </main>
-                </div>
-            </div>
-        </div>
     </div>
-    
-    <!-- Component: Detail Side Panel -->
-    <div id="detail-panel" class="fixed top-0 right-0 h-full w-full max-w-md bg-white border-l border-gray-200 shadow-lg transform translate-x-full transition-transform duration-300 ease-in-out z-30 flex flex-col">
-        <!-- Side panel content will be injected -->
-    </div>
-    <div id="panel-overlay" class="fixed inset-0 bg-black bg-opacity-30 hidden z-20"></div>
-
     <!-- Component: Add/Edit Modals -->
     <div id="generic-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-40 modal-overlay">
         <div class="geist-card w-full max-w-lg transform scale-95 modal-content" id="generic-modal-content">
@@ -973,20 +778,6 @@
     <div id="doc-viewer-modal" class="fixed inset-0 bg-black bg-opacity-75 hidden items-center justify-center z-50 modal-overlay p-4">
         <button id="close-doc-viewer" class="absolute top-4 right-4 text-white text-4xl">&times;</button>
         <img id="doc-viewer-image" src="" class="max-h-full max-w-full">
-    </div>
-
-    <!-- Component: Role Switcher -->
-    <div class="fixed bottom-4 right-4 z-50 geist-card p-2 shadow-2xl">
-        <div class="flex items-center space-x-2">
-            <span class="text-sm font-medium">Роль:</span>
-            <select id="role-switcher" class="p-2 border border-gray-300 rounded-md text-sm">
-                <option value="operations">Операции</option>
-                <option value="sales">Продажи</option>
-                <option value="ceo">Руководство</option>
-                <option value="driver">Водитель</option>
-                <option value="client">Клиент</option>
-            </select>
-        </div>
     </div>
 
     <script type="module" src="src/main.js"></script>

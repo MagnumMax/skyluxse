@@ -4,7 +4,6 @@ import {
     BOOKING_TYPES,
     CALENDAR_EVENT_TYPES,
     TASK_TYPES,
-    NOTIFICATION_CHANNELS,
     KANBAN_STATUS_META,
     ROLE_EMAIL_PRESETS,
     ROLES_CONFIG
@@ -23,8 +22,7 @@ import {
 } from './state/navigation.js';
 import { renderKanbanBoard } from './render/kanban.js';
 import { renderDashboard } from './render/dashboard.js';
-import { renderAnalyticsPage, renderSalesPipeline } from './render/charts.js';
-import { renderClientPortalNav, updatePortalNavActive, renderClientPortalPage } from './render/portal.js';
+import { renderAnalyticsPage, renderSalesPipeline, renderClientCard } from './render/charts.js';
 import { startTimers } from './render/timers.js';
 import { formatCurrency } from './render/utils.js';
 import { showToast } from './ui/toast.js';
@@ -41,28 +39,27 @@ document.addEventListener('DOMContentLoaded', () => {
         const mainContent = document.getElementById('main-content');
         const appContainer = document.getElementById('app-container');
         const desktopShell = document.getElementById('desktop-shell');
-        const portalShell = document.getElementById('portal-shell');
         const mobileViewContainer = document.getElementById('mobile-view');
-        const clientPortalSidebar = document.getElementById('client-portal-sidebar');
-        const clientPortalNav = document.getElementById('client-portal-nav');
-        const clientPortalContainer = document.getElementById('client-portal');
-        const detailPanel = document.getElementById('detail-panel');
+        const genericModal = document.getElementById('generic-modal');
+        const genericModalContent = document.getElementById('generic-modal-content');
         const desktopPages = Array.from(document.querySelectorAll('#content-area > section.page'));
-        const portalPages = Array.from(document.querySelectorAll('#client-portal > section.page'));
         const pageActionButton = document.getElementById('page-action-button');
-        const roleSwitcher = document.getElementById('role-switcher');
         const loginRoleSelect = document.getElementById('login-role');
         const loginEmailInput = document.getElementById('email');
         const requestOtpBtn = document.getElementById('request-otp');
+        const otpContainer = document.getElementById('otp-container');
+        const otpInput = document.getElementById('otp');
+
+        let calendarControlsBound = false;
+
+        if (otpInput) {
+            otpInput.setAttribute('disabled', 'disabled');
+        }
 
         const renderSidebar = () => {
             const roleConfig = ROLES_CONFIG[appState.currentRole];
             const navEl = document.getElementById('sidebar-nav');
             const profileEl = document.getElementById('sidebar-profile');
-
-            if (roleSwitcher && roleConfig) {
-                roleSwitcher.value = appState.currentRole;
-            }
 
             if (!roleConfig || roleConfig.layout !== 'desktop') {
                 navEl.innerHTML = '';
@@ -87,11 +84,35 @@ document.addEventListener('DOMContentLoaded', () => {
                         <p class="font-semibold text-sm">${displayName}</p>
                         <p class="text-xs text-gray-500">${roleConfig.email}</p>
                     </div>
-                    <button class="ml-auto p-2 text-gray-500 hover:text-black" title="Сменить пользователя">
+                    <button id="sidebar-logout" type="button" class="ml-auto p-2 text-gray-500 hover:text-black" title="Log out">
                         ${getIcon('logOut', 'w-5 h-5')}
                     </button>
                 </div>
             `;
+            const logoutBtn = profileEl.querySelector('#sidebar-logout');
+            if (logoutBtn) {
+                logoutBtn.addEventListener('click', () => {
+                    appContainer.classList.add('hidden');
+                    document.getElementById('page-login').classList.remove('hidden');
+                    window.location.hash = '';
+
+                    if (otpContainer) {
+                        otpContainer.classList.add('hidden');
+                    }
+
+                    if (otpInput) {
+                        otpInput.value = '';
+                        otpInput.setAttribute('disabled', 'disabled');
+                    }
+
+                    if (requestOtpBtn) {
+                        requestOtpBtn.textContent = 'Send code';
+                        requestOtpBtn.disabled = false;
+                    }
+
+                    window.location.href = '/';
+                });
+            }
             updateActiveLink();
         };
 
@@ -195,72 +216,142 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         const renderDetailPanel = (type, id) => {
-            const panel = detailPanel;
             let content = '';
+            let useDetailModalSizing = true;
+            const applyModalSizing = () => {
+                if (genericModalContent) {
+                    genericModalContent.classList.add('max-w-6xl', 'w-11/12', 'md:w-5/6', 'xl:w-3/4', 'detail-modal');
+                }
+            };
 
             if (type === 'bookings') {
                 const booking = MOCK_DATA.bookings.find(b => b.id == id);
                 if (!booking) return;
                 const client = MOCK_DATA.clients.find(c => c.name === booking.clientName) || {};
                 const dueAmount = (booking.totalAmount || 0) - (booking.paidAmount || 0);
-
+                const formatAed = (value) => {
+                    const numeric = Number(value) || 0;
+                    return `AED ${Math.round(numeric).toLocaleString('en-US')}`;
+                };
+                const formatDateTime = (date, time) => {
+                    if (!date && !time) return '—';
+                    if (!date) return time || '—';
+                    return time ? `${date} ${time}` : date;
+                };
+                const formatLocationLink = (label) => {
+                    if (!label) {
+                        return '<span class="text-gray-400">—</span>';
+                    }
+                    const encoded = encodeURIComponent(label);
+                    return `<span class="min-w-0 max-w-full"><a href="https://www.google.com/maps/search/?api=1&query=${encoded}" target="_blank" rel="noopener" class="inline-block max-w-full break-words text-blue-600 hover:underline">${label}</a></span>`;
+                };
                 const driverOptions = MOCK_DATA.drivers.map(d => 
                     `<option value="${d.id}" ${booking.driverId === d.id ? 'selected' : ''}>${d.name}</option>`
                 ).join('');
-                
+                const assignedDriver = booking.driverId
+                    ? MOCK_DATA.drivers.find(d => Number(d.id) === Number(booking.driverId))
+                    : null;
+                const isDriverAssignmentLocked = booking.status === 'new';
+
+                const historyEntries = Array.isArray(booking.history) ? [...booking.history] : [];
+                const historyEvents = new Set(historyEntries.map(entry => entry.event));
+                const ensureHistoryEntry = (event, tsFallback) => {
+                    if (!event || historyEvents.has(event)) return;
+                    historyEntries.push({
+                        event,
+                        ts: tsFallback || '—'
+                    });
+                    historyEvents.add(event);
+                };
+
+                if (booking.documents && booking.documents.length) {
+                    ensureHistoryEntry('Documents received', booking.history?.[0]?.ts || booking.startDate || '—');
+                }
+
+                if (booking.deposit) {
+                    ensureHistoryEntry(`Deposit received ${formatAed(booking.deposit)}`, booking.startDate || '—');
+                }
+
+                if (assignedDriver) {
+                    const existingDriverEntry = historyEntries.find(item => typeof item.event === 'string' && item.event.toLowerCase().includes('driver'));
+                    const existingDriverTs = existingDriverEntry?.ts;
+                    ensureHistoryEntry(`Driver ${assignedDriver.name} assigned`, existingDriverTs || booking.startDate || '—');
+                }
+
+                const bookingHistoryHtml = historyEntries.length
+                    ? historyEntries.map(h => `
+                        <li class="flex items-start gap-2">
+                            <span class="mt-1 text-gray-400">${getIcon('check', 'w-4 h-4')}</span>
+                            <div>
+                                <p class="text-sm font-medium text-gray-800">${h.event}</p>
+                                <p class="text-xs text-gray-400">${h.ts}</p>
+                            </div>
+                        </li>
+                    `).join('')
+                    : '<li class="text-sm text-gray-500">No history.</li>';
+
                 content = `
                     <div class="p-6 border-b flex justify-between items-center">
-                        <h2 class="text-xl font-semibold">Заказ #${booking.id}</h2>
-                        <button id="close-panel-btn" class="p-2 text-gray-500 hover:text-black">${getIcon('x')}</button>
+                        <div>
+                            <h2 class="text-xl font-semibold">Booking #${booking.id}</h2>
+                            <p class="text-sm text-gray-500">${client.name || 'Unknown client'} · ${booking.channel?.toUpperCase() || '—'}</p>
+                        </div>
+                        <button class="close-modal-btn p-2 text-gray-500 hover:text-black" aria-label="Close">${getIcon('x')}</button>
                     </div>
-                    <div class="flex-1 overflow-y-auto p-6 space-y-6">
-                         <div>
-                            <h3 class="font-semibold mb-2">Детали бронирования</h3>
-                            <div class="space-y-3 text-sm">
-                               <p><strong>Авто:</strong> ${booking.carName}</p>
-                               <p><strong>Даты:</strong> ${booking.startDate} - ${booking.endDate}</p>
-                               <div>
-                                 <label class="block font-medium text-gray-700">Водитель</label>
-                                 <select class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md">
-                                    <option value="">Не назначен</option>
-                                    ${driverOptions}
-                                 </select>
-                               </div>
-                            </div>
-                         </div>
-                         <div>
-                            <h3 class="font-semibold mb-2">Финансы</h3>
-                            <div class="text-sm space-y-2">
-                                <p class="flex justify-between"><span>Сумма:</span> <strong>$${booking.totalAmount}</strong></p>
-                                <p class="flex justify-between"><span>Оплачено:</span> <span class="text-green-600">$${booking.paidAmount}</span></p>
-                                <p class="flex justify-between border-t pt-2 mt-2"><span>Осталось:</span> <strong class="text-red-600">$${dueAmount}</strong></p>
-                            </div>
-                         </div>
-                         <div class="geist-card p-4">
-                            <h4 class="font-medium mb-2 text-sm">Сгенерировать ссылку на оплату</h4>
-                            <div class="space-y-3">
-                                <input type="number" value="${dueAmount}" placeholder="Сумма" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md stripe-amount-input">
-                                <select class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md stripe-reason-select">
-                                    <option>Доплата по аренде</option>
-                                    <option>Продление</option>
-                                    <option>Дополнительные мили</option>
-                                </select>
-                                <button type="button" class="w-full geist-button geist-button-secondary text-sm generate-stripe-link" data-booking-id="${booking.id}">Создать Stripe ссылку</button>
-                                <div id="stripe-link-result" class="hidden space-y-2">
-                                    <div class="flex items-center justify-between bg-gray-100 rounded-md px-3 py-2 gap-3">
-                                        <a id="stripe-link-anchor" href="#" target="_blank" rel="noopener" class="text-blue-600 hover:underline break-all flex-1">—</a>
-                                        <button type="button" class="copy-stripe-link p-2 text-gray-500 hover:text-black rounded-md" title="Скопировать ссылку">${getIcon('copy', 'w-4 h-4')}</button>
+                    <div class="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
+                        <div class="grid gap-4 md:grid-cols-3">
+                            <div class="geist-card p-5 md:col-span-2">
+                                <h3 class="font-semibold mb-3 text-gray-800">Booking details</h3>
+                                <div class="space-y-3 text-sm text-gray-700">
+                                    <p><span class="text-gray-500">Vehicle:</span> <strong>${booking.carName}</strong></p>
+                                    <p><span class="text-gray-500">Dates:</span> ${formatDateTime(booking.startDate, booking.startTime)} — ${formatDateTime(booking.endDate, booking.endTime)}</p>
+                                    <p><span class="text-gray-500">Locations:</span> <span class="flex flex-wrap items-center gap-2">${formatLocationLink(booking.pickupLocation)} <span class="text-gray-400">→</span> ${formatLocationLink(booking.dropoffLocation)}</span></p>
+                                    <div>
+                                        <label class="block font-medium text-gray-700 mb-1">Driver</label>
+                                        <select class="w-full px-3 py-2 border border-gray-300 rounded-md ${isDriverAssignmentLocked ? 'bg-gray-100 cursor-not-allowed text-gray-500' : ''}" ${isDriverAssignmentLocked ? 'disabled title="Assign a driver after leaving New booking stage"' : ''}>
+                                            <option value="">Unassigned</option>
+                                            ${driverOptions}
+                                        </select>
+                                        ${isDriverAssignmentLocked ? '<p class="mt-2 text-xs text-gray-500">Назначите водителя после перехода из стадии New booking.</p>' : ''}
                                     </div>
-                                    <p id="stripe-copy-feedback" class="text-xs text-green-600 hidden">Ссылка скопирована</p>
                                 </div>
                             </div>
-                         </div>
-                         <div>
-                            <h3 class="font-semibold mb-2">История</h3>
-                            <ul class="space-y-2 text-sm text-gray-600">
-                            ${(booking.history || []).map(h => `<li class="flex items-start"><span class="text-gray-400 mr-2 mt-1">${getIcon('check','w-4 h-4')}</span><div><p>${h.event}</p><p class="text-xs text-gray-400">${h.ts}</p></div></li>`).join('')}
+                            <div class="geist-card p-5 space-y-3 md:col-span-1">
+                                <div>
+                                    <h3 class="font-semibold text-gray-800">Finances</h3>
+                                    <div class="text-sm text-gray-700 space-y-1 mt-2">
+                                        <p class="flex justify-between"><span>Total</span> <strong>${formatAed(booking.totalAmount)}</strong></p>
+                                        <p class="flex justify-between"><span>Paid</span> <span class="text-emerald-600">${formatAed(booking.paidAmount)}</span></p>
+                                        <p class="flex justify-between border-t pt-2 mt-2"><span>Due</span> <strong class="${dueAmount > 0 ? 'text-rose-600' : 'text-gray-900'}">${formatAed(dueAmount)}</strong></p>
+                                    </div>
+                                </div>
+                                <div class="pt-3 border-t">
+                                    <h4 class="font-medium text-sm text-gray-700 mb-2">Generate payment link</h4>
+                                    <div class="space-y-3">
+                                        <input type="number" value="${Math.max(dueAmount, 0)}" placeholder="Amount" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md stripe-amount-input">
+                                        <select class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md stripe-reason-select">
+                                            <option>Rental top-up</option>
+                                            <option>Extension</option>
+                                            <option>Additional mileage</option>
+                                        </select>
+                                        <button type="button" class="w-full geist-button geist-button-secondary text-sm generate-stripe-link" data-booking-id="${booking.id}">Create Stripe link</button>
+                                        <div id="stripe-link-result" class="hidden space-y-2">
+                                            <div class="flex items-center justify-between bg-gray-100 rounded-md px-3 py-2 gap-3">
+                                                <a id="stripe-link-anchor" href="#" target="_blank" rel="noopener" class="text-blue-600 hover:underline break-all flex-1">—</a>
+                                                <button type="button" class="copy-stripe-link p-2 text-gray-500 hover:text-black rounded-md" title="Copy link">${getIcon('copy', 'w-4 h-4')}</button>
+                                            </div>
+                                            <p id="stripe-copy-feedback" class="text-xs text-emerald-600 hidden">Link copied</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="geist-card p-6">
+                            <h3 class="font-semibold text-gray-800 mb-4">Activity history</h3>
+                            <ul class="space-y-3">
+                                ${bookingHistoryHtml}
                             </ul>
-                         </div>
+                        </div>
                     </div>`;
             } else if (type === 'fleet-table') {
                  const car = MOCK_DATA.cars.find(c => c.id == id);
@@ -268,22 +359,22 @@ document.addEventListener('DOMContentLoaded', () => {
                  content = `
                     <div class="p-6 border-b flex justify-between items-center">
                         <h2 class="text-xl font-semibold">${car.name}</h2>
-                        <button id="close-panel-btn" class="p-2 text-gray-500 hover:text-black">${getIcon('x')}</button>
+                        <button class="close-modal-btn p-2 text-gray-500 hover:text-black" aria-label="Close">${getIcon('x')}</button>
                     </div>
-                    <div class="flex-1 overflow-y-auto p-6 space-y-6">
+                    <div class="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
                         <img src="${car.imageUrl.replace('100/60', '400/240')}" class="w-full rounded-lg object-cover">
                         <div>
-                            <h3 class="font-semibold mb-2">Документы</h3>
+                            <h3 class="font-semibold mb-2">Documents</h3>
                             <div class="text-sm space-y-2">
-                                <p><strong>Страховка до:</strong> ${car.insuranceExpiry}</p>
-                                <p><strong>Mulkiya до:</strong> ${car.mulkiyaExpiry}</p>
+                                <p><strong>Insurance until:</strong> ${car.insuranceExpiry}</p>
+                                <p><strong>Mulkiya until:</strong> ${car.mulkiyaExpiry}</p>
                             </div>
                             <div class="grid grid-cols-2 gap-2 mt-2">
                                 ${car.documents.map(doc => `<img src="${doc}" class="rounded-md cursor-pointer doc-image">`).join('')}
                             </div>
                         </div>
                         <div>
-                            <h3 class="font-semibold mb-2">История инспекций</h3>
+                            <h3 class="font-semibold mb-2">Inspection history</h3>
                             <ul class="space-y-3 text-sm">
                             ${car.inspections.map(insp => `
                                 <li class="p-3 bg-gray-50 rounded-md">
@@ -292,55 +383,52 @@ document.addEventListener('DOMContentLoaded', () => {
                                         ${insp.photos.map(p => `<img src="${p}" class="w-16 h-12 object-cover rounded cursor-pointer doc-image">`).join('')}
                                     </div>
                                 </li>
-                            `).join('') || '<p class="text-xs text-gray-500">Нет инспекций.</p>'}
+                            `).join('') || '<p class="text-xs text-gray-500">No inspections.</p>'}
                             </ul>
                         </div>
                     </div>`;
             } else if (type === 'clients-table') {
-                 const client = MOCK_DATA.clients.find(c => c.id == id);
-                 if (!client) return;
-                 const clientHistory = MOCK_DATA.bookings.filter(b => b.clientName === client.name);
-                 content = `
+                const client = MOCK_DATA.clients.find(c => c.id == id);
+                if (!client) return;
+
+                useDetailModalSizing = false;
+                const pipeline = MOCK_DATA.salesPipeline || {};
+                const leads = Array.isArray(pipeline.leads) ? pipeline.leads : [];
+                const lead = leads.find(item => Number(item.clientId) === Number(client.id)) || null;
+                const workspaceDetails = MOCK_DATA.salesWorkspace?.leadDetails || {};
+                const detail = lead ? workspaceDetails[lead.id] || null : null;
+
+                if (genericModalContent) {
+                    genericModalContent.classList.remove('max-w-lg');
+                    genericModalContent.classList.add('max-w-5xl', 'md:w-4/5', 'w-11/12', 'sales-modal');
+                }
+
+                const clientCardHtml = renderClientCard(lead, client, detail);
+                const leadContext = lead
+                    ? `<p class="text-xs text-gray-500 mt-1">Active deal: ${lead.id} · ${lead.title}</p>`
+                    : '';
+
+                content = `
                     <div class="p-6 border-b flex justify-between items-center">
-                        <h2 class="text-xl font-semibold">${client.name}</h2>
-                        <button id="close-panel-btn" class="p-2 text-gray-500 hover:text-black">${getIcon('x')}</button>
+                        <div>
+                            <h2 class="text-xl font-semibold">${client.name}</h2>
+                            ${leadContext}
+                        </div>
+                        <button class="close-modal-btn p-2 text-gray-500 hover:text-black" aria-label="Close">${getIcon('x')}</button>
                     </div>
-                    <div class="flex-1 overflow-y-auto p-6 space-y-6">
-                        <div>
-                            <h3 class="font-semibold mb-2">Контактная информация</h3>
-                            <div class="space-y-2 text-sm">
-                                <p><strong>Телефон:</strong> ${client.phone}</p>
-                                <p><strong>Email:</strong> ${client.email}</p>
-                                <p><strong>Статус:</strong> ${client.status}</p>
-                                <p><strong>Задолженность:</strong> $${client.outstanding}</p>
-                                <p><strong>Общий оборот:</strong> $${client.turnover.toLocaleString()}</p>
-                            </div>
-                        </div>
-                        <div>
-                            <h3 class="font-semibold mb-2">История заказов</h3>
-                            <ul class="space-y-3 text-sm">
-                                ${clientHistory.map(b => `
-                                    <li class="p-3 bg-gray-50 rounded-md">
-                                        <p class="font-medium">${b.carName}</p>
-                                        <p class="text-xs text-gray-500">${b.startDate} to ${b.endDate}</p>
-                                    </li>
-                                `).join('') || '<p class="text-xs text-gray-500">Нет истории заказов.</p>'}
-                            </ul>
-                        </div>
+                    <div class="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
+                        ${clientCardHtml}
                     </div>`;
             }
 
-            panel.innerHTML = content;
-            panel.classList.remove('translate-x-full');
-            document.getElementById('panel-overlay').classList.remove('hidden');
-            document.getElementById('close-panel-btn').addEventListener('click', closePanel);
+            if (!content) return;
+
+            openModal(content);
+            if (useDetailModalSizing) {
+                applyModalSizing();
+            }
         };
         
-        const closePanel = () => {
-            detailPanel.classList.add('translate-x-full');
-            document.getElementById('panel-overlay').classList.add('hidden');
-        };
-
         const renderVehicleCell = (car) => {
             const statusClasses = {
                 Available: 'bg-emerald-50 text-emerald-700 border border-emerald-100',
@@ -362,7 +450,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const renderVehicleDocuments = (car) => {
             if (!car.documents || !car.documents.length) {
-                return '<span class="text-xs text-gray-400">Документы не загружены</span>';
+                return '<span class="text-xs text-gray-400">Documents not uploaded</span>';
             }
             const statusClasses = {
                 active: 'bg-emerald-50 text-emerald-700 border border-emerald-100',
@@ -372,7 +460,7 @@ document.addEventListener('DOMContentLoaded', () => {
             };
             return car.documents.map(doc => {
                 const cls = statusClasses[doc.status] || 'bg-gray-100 text-gray-600 border border-gray-200';
-                const expiry = doc.expiry ? `до ${doc.expiry}` : 'без срока';
+                const expiry = doc.expiry ? `until ${doc.expiry}` : 'no expiry';
                 const attrs = doc.url ? `data-doc-url="${doc.url}"` : '';
                 return `<button type="button" class="doc-badge inline-flex items-center px-2 py-1 mr-2 mb-2 text-xs font-medium rounded-md ${cls}" ${attrs}>${doc.name} · ${expiry}</button>`;
             }).join('');
@@ -386,12 +474,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="space-y-2">
                     <div class="flex items-center justify-between text-sm text-gray-900">
                         <span>${service.label || '—'}</span>
-                        ${service.nextService ? `<span class="text-xs text-gray-500">Следующее: ${service.nextService}</span>` : ''}
+                        ${service.nextService ? `<span class="text-xs text-gray-500">Next: ${service.nextService}</span>` : ''}
                     </div>
                     <div class="w-full bg-gray-200 rounded-full h-2">
                         <div class="h-2 rounded-full ${healthClass}" style="width: ${healthPercent}%"></div>
                     </div>
-                    <p class="text-xs text-gray-500">Техническая готовность ${healthPercent}%</p>
+                    <p class="text-xs text-gray-500">Technical readiness ${healthPercent}%</p>
                 </div>
             `;
         };
@@ -399,7 +487,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const renderVehicleReminders = (car) => {
             const reminders = car.reminders || [];
             if (!reminders.length) {
-                return '<span class="text-xs text-gray-400">Напоминаний нет</span>';
+                return '<span class="text-xs text-gray-400">No reminders</span>';
             }
             const nextReminder = reminders[0];
             const tone = nextReminder.status === 'critical'
@@ -407,11 +495,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 : nextReminder.status === 'warning'
                 ? 'bg-amber-50 text-amber-700 border border-amber-100'
                 : 'bg-slate-50 text-slate-700 border border-slate-100';
-            const label = nextReminder.dueDate ? `до ${nextReminder.dueDate}` : 'без даты';
+            const label = nextReminder.dueDate ? `due ${nextReminder.dueDate}` : 'no date';
             return `
                 <div class="space-y-1">
-                    <span class="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md ${tone}">Следующее: ${label}</span>
-                    <p class="text-xs text-gray-500">Активных напоминаний: ${reminders.length}</p>
+                    <span class="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md ${tone}">Next: ${label}</span>
+                    <p class="text-xs text-gray-500">Active reminders: ${reminders.length}</p>
                 </div>
             `;
         };
@@ -441,17 +529,17 @@ document.addEventListener('DOMContentLoaded', () => {
                         <span class="font-medium text-gray-900">${formatCurrency(client.lifetimeValue || client.turnover)}</span>
                     </div>
                     <div class="flex items-center justify-between">
-                        <span>Задолженность</span>
+                        <span>Outstanding</span>
                         <span class="${outstandingClass}">${formatCurrency(client.outstanding)}</span>
                     </div>
-                    <p class="text-xs text-gray-500">Сегмент: ${client.segment || '—'}</p>
+                    <p class="text-xs text-gray-500">Segment: ${client.segment || '—'}</p>
                 </div>
             `;
         };
 
         const renderClientDocuments = (client) => {
             if (!client.documents || !client.documents.length) {
-                return '<span class="text-xs text-gray-400">Документы не загружены</span>';
+                return '<span class="text-xs text-gray-400">Documents not uploaded</span>';
             }
             const statusClasses = {
                 verified: 'bg-emerald-50 text-emerald-700 border border-emerald-100',
@@ -469,8 +557,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const pending = client.notifications?.filter(n => n.status !== 'delivered').length || 0;
             return `
                 <div class="space-y-1 text-xs text-gray-500">
-                    <p>Каналы: <span class="font-medium text-gray-900">${channels}</span></p>
-                    <p>Уведомления: ${pending ? `<span class=\"text-amber-600\">${pending} ждут отправки</span>` : 'все доставлены'}</p>
+                    <p>Channels: <span class="font-medium text-gray-900">${channels}</span></p>
+                    <p>Notifications: ${pending ? `<span class=\"text-amber-600\">${pending} pending send</span>` : 'all delivered'}</p>
                 </div>
             `;
         };
@@ -483,22 +571,22 @@ document.addEventListener('DOMContentLoaded', () => {
             let rows = [];
 
             if (dataType === 'fleet-table') {
-                tableTitleEl.textContent = 'Автопарк';
+                tableTitleEl.textContent = 'Fleet';
                 rows = MOCK_DATA.cars;
                 columns = [
-                    { label: 'Автомобиль', render: renderVehicleCell },
-                    { label: 'Документы', render: renderVehicleDocuments },
-                    { label: 'Обслуживание', render: renderVehicleService },
-                    { label: 'Напоминания', render: renderVehicleReminders }
+                    { label: 'Vehicle', render: renderVehicleCell },
+                    { label: 'Documents', render: renderVehicleDocuments },
+                    { label: 'Service', render: renderVehicleService },
+                    { label: 'Reminders', render: renderVehicleReminders }
                 ];
             } else if (dataType === 'clients-table') {
-                tableTitleEl.textContent = 'Клиенты';
+                tableTitleEl.textContent = 'Clients';
                 rows = MOCK_DATA.clients;
                 columns = [
-                    { label: 'Клиент', render: renderClientInfo },
-                    { label: 'Финансы', render: renderClientFinance },
-                    { label: 'Документы', render: renderClientDocuments },
-                    { label: 'Коммуникация', render: renderClientCommunications }
+                    { label: 'Client', render: renderClientInfo },
+                    { label: 'Finances', render: renderClientFinance },
+                    { label: 'Documents', render: renderClientDocuments },
+                    { label: 'Communication', render: renderClientCommunications }
                 ];
             } else {
                 return;
@@ -510,7 +598,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <tr class="hover:bg-gray-50">
                     ${columns.map(col => `<td class="px-6 py-4 align-top text-sm text-gray-700">${col.render(row)}</td>`).join('')}
                     <td class="px-6 py-4 text-right text-sm font-medium">
-                        <a href="${buildHash(appState.currentRole, dataType, row.id)}" class="text-indigo-600 hover:text-indigo-900">Подробнее</a>
+                        <a href="${buildHash(appState.currentRole, dataType, row.id)}" class="text-indigo-600 hover:text-indigo-900">View details</a>
                     </td>
                 </tr>
             `).join('');
@@ -565,7 +653,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const trackingBtn = document.getElementById('driver-toggle-tracking');
             const { tracking } = appState.driverContext;
             if (trackingBtn) {
-                trackingBtn.textContent = tracking.enabled ? 'Отключить GPS' : 'Включить GPS';
+                trackingBtn.textContent = tracking.enabled ? 'Disable GPS' : 'Enable GPS';
             }
             if (!coordsEl || !updatedEl) return;
             if (tracking.enabled && tracking.coordinates) {
@@ -573,7 +661,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 coordsEl.textContent = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
                 updatedEl.textContent = tracking.lastUpdated ? new Date(tracking.lastUpdated).toLocaleTimeString('ru-RU') : '—';
             } else {
-                coordsEl.textContent = 'GPS выключен';
+                coordsEl.textContent = 'GPS disabled';
                 updatedEl.textContent = '—';
             }
         };
@@ -637,10 +725,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 trackingBtn.addEventListener('click', () => {
                     if (appState.driverContext.tracking.enabled) {
                         stopDriverTracking();
-                        showToast('GPS трекинг отключен', 'info');
+                        showToast('GPS tracking disabled', 'info');
                     } else {
                         startDriverTracking();
-                        showToast('GPS трекинг активен', 'success');
+                        showToast('GPS tracking active', 'success');
                     }
                 });
             }
@@ -667,15 +755,15 @@ document.addEventListener('DOMContentLoaded', () => {
             if (bannerEl) {
                 const statusBadge = driver ? `<span class="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md ${driver.status === 'Available' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : driver.status === 'On Task' ? 'bg-indigo-50 text-indigo-700 border border-indigo-100' : 'bg-amber-50 text-amber-700 border border-amber-100'}">${driver.status}</span>` : '';
                 const offlineNotice = appState.offline.enabled
-                    ? '<div class="p-3 bg-amber-100 border-l-4 border-amber-500 text-xs text-amber-700 rounded-md">Офлайн режим активен. Данные будут синхронизированы после подключения.</div>'
+                    ? '<div class="p-3 bg-amber-100 border-l-4 border-amber-500 text-xs text-amber-700 rounded-md">Offline mode is active. Data will sync once reconnected.</div>'
                     : '';
                 bannerEl.innerHTML = `
                     <div class="text-xs text-gray-600 space-y-2">
                         <div class="flex items-center justify-between">
-                            <span>Текущий водитель</span>
+                            <span>Current driver</span>
                             ${statusBadge}
                         </div>
-                        ${driver ? `<p>${driver.name} · ${driver.phone}</p>` : '<p>Водитель не выбран</p>'}
+                        ${driver ? `<p>${driver.name} · ${driver.phone}</p>` : '<p>Driver not selected</p>'}
                     </div>
                     ${offlineNotice}
                 `;
@@ -686,27 +774,27 @@ document.addEventListener('DOMContentLoaded', () => {
                 toggleBtn.addEventListener('click', () => {
                     appState.offline.enabled = !appState.offline.enabled;
                     if (appState.offline.enabled) {
-                        showToast('Включен офлайн-режим. Данные сохраняются локально.', 'info');
+                        showToast('Offline mode enabled. Data is stored locally.', 'info');
                     } else {
                         appState.offline.lastSync = new Date().toISOString();
                         syncOfflineQueue();
-                        showToast('Онлайн-режим. Синхронизация выполнена.', 'success');
+                        showToast('Online mode. Sync completed.', 'success');
                     }
                     renderDriverTasks();
                 });
                 toggleBtn.dataset.bound = 'true';
             }
             if (toggleBtn) {
-                toggleBtn.textContent = appState.offline.enabled ? 'Вернуться в онлайн-режим' : 'Переключить офлайн-режим';
+                toggleBtn.textContent = appState.offline.enabled ? 'Return to online mode' : 'Switch to offline mode';
             }
 
             listEl.innerHTML = tasks.map(task => {
                 const labels = {
-                    preparation: 'Подготовить авто',
-                    delivery: 'Доставка клиенту',
-                    settlement: 'Возврат авто'
+                    preparation: 'Prepare vehicle',
+                    delivery: 'Deliver to client',
+                    settlement: 'Vehicle return'
                 };
-                const label = labels[task.status] || 'Задача';
+                const label = labels[task.status] || 'Task';
                 const targetTime = new Date(`${task.startDate}T${task.startTime}:00`).getTime();
                 const timerHtml = `<div class="card-timer text-xs text-amber-600 flex items-center mt-2" data-target-time="${targetTime}"></div>`;
                 const route = task.pickupLocation ? `<p class="text-xs text-gray-500 mt-1">${task.pickupLocation}${task.dropoffLocation ? ' → ' + task.dropoffLocation : ''}</p>` : '';
@@ -716,7 +804,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div>
                              <p class="font-semibold text-sm text-gray-900">${label}</p>
                              <p class="text-xs text-gray-500">${task.carName}</p>
-                             <p class="text-xs text-gray-500">Клиент: ${task.clientName}</p>
+                            <p class="text-xs text-gray-500">Client: ${task.clientName}</p>
                              ${route}
                         </div>
                         <div class="text-right text-xs text-gray-500">
@@ -726,7 +814,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                     ${timerHtml}
                 </div>
-            `}).join('') || '<p class="text-center text-gray-500 mt-8">Нет задач на сегодня</p>';
+            `}).join('') || '<p class="text-center text-gray-500 mt-8">No tasks for today</p>';
             startTimers();
             updateDriverLocationCard();
         };
@@ -739,21 +827,21 @@ document.addEventListener('DOMContentLoaded', () => {
             const contentEl = document.getElementById('driver-task-detail-content');
             const dueAmount = (task.totalAmount || 0) - (task.paidAmount || 0);
             const taskLabels = {
-                preparation: 'Подготовка автомобиля',
-                delivery: 'Доставка клиенту',
-                settlement: 'Возврат автомобиля'
+                preparation: 'Vehicle preparation',
+                delivery: 'Client delivery',
+                settlement: 'Vehicle return'
             };
-            const taskTitle = taskLabels[task.status] || 'Задача водителя';
+            const taskTitle = taskLabels[task.status] || 'Driver task';
             const connectionBadge = appState.offline.enabled
-                ? '<span class="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md bg-amber-50 text-amber-700 border border-amber-100">Офлайн</span>'
-                : '<span class="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md bg-emerald-50 text-emerald-700 border border-emerald-100">Онлайн</span>';
+                ? '<span class="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md bg-amber-50 text-amber-700 border border-amber-100">Offline</span>'
+                : '<span class="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md bg-emerald-50 text-emerald-700 border border-emerald-100">Online</span>';
 
             contentEl.innerHTML = `
                 <h2 class="text-2xl font-bold">${taskTitle}: ${task.carName}</h2>
                 <div class="space-y-6">
                     <div class="flex items-center justify-between">
                         <div>
-                            <h3 class="font-semibold text-gray-500">Клиент</h3>
+                            <h3 class="font-semibold text-gray-500">Client</h3>
                             <p class="text-sm text-gray-700 mt-1">${client.name || '—'}</p>
                         </div>
                         <div class="flex items-center gap-2">
@@ -763,99 +851,99 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                     <div class="geist-card p-4">
                         <div class="flex items-center justify-between">
-                            <h3 class="font-semibold text-sm text-gray-700">Маршрут и навигация</h3>
+                            <h3 class="font-semibold text-sm text-gray-700">Route and navigation</h3>
                             <a href="https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(task.dropoffLocation || 'Dubai Marina')}" target="_blank" class="geist-button geist-button-secondary text-xs flex items-center gap-2">
-                                ${getIcon('navigation', 'w-4 h-4')}Навигатор
+                                ${getIcon('navigation', 'w-4 h-4')}Navigator
                             </a>
                         </div>
-                        <p class="text-xs text-gray-500 mt-3">${task.pickupLocation || 'SkyLuxse HQ'} → ${task.dropoffLocation || 'Адрес клиента'}</p>
+                        <p class="text-xs text-gray-500 mt-3">${task.pickupLocation || 'SkyLuxse HQ'} → ${task.dropoffLocation || 'Client address'}</p>
                     </div>
                     <div class="geist-card p-4 space-y-4">
                         <div class="flex items-center justify-between">
-                            <h3 class="font-semibold text-sm text-gray-700">Показания и состояние</h3>
-                            <span class="text-xs text-gray-400">Заполняется перед сдачей</span>
+                            <h3 class="font-semibold text-sm text-gray-700">Readings and condition</h3>
+                            <span class="text-xs text-gray-400">Complete before return</span>
                         </div>
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
                             <div>
-                                <label class="block text-xs font-medium text-gray-500 mb-1">Пробег (км)</label>
-                                <input type="number" id="driver-odometer" class="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="Например, 25450">
+                                <label class="block text-xs font-medium text-gray-500 mb-1">Odometer (km)</label>
+                                <input type="number" id="driver-odometer" class="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="e.g. 25450">
                             </div>
                             <div>
-                                <label class="block text-xs font-medium text-gray-500 mb-1">Уровень топлива</label>
+                                <label class="block text-xs font-medium text-gray-500 mb-1">Fuel level</label>
                                 <select id="driver-fuel" class="w-full px-3 py-2 border border-gray-300 rounded-md">
-                                    <option value="">Выберите</option>
-                                    <option value="full">Полный</option>
+                                    <option value="">Select</option>
+                                    <option value="full">Full</option>
                                     <option value="3/4">3/4</option>
                                     <option value="1/2">1/2</option>
                                     <option value="1/4">1/4</option>
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-xs font-medium text-gray-500 mb-1">Полученные наличные (AED)</label>
+                                <label class="block text-xs font-medium text-gray-500 mb-1">Cash collected (AED)</label>
                                 <input type="number" id="driver-cash" class="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="0">
                             </div>
                         </div>
                     </div>
                     <div class="geist-card p-4">
-                        <h3 class="font-semibold text-sm text-gray-700">Документы клиента</h3>
+                        <h3 class="font-semibold text-sm text-gray-700">Client documents</h3>
                         <div class="flex flex-wrap gap-2 mt-3 text-sm">
-                           ${(client.documents && client.documents.length) ? client.documents.map(doc => `<a href="#" class="px-3 py-1 rounded-md bg-slate-100 text-slate-700 client-doc-link" data-url="${doc.url}">${doc.name}</a>`).join('') : '<span class="text-xs text-gray-400">Документы не прикреплены</span>'}
+                           ${(client.documents && client.documents.length) ? client.documents.map(doc => `<a href="#" class="px-3 py-1 rounded-md bg-slate-100 text-slate-700 client-doc-link" data-url="${doc.url}">${doc.name}</a>`).join('') : '<span class="text-xs text-gray-400">No documents attached</span>'}
                         </div>
                     </div>
                     <div class="geist-card p-4 space-y-3 text-sm">
                         <div class="flex items-center justify-between">
-                            <h3 class="font-semibold text-sm text-gray-700">Дополнительные услуги</h3>
-                            <span class="text-xs text-gray-400">Выберите оказанные услуги</span>
+                            <h3 class="font-semibold text-sm text-gray-700">Additional services</h3>
+                            <span class="text-xs text-gray-400">Select delivered services</span>
                         </div>
                         <label class="flex items-center gap-2">
                             <input type="checkbox" class="driver-service" data-code="detailing" data-amount="200">
-                            Детейлинг перед выдачей (+200 AED)
+                            Detailing before delivery (+200 AED)
                         </label>
                         <label class="flex items-center gap-2">
                             <input type="checkbox" class="driver-service" data-code="fuel" data-amount="150">
-                            Дозаправка (+150 AED)
+                            Refueling (+150 AED)
                         </label>
                         <label class="flex items-center gap-2">
                             <input type="checkbox" class="driver-service" data-code="toll" data-amount="50">
-                            Оплата Salik / платных дорог (+50 AED)
+                            Salik / toll payment (+50 AED)
                         </label>
                     </div>
                     <div class="geist-card p-4 space-y-3">
                         <div class="flex items-center justify-between">
-                            <h3 class="font-semibold text-sm text-gray-700">Проверка штрафов</h3>
+                            <h3 class="font-semibold text-sm text-gray-700">Fine check</h3>
                             <button type="button" class="geist-button geist-button-secondary text-xs flex items-center gap-2 check-fines-btn" data-booking-id="${task.id}">
-                                ${getIcon('search', 'w-4 h-4')}Проверить
+                                ${getIcon('search', 'w-4 h-4')}Check
                             </button>
                         </div>
-                        <div id="fines-result" class="text-xs text-gray-500">Нет данных о штрафах.</div>
+                        <div id="fines-result" class="text-xs text-gray-500">No fine data.</div>
                     </div>
                     <div class="geist-card p-4">
-                        <h4 class="font-medium mb-2 text-sm">Оплата</h4>
+                        <h4 class="font-medium mb-2 text-sm">Payment</h4>
                         <div class="space-y-3">
-                            <input type="number" id="payment-amount" value="${dueAmount}" placeholder="Сумма" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md">
-                            <button id="generate-qr-btn" class="w-full geist-button geist-button-secondary text-sm">Сгенерировать QR-код для оплаты</button>
+                            <input type="number" id="payment-amount" value="${dueAmount}" placeholder="Amount" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md">
+                            <button id="generate-qr-btn" class="w-full geist-button geist-button-secondary text-sm">Generate payment QR code</button>
                             <div id="qrcode-container" class="flex justify-center p-4 bg-gray-50 rounded-md hidden"></div>
                         </div>
                     </div>
                     <div class="space-y-4">
-                        <h3 class="font-semibold text-gray-500">Прикрепить фото</h3>
+                        <h3 class="font-semibold text-gray-500">Attach photos</h3>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Фото договора</label>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Contract photo</label>
                             <input type="file" accept="image/*" id="contract-photo" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md">
                             <div id="contract-preview" class="mt-2 hidden">
                                 <img id="contract-img" class="max-w-full h-32 object-cover rounded-md">
                             </div>
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Фото авто (до 4 шт.)</label>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Vehicle photos (up to 4)</label>
                             <input type="file" accept="image/*" multiple id="car-photos" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md">
                             <div id="car-previews" class="grid grid-cols-2 gap-2 mt-2"></div>
                         </div>
                     </div>
                     <div>
-                        <label class="flex items-center"><input id="doc-check" type="checkbox" class="h-4 w-4 rounded border-gray-300"> <span class="ml-2 text-sm text-gray-600">Документы проверены</span></label>
+                        <label class="flex items-center"><input id="doc-check" type="checkbox" class="h-4 w-4 rounded border-gray-300"> <span class="ml-2 text-sm text-gray-600">Documents verified</span></label>
                     </div>
-                    <button id="complete-task-btn" data-booking-id="${task.id}" disabled class="w-full geist-button geist-button-primary mt-4">Завершить задачу</button>
+                    <button id="complete-task-btn" data-booking-id="${task.id}" disabled class="w-full geist-button geist-button-primary mt-4">Complete task</button>
                 </div>
             `;
 
@@ -935,7 +1023,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 bookingId: booking.id,
                 carId: booking.carId,
                 type: 'rental',
-                title: `#${booking.id} ${booking.clientName}`,
+                title: booking.clientName,
+                bookingCode: booking.code,
                 start: `${booking.startDate}T${booking.startTime || '09:00'}`,
                 end: `${booking.endDate}T${booking.endTime || '18:00'}`,
                 priority: booking.priority || 'medium'
@@ -963,20 +1052,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
             Object.values(eventsByCar).forEach(list => list.sort((a, b) => new Date(a.start) - new Date(b.start)));
 
-            const dayNames = ['ВС', 'ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ'];
+            const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
             const headerHtml = `
                 <div class="grid bg-gray-50 border border-gray-200 rounded-md text-sm font-semibold text-gray-500" style="${columnsStyle}">
-                    <div class="px-3 py-3 uppercase tracking-wide">Авто</div>
+                    <div class="px-3 py-2 uppercase tracking-wide">Vehicle</div>
                     ${dates.map(date => {
                         const dateStr = date.toISOString().slice(0, 10);
                         const highlight = dateStr === todayStr ? 'bg-white text-indigo-600' : 'text-gray-900';
-                        return `<div class="py-3 px-2 text-center border-l border-gray-200 ${highlight}">${dayNames[date.getDay()]}<span class=\"block text-xs text-gray-500 mt-1\">${date.getDate()}</span></div>`;
+                        return `<div class="py-2 px-2 text-center border-l border-gray-200 ${highlight}">${dayNames[date.getDay()]}<span class=\"block text-xs text-gray-500 mt-1\">${date.getDate()}</span></div>`;
                     }).join('')}
                 </div>
             `;
 
             const rowsHtml = cars.length === 0
-                ? `<div class="p-6 text-sm text-gray-500 border border-t-0 border-gray-200 bg-white">Нет автомобилей, соответствующих выбранным фильтрам.</div>`
+                ? `<div class="p-6 text-sm text-gray-500 border border-t-0 border-gray-200 bg-white">No vehicles match the selected filters.</div>`
                 : cars.map(car => {
                     const events = eventsByCar[car.id] || [];
                     const eventBlocks = events.map((event, index) => {
@@ -992,15 +1081,27 @@ document.addEventListener('DOMContentLoaded', () => {
                         const meta = CALENDAR_EVENT_TYPES[event.type] || { color: 'bg-gray-200 text-gray-700', border: 'border-gray-200', label: event.type };
                         const startTimeLabel = `${String(start.getHours()).padStart(2, '0')}:${String(start.getMinutes()).padStart(2, '0')}`;
                         const endTimeLabel = `${String(end.getHours()).padStart(2, '0')}:${String(end.getMinutes()).padStart(2, '0')}`;
-                        return `
-                            <div class="absolute calendar-event ${meta.color} border ${meta.border} text-xs font-medium px-2 py-1 rounded-md shadow-sm pointer-events-auto"
-                                 data-booking-id="${event.bookingId || ''}"
-                                 data-calendar-event-id="${event.calendarEventId || ''}"
-                                 style="left: calc(${leftPercent}% + 4px); width: calc(${widthPercent}% - 8px); top: ${index * 26 + 6}px;">
+                        const isBooking = Boolean(event.bookingId);
+                        const bookingHeader = isBooking
+                            ? `
+                                <div class="flex justify-between items-center text-[11px] font-semibold">
+                                    <span>${event.bookingCode || `#${event.bookingId}`}</span>
+                                    <span class="text-[10px] opacity-80">${startTimeLabel}–${endTimeLabel}</span>
+                                </div>
+                                <p class="text-[10px] opacity-80 truncate">${event.title}</p>
+                              `
+                            : `
                                 <div class="flex justify-between items-center gap-2">
                                     <span class="truncate">${event.title}</span>
                                     <span class="text-[10px] opacity-80">${startTimeLabel}–${endTimeLabel}</span>
                                 </div>
+                              `;
+                        return `
+                            <div class="absolute calendar-event ${meta.color} border ${meta.border} text-xs font-medium px-2 py-1 rounded-md shadow-sm pointer-events-auto"
+                                 data-booking-id="${event.bookingId || ''}"
+                                 data-calendar-event-id="${event.calendarEventId || ''}"
+                                 style="left: calc(${leftPercent}% + 4px); width: calc(${widthPercent}% - 8px); top: ${index * 24 + 4}px;">
+                                ${bookingHeader}
                             </div>
                         `;
                     }).join('');
@@ -1014,12 +1115,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     const dateCells = dates.map(date => {
                         const dateStr = date.toISOString().slice(0, 10);
                         const highlight = dateStr === todayStr ? 'bg-indigo-50' : 'bg-gray-50';
-                        return `<div class="h-20 border-l border-gray-100 ${highlight}"></div>`;
+                        return `<div class="h-14 border-l border-gray-100 ${highlight}"></div>`;
                     }).join('');
 
                     return `
                         <div class="grid border border-t-0 border-gray-200 bg-white relative" style="${columnsStyle}">
-                            <div class="px-3 py-3 flex items-center gap-3 border-r border-gray-200">
+                            <div class="px-3 py-2 flex items-center gap-3 border-r border-gray-200">
                                 <div class="relative">
                                     <img src="${car.imageUrl}" alt="${car.name}" class="w-10 h-6 object-cover rounded-md">
                                     <span class="absolute -bottom-1 -right-1 w-3 h-3 rounded-full ${statusIndicator} border border-white"></span>
@@ -1044,15 +1145,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 const formatter = new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'long' });
                 const startLabel = formatter.format(startDate);
                 const endLabel = formatter.format(endDate);
-                rangeLabel.textContent = `${startLabel} — ${endLabel} ${endDate.getFullYear()} г.`;
+                rangeLabel.textContent = `${startLabel} — ${endLabel} ${endDate.getFullYear()}`;
             }
 
-            const legendDescriptions = {
-                rental: 'Заказы клиентов',
-                maintenance: 'Работы по обслуживанию',
-                inspection: 'Инспекции и проверки',
-                detailing: 'Детейлинг и подготовка'
-            };
             const legendEl = document.getElementById('calendar-legend');
             if (legendEl) {
                 legendEl.innerHTML = Object.entries(CALENDAR_EVENT_TYPES).map(([key, meta]) => {
@@ -1060,15 +1155,23 @@ document.addEventListener('DOMContentLoaded', () => {
                     return `
                         <div class="geist-card p-3 flex items-center gap-3">
                             <span class="w-3 h-3 rounded-full ${colorClass}"></span>
-                            <div>
-                                <p class="text-sm font-medium text-gray-900">${meta.label}</p>
-                                <p class="text-xs text-gray-500">${legendDescriptions[key] || ''}</p>
-                            </div>
+                            <p class="text-sm font-medium text-gray-900">${meta.label}</p>
                         </div>
                     `;
                 }).join('');
             }
         }
+        
+        const shiftCalendarStart = (deltaDays) => {
+            const numericDelta = Number(deltaDays);
+            const effectiveDelta = Number.isFinite(numericDelta) ? numericDelta : 0;
+            const base = appState.calendarStart
+                ? new Date(`${appState.calendarStart}T00:00:00`)
+                : new Date();
+            base.setDate(base.getDate() + effectiveDelta);
+            appState.calendarStart = base.toISOString().slice(0, 10);
+            renderCalendar();
+        };
         
         const renderReports = () => {
             const topCarsEl = document.getElementById('top-cars-report');
@@ -1076,7 +1179,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const revenueTotal = MOCK_DATA.analytics.revenueDaily.reduce((sum, item) => sum + item.revenue, 0);
             const expensesTotal = MOCK_DATA.analytics.revenueDaily.reduce((sum, item) => sum + item.expenses, 0);
             const periodLabel = document.getElementById('reports-period-label');
-            if (periodLabel) periodLabel.textContent = 'Последние 7 дней';
+            if (periodLabel) periodLabel.textContent = 'Last 7 days';
             const revenueEl = document.getElementById('reports-revenue');
             if (revenueEl) revenueEl.textContent = formatCurrency(revenueTotal);
             const expensesEl = document.getElementById('reports-expenses');
@@ -1093,85 +1196,10 @@ document.addEventListener('DOMContentLoaded', () => {
                         <img src="${car.imageUrl}" class="w-12 h-8 object-cover rounded-md mx-4">
                         <span class="font-semibold">${car.name}</span>
                     </div>
-                    <span class="font-bold text-lg">$${((5-index)*2500 + 1000).toLocaleString()}</span>
+                    <span class="font-bold text-lg">AED ${((5-index)*2500 + 1000).toLocaleString()}</span>
                 </li>
             `).join('');
         }
-
-        let notificationFiltersBound = false;
-        const bindNotificationFilters = () => {
-            if (notificationFiltersBound) return;
-            const channelSelect = document.getElementById('notifications-filter-channel');
-            const prioritySelect = document.getElementById('notifications-filter-priority');
-            if (channelSelect) {
-                channelSelect.addEventListener('change', (event) => {
-                    appState.filters.notifications.channel = event.target.value;
-                    renderNotificationCenter();
-                });
-            }
-            if (prioritySelect) {
-                prioritySelect.addEventListener('change', (event) => {
-                    appState.filters.notifications.priority = event.target.value;
-                    renderNotificationCenter();
-                });
-            }
-            notificationFiltersBound = true;
-        };
-
-        const renderNotificationCenter = () => {
-            const container = document.getElementById('notifications-center');
-            if (!container) return;
-            bindNotificationFilters();
-
-            const channelSelect = document.getElementById('notifications-filter-channel');
-            const prioritySelect = document.getElementById('notifications-filter-priority');
-            if (channelSelect) channelSelect.value = appState.filters.notifications.channel;
-            if (prioritySelect) prioritySelect.value = appState.filters.notifications.priority;
-
-            const listEl = container.querySelector('#notifications-list');
-            if (!listEl) return;
-
-            const channelFilter = appState.filters.notifications.channel;
-            const priorityFilter = appState.filters.notifications.priority;
-            const filtered = MOCK_DATA.notifications.filter(notification => {
-                if (channelFilter !== 'all' && notification.channel !== channelFilter) return false;
-                if (priorityFilter !== 'all' && notification.priority !== priorityFilter) return false;
-                return true;
-            });
-
-            const statusMeta = {
-                scheduled: { label: 'Запланировано', class: 'text-amber-600' },
-                pending: { label: 'Ожидает отправки', class: 'text-amber-600' },
-                delivered: { label: 'Отправлено', class: 'text-emerald-600' }
-            };
-
-            listEl.innerHTML = filtered.length ? filtered.map(notification => {
-                const channelMeta = NOTIFICATION_CHANNELS[notification.channel] || { label: notification.channel, badge: 'bg-gray-100 text-gray-600' };
-                const priorityBadge = notification.priority === 'high'
-                    ? 'bg-rose-100 text-rose-700'
-                    : notification.priority === 'medium'
-                    ? 'bg-amber-100 text-amber-700'
-                    : 'bg-slate-100 text-slate-600';
-                const status = statusMeta[notification.status] || { label: notification.status, class: 'text-gray-500' };
-                const createdAt = notification.createdAt ? new Date(notification.createdAt).toLocaleString('ru-RU') : '—';
-                return `
-                    <div class="geist-card p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                        <div class="space-y-2">
-                            <div class="flex items-center gap-2">
-                                <span class="px-2 py-1 text-xs font-medium rounded-md ${channelMeta.badge}">${channelMeta.label}</span>
-                                <span class="px-2 py-1 text-xs font-medium rounded-md ${priorityBadge}">${notification.priority.toUpperCase()}</span>
-                            </div>
-                            <p class="font-semibold text-sm text-gray-900">${notification.title}</p>
-                            <p class="text-xs text-gray-500">${createdAt}</p>
-                        </div>
-                        <div class="flex items-center gap-3 sm:flex-col sm:items-end text-sm">
-                            <span class="${status.class}">${status.label}</span>
-                            ${notification.status !== 'delivered' ? `<button class="notification-mark-read text-xs geist-button geist-button-secondary" data-notification-id="${notification.id}">Отметить отправленным</button>` : ''}
-                        </div>
-                    </div>
-                `;
-            }).join('') : '<div class="geist-card p-6 text-sm text-gray-500">Уведомления по выбранным фильтрам отсутствуют.</div>';
-        };
 
 const renderTasksPage = () => {
             const board = document.getElementById('tasks-board');
@@ -1208,13 +1236,13 @@ const renderTasksPage = () => {
                 }).length;
                 summaryEl.innerHTML = `
                     <div class="text-xs text-gray-500">
-                        <p>Активных задач: <span class="font-medium text-gray-900">${filteredTasks.length}</span></p>
-                        <p>Просрочки: <span class="font-medium ${overdue ? 'text-rose-600' : 'text-emerald-600'}">${overdue}</span></p>
+                        <p>Active tasks: <span class="font-medium text-gray-900">${filteredTasks.length}</span></p>
+                        <p>Overdue: <span class="font-medium ${overdue ? 'text-rose-600' : 'text-emerald-600'}">${overdue}</span></p>
                     </div>
                 `;
             }
 
-            const statuses = { todo: 'К выполнению', inprogress: 'В работе', done: 'Завершено' };
+            const statuses = { todo: 'To do', inprogress: 'In progress', done: 'Completed' };
             board.innerHTML = Object.entries(statuses).map(([statusKey, statusValue]) => {
                 const tasks = filteredTasks.filter(task => task.status === statusKey);
                 return `
@@ -1224,12 +1252,12 @@ const renderTasksPage = () => {
                            ${tasks.map(task => {
                                const assignee = MOCK_DATA.drivers.find(d => d.id === task.assigneeId);
                                const typeMeta = TASK_TYPES[task.type] || { label: task.type, color: 'bg-gray-100 text-gray-600' };
-                               const priorityBadge = task.priority ? `<span class=\"inline-flex items-center px-2 py-1 text-[10px] font-medium rounded-md ${task.priority === 'Высокий' ? 'bg-rose-50 text-rose-700 border border-rose-100' : task.priority === 'Средний' ? 'bg-amber-50 text-amber-700 border border-amber-100' : 'bg-slate-100 text-slate-600 border border-slate-200'}\">${task.priority}</span>` : '';
+                               const priorityBadge = task.priority ? `<span class=\"inline-flex items-center px-2 py-1 text-[10px] font-medium rounded-md ${task.priority === 'High' ? 'bg-rose-50 text-rose-700 border border-rose-100' : task.priority === 'Medium' ? 'bg-amber-50 text-amber-700 border border-amber-100' : 'bg-slate-100 text-slate-600 border border-slate-200'}\">${task.priority}</span>` : '';
                                const deadlineTimestamp = task.deadline ? new Date(task.deadline.replace(' ', 'T')).getTime() : NaN;
                                const countdownBlock = (!Number.isNaN(deadlineTimestamp) && task.status !== 'done') ? `<div class=\"task-countdown text-xs text-amber-600 mt-2\" data-target-time=\"${deadlineTimestamp}\"></div>` : '';
                                const checklistTotal = task.checklist ? task.checklist.length : 0;
                                const checklistCompleted = task.checklist ? task.checklist.filter(item => item.completed).length : 0;
-                               const slaBadge = task.sla ? `<span class=\"inline-flex items-center px-2 py-1 text-[10px] font-medium rounded-md bg-slate-100 text-slate-700\">SLA ${task.sla.timerMinutes} мин</span>` : '';
+                               const slaBadge = task.sla ? `<span class=\"inline-flex items-center px-2 py-1 text-[10px] font-medium rounded-md bg-slate-100 text-slate-700\">SLA ${task.sla.timerMinutes} min</span>` : '';
                                return `
                                <div class=\"p-3 bg-gray-50 rounded-md border border-transparent hover:border-gray-200 hover:bg-white transition cursor-pointer task-card\" data-task-id=\"${task.id}\">
                                   <div class=\"flex items-start justify-between\">
@@ -1247,13 +1275,13 @@ const renderTasksPage = () => {
                                       </div>
                                   </div>
                                   <div class=\"flex items-center justify-between text-xs text-gray-600 mt-2\">
-                                      <span>${assignee ? assignee.name : 'Не назначен'}</span>
-                                      <span>Чек-лист: ${checklistTotal ? `${checklistCompleted}/${checklistTotal}` : '—'}</span>
+                                      <span>${assignee ? assignee.name : 'Unassigned'}</span>
+                                      <span>Checklist: ${checklistTotal ? `${checklistCompleted}/${checklistTotal}` : '—'}</span>
                                   </div>
                                   ${task.description ? `<p class=\"text-xs text-gray-500 mt-2 overflow-hidden text-ellipsis\">${task.description}</p>` : ''}
                                   ${countdownBlock}
                                </div>`
-                           }).join('') || '<p class="text-xs text-gray-500">Нет задач</p>'}
+                           }).join('') || '<p class="text-xs text-gray-500">No tasks</p>'}
                         </div>
                     </div>
                 `;
@@ -1268,7 +1296,7 @@ const renderTasksPage = () => {
 
             const assignee = MOCK_DATA.drivers.find(d => d.id === task.assigneeId);
             const booking = task.bookingId ? MOCK_DATA.bookings.find(b => b.id === task.bookingId) : null;
-            const statusLabels = { todo: 'К выполнению', inprogress: 'В работе', done: 'Завершено' };
+            const statusLabels = { todo: 'To do', inprogress: 'In progress', done: 'Completed' };
             const statusBadge = statusLabels[task.status] || task.status;
             const typeMeta = TASK_TYPES[task.type] || { label: task.type };
             const checklistHtml = task.checklist && task.checklist.length
@@ -1278,14 +1306,14 @@ const renderTasksPage = () => {
                         <span>${item.label}${item.required ? ' <span class=\"text-rose-500\">*</span>' : ''}</span>
                     </label>
                 `).join('')
-                : '<p class="text-xs text-gray-500">Чек-лист не требуется</p>';
+                : '<p class="text-xs text-gray-500">No checklist required</p>';
 
             const requiredInputs = task.requiredInputs && task.requiredInputs.length
-                ? `<p class="text-xs text-gray-500">Обязательные данные: ${task.requiredInputs.map(input => `<span class=\"font-medium text-gray-900\">${input}</span>`).join(', ')}</p>`
+                ? `<p class="text-xs text-gray-500">Required data: ${task.requiredInputs.map(input => `<span class=\"font-medium text-gray-900\">${input}</span>`).join(', ')}</p>`
                 : '';
 
-            const locationInfo = task.geo ? `<p class="text-xs text-gray-500">Маршрут: ${task.geo.pickup}${task.geo.dropoff ? ' → ' + task.geo.dropoff : ''}</p>` : '';
-            const slaInfo = task.sla ? `<p class="text-xs text-gray-500">SLA: ${task.sla.timerMinutes} минут</p>` : '';
+            const locationInfo = task.geo ? `<p class="text-xs text-gray-500">Route: ${task.geo.pickup}${task.geo.dropoff ? ' → ' + task.geo.dropoff : ''}</p>` : '';
+            const slaInfo = task.sla ? `<p class="text-xs text-gray-500">SLA: ${task.sla.timerMinutes} minutes</p>` : '';
 
             openModal(`
                 <div class="p-6 border-b flex justify-between items-center">
@@ -1298,44 +1326,44 @@ const renderTasksPage = () => {
                 <div class="p-6 space-y-5 text-sm">
                     <div class="flex items-center justify-between">
                         <div>
-                            <p class="text-xs uppercase tracking-wide text-gray-500">Ответственный</p>
-                            <p class="font-medium mt-1">${assignee ? assignee.name : 'Не назначен'}</p>
+                            <p class="text-xs uppercase tracking-wide text-gray-500">Owner</p>
+                            <p class="font-medium mt-1">${assignee ? assignee.name : 'Unassigned'}</p>
                         </div>
                         <span class="px-3 py-1 rounded-full bg-gray-100 text-gray-700 text-xs font-semibold">${statusBadge}</span>
                     </div>
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-gray-600">
                         <div>
-                            <p class="font-semibold text-gray-500">Дедлайн</p>
-                            <p class="mt-1">${task.deadline || 'Не указан'}</p>
+                            <p class="font-semibold text-gray-500">Deadline</p>
+                            <p class="mt-1">${task.deadline || 'Not set'}</p>
                         </div>
                         <div>
-                            <p class="font-semibold text-gray-500">Приоритет</p>
+                            <p class="font-semibold text-gray-500">Priority</p>
                             <p class="mt-1">${task.priority || '—'}</p>
                         </div>
-                        ${task.sla ? `<div><p class="font-semibold text-gray-500">SLA</p><p class="mt-1">${task.sla.timerMinutes} минут</p></div>` : ''}
-                        ${task.geo ? `<div><p class="font-semibold text-gray-500">Локация</p><p class="mt-1">${task.geo.pickup}${task.geo.dropoff ? ' → ' + task.geo.dropoff : ''}</p></div>` : ''}
+                        ${task.sla ? `<div><p class="font-semibold text-gray-500">SLA</p><p class="mt-1">${task.sla.timerMinutes} minutes</p></div>` : ''}
+                        ${task.geo ? `<div><p class="font-semibold text-gray-500">Location</p><p class="mt-1">${task.geo.pickup}${task.geo.dropoff ? ' → ' + task.geo.dropoff : ''}</p></div>` : ''}
                     </div>
                     ${task.description ? `<div>
-                        <p class="font-semibold text-gray-500">Описание</p>
+                        <p class="font-semibold text-gray-500">Description</p>
                         <p class="mt-1 text-gray-700 leading-relaxed">${task.description}</p>
                     </div>` : ''}
                     <div class="space-y-2">
-                        <p class="font-semibold text-gray-500">Чек-лист</p>
+                        <p class="font-semibold text-gray-500">Checklist</p>
                         <div class="space-y-2">
                             ${checklistHtml}
                         </div>
                         ${requiredInputs}
                     </div>
                     ${booking ? `<div class="border-t pt-4">
-                        <p class="font-semibold text-gray-500 mb-2">Связанный заказ</p>
+                        <p class="font-semibold text-gray-500 mb-2">Related booking</p>
                         <div class="flex flex-col space-y-2">
                             <span><strong>#${booking.id}</strong> · ${booking.carName}</span>
-                            <a class="text-blue-600 hover:underline text-sm" href="${buildHash(appState.currentRole, 'bookings', booking.id)}">Открыть детали бронирования</a>
+                            <a class="text-blue-600 hover:underline text-sm" href="${buildHash(appState.currentRole, 'bookings', booking.id)}">Open booking details</a>
                         </div>
                     </div>` : ''}
                 </div>
                 <div class="px-6 pb-6 flex justify-end">
-                    <button id="task-complete-btn" class="geist-button geist-button-primary text-sm">Завершить задачу</button>
+                    <button id="task-complete-btn" class="geist-button geist-button-primary text-sm">Complete task</button>
                 </div>
             `);
 
@@ -1358,12 +1386,12 @@ const renderTasksPage = () => {
                     if (hasChecklist) {
                         const incompleteRequired = task.checklist.some(item => item.required && !item.completed);
                         if (incompleteRequired) {
-                            showToast('Заполните обязательные пункты чек-листа перед завершением', 'error');
+                            showToast('Complete required checklist items before finishing', 'error');
                             return;
                         }
                     }
                     task.status = 'done';
-                    showToast('Задача отмечена как выполненная', 'success');
+                    showToast('Task marked as completed', 'success');
                     closeModal();
                     renderTasksPage();
                 });
@@ -1376,27 +1404,15 @@ const renderTasksPage = () => {
             const layout = roleConfig.layout || 'desktop';
             const isDesktop = layout === 'desktop';
             const isMobile = layout === 'mobile';
-            const isPortal = layout === 'portal';
 
             desktopShell.classList.toggle('hidden', !isDesktop);
             sidebar.classList.toggle('hidden', !isDesktop);
             mainContent.classList.toggle('hidden', !isDesktop);
-            portalShell.classList.toggle('hidden', !isPortal);
             mobileViewContainer.classList.toggle('hidden', !isMobile);
 
             if (!isDesktop) {
                 desktopPages.forEach(page => page.classList.add('hidden'));
-            }
-            if (!isPortal) {
-                portalPages.forEach(page => page.classList.add('hidden'));
-            }
-
-            if (isPortal && clientPortalSidebar) {
-                clientPortalSidebar.classList.toggle('hidden', window.innerWidth < 768);
-            }
-
-            if (!isDesktop) {
-                closePanel();
+                    closeModal();
             }
         };
         
@@ -1413,13 +1429,6 @@ const renderTasksPage = () => {
             if (layout === 'desktop' && roleConfig?.nav?.length) {
                 const allowedPages = roleConfig.nav.map(item => item.id);
                 if (!allowedPages.includes(page) && !page.endsWith('-table')) {
-                    page = roleConfig.defaultPage;
-                    normalizedSelector = HASH_DEFAULT_SELECTOR;
-                    needsUpdate = true;
-                }
-            } else if (layout === 'portal' && roleConfig?.nav?.length) {
-                const allowedPages = roleConfig.nav.map(item => item.id);
-                if (!allowedPages.includes(page)) {
                     page = roleConfig.defaultPage;
                     normalizedSelector = HASH_DEFAULT_SELECTOR;
                     needsUpdate = true;
@@ -1450,13 +1459,9 @@ const renderTasksPage = () => {
             appState.currentRole = role;
             appState.currentPage = page;
 
-            closePanel(); // Close any open panels on navigation
+            closeModal(); // Close any open modals on navigation
 
             document.querySelectorAll('.page').forEach(p => p.classList.add('hidden'));
-
-            if (layout === 'portal') {
-                renderClientPortalNav();
-            }
 
             let pageId = `page-${appState.currentPage}`;
 
@@ -1506,19 +1511,15 @@ const renderTasksPage = () => {
             pageActionButton.classList.add('hidden');
             if (layout === 'desktop') {
                 if(appState.currentPage === 'tasks') {
-                    pageActionButton.textContent = "Добавить задачу";
+                    pageActionButton.textContent = "Add task";
                     pageActionButton.classList.remove('hidden');
                 } else if(appState.currentPage === 'fleet-table') {
-                    pageActionButton.textContent = "Добавить авто";
+                    pageActionButton.textContent = "Add vehicle";
                     pageActionButton.classList.remove('hidden');
                 }
             }
 
             updateActiveLink();
-            if (layout === 'portal') {
-                updatePortalNavActive();
-                renderClientPortalPage(appState.currentPage);
-            }
 
             // Render content for specific pages
             if(appState.currentPage === 'bookings') renderKanbanBoard();
@@ -1529,7 +1530,6 @@ const renderTasksPage = () => {
             if(appState.currentPage === 'fleet-calendar') renderCalendar();
             if(appState.currentPage === 'reports') renderReports();
             if(appState.currentPage === 'tasks') renderTasksPage();
-            if(appState.currentPage === 'notifications') renderNotificationCenter();
             if(appState.currentPage === 'sales-pipeline') renderSalesPipeline();
             if(appState.currentPage !== 'driver-tasks' && appState.driverContext?.tracking?.enabled) {
                 stopDriverTracking();
@@ -1537,14 +1537,61 @@ const renderTasksPage = () => {
         };
         
         // --- MODAL HANDLING ---
-        const genericModal = document.getElementById('generic-modal');
-        const genericModalContent = document.getElementById('generic-modal-content');
-        
-        const openModal = (content) => {
-            genericModalContent.innerHTML = content;
-            genericModal.classList.replace('hidden', 'flex');
+        function openMaintenanceModal() {
+            const defaultDate = appState.calendarStart || getStartOfWeek();
+            const defaultStart = `${defaultDate}T09:00`;
+            const defaultEnd = `${defaultDate}T18:00`;
+            const carOptions = MOCK_DATA.cars.map(car => `<option value="${car.id}">${car.name} · ${car.plate}</option>`).join('');
+
+            openModal(`
+                <div class="p-6 border-b flex justify-between items-center">
+                    <h2 class="text-xl font-semibold">Schedule maintenance</h2>
+                    <button class="close-modal-btn p-2 text-gray-500 hover:text-black" aria-label="Close">&times;</button>
+                </div>
+                <div class="p-6 space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Vehicle</label>
+                        <select class="w-full px-3 py-2 border border-gray-300 rounded-md" id="maintenance-car">
+                            ${carOptions}
+                        </select>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Start</label>
+                            <input type="datetime-local" id="maintenance-start" value="${defaultStart}" class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">End</label>
+                            <input type="datetime-local" id="maintenance-end" value="${defaultEnd}" class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Work type</label>
+                        <select id="maintenance-type" class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                            <option value="maintenance">Scheduled maintenance</option>
+                            <option value="inspection">Inspection</option>
+                            <option value="detailing">Detailing</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Comment</label>
+                        <textarea id="maintenance-notes" rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="Add notes for mechanic or driver"></textarea>
+                    </div>
+                </div>
+                <div class="p-4 border-t bg-gray-50 flex justify-end gap-2">
+                    <button type="button" class="close-modal-btn geist-button geist-button-secondary">Cancel</button>
+                    <button type="button" id="maintenance-save-btn" class="geist-button geist-button-primary">Save</button>
+                </div>
+            `);
+
+            const saveBtn = document.getElementById('maintenance-save-btn');
+            if (saveBtn) {
+                saveBtn.addEventListener('click', () => {
+                    closeModal();
+                    showToast('Maintenance slot created (demo)', 'success');
+                });
+            }
         }
-        const closeModal = () => genericModal.classList.replace('flex', 'hidden');
 
         const docViewer = document.getElementById('doc-viewer-modal');
         const openDocViewer = (url) => {
@@ -1565,8 +1612,24 @@ const renderTasksPage = () => {
 
         if (requestOtpBtn) {
             requestOtpBtn.addEventListener('click', () => {
-                requestOtpBtn.textContent = 'Скоро доступно';
+                if (otpContainer) {
+                    otpContainer.classList.remove('hidden');
+                }
+
+                if (otpInput) {
+                    otpInput.removeAttribute('disabled');
+                    otpInput.value = '';
+                    otpInput.focus();
+                }
+
+                showToast('Demo code sent: 123456', 'info');
+                requestOtpBtn.textContent = 'Code sent';
                 requestOtpBtn.disabled = true;
+
+                setTimeout(() => {
+                    requestOtpBtn.textContent = 'Send code again';
+                    requestOtpBtn.disabled = false;
+                }, 15000);
             });
         }
 
@@ -1593,36 +1656,6 @@ const renderTasksPage = () => {
             window.location.hash = buildHash(selectedRole, defaultPage);
             initApp();
         });
-
-        if (roleSwitcher) {
-            roleSwitcher.addEventListener('change', (e) => {
-                const newRole = e.target.value;
-                const defaultPage = ROLES_CONFIG[newRole]?.defaultPage || 'dashboard';
-                appState.currentRole = newRole;
-                window.location.hash = buildHash(newRole, defaultPage);
-                initApp();
-            });
-        }
-
-        const portalRoleSwitchBtn = document.getElementById('portal-role-switch');
-        if (portalRoleSwitchBtn) {
-            portalRoleSwitchBtn.addEventListener('click', () => {
-                appState.currentRole = 'operations';
-                const defaultPage = ROLES_CONFIG.operations.defaultPage;
-                window.location.hash = buildHash('operations', defaultPage);
-                initApp();
-            });
-        }
-
-        const portalSupportBtn = document.getElementById('portal-support');
-        if (portalSupportBtn) {
-            portalSupportBtn.addEventListener('click', () => {
-                portalSupportBtn.textContent = 'support@skyluxse.ae';
-                portalSupportBtn.classList.remove('geist-button-primary');
-                portalSupportBtn.classList.add('geist-button-secondary');
-            });
-        }
-
         document.getElementById('sidebar-nav').addEventListener('click', (e) => {
             if(window.innerWidth < 768) sidebar.classList.add('-translate-x-full');
         });
@@ -1631,7 +1664,7 @@ const renderTasksPage = () => {
             sidebar.classList.toggle('-translate-x-full');
         });
         
-        document.getElementById('panel-overlay').addEventListener('click', closePanel);
+        // overlay no longer used; modal component handles backdrop internally
 
         appContainer.addEventListener('click', e => {
             const link = e.target.closest('a');
@@ -1693,55 +1726,93 @@ const renderTasksPage = () => {
             }
             
             // Handle new booking button
-            if (e.target.closest('button') && e.target.closest('button').textContent.includes('Новый заказ')) {
+            if (e.target.closest('button') && e.target.closest('button').textContent.includes('New booking')) {
                 e.preventDefault();
-                // This would open a modal to create a new booking
+                const templateBooking = MOCK_DATA.bookings.find(b => b.status === 'new') || MOCK_DATA.bookings[0];
+                const templateClient = templateBooking ? MOCK_DATA.clients.find(client => Number(client.id) === Number(templateBooking.clientId)) : null;
+                const templateCar = templateBooking ? MOCK_DATA.cars.find(car => Number(car.id) === Number(templateBooking.carId)) : null;
+                const clientOptions = MOCK_DATA.clients.map(client => `
+                    <option value="${client.id}" ${templateClient && Number(templateClient.id) === Number(client.id) ? 'selected' : ''}>
+                        ${client.name}
+                    </option>
+                `).join('');
+                const carOptions = MOCK_DATA.cars
+                    .filter(car => car.status === 'Available' || (templateCar && Number(templateCar.id) === Number(car.id)))
+                    .map(car => `
+                        <option value="${car.id}" ${templateCar && Number(templateCar.id) === Number(car.id) ? 'selected' : ''}>
+                            ${car.name}
+                        </option>
+                    `).join('');
+                const startDateValue = templateBooking?.startDate || '';
+                const endDateValue = templateBooking?.endDate || '';
+                const pickupLocation = templateBooking?.pickupLocation || '';
+                const dropoffLocation = templateBooking?.dropoffLocation || '';
+                const totalAmountValue = templateBooking?.totalAmount || '';
+
                 openModal(`
                     <div class="p-6 border-b flex justify-between items-center">
-                        <h2 class="text-xl font-semibold">Новый заказ</h2>
+                        <h2 class="text-xl font-semibold">New booking</h2>
                         <button class="p-2 text-gray-500 hover:text-black close-modal-btn">&times;</button>
                     </div>
-                    <div class="p-6 space-y-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">Клиент</label>
-                            <select class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md">
-                                ${MOCK_DATA.clients.map(client => `<option>${client.name}</option>`).join('')}
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">Автомобиль</label>
-                            <select class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md">
-                                ${MOCK_DATA.cars.filter(car => car.status === 'Available').map(car => `<option>${car.name}</option>`).join('')}
-                            </select>
-                        </div>
-                        <div class="grid grid-cols-2 gap-4">
+                    <div class="p-6 space-y-6">
+                        <div class="grid gap-4 md:grid-cols-2">
                             <div>
-                                <label class="block text-sm font-medium text-gray-700">Дата начала</label>
-                                <input type="date" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md">
+                                <label class="block text-sm font-medium text-gray-700">Client</label>
+                                <select class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md">
+                                    <option value="">Select client</option>
+                                    ${clientOptions}
+                                </select>
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700">Дата окончания</label>
-                                <input type="date" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md">
+                                <label class="block text-sm font-medium text-gray-700">Vehicle</label>
+                                <select class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md">
+                                    <option value="">Select vehicle</option>
+                                    ${carOptions}
+                                </select>
+                            </div>
+                            <div class="grid grid-cols-2 gap-4 md:col-span-2">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700">Start date</label>
+                                    <input type="date" value="${startDateValue}" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700">End date</label>
+                                    <input type="date" value="${endDateValue}" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md">
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-4 md:col-span-2">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700">Pickup location</label>
+                                    <input type="text" value="${pickupLocation}" placeholder="e.g. SkyLuxse HQ" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700">Drop-off location</label>
+                                    <input type="text" value="${dropoffLocation}" placeholder="e.g. Palm Jumeirah" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Amount (AED)</label>
+                                <input type="number" value="${totalAmountValue}" min="0" step="50" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md">
                             </div>
                         </div>
                     </div>
                     <div class="p-6 border-t bg-gray-50 flex justify-end space-x-3">
-                        <button class="geist-button geist-button-secondary close-modal-btn">Отмена</button>
-                        <button class="geist-button geist-button-primary">Создать заказ</button>
+                        <button class="geist-button geist-button-secondary close-modal-btn">Cancel</button>
+                        <button class="geist-button geist-button-primary">Create booking</button>
                     </div>
                 `);
             }
 
             const finesBtn = e.target.closest('.check-fines-btn');
             if (finesBtn) {
-                const resultEl = detailPanel.querySelector('#fines-result');
+                const resultEl = genericModalContent?.querySelector('#fines-result');
                 if (resultEl) {
                     const hasFine = Math.random() < 0.35;
                     if (hasFine) {
                         const fineAmount = Math.floor(Math.random() * 400) + 200;
-                        resultEl.innerHTML = `<span class="text-rose-600 font-semibold">Найден штраф ${fineAmount} AED</span><br><span class="text-xs text-gray-500">Рекомендуется удержать сумму из депозита</span>`;
+                        resultEl.innerHTML = `<span class="text-rose-600 font-semibold">Fine found ${fineAmount} AED</span><br><span class="text-xs text-gray-500">Recommended to withhold from deposit</span>`;
                     } else {
-                        resultEl.innerHTML = '<span class="text-emerald-600 font-semibold">Штрафы не обнаружены</span>';
+                        resultEl.innerHTML = '<span class="text-emerald-600 font-semibold">No fines found</span>';
                     }
                 }
             }
@@ -1768,18 +1839,18 @@ const renderTasksPage = () => {
             }
             if (e.target.id === 'complete-task-btn') {
                 const bookingId = e.target.dataset.bookingId;
-                const odometerValue = detailPanel.querySelector('#driver-odometer')?.value.trim();
-                const fuelLevel = detailPanel.querySelector('#driver-fuel')?.value;
+                const odometerValue = genericModalContent?.querySelector('#driver-odometer')?.value.trim();
+                const fuelLevel = genericModalContent?.querySelector('#driver-fuel')?.value;
                 if (!odometerValue || !fuelLevel) {
-                    showToast('Заполните пробег и уровень топлива перед завершением', 'error');
+                    showToast('Fill in mileage and fuel level before completing', 'error');
                     return;
                 }
-                const cashValue = parseFloat(detailPanel.querySelector('#driver-cash')?.value || '0') || 0;
-                const services = Array.from(detailPanel.querySelectorAll('.driver-service:checked')).map(input => ({
+                const cashValue = parseFloat(genericModalContent?.querySelector('#driver-cash')?.value || '0') || 0;
+                const services = Array.from(genericModalContent?.querySelectorAll('.driver-service:checked') || []).map(input => ({
                     code: input.dataset.code,
                     amount: parseFloat(input.dataset.amount || '0') || 0
                 }));
-                const finesText = detailPanel.querySelector('#fines-result')?.textContent.trim();
+                const finesText = genericModalContent?.querySelector('#fines-result')?.textContent.trim();
                 const payload = {
                     odometer: odometerValue,
                     fuelLevel,
@@ -1790,7 +1861,7 @@ const renderTasksPage = () => {
 
                 if (appState.offline.enabled) {
                     enqueueOfflineAction({ type: 'driver-task-complete', bookingId, payload });
-                    showToast('Данные сохранены офлайн', 'info');
+                    showToast('Data saved offline', 'info');
                 } else {
                     const booking = MOCK_DATA.bookings.find(b => b.id == bookingId);
                     if (booking) {
@@ -1800,7 +1871,7 @@ const renderTasksPage = () => {
                         booking.cashCollected = cashValue;
                         booking.addonServices = services;
                         booking.history = booking.history || [];
-                        booking.history.push({ ts: new Date().toISOString().slice(0, 16).replace('T', ' '), event: 'Водитель завершил задачу, данные обновлены' });
+                        booking.history.push({ ts: new Date().toISOString().slice(0, 16).replace('T', ' '), event: 'Driver completed task, data updated' });
                     }
                     const relatedTask = MOCK_DATA.tasks.find(t => String(t.bookingId) === String(bookingId));
                     if (relatedTask) {
@@ -1810,41 +1881,30 @@ const renderTasksPage = () => {
                     syncOfflineQueue();
                 }
 
-                closePanel();
+                closeModal();
                 renderDriverTasks();
                 renderTasksPage();
-                showToast('Задача водителя завершена', 'success');
-            }
-
-            const markNotificationBtn = e.target.closest('.notification-mark-read');
-            if (markNotificationBtn) {
-                const notificationId = markNotificationBtn.dataset.notificationId;
-                const notification = MOCK_DATA.notifications.find(note => note.id === notificationId);
-                if (notification) {
-                    notification.status = 'delivered';
-                    showToast('Уведомление отмечено как доставленное', 'success');
-                    renderNotificationCenter();
-                }
+                showToast('Driver task completed', 'success');
             }
         });
 
-        detailPanel.addEventListener('click', e => {
+        genericModalContent?.addEventListener('click', e => {
             const stripeBtn = e.target.closest('.generate-stripe-link');
             if (stripeBtn) {
-                const amountInput = detailPanel.querySelector('.stripe-amount-input');
-                const reasonSelect = detailPanel.querySelector('.stripe-reason-select');
+                const amountInput = genericModalContent?.querySelector('.stripe-amount-input');
+                const reasonSelect = genericModalContent?.querySelector('.stripe-reason-select');
                 const amountValue = amountInput ? amountInput.value : '';
                 const reasonValue = reasonSelect ? reasonSelect.value : '';
                 const bookingId = stripeBtn.dataset.bookingId;
                 const sanitizedAmount = amountValue ? amountValue.toString().replace(',', '.') : '0';
-                const reasonSlug = reasonValue ? reasonValue.toLowerCase().replace(/[^a-zа-я0-9]+/gi, '-').replace(/^-+|-+$/g, '') : 'payment';
+                const reasonSlug = reasonValue ? reasonValue.toLowerCase().replace(/[^a-z0-9]+/gi, '-').replace(/^-+|-+$/g, '') : 'payment';
                 const linkToken = Math.random().toString(36).slice(2, 8);
                 const stripeLink = `https://pay.stripe.com/mock/skyluxse-${bookingId}-${reasonSlug}-${linkToken}?amount=${encodeURIComponent(sanitizedAmount || '0')}`;
 
-                const resultContainer = detailPanel.querySelector('#stripe-link-result');
-                const anchor = detailPanel.querySelector('#stripe-link-anchor');
-                const copyBtn = detailPanel.querySelector('.copy-stripe-link');
-                const feedback = detailPanel.querySelector('#stripe-copy-feedback');
+                const resultContainer = genericModalContent?.querySelector('#stripe-link-result');
+                const anchor = genericModalContent?.querySelector('#stripe-link-anchor');
+                const copyBtn = genericModalContent?.querySelector('.copy-stripe-link');
+                const feedback = genericModalContent?.querySelector('#stripe-copy-feedback');
 
                 if (anchor) {
                     anchor.href = stripeLink;
@@ -1854,7 +1914,7 @@ const renderTasksPage = () => {
                     copyBtn.dataset.link = stripeLink;
                 }
                 if (feedback) {
-                    feedback.textContent = 'Ссылка скопирована';
+                    feedback.textContent = 'Link copied';
                     feedback.classList.add('hidden');
                 }
                 if (resultContainer) {
@@ -1866,7 +1926,7 @@ const renderTasksPage = () => {
             const copyStripeBtn = e.target.closest('.copy-stripe-link');
             if (copyStripeBtn) {
                 const linkValue = copyStripeBtn.dataset.link;
-                const feedback = detailPanel.querySelector('#stripe-copy-feedback');
+                const feedback = genericModalContent?.querySelector('#stripe-copy-feedback');
                 const showFeedback = (text, success = true) => {
                     if (feedback) {
                         feedback.textContent = text;
@@ -1879,18 +1939,18 @@ const renderTasksPage = () => {
                 if (linkValue) {
                     if (navigator.clipboard && navigator.clipboard.writeText) {
                         navigator.clipboard.writeText(linkValue)
-                            .then(() => showFeedback('Ссылка скопирована'))
+                            .then(() => showFeedback('Link copied'))
                             .catch(() => {
-                                showFeedback('Не удалось скопировать автоматически', false);
+                                showFeedback('Could not copy automatically', false);
                             });
                     } else {
-                        showFeedback('Скопируйте ссылку вручную: ' + linkValue, false);
+                        showFeedback('Copy the link manually: ' + linkValue, false);
                     }
                 }
             }
         });
 
-        detailPanel.addEventListener('input', e => {
+        genericModalContent?.addEventListener('input', e => {
             if (['driver-odometer', 'driver-fuel'].includes(e.target.id)) {
                 const docChecked = document.getElementById('doc-check')?.checked;
                 const formValid = !!document.getElementById('driver-odometer')?.value && !!document.getElementById('driver-fuel')?.value;
@@ -1908,22 +1968,22 @@ const renderTasksPage = () => {
             if (appState.currentPage === 'fleet-table') {
                  openModal(`
                     <div class="p-6 border-b flex justify-between items-center">
-                        <h2 class="text-xl font-semibold">Добавить автомобиль</h2>
+                        <h2 class="text-xl font-semibold">Add vehicle</h2>
                         <button class="p-2 text-gray-500 hover:text-black close-modal-btn">&times;</button>
                     </div>
                     <div class="p-6 space-y-4">
-                        <input type="text" placeholder="Название" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md">
-                        <input type="text" placeholder="Номер" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md">
+                        <input type="text" placeholder="Name" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md">
+                        <input type="text" placeholder="Plate number" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md">
                     </div>
                      <div class="p-6 border-t bg-gray-50 flex justify-end">
-                        <button class="geist-button geist-button-primary">Сохранить</button>
+                        <button class="geist-button geist-button-primary">Save</button>
                     </div>
                  `);
             }
         });
         
         genericModal.addEventListener('click', e => {
-            if(e.target.classList.contains('close-modal-btn')) closeModal();
+            if (e.target.closest('.close-modal-btn')) closeModal();
         });
         
         document.getElementById('close-doc-viewer').addEventListener('click', closeDocViewer);
