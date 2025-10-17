@@ -652,17 +652,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }).join('');
         };
 
-        const renderClientCommunications = (client) => {
-            const channels = client.preferences?.notifications?.join(', ') || '—';
-            const pending = client.notifications?.filter(n => n.status !== 'delivered').length || 0;
-            return `
-                <div class="space-y-1 text-xs text-gray-500">
-                    <p>Channels: <span class="font-medium text-gray-900">${channels}</span></p>
-                    <p>Notifications: ${pending ? `<span class=\"text-amber-600\">${pending} pending send</span>` : 'all delivered'}</p>
-                </div>
-            `;
-        };
-
         const renderTableView = (dataType) => {
             const tableTitleEl = document.getElementById('table-title');
             const tableHeadEl = document.getElementById('table-head');
@@ -685,8 +674,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 columns = [
                     { label: 'Client', render: renderClientInfo },
                     { label: 'Finances', render: renderClientFinance },
-                    { label: 'Documents', render: renderClientDocuments },
-                    { label: 'Communication', render: renderClientCommunications }
+                    { label: 'Documents', render: renderClientDocuments }
                 ];
             } else {
                 return;
