@@ -1,8 +1,9 @@
-const CACHE_NAME = 'skyluxse-cache-v2';
+const CACHE_NAME = 'skyluxse-cache-v3';
 const OFFLINE_URLS = [
   '/',
   '/index.html',
-  '/manifest.json'
+  '/manifest.json',
+  '/src/main.js'
 ];
 
 self.addEventListener('install', (event) => {
