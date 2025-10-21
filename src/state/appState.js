@@ -103,6 +103,10 @@ export const appState = {
             lastUpdated: null
         }
     },
+    maintenanceContext: {
+        defaultCarId: null,
+        defaultType: 'maintenance'
+    },
     calendarStart: null // will be initialized below
 };
 

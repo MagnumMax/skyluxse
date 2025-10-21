@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 280">
+  <defs>
+    <linearGradient id="bgContract" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1e293b"/>
+      <stop offset="1" stop-color="#0f172a"/>
+    </linearGradient>
+  </defs>
+  <rect width="400" height="280" fill="url(#bgContract)"/>
+  <g transform="translate(110 40)">
+    <rect x="0" y="0" width="180" height="220" rx="18" fill="#f8fafc"/>
+    <rect x="28" y="40" width="124" height="10" rx="5" fill="#1d4ed8" opacity="0.75"/>
+    <rect x="28" y="70" width="124" height="10" rx="5" fill="#1d4ed8" opacity="0.55"/>
+    <rect x="28" y="100" width="110" height="10" rx="5" fill="#1e40af" opacity="0.4"/>
+    <line x1="40" y1="140" x2="140" y2="140" stroke="#0f172a" stroke-width="5" stroke-linecap="round"/>
+    <line x1="40" y1="160" x2="120" y2="160" stroke="#0f172a" stroke-width="5" stroke-linecap="round"/>
+    <path d="M40 200h100" fill="none" stroke="#22d3ee" stroke-width="12" stroke-linecap="round"/>
+    <path d="M60 188l18 18 42-42" fill="none" stroke="#0f172a" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <text x="200" y="244" text-anchor="middle" fill="#c7d2fe" font-family="Inter, Arial, sans-serif" font-size="26" font-weight="600">
+    Rental Contract
+  </text>
+</svg>

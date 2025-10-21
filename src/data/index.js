@@ -9,7 +9,7 @@ export const MOCK_DATA = {
             mileage: 15000,
             class: 'Luxury',
             segment: 'Sedan',
-            imageUrl: 'https://picsum.photos/seed/ghost/100/60',
+            imageUrl: 'public/images/rolls-royce-ghost.jpg',
             color: 'Black',
             year: 2023,
             insuranceExpiry: '2025-10-05',
@@ -24,13 +24,13 @@ export const MOCK_DATA = {
                 mileageToService: 850
             },
             documents: [
-                { id: 'DOC-GHOST-INS', type: 'insurance', name: 'Insurance policy', expiry: '2025-10-05', status: 'active', url: 'https://picsum.photos/seed/doc1/400/300', reminderDays: 30, lastCheck: '2024-09-12' },
-                { id: 'DOC-GHOST-MUL', type: 'mulkiya', name: 'Mulkiya', expiry: '2025-11-20', status: 'active', url: 'https://picsum.photos/seed/doc2/400/300', reminderDays: 45, lastCheck: '2024-09-10' }
+                { id: 'DOC-GHOST-INS', type: 'insurance', name: 'Insurance policy', expiry: '2025-10-05', status: 'active', url: 'public/images/docs/doc-insurance.jpg', reminderDays: 30, lastCheck: '2024-09-12' },
+                { id: 'DOC-GHOST-MUL', type: 'mulkiya', name: 'Mulkiya', expiry: '2025-11-20', status: 'active', url: 'public/images/docs/doc-mulkiya.jpg', reminderDays: 45, lastCheck: '2024-09-10' }
             ],
-            documentGallery: ['https://picsum.photos/seed/doc1/400/300', 'https://picsum.photos/seed/doc2/400/300'],
+            documentGallery: ['public/images/docs/doc-insurance.jpg', 'public/images/docs/doc-mulkiya.jpg'],
             inspections: [
-                { date: '2024-09-10', driver: 'Ivanov I.', notes: 'Wipe the cabin and check parking sensors', photos: ['https://picsum.photos/seed/dmg1/100/80', 'https://picsum.photos/seed/dmg2/100/80'] },
-                { date: '2024-08-18', driver: 'Petrov P.', notes: 'No remarks', photos: [] }
+                { date: '2024-09-10', driver: 'Ivanov I.', notes: 'Wipe the cabin and check parking sensors', photos: ['public/images/inspections/inspection-damage-1.jpg', 'public/images/inspections/inspection-clean.jpg'] },
+                { date: '2024-08-18', driver: 'Petrov P.', notes: 'No remarks', photos: ['public/images/inspections/inspection-clean.jpg'] }
             ],
             maintenanceHistory: [
                 { id: 'MT-120', date: '2024-08-12', type: 'Maintenance', odometer: 14200, notes: 'Service, oil change' }
@@ -47,7 +47,7 @@ export const MOCK_DATA = {
             mileage: 25000,
             class: 'SUV',
             segment: 'SUV',
-            imageUrl: 'https://picsum.photos/seed/gwagen/100/60',
+            imageUrl: 'public/images/mercedes-g-class.jpg',
             color: 'White',
             year: 2022,
             insuranceExpiry: '2025-08-15',
@@ -62,12 +62,12 @@ export const MOCK_DATA = {
                 mileageToService: 450
             },
             documents: [
-                { id: 'DOC-GWAGEN-INS', type: 'insurance', name: 'Insurance policy', expiry: '2025-08-15', status: 'active', url: 'https://picsum.photos/seed/doc3/400/300', reminderDays: 30, lastCheck: '2024-09-01' },
-                { id: 'DOC-GWAGEN-MUL', type: 'mulkiya', name: 'Mulkiya', expiry: '2025-09-10', status: 'active', url: 'https://picsum.photos/seed/doc4/400/300', reminderDays: 30, lastCheck: '2024-09-01' }
+                { id: 'DOC-GWAGEN-INS', type: 'insurance', name: 'Insurance policy', expiry: '2025-08-15', status: 'active', url: 'public/images/docs/doc-insurance.jpg', reminderDays: 30, lastCheck: '2024-09-01' },
+                { id: 'DOC-GWAGEN-MUL', type: 'mulkiya', name: 'Mulkiya', expiry: '2025-09-10', status: 'active', url: 'public/images/docs/doc-mulkiya.jpg', reminderDays: 30, lastCheck: '2024-09-01' }
             ],
-            documentGallery: ['https://picsum.photos/seed/doc3/400/300', 'https://picsum.photos/seed/doc4/400/300'],
+            documentGallery: ['public/images/docs/doc-insurance.jpg', 'public/images/docs/doc-mulkiya.jpg'],
             inspections: [
-                { date: '2024-09-14', driver: 'Sidorov S.', notes: 'Polish the rear fender', photos: ['https://picsum.photos/seed/dmg3/100/80'] }
+                { date: '2024-09-14', driver: 'Sidorov S.', notes: 'Polish the rear fender', photos: ['public/images/inspections/inspection-damage-2.jpg'] }
             ],
             maintenanceHistory: [
                 { id: 'MT-212', date: '2024-07-30', type: 'Maintenance', odometer: 23200, notes: 'Scheduled maintenance' }
@@ -84,7 +84,7 @@ export const MOCK_DATA = {
             mileage: 8000,
             class: 'Sport',
             segment: 'Coupe',
-            imageUrl: 'https://picsum.photos/seed/huracan/100/60',
+            imageUrl: 'public/images/lamborghini-huracan.jpg',
             color: 'Green',
             year: 2023,
             insuranceExpiry: '2026-01-20',
@@ -99,11 +99,11 @@ export const MOCK_DATA = {
                 mileageToService: 350
             },
             documents: [
-                { id: 'DOC-HURACAN-INS', type: 'insurance', name: 'Insurance policy', expiry: '2026-01-20', status: 'active', url: 'https://picsum.photos/seed/doc5/400/300', reminderDays: 60, lastCheck: '2024-08-29' }
+                { id: 'DOC-HURACAN-INS', type: 'insurance', name: 'Insurance policy', expiry: '2026-01-20', status: 'active', url: 'public/images/docs/doc-insurance.jpg', reminderDays: 60, lastCheck: '2024-08-29' }
             ],
-            documentGallery: ['https://picsum.photos/seed/doc5/400/300'],
+            documentGallery: ['public/images/docs/doc-insurance.jpg'],
             inspections: [
-                { date: '2024-09-12', driver: 'Petrov P.', notes: 'Check oil level', photos: [] }
+                { date: '2024-09-12', driver: 'Petrov P.', notes: 'Check oil level', photos: ['public/images/inspections/inspection-clean.jpg'] }
             ],
             maintenanceHistory: [
                 { id: 'MT-305', date: '2024-07-02', type: 'Maintenance', odometer: 7200, notes: 'Comprehensive diagnostics' }
@@ -120,7 +120,7 @@ export const MOCK_DATA = {
             mileage: 32000,
             class: 'Luxury',
             segment: 'Coupe',
-            imageUrl: 'https://picsum.photos/seed/bentley/100/60',
+            imageUrl: 'public/images/bentley-continental.jpg',
             color: 'Silver',
             year: 2021,
             insuranceExpiry: '2025-07-30',
@@ -135,12 +135,12 @@ export const MOCK_DATA = {
                 mileageToService: 1800
             },
             documents: [
-                { id: 'DOC-BENTLEY-INS', type: 'insurance', name: 'Insurance policy', expiry: '2025-07-30', status: 'active', url: 'https://picsum.photos/seed/doc6/400/300', reminderDays: 45, lastCheck: '2024-08-30' },
-                { id: 'DOC-BENTLEY-MUL', type: 'mulkiya', name: 'Mulkiya', expiry: '2025-08-25', status: 'active', url: 'https://picsum.photos/seed/doc7/400/300', reminderDays: 60, lastCheck: '2024-08-28' }
+                { id: 'DOC-BENTLEY-INS', type: 'insurance', name: 'Insurance policy', expiry: '2025-07-30', status: 'active', url: 'public/images/docs/doc-insurance.jpg', reminderDays: 45, lastCheck: '2024-08-30' },
+                { id: 'DOC-BENTLEY-MUL', type: 'mulkiya', name: 'Mulkiya', expiry: '2025-08-25', status: 'active', url: 'public/images/docs/doc-mulkiya.jpg', reminderDays: 60, lastCheck: '2024-08-28' }
             ],
-            documentGallery: ['https://picsum.photos/seed/doc6/400/300', 'https://picsum.photos/seed/doc7/400/300'],
+            documentGallery: ['public/images/docs/doc-insurance.jpg', 'public/images/docs/doc-mulkiya.jpg'],
             inspections: [
-                { date: '2024-09-05', driver: 'Ivanov I.', notes: 'Inspect suspension', photos: [] }
+                { date: '2024-09-05', driver: 'Ivanov I.', notes: 'Inspect suspension', photos: ['public/images/inspections/inspection-damage-2.jpg'] }
             ],
             maintenanceHistory: [
                 { id: 'MT-401', date: '2024-08-25', type: 'Repair', odometer: 31800, notes: 'Brake pad replacement' }
@@ -157,7 +157,7 @@ export const MOCK_DATA = {
             mileage: 12000,
             class: 'Sport',
             segment: 'Convertible',
-            imageUrl: 'https://picsum.photos/seed/ferrari/100/60',
+            imageUrl: 'public/images/ferrari-488-spider.jpg',
             color: 'Red',
             year: 2022,
             insuranceExpiry: '2025-12-01',
@@ -172,11 +172,11 @@ export const MOCK_DATA = {
                 mileageToService: 1600
             },
             documents: [
-                { id: 'DOC-FERRARI-INS', type: 'insurance', name: 'Insurance policy', expiry: '2025-12-01', status: 'active', url: 'https://picsum.photos/seed/doc8/400/300', reminderDays: 60, lastCheck: '2024-09-01' }
+                { id: 'DOC-FERRARI-INS', type: 'insurance', name: 'Insurance policy', expiry: '2025-12-01', status: 'active', url: 'public/images/docs/doc-insurance.jpg', reminderDays: 60, lastCheck: '2024-09-01' }
             ],
-            documentGallery: ['https://picsum.photos/seed/doc8/400/300'],
+            documentGallery: ['public/images/docs/doc-insurance.jpg'],
             inspections: [
-                { date: '2024-09-11', driver: 'Sidorov S.', notes: 'Assess bumper chips', photos: ['https://picsum.photos/seed/dmg4/100/80'] }
+                { date: '2024-09-11', driver: 'Sidorov S.', notes: 'Assess bumper chips', photos: ['public/images/inspections/inspection-damage-1.jpg'] }
             ],
             maintenanceHistory: [
                 { id: 'MT-515', date: '2024-08-05', type: 'Maintenance', odometer: 11500, notes: 'Routine maintenance' }
@@ -1597,12 +1597,11 @@ export const ROLES_CONFIG = {
         name: 'Operations Manager',
         label: 'Operations Manager',
         email: 'ops@skyluxse.ae',
-        defaultPage: 'bookings',
+        defaultPage: 'fleet-calendar',
         layout: 'desktop',
         nav: [
-            { id: 'bookings', name: 'Bookings', icon: 'kanban' },
-            { id: 'tasks', name: 'Tasks', icon: 'clipboardCheck' },
             { id: 'fleet-calendar', name: 'Fleet Calendar', icon: 'calendar' },
+            { id: 'tasks', name: 'Tasks', icon: 'clipboardCheck' },
             { id: 'fleet-table', name: 'Fleet', icon: 'car' },
             { id: 'clients-table', name: 'Clients', icon: 'users' }
         ],
