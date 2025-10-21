@@ -444,7 +444,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             if(appState.currentPage === 'fleet-calendar') {
                 console.log('📅 Рендеринг календаря автопарка...');
-                renderCalendar();
+                renderFleetCalendar();
             }
             if(appState.currentPage === 'reports') {
                 console.log('📋 Рендеринг отчетов...');
