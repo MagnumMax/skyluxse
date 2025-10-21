@@ -11,30 +11,30 @@ import {
     KANBAN_STATUS_META,
     ROLE_EMAIL_PRESETS,
     ROLES_CONFIG
-} from './src/data/index.js';
+} from '../src/data/index.js';
 
 import {
     appState,
     enqueueOfflineAction,
     syncOfflineQueue,
     getStartOfWeek
-} from './src/state/appState.js';
+} from '../src/state/appState.js';
 
 import {
     HASH_DEFAULT_SELECTOR,
     buildHash,
     parseHash,
     isDefaultSelector
-} from './src/state/navigation.js';
+} from '../src/state/navigation.js';
 
-import { renderKanbanBoard } from './src/render/kanban.js';
-import { renderDashboard } from './src/render/dashboard.js';
-import { renderAnalyticsPage, renderSalesPipeline, renderClientCard } from './src/render/charts.js';
-import { startTimers } from './src/render/timers.js';
-import { formatCurrency } from './src/render/utils.js';
-import { renderFleetCalendar, initFleetCalendar } from './src/render/fleetCalendar.js';
-import { showToast } from './src/ui/toast.js';
-import { getIcon } from './src/ui/icons.js';
+import { renderKanbanBoard } from '../src/render/kanban.js';
+import { renderDashboard } from '../src/render/dashboard.js';
+import { renderAnalyticsPage, renderSalesPipeline, renderClientCard } from '../src/render/charts.js';
+import { startTimers } from '../src/render/timers.js';
+import { formatCurrency } from '../src/render/utils.js';
+import { renderFleetCalendar, initFleetCalendar } from '../src/render/fleetCalendar.js';
+import { showToast } from '../src/ui/toast.js';
+import { getIcon } from '../src/ui/icons.js';
 
 // Application initialization
 document.addEventListener('DOMContentLoaded', () => {
@@ -142,6 +142,25 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             salesOwnerFilterWrapper.classList.add('hidden');
         }
+    };
+
+    // --- LAYOUT MANAGER ---
+    const updateLayoutForRole = (role) => {
+        const roleConfig = ROLES_CONFIG[role] || {};
+        const layout = roleConfig.layout || 'desktop';
+        const isDesktop = layout === 'desktop';
+        const isMobile = layout === 'mobile';
+
+        desktopShell.classList.toggle('hidden', !isDesktop);
+        sidebar.classList.toggle('hidden', !isDesktop);
+        mainContent.classList.toggle('hidden', !isDesktop);
+        mobileViewContainer.classList.toggle('hidden', !isMobile);
+
+        if (!isDesktop) {
+            desktopPages.forEach(page => page.classList.add('hidden'));
+        }
+
+        updateSalesOwnerFilterVisibility(role);
     };
 
     if (salesOwnerFilter && !salesOwnerFilter.dataset.globalHandler) {
@@ -563,3 +582,22 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initialize the application
     initApp();
 });
+
+// --- LAYOUT MANAGER ---
+const updateLayoutForRole = (role) => {
+    const roleConfig = ROLES_CONFIG[role] || {};
+    const layout = roleConfig.layout || 'desktop';
+    const isDesktop = layout === 'desktop';
+    const isMobile = layout === 'mobile';
+
+    desktopShell.classList.toggle('hidden', !isDesktop);
+    sidebar.classList.toggle('hidden', !isDesktop);
+    mainContent.classList.toggle('hidden', !isDesktop);
+    mobileViewContainer.classList.toggle('hidden', !isMobile);
+
+    if (!isDesktop) {
+        desktopPages.forEach(page => page.classList.add('hidden'));
+    }
+
+    updateSalesOwnerFilterVisibility(role);
+};
