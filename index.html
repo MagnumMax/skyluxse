@@ -920,6 +920,27 @@
             <div id="calendar-event-drawer-content" class="flex-1 overflow-y-auto px-6 py-6 space-y-6 text-sm text-gray-700"></div>
         </aside>
     </div>
+    
+    <script>
+        console.log('🔍 [DEBUG] Начинаем загрузку скриптов...');
+        console.log('🔍 [DEBUG] Текущий URL:', window.location.href);
+        console.log('🔍 [DEBUG] Base URL:', window.location.origin);
+        
+        // Проверяем доступность main.js перед загрузкой
+        fetch('public/main.js?v=2')
+            .then(response => {
+                console.log('🔍 [DEBUG] Статус public/main.js:', response.status);
+                if (!response.ok) {
+                    console.error('❌ [DEBUG] public/main.js недоступен:', response.status, response.statusText);
+                } else {
+                    console.log('✅ [DEBUG] public/main.js доступен');
+                }
+            })
+            .catch(error => {
+                console.error('❌ [DEBUG] Ошибка при проверке public/main.js:', error);
+            });
+    </script>
+    
     <script type="module" src="public/main.js?v=2"></script>
 
 </body>
