@@ -69,10 +69,5 @@
         }
       ]
     }
-  ],
-  "functions": {
-    "index.html": {
-      "includeFiles": "public/**"
-    }
-  }
+  ]
 }
