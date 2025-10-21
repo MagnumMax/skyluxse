@@ -199,13 +199,15 @@ export const MOCK_DATA = {
             email: 'john.doe@email.com',
             status: 'VIP',
             segment: 'Resident',
+            residencyCountry: 'UAE',
+            birthDate: '1982-03-14',
             outstanding: 0,
             turnover: 25400,
             lifetimeValue: 72000,
             nps: 72,
             documents: [
-                { id: 'CL-1-EID', type: 'emirates-id', name: 'Emirates ID', url: 'https://picsum.photos/seed/id1/400/300', expiry: '2026-02-20', status: 'verified' },
-                { id: 'CL-1-LIC', type: 'license', name: 'Driving License', url: 'https://picsum.photos/seed/lic1/400/300', expiry: '2025-12-01', status: 'verified' }
+                { id: 'CL-1-EID', type: 'emirates-id', name: 'Emirates ID', url: 'https://picsum.photos/seed/id1/400/300', expiry: '2026-02-20', status: 'verified', number: '784-1982-1234567-0' },
+                { id: 'CL-1-LIC', type: 'license', name: 'Driving License', url: 'https://picsum.photos/seed/lic1/400/300', expiry: '2025-12-01', status: 'verified', number: 'DL-852014' }
             ],
             rentals: [
                 { bookingId: 1052, status: 'active', startDate: '2024-09-15', endDate: '2024-09-18', carName: 'Mercedes G-Wagen', totalAmount: 3200 },
@@ -232,12 +234,14 @@ export const MOCK_DATA = {
             email: 'jane.smith@email.com',
             status: 'Gold',
             segment: 'Leisure',
+            residencyCountry: 'UK',
+            birthDate: '1990-07-22',
             outstanding: 150,
             turnover: 12500,
             lifetimeValue: 28000,
             nps: 68,
             documents: [
-                { id: 'CL-2-PAS', type: 'passport', name: 'Passport', url: 'https://picsum.photos/seed/id2/400/300', expiry: '2025-05-10', status: 'needs-review' }
+                { id: 'CL-2-PAS', type: 'passport', name: 'Passport', url: 'https://picsum.photos/seed/id2/400/300', expiry: '2025-05-10', status: 'needs-review', number: 'UK-9900775' }
             ],
             rentals: [
                 { bookingId: 1053, status: 'completed', startDate: '2024-09-16', endDate: '2024-09-17', carName: 'Lamborghini Huracan', totalAmount: 4500 },
@@ -263,6 +267,8 @@ export const MOCK_DATA = {
             email: 'alex.j@email.com',
             status: 'Silver',
             segment: 'Leisure',
+            residencyCountry: 'Canada',
+            birthDate: '1988-11-05',
             outstanding: 0,
             turnover: 3200,
             lifetimeValue: 15000,
@@ -293,8 +299,8 @@ export const MOCK_DATA = {
             lifetimeValue: 91000,
             nps: 84,
             documents: [
-                { id: 'CL-4-EID', type: 'emirates-id', name: 'Emirates ID', url: 'https://picsum.photos/seed/mia-id/400/300', expiry: '2026-04-12', status: 'verified' },
-                { id: 'CL-4-LIC', type: 'license', name: 'UAE Driver License', url: 'https://picsum.photos/seed/mia-lic/400/300', expiry: '2025-11-03', status: 'verified' }
+                { id: 'CL-4-EID', type: 'emirates-id', name: 'Emirates ID', url: 'https://picsum.photos/seed/mia-id/400/300', expiry: '2026-04-12', status: 'verified', number: '784-1989-4455667-2' },
+                { id: 'CL-4-LIC', type: 'license', name: 'UAE Driver License', url: 'https://picsum.photos/seed/mia-lic/400/300', expiry: '2025-11-03', status: 'verified', number: 'DL-993210' }
             ],
             rentals: [
                 { bookingId: 1038, status: 'completed', startDate: '2024-07-18', endDate: '2024-07-20', carName: 'Rolls-Royce Ghost', totalAmount: 9800 },
@@ -320,13 +326,15 @@ export const MOCK_DATA = {
             email: 'luca.moretti@gmail.com',
             status: 'Gold',
             segment: 'Tourist',
+            residencyCountry: 'Italy',
+            birthDate: '1992-10-19',
             outstanding: 1200,
             turnover: 12800,
             lifetimeValue: 15400,
             nps: 72,
             documents: [
-                { id: 'CL-5-PAS', type: 'passport', name: 'Passport (Italy)', url: 'https://picsum.photos/seed/luca-passport/400/300', expiry: '2032-01-15', status: 'verified' },
-                { id: 'CL-5-INTL', type: 'intl-license', name: 'International Driving Permit', url: 'https://picsum.photos/seed/luca-idp/400/300', expiry: '2024-12-01', status: 'needs-review' }
+                { id: 'CL-5-PAS', type: 'passport', name: 'Passport (Italy)', url: 'https://picsum.photos/seed/luca-passport/400/300', expiry: '2032-01-15', status: 'verified', number: 'YA1234567' },
+                { id: 'CL-5-INTL', type: 'intl-license', name: 'International Driving Permit', url: 'https://picsum.photos/seed/luca-idp/400/300', expiry: '2024-12-01', status: 'needs-review', number: 'IDP-2024-558' }
             ],
             rentals: [
                 { bookingId: 1042, status: 'completed', startDate: '2024-06-05', endDate: '2024-06-08', carName: 'Lamborghini Huracan', totalAmount: 6600 }
@@ -351,13 +359,15 @@ export const MOCK_DATA = {
             email: 'chen.wei@icloud.com',
             status: 'VIP',
             segment: 'Business Traveller',
+            residencyCountry: 'China',
+            birthDate: '1984-06-28',
             outstanding: 0,
             turnover: 18800,
             lifetimeValue: 30500,
             nps: 80,
             documents: [
-                { id: 'CL-6-PAS', type: 'passport', name: 'Passport (China)', url: 'https://picsum.photos/seed/chen-passport/400/300', expiry: '2030-09-10', status: 'verified' },
-                { id: 'CL-6-LIC', type: 'intl-license', name: 'International Driving Permit', url: 'https://picsum.photos/seed/chen-idp/400/300', expiry: '2025-02-01', status: 'verified' }
+                { id: 'CL-6-PAS', type: 'passport', name: 'Passport (China)', url: 'https://picsum.photos/seed/chen-passport/400/300', expiry: '2030-09-10', status: 'verified', number: 'E12345678' },
+                { id: 'CL-6-LIC', type: 'intl-license', name: 'International Driving Permit', url: 'https://picsum.photos/seed/chen-idp/400/300', expiry: '2025-02-01', status: 'verified', number: 'IDP-CH-5521' }
             ],
             rentals: [
                 { bookingId: 1048, status: 'completed', startDate: '2024-07-01', endDate: '2024-07-04', carName: 'Bentley Continental', totalAmount: 18500 }
@@ -381,12 +391,14 @@ export const MOCK_DATA = {
             email: 'olivia.carter@gmail.com',
             status: 'Silver',
             segment: 'Influencer',
+            residencyCountry: 'United Kingdom',
+            birthDate: '1995-01-30',
             outstanding: 350,
             turnover: 9400,
             lifetimeValue: 12600,
             nps: 68,
             documents: [
-                { id: 'CL-7-PAS', type: 'passport', name: 'Passport (UK)', url: 'https://picsum.photos/seed/olivia-passport/400/300', expiry: '2031-05-04', status: 'verified' }
+                { id: 'CL-7-PAS', type: 'passport', name: 'Passport (UK)', url: 'https://picsum.photos/seed/olivia-passport/400/300', expiry: '2031-05-04', status: 'verified', number: 'UK-7766554' }
             ],
             rentals: [
                 { bookingId: 1051, status: 'completed', startDate: '2024-08-08', endDate: '2024-08-10', carName: 'Ferrari 488 Spider', totalAmount: 7200 }
@@ -411,13 +423,15 @@ export const MOCK_DATA = {
             email: 'amina.rahman@outlook.com',
             status: 'Gold',
             segment: 'Resident',
+            residencyCountry: 'UAE',
+            birthDate: '1987-08-12',
             outstanding: 0,
             turnover: 23800,
             lifetimeValue: 40200,
             nps: 77,
             documents: [
-                { id: 'CL-8-EID', type: 'emirates-id', name: 'Emirates ID', url: 'https://picsum.photos/seed/amina-id/400/300', expiry: '2025-09-22', status: 'verified' },
-                { id: 'CL-8-LIC', type: 'license', name: 'UAE Driver License', url: 'https://picsum.photos/seed/amina-lic/400/300', expiry: '2026-02-17', status: 'verified' }
+                { id: 'CL-8-EID', type: 'emirates-id', name: 'Emirates ID', url: 'https://picsum.photos/seed/amina-id/400/300', expiry: '2025-09-22', status: 'verified', number: '784-1987-8899001-4' },
+                { id: 'CL-8-LIC', type: 'license', name: 'UAE Driver License', url: 'https://picsum.photos/seed/amina-lic/400/300', expiry: '2026-02-17', status: 'verified', number: 'DL-778320' }
             ],
             rentals: [
                 { bookingId: 1035, status: 'completed', startDate: '2024-05-20', endDate: '2024-05-23', carName: 'Rolls-Royce Ghost', totalAmount: 8450 },
@@ -435,248 +449,309 @@ export const MOCK_DATA = {
                 language: 'en',
                 timezone: 'Asia/Dubai'
             }
+        },
+        {
+            id: 9,
+            name: 'Nina Petrovna',
+            phone: '+971 58 332 1180',
+            email: 'nina.petrovna@email.com',
+            status: 'Gold',
+            segment: 'Resident',
+            residencyCountry: 'UAE',
+            birthDate: '1993-05-08',
+            outstanding: 0,
+            turnover: 0,
+            lifetimeValue: 0,
+            nps: null,
+            documents: [
+                { id: 'CL-9-EID', type: 'emirates-id', name: 'Emirates ID', url: 'https://picsum.photos/seed/nina-id/400/300', expiry: '2026-06-10', status: 'in-review', number: '784-1993-3344556-1' }
+            ],
+            rentals: [],
+            payments: [],
+            notifications: [],
+            preferences: {
+                notifications: ['email'],
+                language: 'ru',
+                timezone: 'Asia/Dubai'
+            }
         }
     ],
     bookings: [
         {
             id: 1052,
             code: 'BK-1052',
-            clientId: 1,
-            clientName: 'John Doe',
-            carName: 'Mercedes G-Wagen',
-            startDate: '2025-10-12',
-            endDate: '2025-10-15',
-            startTime: '14:00',
+            clientId: 4,
+            clientName: 'Mia Al Farsi',
+            carName: 'Rolls-Royce Ghost',
+            startDate: '2025-10-13',
+            endDate: '2025-10-16',
+            startTime: '09:00',
             endTime: '18:00',
-            driverId: 2,
-            status: 'in-rent',
-            carId: 2,
-            totalAmount: 3200,
-            paidAmount: 3200,
-            deposit: 1000,
+            driverId: 1,
+            status: 'delivery',
+            carId: 1,
+            totalAmount: 14800,
+            paidAmount: 6800,
+            deposit: 4000,
             priority: 'high',
             type: 'vip',
-            channel: 'crm',
+            channel: 'Kommo',
+            ownerId: 'anna',
             segment: 'Resident',
             pickupLocation: 'SkyLuxse HQ',
             dropoffLocation: 'Burj Khalifa Residences',
-            targetTime: new Date().getTime() + 6 * 60 * 60 * 1000,
-            serviceLevel: { slaMinutes: 30, promisedAt: '2025-10-12T13:30:00Z', actualAt: '2025-10-12T13:20:00Z' },
+            targetTime: Date.parse('2025-10-13T08:30:00Z'),
+            serviceLevel: { slaMinutes: 30, promisedAt: '2025-10-13T08:30:00Z', actualAt: '2025-10-13T08:25:00Z' },
             addons: ['chauffeur', 'insurance-premium'],
-            billing: { base: 2800, addons: 400, discounts: 0, currency: 'AED' },
-            documents: [{ type: 'contract', status: 'signed' }],
+            billing: { base: 13200, addons: 1600, discounts: 0, currency: 'AED' },
+            pickupMileage: 15200,
+            pickupFuel: 'Full',
+            returnMileage: 15420,
+            returnFuel: '3/4',
+            invoices: [
+                { id: 'INV-1052-1', label: 'Rental invoice', amount: 14800, status: 'Partially Paid', issuedDate: '2025-10-10', dueDate: '2025-10-12' },
+                { id: 'INV-1052-2', label: 'Security deposit hold', amount: 4000, status: 'Authorized', issuedDate: '2025-10-10', dueDate: '2025-10-13' }
+            ],
+            documents: [{ type: 'contract', status: 'signed' }, { type: 'deposit', status: 'authorized' }],
             tags: ['vip', 'long-rent'],
             history: [
-                { ts: '2025-10-11 10:05', event: 'Order created' },
-                { ts: '2025-10-11 10:15', event: 'Driver P.Petrov assigned' }
+                { ts: '2025-10-10 11:05', event: 'Запрос получен из Kommo' },
+                { ts: '2025-10-11 09:20', event: 'Водитель I.Ivanov назначен' }
             ],
             timeline: [
-                { ts: '2025-10-12T09:00:00Z', status: 'preparation', note: 'Vehicle in detailing bay', actor: 'operations' },
-                { ts: '2025-10-12T12:45:00Z', status: 'delivery', note: 'Driver departed', actor: 'driver' }
+                { ts: '2025-10-12T15:00:00Z', status: 'preparation', note: 'Детейлинг и проверка комплекта документов', actor: 'operations' },
+                { ts: '2025-10-13T08:00:00Z', status: 'delivery', note: 'Авто выехало к клиенту', actor: 'driver' }
             ]
         },
         {
             id: 1053,
             code: 'BK-1053',
-            clientId: 2,
-            clientName: 'Jane Smith',
+            clientId: 5,
+            clientName: 'Luca Moretti',
             carName: 'Lamborghini Huracan',
             startDate: '2025-10-13',
-            endDate: '2025-10-14',
-            startTime: '10:00',
+            endDate: '2025-10-15',
+            startTime: '12:00',
             endTime: '20:00',
-            driverId: 1,
+            driverId: 2,
             status: 'preparation',
             carId: 3,
-            totalAmount: 4500,
-            paidAmount: 2000,
-            deposit: 800,
+            totalAmount: 6200,
+            paidAmount: 3200,
+            deposit: 1800,
             priority: 'medium',
             type: 'short',
-            channel: 'website',
-            segment: 'Leisure',
-            pickupLocation: 'Dubai Marina',
-            dropoffLocation: 'Dubai Marina',
-            targetTime: new Date().getTime() + 2 * 60 * 60 * 1000,
-            serviceLevel: { slaMinutes: 45, promisedAt: '2025-10-13T09:15:00Z', actualAt: null },
-            addons: ['basic-inspection'],
-            billing: { base: 4200, addons: 300, discounts: 0, currency: 'AED' },
-            documents: [{ type: 'contract', status: 'pending' }],
-            tags: ['repeat-client'],
+            channel: 'Website',
+            ownerId: 'max',
+            segment: 'Tourist',
+            pickupLocation: 'Dubai Marina Mall',
+            dropoffLocation: 'Dubai Marina Mall',
+            targetTime: Date.parse('2025-10-13T10:30:00Z'),
+            serviceLevel: { slaMinutes: 45, promisedAt: '2025-10-13T10:30:00Z', actualAt: null },
+            addons: ['international-insurance'],
+            billing: { base: 5600, addons: 600, discounts: 0, currency: 'AED' },
+            pickupMileage: 8300,
+            pickupFuel: 'Full',
+            returnMileage: null,
+            returnFuel: null,
+            invoices: [
+                { id: 'INV-1053-1', label: 'Rental invoice', amount: 6200, status: 'Pending', issuedDate: '2025-10-11', dueDate: '2025-10-14' },
+                { id: 'INV-1053-2', label: 'Deposit authorization', amount: 1800, status: 'Authorized', issuedDate: '2025-10-11', dueDate: '2025-10-13' }
+            ],
+            documents: [{ type: 'contract', status: 'pending-signature' }],
+            tags: ['new-channel', 'tourist'],
             history: [
-                { ts: '2025-10-12 11:30', event: 'Order created' }
+                { ts: '2025-10-11 17:40', event: 'Онлайн-бронь с сайта' }
             ],
             timeline: [
-                { ts: '2025-10-13T07:30:00Z', status: 'preparation', note: 'Авто в мойке', actor: 'operations' }
+                { ts: '2025-10-13T07:30:00Z', status: 'preparation', note: 'Авто в мойке, проверка давления шин', actor: 'operations' }
             ]
         },
         {
             id: 1054,
             code: 'BK-1054',
-            clientId: 3,
-            clientName: 'Alex Johnson',
-            carName: 'Rolls-Royce Ghost',
+            clientId: 6,
+            clientName: 'Chen Wei',
+            carName: 'Mercedes G-Wagen',
             startDate: '2025-10-14',
             endDate: '2025-10-17',
-            startTime: '11:00',
-            endTime: '11:00',
-            driverId: null,
-            status: 'new',
-            carId: 1,
-            totalAmount: 8000,
-            paidAmount: 0,
-            deposit: 1200,
+            startTime: '08:30',
+            endTime: '18:30',
+            driverId: 3,
+            status: 'in-rent',
+            carId: 2,
+            totalAmount: 9800,
+            paidAmount: 5200,
+            deposit: 2500,
             priority: 'high',
-            type: 'vip',
-            channel: 'referral',
-            segment: 'Leisure',
-            pickupLocation: 'SkyLuxse HQ',
-            dropoffLocation: 'Palm Jumeirah',
-            targetTime: new Date().getTime() + 1 * 24 * 60 * 60 * 1000,
-            serviceLevel: { slaMinutes: 60, promisedAt: '2025-10-14T09:00:00Z', actualAt: null },
-            addons: ['chauffeur'],
-            billing: { base: 7200, addons: 800, discounts: 0, currency: 'AED' },
-            documents: [{ type: 'contract', status: 'draft' }],
-            tags: ['new-client'],
+            type: 'corporate',
+            channel: 'Instagram Ads',
+            ownerId: 'sara',
+            segment: 'Business Traveller',
+            pickupLocation: 'Dubai International Airport',
+            dropoffLocation: 'SkyLuxse HQ',
+            targetTime: Date.parse('2025-10-14T07:30:00Z'),
+            serviceLevel: { slaMinutes: 40, promisedAt: '2025-10-14T07:30:00Z', actualAt: '2025-10-14T07:40:00Z' },
+            addons: ['chauffeur', 'executive-pack'],
+            billing: { base: 8800, addons: 1000, discounts: 0, currency: 'AED' },
+            documents: [{ type: 'contract', status: 'signed' }, { type: 'nda', status: 'signed' }],
+            tags: ['corporate', 'international'],
             history: [
-                { ts: '2025-10-12 09:00', event: 'Order created' }
+                { ts: '2025-10-09 13:15', event: 'Лид из Instagram кампании' },
+                { ts: '2025-10-10 09:45', event: 'Подтверждение маршрута' }
             ],
-            timeline: []
+            timeline: [
+                { ts: '2025-10-14T07:00:00Z', status: 'preparation', note: 'VIP-комплект загружен в авто', actor: 'operations' },
+                { ts: '2025-10-14T08:00:00Z', status: 'delivery', note: 'Встреча клиента у терминала 1', actor: 'driver' }
+            ]
         },
         {
             id: 1055,
             code: 'BK-1055',
-            clientId: 1,
-            clientName: 'John Doe',
+            clientId: 7,
+            clientName: 'Olivia Carter',
             carName: 'Ferrari 488 Spider',
-            startDate: '2025-10-15',
-            endDate: '2025-10-17',
+            startDate: '2025-10-16',
+            endDate: '2025-10-18',
             startTime: '16:00',
             endTime: '16:00',
             driverId: 3,
             status: 'delivery',
             carId: 5,
-            totalAmount: 5500,
-            paidAmount: 5500,
-            deposit: 500,
+            totalAmount: 7200,
+            paidAmount: 7200,
+            deposit: 1200,
             priority: 'medium',
             type: 'short',
-            channel: 'crm',
-            segment: 'Resident',
+            channel: 'Referral',
+            ownerId: 'anna',
+            segment: 'Leisure',
             pickupLocation: 'SkyLuxse HQ',
             dropoffLocation: 'Jumeirah Beach Residence',
-            targetTime: new Date().getTime() + 4 * 60 * 60 * 1000,
-            serviceLevel: { slaMinutes: 30, promisedAt: '2025-10-15T15:30:00Z', actualAt: '2025-10-15T15:40:00Z' },
-            addons: ['chauffeur'],
-            billing: { base: 5000, addons: 500, discounts: 0, currency: 'AED' },
+            targetTime: Date.parse('2025-10-16T14:30:00Z'),
+            serviceLevel: { slaMinutes: 30, promisedAt: '2025-10-16T14:30:00Z', actualAt: '2025-10-16T14:45:00Z' },
+            addons: ['chauffeur', 'anniversary-kit'],
+            billing: { base: 6600, addons: 600, discounts: 0, currency: 'AED' },
             documents: [{ type: 'contract', status: 'signed' }],
-            tags: ['vip'],
+            tags: ['vip', 'content'],
             history: [
-                { ts: '2025-10-14 14:25', event: 'Order created' },
-                { ts: '2025-10-14 14:30', event: 'Driver S.Sidorov assigned' }
+                { ts: '2025-10-12 18:30', event: 'Реферальное обращение от действующего клиента' },
+                { ts: '2025-10-13 10:20', event: 'Утвержден маршрут съемки' }
             ],
             timeline: [
-                { ts: '2025-10-15T13:00:00Z', status: 'preparation', note: 'Авто доставлено в SkyLuxse HQ', actor: 'driver' }
+                { ts: '2025-10-16T12:00:00Z', status: 'preparation', note: 'Проверка уровня топлива и шин', actor: 'operations' }
             ]
         },
         {
             id: 1056,
             code: 'BK-1056',
-            clientId: 2,
-            clientName: 'Jane Smith',
+            clientId: 8,
+            clientName: 'Amina Rahman',
             carName: 'Bentley Continental',
             startDate: '2025-10-18',
-            endDate: '2025-10-19',
+            endDate: '2025-10-20',
             startTime: '09:00',
             endTime: '19:00',
             driverId: 2,
             status: 'preparation',
             carId: 4,
-            totalAmount: 3800,
-            paidAmount: 3800,
-            deposit: 600,
+            totalAmount: 8400,
+            paidAmount: 4200,
+            deposit: 1500,
             priority: 'medium',
-            type: 'short',
-            channel: 'crm',
-            segment: 'Leisure',
+            type: 'medium',
+            channel: 'CRM',
+            ownerId: 'max',
+            segment: 'Resident',
             pickupLocation: 'SkyLuxse HQ',
             dropoffLocation: 'Dubai Hills',
-            targetTime: new Date().getTime() + 2 * 24 * 60 * 60 * 1000,
-            serviceLevel: { slaMinutes: 45, promisedAt: '2025-10-18T08:15:00Z', actualAt: null },
-            addons: ['basic-inspection'],
-            billing: { base: 3600, addons: 200, discounts: 0, currency: 'AED' },
+            targetTime: Date.parse('2025-10-18T07:45:00Z'),
+            serviceLevel: { slaMinutes: 45, promisedAt: '2025-10-18T07:45:00Z', actualAt: null },
+            addons: ['baby-seat'],
+            billing: { base: 7800, addons: 600, discounts: 0, currency: 'AED' },
             documents: [{ type: 'contract', status: 'in-review' }],
-            tags: ['maintenance'],
+            tags: ['family', 'staycation'],
             history: [
-                { ts: '2025-10-17 18:00', event: 'Order created' },
-                { ts: '2025-10-17 18:05', event: 'Driver P.Petrov assigned' }
+                { ts: '2025-10-15 09:00', event: 'Повторный запрос через CRM' },
+                { ts: '2025-10-16 16:30', event: 'Подтверждена программа staycation' }
             ],
             timeline: []
         },
         {
             id: 1057,
             code: 'BK-1057',
-            clientId: 3,
-            clientName: 'Alex Johnson',
+            clientId: 6,
+            clientName: 'Chen Wei',
             carName: 'Mercedes G-Wagen',
-            startDate: '2025-10-19',
-            endDate: '2025-10-19',
-            startTime: '15:00',
-            endTime: '22:00',
-            driverId: 2,
+            startDate: '2025-10-20',
+            endDate: '2025-10-21',
+            startTime: '14:00',
+            endTime: '20:00',
+            driverId: 1,
             status: 'settlement',
             carId: 2,
-            totalAmount: 1200,
-            paidAmount: 1200,
-            deposit: 400,
+            totalAmount: 3600,
+            paidAmount: 3600,
+            deposit: 600,
             priority: 'low',
             type: 'short',
-            channel: 'crm',
-            segment: 'Leisure',
-            pickupLocation: 'SkyLuxse HQ',
+            channel: 'Offline Event',
+            ownerId: 'sara',
+            segment: 'Business Traveller',
+            pickupLocation: 'Dubai Marina',
             dropoffLocation: 'SkyLuxse HQ',
-            targetTime: null,
-            serviceLevel: { slaMinutes: 20, promisedAt: '2025-10-19T14:30:00Z', actualAt: '2025-10-19T14:35:00Z' },
-            addons: [],
-            billing: { base: 1200, addons: 0, discounts: 0, currency: 'AED' },
+            targetTime: Date.parse('2025-10-20T12:30:00Z'),
+            serviceLevel: { slaMinutes: 25, promisedAt: '2025-10-20T12:30:00Z', actualAt: '2025-10-20T12:40:00Z' },
+            addons: ['chauffeur'],
+            billing: { base: 3600, addons: 0, discounts: 0, currency: 'AED' },
             documents: [{ type: 'contract', status: 'signed' }],
-            tags: ['repeat-client'],
+            tags: ['event'],
             history: [
-                { ts: '2025-10-18 18:00', event: 'Order created' },
-                { ts: '2025-10-18 18:05', event: 'Driver P.Petrov assigned' }
+                { ts: '2025-10-18 19:15', event: 'Договоренность после оффлайн-мероприятия' }
             ],
-            timeline: []
+            timeline: [
+                { ts: '2025-10-20T11:30:00Z', status: 'preparation', note: 'Комплект сувениров добавлен в салон', actor: 'operations' }
+            ]
         },
         {
             id: 1058,
             code: 'BK-1058',
-            clientId: 1,
-            clientName: 'John Doe',
+            clientId: 9,
+            clientName: 'Nina Petrovna',
             carName: 'Lamborghini Huracan',
-            startDate: '2025-10-21',
+            startDate: '2025-10-22',
             endDate: '2025-10-22',
-            startTime: '12:00',
-            endTime: '12:00',
+            startTime: '17:00',
+            endTime: '23:00',
             driverId: 2,
-            status: 'delivery',
+            status: 'new',
             carId: 3,
-            totalAmount: 4500,
-            paidAmount: 4500,
+            totalAmount: 4200,
+            paidAmount: 0,
             deposit: 900,
             priority: 'high',
-            type: 'vip',
-            channel: 'crm',
+            type: 'event',
+            channel: 'Partnership',
+            ownerId: 'max',
             segment: 'Resident',
             pickupLocation: 'SkyLuxse HQ',
             dropoffLocation: 'Atlantis The Palm',
-            targetTime: new Date().getTime() + 3 * 24 * 60 * 60 * 1000,
-            serviceLevel: { slaMinutes: 30, promisedAt: '2025-10-21T11:30:00Z', actualAt: null },
-            addons: ['chauffeur'],
-            billing: { base: 4200, addons: 300, discounts: 0, currency: 'AED' },
+            targetTime: Date.parse('2025-10-22T15:30:00Z'),
+            serviceLevel: { slaMinutes: 35, promisedAt: '2025-10-22T15:30:00Z', actualAt: null },
+            addons: ['chauffeur', 'photo-pack'],
+            billing: { base: 3900, addons: 300, discounts: 0, currency: 'AED' },
+            pickupMileage: 15480,
+            pickupFuel: 'Full',
+            returnMileage: null,
+            returnFuel: null,
+            invoices: [
+                { id: 'INV-1058-1', label: 'Event rental invoice', amount: 4200, status: 'Pending', issuedDate: '2025-10-19', dueDate: '2025-10-21' },
+                { id: 'INV-1058-2', label: 'Deposit authorization', amount: 900, status: 'Authorized', issuedDate: '2025-10-19', dueDate: '2025-10-22' }
+            ],
             documents: [{ type: 'contract', status: 'draft' }],
-            tags: ['vip'],
+            tags: ['vip', 'evening'],
             history: [
-                { ts: '2025-10-20 10:00', event: 'Order created' }
+                { ts: '2025-10-19 10:05', event: 'Партнерский запрос от отеля Atlantis' }
             ],
             timeline: []
         }
@@ -752,32 +827,56 @@ export const MOCK_DATA = {
         },
         {
             id: 4,
-            title: 'Documents от клиента A.Johnson',
-            type: 'documents',
-            category: 'compliance',
-            assigneeId: 2,
-            status: 'done',
-            deadline: '2024-09-14 18:00',
-            bookingId: 1057,
+            title: 'Детейлинг Huracan #1058',
+            type: 'maintenance',
+            category: 'maintenance',
+            assigneeId: 3,
+            status: 'inprogress',
+            deadline: '2024-10-22 14:00',
+            bookingId: 1058,
             priority: 'Medium',
-            description: 'Verify client document originals and upload scans to system.',
+            description: 'Провести премиум-мойку и подготовить салон перед мероприятием.',
             checklist: [
-                { id: 'chk-7', label: 'Скан Emirates ID', required: true, completed: true },
-                { id: 'chk-8', label: 'Скан водительского удостоверения', required: true, completed: true }
+                { id: 'chk-9', label: 'Проверить салон после мойки', required: true, completed: false },
+                { id: 'chk-10', label: 'Добавить напитки и воду', required: false, completed: false }
             ],
             requiredInputs: [
-                { key: 'documentUpload', label: 'Скан-пакет документов', type: 'file', multiple: true, accept: '.pdf,image/*' }
+                { key: 'odoStart', label: 'Пробег до сервиса (км)', type: 'number' },
+                { key: 'odoEnd', label: 'Пробег после сервиса (км)', type: 'number' }
             ],
             geo: null,
-            sla: { timerMinutes: 60, startedAt: '2024-09-14T16:00:00Z' }
+            sla: { timerMinutes: 150, startedAt: '2024-10-22T10:30:00Z' }
+        },
+        {
+            id: 5,
+            title: 'Доставить Huracan #1058 на Atlantis',
+            type: 'delivery',
+            category: 'logistics',
+            assigneeId: 2,
+            status: 'todo',
+            deadline: '2024-10-22 17:00',
+            bookingId: 1058,
+            priority: 'High',
+            description: 'Доставить автомобиль в Atlantis The Palm и прибыть за 30 минут до начала события.',
+            checklist: [
+                { id: 'chk-11', label: 'Проверить уровень топлива', required: true, completed: false },
+                { id: 'chk-12', label: 'Взять комплект документов клиента', required: true, completed: false }
+            ],
+            requiredInputs: [
+                { key: 'odometer', label: 'Пробег при выдаче (км)', type: 'number' },
+                { key: 'fuelLevel', label: 'Уровень топлива (%)', type: 'number' },
+                { key: 'photosBefore', label: 'Фото автомобиля перед выдачей', type: 'file', multiple: true, accept: 'image/*' }
+            ],
+            geo: { pickup: 'SkyLuxse HQ', dropoff: 'Atlantis The Palm', routeDistanceKm: 24 },
+            sla: { timerMinutes: 90, startedAt: null }
         }
     ],
     calendarEvents: [
-        { id: 'EVT-1', carId: 2, type: 'rental', title: 'Аренда BK-1052', start: '2024-09-15T14:00:00Z', end: '2024-09-18T18:00:00Z', status: 'confirmed', priority: 'high' },
-        { id: 'EVT-2', carId: 4, type: 'maintenance', title: 'ТО и диагностика', start: '2024-09-20T08:00:00Z', end: '2024-09-20T18:00:00Z', status: 'scheduled', priority: 'medium' },
-        { id: 'EVT-3', carId: 3, type: 'inspection', title: 'Инспекция после аренды', start: '2024-09-18T08:00:00Z', end: '2024-09-18T10:00:00Z', status: 'scheduled', priority: 'medium' },
-        { id: 'EVT-4', carId: 5, type: 'detailing', title: 'Detailing и полировка', start: '2024-09-19T09:00:00Z', end: '2024-09-19T13:00:00Z', status: 'scheduled', priority: 'low' },
-        { id: 'EVT-5', carId: 1, type: 'rental', title: 'Аренда BK-1059', start: '2025-10-13T09:00:00Z', end: '2025-10-16T20:00:00Z', status: 'pending', priority: 'medium' },
+        { id: 'EVT-1', carId: 2, type: 'rental', title: 'Аренда BK-1052', start: '2025-10-12T14:00:00Z', end: '2025-10-15T18:00:00Z', status: 'confirmed', priority: 'high' },
+        { id: 'EVT-2', carId: 4, type: 'maintenance', title: 'ТО и диагностика', start: '2025-10-20T08:00:00Z', end: '2025-10-20T18:00:00Z', status: 'scheduled', priority: 'medium' },
+        { id: 'EVT-3', carId: 3, type: 'inspection', title: 'Инспекция после аренды', start: '2025-10-16T08:00:00Z', end: '2025-10-16T10:00:00Z', status: 'scheduled', priority: 'medium' },
+        { id: 'EVT-4', carId: 5, type: 'detailing', title: 'Detailing и полировка', start: '2025-10-18T09:00:00Z', end: '2025-10-18T13:00:00Z', status: 'scheduled', priority: 'low' },
+        { id: 'EVT-5', carId: 1, type: 'rental', title: 'Аренда BK-1059', start: '2025-10-23T09:00:00Z', end: '2025-10-26T20:00:00Z', status: 'pending', priority: 'medium' },
         { id: 'EVT-6', carId: 4, type: 'maintenance', title: 'Расширенное ТО подвески', start: '2025-10-14T07:00:00Z', end: '2025-10-14T16:00:00Z', status: 'scheduled', priority: 'high' },
         { id: 'EVT-7', carId: 3, type: 'maintenance', title: 'ТО-60 после трека', start: '2025-10-15T06:30:00Z', end: '2025-10-15T14:30:00Z', status: 'scheduled', priority: 'high' },
         { id: 'EVT-8', carId: 5, type: 'maintenance', title: 'ТО и диагностика КПП', start: '2025-10-16T08:00:00Z', end: '2025-10-16T17:00:00Z', status: 'scheduled', priority: 'medium' },
@@ -1424,19 +1523,6 @@ export const TASK_TYPES = {
             { idSuffix: 'inspection', label: 'Complete maintenance checklist', required: true },
             { idSuffix: 'report', label: 'Add mechanic report', required: false }
         ]
-    },
-    documents: {
-        label: 'Documents',
-        icon: 'fileText',
-        color: 'bg-emerald-50 text-emerald-700',
-        required: [
-            { key: 'documentUpload', label: 'Document package (PDF/Images)', type: 'file', multiple: true, accept: '.pdf,image/*' }
-        ],
-        slaMinutes: 60,
-        checklist: [
-            { idSuffix: 'scan', label: 'Upload scans', required: true },
-            { idSuffix: 'review', label: 'Mark verification result', required: true }
-        ]
     }
 };
 
@@ -1531,17 +1617,17 @@ export const ROLES_CONFIG = {
         name: 'Sales Manager',
         label: 'Sales Manager',
         email: 'sales@skyluxse.ae',
-        defaultPage: 'sales-pipeline',
+        defaultPage: 'fleet-calendar',
         layout: 'desktop',
         nav: [
-            { id: 'sales-pipeline', name: 'Pipeline', icon: 'pipeline' },
+            { id: 'fleet-calendar', name: "Fleet Calendar", icon: "calendar" },
             { id: 'bookings', name: 'Bookings', icon: 'kanban' },
             { id: 'clients-table', name: 'Clients', icon: 'users' },
             { id: 'analytics', name: 'Analytics', icon: 'chart' }
         ],
         permissions: {
             canAssignDrivers: false,
-            canManageCalendar: false,
+            canManageCalendar: true,
             canAccessReports: true,
             canViewClientPortal: true
         }
@@ -1554,8 +1640,8 @@ export const ROLES_CONFIG = {
         layout: 'desktop',
         nav: [
             { id: 'dashboard', name: 'Dashboard', icon: 'layoutDashboard' },
-            { id: 'analytics', name: 'Analytics', icon: 'chart' },
-            { id: 'reports', name: 'Reports', icon: 'fileText' }
+            { id: 'reports', name: 'Reports', icon: 'fileText' },
+            { id: 'analytics', name: 'Analytics', icon: 'chart' }
         ],
         permissions: {
             canAssignDrivers: false,

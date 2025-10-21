@@ -395,12 +395,22 @@
             <!-- Content Area -->
             <main id="main-content" class="flex-1 flex flex-col overflow-hidden">
                 <!-- Component: Header -->
-                <header class="flex items-center justify-between p-4 bg-white border-b border-gray-200 flex-shrink-0">
-                    <button id="burger-menu" class="p-2 md:hidden">
-                        <!-- Burger icon will be injected -->
-                    </button>
-                    <h2 id="page-title" class="text-xl font-semibold"></h2>
-                    <button id="page-action-button" class="geist-button geist-button-primary hidden"></button>
+                <header class="flex items-center justify-between p-4 bg-white border-b border-gray-200 flex-shrink-0 gap-4">
+                    <div class="flex items-center gap-3">
+                        <button id="burger-menu" class="p-2 md:hidden">
+                            <!-- Burger icon will be injected -->
+                        </button>
+                        <h2 id="page-title" class="text-xl font-semibold"></h2>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <div id="sales-owner-filter-wrapper" class="hidden flex items-center gap-2 text-sm">
+                            <label for="sales-owner-filter" class="text-gray-500 whitespace-nowrap">Sales manager</label>
+                            <select id="sales-owner-filter" class="px-3 py-2 border border-gray-300 rounded-md">
+                                <option value="all">All managers</option>
+                            </select>
+                        </div>
+                        <button id="page-action-button" class="geist-button geist-button-primary hidden"></button>
+                    </div>
                 </header>
 
                 <!-- Page content will be rendered here -->
@@ -450,56 +460,55 @@
                     <section id="page-analytics" class="page hidden">
                         <div class="space-y-6" id="analytics-container">
                             <div class="geist-card p-6">
+                                <div class="flex flex-wrap items-center gap-3 text-sm">
+                                    <select id="analytics-range" class="px-3 py-2 border border-gray-300 rounded-md">
+                                        <option value="7d">Last 7 days</option>
+                                        <option value="30d">30 days</option>
+                                        <option value="90d">90 days</option>
+                                    </select>
+                                    <select id="analytics-segment" class="px-3 py-2 border border-gray-300 rounded-md">
+                                        <option value="all">All segments</option>
+                                        <option value="resident">Resident</option>
+                                        <option value="leisure">Leisure</option>
+                                        <option value="business traveller">Business Traveller</option>
+                                        <option value="tourist">Tourist</option>
+                                    </select>
+                                    <select id="analytics-class" class="px-3 py-2 border border-gray-300 rounded-md">
+                                        <option value="all">All classes</option>
+                                        <option value="Luxury">Luxury</option>
+                                        <option value="SUV">SUV</option>
+                                        <option value="Sport">Sport</option>
+                                    </select>
+                                    <input id="analytics-date-from" type="date" class="px-3 py-2 border border-gray-300 rounded-md" aria-label="Date from">
+                                    <input id="analytics-date-to" type="date" class="px-3 py-2 border border-gray-300 rounded-md" aria-label="Date to">
+                                </div>
+                            </div>
+                            <div class="space-y-6 border-t border-gray-100 pt-6">
                                 <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                                     <div>
-                                        <h3 class="text-lg font-semibold">Business analytics</h3>
-                                        <p class="text-sm text-gray-500">Focus on SLA, utilization, and revenue by segment.</p>
-                                    </div>
-                                    <div class="flex items-center gap-3 text-sm">
-                                        <select id="analytics-range" class="px-3 py-2 border border-gray-300 rounded-md">
-                                            <option value="7d">Last 7 days</option>
-                                            <option value="30d">30 days</option>
-                                            <option value="90d">90 days</option>
-                                        </select>
-                                        <select id="analytics-segment" class="px-3 py-2 border border-gray-300 rounded-md">
-                                            <option value="all">All segments</option>
-                                            <option value="corporate">Corporate</option>
-                                            <option value="leisure">Leisure</option>
-                                        </select>
-                                        <select id="analytics-class" class="px-3 py-2 border border-gray-300 rounded-md">
-                                            <option value="all">All classes</option>
-                                            <option value="Luxury">Luxury</option>
-                                            <option value="SUV">SUV</option>
-                                            <option value="Sport">Sport</option>
-                                        </select>
+                                        <h3 class="text-lg font-semibold">Sales pipeline</h3>
+                                        <p class="text-sm text-gray-500">Lead status, close forecast, and velocity from Kommo.</p>
                                     </div>
                                 </div>
-                                <p class="text-sm text-gray-500 mt-4">Interactive charts and forecasts load after initialization.</p>
-                            </div>
-                            <div class="grid gap-4 lg:grid-cols-2">
-                                <div class="geist-card p-6">
-                                    <h3 class="text-lg font-semibold">Revenue and expenses</h3>
-                                    <div class="mt-4 h-64">
-                                        <canvas id="analytics-revenue-chart"></canvas>
-                                    </div>
-                                </div>
-                                <div class="geist-card p-6">
-                                    <h3 class="text-lg font-semibold">Customer segments</h3>
-                                    <div class="mt-4 h-64">
-                                        <canvas id="analytics-segment-chart"></canvas>
+                                <div class="grid gap-4 md:grid-cols-3" id="sales-pipeline-summary"></div>
+                                <div class="space-y-4">
+                                    <div class="geist-card p-6" id="sales-analytics">
+                                        <p class="text-sm text-gray-500">Analytics snapshots appear after selecting a lead.</p>
                                     </div>
                                 </div>
                             </div>
                             <div class="grid gap-4 lg:grid-cols-2">
                                 <div class="geist-card p-6">
-                                    <h3 class="text-lg font-semibold">Bookings forecast</h3>
+                                    <h3 class="text-lg font-semibold">Revenue by manager</h3>
                                     <div class="mt-4 h-64">
-                                        <canvas id="analytics-forecast-chart"></canvas>
+                                        <canvas id="analytics-manager-chart"></canvas>
                                     </div>
                                 </div>
                                 <div class="geist-card p-6">
-                                    <h3 class="text-lg font-semibold">Insights</h3>
-                                    <ul id="analytics-insights" class="mt-4 space-y-3 text-sm text-gray-600"></ul>
+                                    <h3 class="text-lg font-semibold">Booking sources</h3>
+                                    <div class="mt-4 h-64">
+                                        <canvas id="analytics-sources-chart"></canvas>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -537,47 +546,6 @@
                         </div>
                     </section>
 
-                    <!-- Page: Sales Pipeline -->
-                    <section id="page-sales-pipeline" class="page hidden">
-                        <div class="space-y-6">
-                            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                                <div>
-                                    <h3 class="text-lg font-semibold">Sales pipeline</h3>
-                                    <p class="text-sm text-gray-500">Lead status, close forecast, and velocity from Kommo.</p>
-                                </div>
-                            </div>
-                            <div class="grid gap-4 md:grid-cols-3" id="sales-pipeline-summary"></div>
-
-                            <div class="grid gap-6">
-                                <div class="geist-card p-6">
-                                    <div class="flex items-center justify-between mb-4">
-                                        <h4 class="font-semibold text-gray-800">Stage conversion</h4>
-                                        <span id="sales-pipeline-conversion" class="text-sm text-gray-500"></span>
-                                    </div>
-                                    <div class="overflow-x-auto">
-                                        <table class="w-full text-sm" id="sales-stage-table">
-                                            <thead class="text-xs uppercase text-gray-500 border-b">
-                                                <tr>
-                                                    <th class="py-2 text-left">Stage</th>
-                                                    <th class="py-2 text-right">Leads</th>
-                                                    <th class="py-2 text-right">Value (AED)</th>
-                                                    <th class="py-2 text-right">Probability</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody class="divide-y text-gray-700"></tbody>
-                                        </table>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="space-y-4">
-                                <div class="geist-card p-6" id="sales-analytics">
-                                    <p class="text-sm text-gray-500">Analytics snapshots appear after selecting a lead.</p>
-                                </div>
-                            </div>
-                        </div>
-                    </section>
-                    
                     <!-- Page: Bookings (Kanban) -->
                     <section id="page-bookings" class="page hidden h-full">
                         <div class="flex flex-col h-full space-y-4">
@@ -585,13 +553,9 @@
                                 <div class="flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
                                     <div class="grid grid-cols-1 md:grid-cols-3 gap-3 w-full">
                                         <div>
-                                            <label class="block text-xs font-medium text-gray-500 mb-1">Priority</label>
-                                            <select id="kanban-filter-priority" class="px-3 py-2 border border-gray-300 rounded-md text-sm w-full">
-                                                <option value="all">All</option>
-                                                <option value="high">High</option>
-                                                <option value="medium">Medium</option>
-                                                <option value="low">Low</option>
-                                            </select>
+                                            <label for="kanban-search" class="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wide">Быстрый поиск</label>
+                                            <input id="kanban-search" type="search" placeholder="Поиск по брони, авто или клиенту"
+                                                class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400">
                                         </div>
                                         <div>
                                             <label class="block text-xs font-medium text-gray-500 mb-1">Booking type</label>
@@ -625,56 +589,113 @@
                     <!-- Page: Fleet Calendar -->
                     <section id="page-fleet-calendar" class="page hidden">
                         <div class="space-y-4">
-                            <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                                <div>
-                                    <h2 class="text-2xl font-bold text-gray-900">Utilization calendar</h2>
-                                    <p id="calendar-range-label" class="text-gray-600 mt-1"></p>
+                            <div class="geist-card p-5 space-y-4">
+                                <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                                    <div>
+                                        <h2 class="text-2xl font-bold text-gray-900">Fleet Calendar</h2>
+                                        <p id="calendar-range-label" class="text-gray-600 mt-1"></p>
+                                    </div>
+                                    <div class="w-full max-w-md">
+                                        <label for="calendar-search" class="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wide">Быстрый поиск</label>
+                                        <input id="calendar-search" type="search" placeholder="Поиск по номеру авто, клиенту или брони"
+                                            class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400">
+                                    </div>
                                 </div>
-                                <div class="flex flex-wrap items-center gap-2 relative">
-                                    <button id="calendar-prev" class="geist-button geist-button-secondary text-sm">Previous</button>
-                                    <button id="calendar-next" class="geist-button geist-button-secondary text-sm">Next</button>
-                                    <button id="calendar-today" class="geist-button geist-button-secondary text-sm">Today</button>
-                                    <select id="calendar-view-select" class="px-3 py-2 border border-gray-300 rounded-md text-sm">
+                                <div id="calendar-toolbar" class="flex flex-wrap items-center gap-2 relative">
+                                    <div class="inline-flex items-center rounded-lg border border-gray-200 bg-white p-0.5 text-xs shadow-sm">
+                                        <button id="calendar-prev" class="geist-button geist-button-ghost h-9 px-3 text-xs">Prev</button>
+                                        <button id="calendar-today" class="geist-button geist-button-secondary h-9 px-3 text-xs">Today</button>
+                                        <button id="calendar-next" class="geist-button geist-button-ghost h-9 px-3 text-xs">Next</button>
+                                    </div>
+                                    <div id="calendar-range-switcher" class="inline-flex items-center rounded-lg border border-gray-200 bg-white p-0.5 text-xs shadow-sm">
+                                        <button type="button" data-calendar-range="3-day" class="calendar-range-btn px-3 py-1.5 rounded-md text-xs font-medium text-gray-600">3D</button>
+                                        <button type="button" data-calendar-range="week" class="calendar-range-btn px-3 py-1.5 rounded-md text-xs font-medium text-gray-600">Week</button>
+                                        <button type="button" data-calendar-range="two-week" class="calendar-range-btn px-3 py-1.5 rounded-md text-xs font-medium text-gray-600">2W</button>
+                                        <button type="button" data-calendar-range="month" class="calendar-range-btn px-3 py-1.5 rounded-md text-xs font-medium text-gray-600">Month</button>
+                                        <button type="button" data-calendar-range="quarter" class="calendar-range-btn px-3 py-1.5 rounded-md text-xs font-medium text-gray-600">Quarter</button>
+                                    </div>
+                                    <select id="calendar-view-select" class="hidden px-3 py-2 border border-gray-300 rounded-md text-sm">
+                                        <option value="3-day">3 days</option>
                                         <option value="week">1 week</option>
                                         <option value="two-week">2 weeks</option>
+                                        <option value="month">1 month</option>
+                                        <option value="quarter">Quarter</option>
                                     </select>
-                                    <select id="calendar-type-filter" class="px-3 py-2 border border-gray-300 rounded-md text-sm">
-                                        <option value="all">All events</option>
-                                        <option value="rental">Rental</option>
-                                        <option value="maintenance">Maintenance</option>
-                                        <option value="inspection">Inspection</option>
-                                        <option value="detailing">Detailing</option>
+                                    <select id="calendar-group-select" class="px-3 py-2 border border-gray-300 rounded-md text-sm">
+                                        <option value="vehicle">Group by vehicle</option>
+                                        <option value="class">Group by class</option>
+                                        <option value="location">Group by location</option>
+                                        <option value="owner">Group by owner</option>
                                     </select>
+                                    <div id="calendar-mode-toggle" class="inline-flex items-center rounded-lg border border-gray-200 bg-white p-0.5 text-xs shadow-sm">
+                                        <button type="button" data-calendar-mode="timeline" class="calendar-mode-btn px-3 py-1.5 rounded-md text-xs font-medium text-gray-600">Timeline</button>
+                                        <button type="button" data-calendar-mode="fleet" class="calendar-mode-btn px-3 py-1.5 rounded-md text-xs font-medium text-gray-600">Fleet load</button>
+                                    </div>
                                     <button id="fleet-calendar-filter-toggle" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">Filters</button>
-                                    <div id="fleet-calendar-filter-dropdown" class="hidden absolute top-full right-0 bg-white border border-gray-300 rounded-md shadow-lg z-10 mt-2 w-80 p-4">
-                                        <div class="flex flex-wrap gap-4 items-end">
-                                            <div class="flex-1">
-                                                <label class="block text-sm font-medium text-gray-700 mb-1">Vehicle class</label>
+                                </div>
+                                <div class="space-y-4">
+                                    <div id="fleet-calendar-filter-panel" class="hidden rounded-xl border border-gray-200 bg-white p-4">
+                                        <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                                            <div>
+                                                <label class="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wide">Events</label>
+                                                <select id="calendar-type-filter" class="px-3 py-2 border border-gray-300 rounded-md text-sm w-full">
+                                                    <option value="all">All events</option>
+                                                    <option value="rental">Rental</option>
+                                                    <option value="maintenance">Maintenance</option>
+                                                    <option value="inspection">Inspection</option>
+                                                    <option value="detailing">Detailing</option>
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label class="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wide">Vehicle class</label>
                                                 <select id="fleet-calendar-class-filter" class="px-3 py-2 border border-gray-300 rounded-md text-sm w-full">
                                                     <option value="">All classes</option>
                                                     <option value="Luxury">Luxury</option>
-                                                    <option value="SUV">SUVs/option>
-                                                    <option value="Sport">Sports cars/option>
+                                                    <option value="SUV">SUVs</option>
+                                                    <option value="Sport">Sports cars</option>
                                                 </select>
                                             </div>
-                                            <div class="flex-1">
-                                                <label class="block text-sm font-medium text-gray-700 mb-1">Vehicle status</label>
+                                            <div>
+                                                <label class="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wide">Vehicle status</label>
                                                 <select id="fleet-calendar-status-filter" class="px-3 py-2 border border-gray-300 rounded-md text-sm w-full">
                                                     <option value="">All statuses</option>
-                                                    <option value="Available">Available/option>
-                                                    <option value="In Rent">In rental/option>
-                                                    <option value="Maintenance">In maintenance/option>
+                                                    <option value="Available">Available</option>
+                                                    <option value="In Rent">In rental</option>
+                                                    <option value="Maintenance">In maintenance</option>
                                                 </select>
                                             </div>
-                                            <button id="fleet-calendar-clear-filters" class="p-2 text-gray-500 hover:text-gray-700 rounded">Clear</button>
+                                            <div class="sm:col-span-2 lg:col-span-3">
+                                                <p class="text-[11px] uppercase tracking-wide text-gray-400 mb-2">Layers</p>
+                                                <div class="flex flex-wrap items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 px-3 py-3 text-[11px] text-gray-600">
+                                                    <label class="inline-flex items-center gap-2">
+                                                        <input type="checkbox" data-calendar-layer="rental" class="rounded border-gray-300 text-indigo-500 focus:ring-indigo-400" checked>
+                                                        Rental
+                                                    </label>
+                                                    <label class="inline-flex items-center gap-2">
+                                                        <input type="checkbox" data-calendar-layer="maintenance" class="rounded border-gray-300 text-indigo-500 focus:ring-indigo-400" checked>
+                                                        Maintenance
+                                                    </label>
+                                                    <label class="inline-flex items-center gap-2">
+                                                        <input type="checkbox" data-calendar-layer="inspection" class="rounded border-gray-300 text-indigo-500 focus:ring-indigo-400" checked>
+                                                        Inspection
+                                                    </label>
+                                                    <label class="inline-flex items-center gap-2">
+                                                        <input type="checkbox" data-calendar-layer="detailing" class="rounded border-gray-300 text-indigo-500 focus:ring-indigo-400" checked>
+                                                        Detailing
+                                                    </label>
+                                                </div>
+                                            </div>
+                                            <div class="flex items-center justify-end gap-3 sm:col-span-2 lg:col-span-3">
+                                                <button id="fleet-calendar-clear-filters" class="text-xs font-medium text-gray-500 hover:text-gray-700">Clear</button>
+                                                <button id="fleet-calendar-apply-filters" type="button" class="geist-button geist-button-secondary text-xs">Apply</button>
+                                            </div>
                                         </div>
                                     </div>
-                                    <button id="calendar-create-maintenance" class="geist-button geist-button-primary text-sm">New maintenance</button>
+                                    <div class="geist-card p-0" id="calendar-grid-wrapper">
+                                        <div id="calendar-grid" class="overflow-x-auto"></div>
+                                        <div id="fleet-load-view" class="hidden"></div>
+                                    </div>
                                 </div>
-                            </div>
-
-                            <div class="geist-card p-4" id="calendar-grid-wrapper">
-                                <div id="calendar-grid" class="overflow-x-auto"></div>
                             </div>
 
                         </div>
@@ -725,8 +746,15 @@
                     <!-- Page: Generic Table View -->
                     <section id="page-table-view" class="page hidden">
                         <div class="geist-card">
-                             <div class="p-4 flex justify-between items-center">
+                             <div class="p-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                                  <h3 id="table-title" class="text-lg font-semibold"></h3>
+                                 <div id="table-search-wrapper" class="hidden md:flex items-center gap-2 text-sm">
+                                     <label for="table-search" class="text-gray-500 uppercase tracking-wide text-xs">Быстрый поиск</label>
+                                     <input id="table-search" type="search" placeholder="Поиск по имени, компании или контакту" class="px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400">
+                                 </div>
+                             </div>
+                             <div id="table-filters" class="px-4 pb-4 border-b border-gray-100 hidden">
+                                 <!-- Table filters will be injected -->
                              </div>
                              <div class="overflow-x-auto">
                                 <table class="w-full text-left">
@@ -874,6 +902,23 @@
             </main>
         </div>
 
+    </div>
+    <div id="calendar-event-drawer" class="fixed inset-0 z-40 hidden">
+        <div data-calendar-drawer-dismiss class="absolute inset-0 bg-slate-900/40"></div>
+        <aside class="absolute inset-y-0 right-0 w-full max-w-md bg-white shadow-2xl flex flex-col">
+            <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+                <div>
+                    <p id="calendar-drawer-subtitle" class="text-[11px] uppercase tracking-wide text-gray-400"></p>
+                    <h3 id="calendar-drawer-title" class="text-lg font-semibold text-gray-900"></h3>
+                </div>
+                <button type="button" id="calendar-drawer-close" class="p-2 text-gray-400 hover:text-gray-700" aria-label="Закрыть детали события">
+                    <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                        <path fill-rule="evenodd" d="M4.22 4.22a.75.75 0 011.06 0L10 8.94l4.72-4.72a.75.75 0 111.06 1.06L11.06 10l4.72 4.72a.75.75 0 11-1.06 1.06L10 11.06l-4.72 4.72a.75.75 0 01-1.06-1.06L8.94 10 4.22 5.28a.75.75 0 010-1.06z" clip-rule="evenodd" />
+                    </svg>
+                </button>
+            </div>
+            <div id="calendar-event-drawer-content" class="flex-1 overflow-y-auto px-6 py-6 space-y-6 text-sm text-gray-700"></div>
+        </aside>
     </div>
     <script type="module" src="src/main.js"></script>
 

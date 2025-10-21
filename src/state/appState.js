@@ -67,10 +67,20 @@ export const appState = {
     currentPage: '',
     timerInterval: null,
     filters: {
-        bookings: { priority: 'all', type: 'all', driver: 'all' },
-        analytics: { range: '7d', segment: 'all', vehicleClass: 'all' },
-        calendar: { view: 'week', type: 'all' },
+        bookings: { type: 'all', driver: 'all', search: '' },
+        analytics: { range: '7d', segment: 'all', vehicleClass: 'all', dateFrom: '', dateTo: '' },
+        calendar: {
+            view: 'week',
+            type: 'all',
+            search: '',
+            availableOnly: false,
+            attentionOnly: false,
+            group: 'vehicle',
+            layers: ['rental', 'maintenance', 'inspection', 'detailing'],
+            mode: 'timeline'
+        },
         tasks: { status: 'all', type: 'all', assignee: 'all' },
+        clientsTable: { invoice: '', name: '', email: '', phone: '', search: '' },
         sales: { owner: 'all', source: 'all' }
     },
     offline: {

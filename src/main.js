@@ -25,6 +25,7 @@ import { renderDashboard } from './render/dashboard.js';
 import { renderAnalyticsPage, renderSalesPipeline, renderClientCard } from './render/charts.js';
 import { startTimers } from './render/timers.js';
 import { formatCurrency } from './render/utils.js';
+import { renderFleetCalendar, initFleetCalendar } from './render/fleetCalendar.js';
 import { showToast } from './ui/toast.js';
 import { getIcon } from './ui/icons.js';
 
@@ -51,6 +52,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const pageBackButtons = document.querySelectorAll('.page-back-button');
         const desktopPages = Array.from(document.querySelectorAll('#content-area > section.page'));
         const pageActionButton = document.getElementById('page-action-button');
+        const salesOwnerFilterWrapper = document.getElementById('sales-owner-filter-wrapper');
+        const salesOwnerFilter = document.getElementById('sales-owner-filter');
         const loginRoleSelect = document.getElementById('login-role');
         const loginEmailInput = document.getElementById('email');
         const requestOtpBtn = document.getElementById('request-otp');
@@ -58,7 +61,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const otpInput = document.getElementById('otp');
         const sidebarCollapseBtn = document.getElementById('sidebar-collapse');
 
-        let calendarControlsBound = false;
         const AUXILIARY_PAGES = [
             'booking-detail',
             'fleet-detail',
@@ -93,6 +95,47 @@ document.addEventListener('DOMContentLoaded', () => {
             otpInput.setAttribute('disabled', 'disabled');
         }
 
+        const getSalesOwnerOptions = () => (MOCK_DATA.salesPipeline?.owners || []);
+
+        const refreshSalesOwnerFilter = () => {
+            if (!salesOwnerFilter) return;
+            const owners = getSalesOwnerOptions();
+            const currentValue = appState.filters.sales?.owner || 'all';
+            let ownerChanged = false;
+            const optionsHtml = [
+                '<option value="all">All managers</option>',
+                owners.map(owner => `<option value="${owner.id}">${owner.name}</option>`).join('')
+            ].join('');
+            salesOwnerFilter.innerHTML = optionsHtml;
+            if (currentValue !== 'all' && !owners.some(owner => owner.id === currentValue)) {
+                appState.filters.sales.owner = 'all';
+                ownerChanged = true;
+            }
+            salesOwnerFilter.value = appState.filters.sales.owner || 'all';
+            salesOwnerFilter.dataset.bound = 'true';
+            if (ownerChanged) {
+                renderCurrentPageWithSalesFilter();
+            }
+        };
+
+        const updateSalesOwnerFilterVisibility = (role) => {
+            if (!salesOwnerFilterWrapper) return;
+            if (role === 'sales') {
+                refreshSalesOwnerFilter();
+                salesOwnerFilterWrapper.classList.remove('hidden');
+            } else {
+                salesOwnerFilterWrapper.classList.add('hidden');
+            }
+        };
+
+        if (salesOwnerFilter && !salesOwnerFilter.dataset.globalHandler) {
+            salesOwnerFilter.addEventListener('change', (event) => {
+                appState.filters.sales.owner = event.target.value || 'all';
+                renderCurrentPageWithSalesFilter();
+            });
+            salesOwnerFilter.dataset.globalHandler = 'true';
+        }
+
         const updateSidebarToggleState = () => {
             if (!sidebarCollapseBtn) return;
             const isCollapsed = sidebar.classList.contains('sidebar-collapsed');
@@ -111,6 +154,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!roleConfig || roleConfig.layout !== 'desktop') {
                 navEl.innerHTML = '';
                 profileEl.innerHTML = '';
+                updateSalesOwnerFilterVisibility(appState.currentRole);
                 return;
             }
             
@@ -162,6 +206,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             updateActiveLink();
             updateSidebarToggleState();
+            updateSalesOwnerFilterVisibility(appState.currentRole);
         };
 
         const updateActiveLink = () => {
@@ -175,100 +220,6 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         };
         
-        const bindCalendarControls = () => {
-            if (calendarControlsBound) return;
-
-            const prevBtn = document.getElementById('calendar-prev');
-            if (prevBtn) {
-                prevBtn.addEventListener('click', () => {
-                    const delta = appState.filters.calendar.view === 'two-week' ? -14 : -7;
-                    shiftCalendarStart(delta);
-                });
-            }
-
-            const nextBtn = document.getElementById('calendar-next');
-            if (nextBtn) {
-                nextBtn.addEventListener('click', () => {
-                    const delta = appState.filters.calendar.view === 'two-week' ? 14 : 7;
-                    shiftCalendarStart(delta);
-                });
-            }
-
-            const todayBtn = document.getElementById('calendar-today');
-            if (todayBtn) {
-                todayBtn.addEventListener('click', () => {
-                    appState.calendarStart = getStartOfWeek();
-                    renderCalendar();
-                });
-            }
-
-            const viewSelect = document.getElementById('calendar-view-select');
-            if (viewSelect) {
-                viewSelect.addEventListener('change', (event) => {
-                    appState.filters.calendar.view = event.target.value;
-                    renderCalendar();
-                });
-            }
-
-            const typeSelect = document.getElementById('calendar-type-filter');
-            if (typeSelect) {
-                typeSelect.addEventListener('change', (event) => {
-                    appState.filters.calendar.type = event.target.value;
-                    renderCalendar();
-                });
-            }
-
-            const classFilter = document.getElementById('fleet-calendar-class-filter');
-            if (classFilter) classFilter.addEventListener('change', () => renderCalendar());
-
-            const statusFilter = document.getElementById('fleet-calendar-status-filter');
-            if (statusFilter) statusFilter.addEventListener('change', () => renderCalendar());
-
-            const filterToggle = document.getElementById('fleet-calendar-filter-toggle');
-            const filterDropdown = document.getElementById('fleet-calendar-filter-dropdown');
-            if (filterToggle && filterDropdown) {
-                filterToggle.addEventListener('click', () => filterDropdown.classList.toggle('hidden'));
-            }
-
-            const clearFiltersBtn = document.getElementById('fleet-calendar-clear-filters');
-            if (clearFiltersBtn) {
-                clearFiltersBtn.addEventListener('click', () => {
-                    if (classFilter) classFilter.value = '';
-                    if (statusFilter) statusFilter.value = '';
-                    renderCalendar();
-                });
-            }
-
-            const maintenanceBtn = document.getElementById('calendar-create-maintenance');
-            if (maintenanceBtn) {
-                maintenanceBtn.addEventListener('click', () => {
-                    window.location.hash = buildHash(appState.currentRole, 'maintenance-create');
-                    router();
-                });
-            }
-
-            const grid = document.getElementById('calendar-grid');
-            if (grid && !grid.dataset.bound) {
-                grid.addEventListener('click', (event) => {
-                    const target = event.target.closest('.calendar-event');
-                    if (!target) return;
-                    const bookingId = target.dataset.bookingId;
-                    if (bookingId) {
-                        window.location.hash = buildHash(appState.currentRole, 'booking-detail', bookingId);
-                        router();
-                        return;
-                    }
-                    const calendarEventId = target.dataset.calendarEventId;
-                    if (calendarEventId) {
-                        openCalendarEvent(calendarEventId);
-                    }
-                });
-                grid.dataset.bound = 'true';
-            }
-
-            calendarControlsBound = true;
-        };
-
         const renderDetailPanel = (type, id) => {
             let content = '';
             let targetContainer = null;
@@ -295,13 +246,268 @@ document.addEventListener('DOMContentLoaded', () => {
                     const encoded = encodeURIComponent(label);
                     return `<span class="min-w-0 max-w-full"><a href="https://www.google.com/maps/search/?api=1&query=${encoded}" target="_blank" rel="noopener" class="inline-block max-w-full break-words text-blue-600 hover:underline">${label}</a></span>`;
                 };
-                const driverOptions = MOCK_DATA.drivers.map(d => 
-                    `<option value="${d.id}" ${booking.driverId === d.id ? 'selected' : ''}>${d.name}</option>`
-                ).join('');
                 const assignedDriver = booking.driverId
                     ? MOCK_DATA.drivers.find(d => Number(d.id) === Number(booking.driverId))
                     : null;
-                const isDriverAssignmentLocked = booking.status === 'new';
+
+                const clientId = client.id || booking.clientId;
+                const salesOwnerMap = Object.fromEntries((MOCK_DATA.salesPipeline?.owners || []).map(owner => [owner.id, owner.name]));
+                const responsibleSalesPerson = booking.ownerId
+                    ? (salesOwnerMap[booking.ownerId] || booking.ownerId)
+                    : 'Unassigned';
+                const clientDetailLink = clientId
+                    ? `<a href="${buildHash(appState.currentRole, 'client-detail', clientId)}" class="text-sm font-medium text-indigo-600 hover:text-indigo-800">Open client card</a>`
+                    : '';
+
+                const formatMileageValue = (value) => {
+                    if (value === 0) return '0 km';
+                    const numeric = Number(value);
+                    if (Number.isFinite(numeric)) {
+                        return `${numeric.toLocaleString('en-US')} km`;
+                    }
+                    if (typeof value === 'string' && value.trim()) {
+                        return value;
+                    }
+                    return '—';
+                };
+
+                const formatFuelValue = (value) => {
+                    if (value === 0) return '0';
+                    if (value == null) return '—';
+                    const str = String(value).trim();
+                    return str.length ? str : '—';
+                };
+
+                const parseDateOnly = (value) => {
+                    if (!value || typeof value !== 'string') return null;
+                    const [year, month, day] = value.split('-').map(Number);
+                    if (!year || !month || !day) return null;
+                    return new Date(year, month - 1, day, 12, 0, 0);
+                };
+
+                const parseDateTime = (dateStr, timeStr) => {
+                    if (!dateStr) return null;
+                    const timeValue = timeStr || '00:00';
+                    const normalized = `${dateStr}T${timeValue.length === 5 ? `${timeValue}:00` : timeValue}`;
+                    const parsed = new Date(normalized);
+                    if (Number.isNaN(parsed.getTime())) {
+                        return null;
+                    }
+                    return parsed;
+                };
+
+                const parseLooseDateTime = (value) => {
+                    if (!value || typeof value !== 'string') return null;
+                    if (value.includes('T')) {
+                        const parsed = new Date(value);
+                        return Number.isNaN(parsed.getTime()) ? null : parsed;
+                    }
+                    const normalized = value.replace(' ', 'T');
+                    const parsed = new Date(`${normalized.length === 16 ? `${normalized}:00` : normalized}`);
+                    return Number.isNaN(parsed.getTime()) ? null : parsed;
+                };
+
+                const now = new Date();
+                const pickupDateTime = parseDateTime(booking.startDate, booking.startTime);
+                const returnDateTime = parseDateTime(booking.endDate, booking.endTime);
+                const normalizeStatus = (status) => (status || '').toLowerCase();
+
+                const formatRelativeTime = (targetDate) => {
+                    if (!targetDate || Number.isNaN(targetDate.getTime())) return '';
+                    const diffMs = targetDate.getTime() - now.getTime();
+                    const absMs = Math.abs(diffMs);
+                    const minutes = Math.round(absMs / 60000);
+                    const hours = Math.round(absMs / 3600000);
+                    const days = Math.round(absMs / 86400000);
+                    const suffix = diffMs < 0 ? ' ago' : '';
+                    const prefix = diffMs >= 0 ? 'in ' : '';
+                    if (minutes < 60) {
+                        const value = Math.max(minutes, 1);
+                        return `${prefix}${value} min${value === 1 ? '' : 's'}${suffix}`.trim();
+                    }
+                    if (hours < 48) {
+                        return `${prefix}${hours} h${hours === 1 ? '' : 's'}${suffix}`.trim();
+                    }
+                    return `${prefix}${days} day${days === 1 ? '' : 's'}${suffix}`.trim();
+                };
+
+                const formatDateLabel = (targetDate) => {
+                    if (!targetDate || Number.isNaN(targetDate.getTime())) return '—';
+                    return targetDate.toLocaleString('en-GB', {
+                        day: '2-digit',
+                        month: 'short',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+                };
+
+                const contractDoc = (booking.documents || []).find(doc => doc.type === 'contract');
+                const contractStatus = normalizeStatus(contractDoc?.status);
+                let documentsState = 'pending';
+                let documentsCaption = 'Not uploaded';
+                if (!contractDoc) {
+                    documentsState = 'attention';
+                    documentsCaption = 'Contract missing';
+                } else if (['signed', 'approved', 'verified'].includes(contractStatus)) {
+                    documentsState = 'done';
+                    documentsCaption = 'Signed';
+                } else if (['pending-signature', 'in-review', 'pending'].includes(contractStatus)) {
+                    documentsState = 'in-progress';
+                    documentsCaption = 'Awaiting signature';
+                } else {
+                    documentsState = 'attention';
+                    documentsCaption = contractDoc.status ? contractDoc.status : 'Check status';
+                }
+
+                const invoices = Array.isArray(booking.invoices) ? booking.invoices : [];
+                const isInvoiceOverdue = (invoice) => {
+                    if (!invoice) return false;
+                    const status = normalizeStatus(invoice.status);
+                    if (['paid', 'settled', 'authorized'].includes(status)) return false;
+                    const dueDate = parseDateOnly(invoice.dueDate);
+                    return !!dueDate && dueDate.getTime() < now.setHours(0, 0, 0, 0);
+                };
+                const isInvoiceDueSoon = (invoice) => {
+                    if (!invoice) return false;
+                    const status = normalizeStatus(invoice.status);
+                    if (['paid', 'settled', 'authorized'].includes(status)) return false;
+                    const dueDate = parseDateOnly(invoice.dueDate);
+                    if (!dueDate) return false;
+                    const diffDays = Math.round((dueDate.getTime() - now.getTime()) / 86400000);
+                    return diffDays >= 0 && diffDays <= 3;
+                };
+                const overdueInvoices = invoices.filter(isInvoiceOverdue);
+                const dueSoonInvoices = invoices.filter(isInvoiceDueSoon);
+
+                let paymentState = 'pending';
+                let paymentCaption = dueAmount > 0 ? `Remaining ${formatAed(dueAmount)}` : 'All paid';
+                if (dueAmount <= 0) {
+                    paymentState = 'done';
+                } else if (overdueInvoices.length) {
+                    paymentState = 'attention';
+                    paymentCaption = `Overdue ${formatAed(dueAmount)}`;
+                } else if ((booking.paidAmount || 0) > 0) {
+                    paymentState = 'in-progress';
+                }
+
+                const bookingStatus = normalizeStatus(booking.status);
+                const timelineItems = Array.isArray(booking.timeline) ? booking.timeline : [];
+                const getLatestTimelineEntry = (status) => {
+                    const entries = timelineItems.filter(item => normalizeStatus(item.status) === status);
+                    if (!entries.length) return null;
+                    return entries.slice().sort((a, b) => {
+                        const aDate = parseLooseDateTime(a.ts) || new Date(0);
+                        const bDate = parseLooseDateTime(b.ts) || new Date(0);
+                        return bDate - aDate;
+                    })[0];
+                };
+                const latestPrep = getLatestTimelineEntry('preparation');
+                const latestDelivery = getLatestTimelineEntry('delivery');
+
+                let preparationState = 'pending';
+                let preparationCaption = latestPrep?.note || '';
+                if (bookingStatus === 'preparation') {
+                    preparationState = 'in-progress';
+                } else if (['delivery', 'in-rent', 'settlement', 'completed'].includes(bookingStatus)) {
+                    preparationState = 'done';
+                }
+                if (!preparationCaption && preparationState === 'done') {
+                    preparationCaption = 'Vehicle ready';
+                }
+
+                let handoverState = 'pending';
+                let handoverCaption = latestDelivery?.note || '';
+                if (bookingStatus === 'delivery') {
+                    handoverState = 'in-progress';
+                } else if (['in-rent', 'settlement', 'completed'].includes(bookingStatus)) {
+                    handoverState = 'done';
+                }
+                if (!handoverCaption && handoverState === 'done') {
+                    handoverCaption = 'Handed over to client';
+                }
+
+                let closureState = 'pending';
+                let closureCaption = '';
+                if (bookingStatus === 'in-rent') {
+                    closureState = 'in-progress';
+                    closureCaption = 'Rental in progress';
+                } else if (['settlement', 'completed'].includes(bookingStatus)) {
+                    closureState = bookingStatus === 'completed' ? 'done' : 'in-progress';
+                    closureCaption = bookingStatus === 'completed' ? 'Closed' : 'Awaiting return checks';
+                }
+
+                const stageProgress = [
+                    { id: 'documents', label: 'Documents', state: documentsState, caption: documentsCaption },
+                    { id: 'payment', label: 'Payment', state: paymentState, caption: paymentCaption },
+                    { id: 'preparation', label: 'Preparation', state: preparationState, caption: preparationCaption },
+                    { id: 'handover', label: 'Handover', state: handoverState, caption: handoverCaption },
+                    { id: 'closure', label: 'Closure', state: closureState, caption: closureCaption }
+                ];
+
+                const currentStage = stageProgress.find(stage => stage.state !== 'done') || stageProgress[stageProgress.length - 1];
+
+                const stageProgressHtml = currentStage
+                    ? `
+                        <div class="inline-flex flex-col md:flex-row md:items-center gap-1 md:gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs">
+                            <span class="font-semibold text-slate-700 uppercase tracking-wide">Current stage:</span>
+                            <span class="font-medium text-slate-900">${escapeHtml(currentStage.label)}</span>
+                            ${currentStage.caption ? `<span class="text-slate-500">· ${escapeHtml(currentStage.caption)}</span>` : ''}
+                        </div>
+                    `
+                    : '';
+
+                const pickupMeta = (() => {
+                    if (!pickupDateTime) return null;
+                    const diffMs = pickupDateTime.getTime() - now.getTime();
+                    let tone = 'bg-slate-100 text-slate-700 border border-slate-200';
+                    if (diffMs < 0) {
+                        tone = 'bg-rose-50 text-rose-700 border border-rose-100';
+                    } else if (diffMs <= 2 * 3600000) {
+                        tone = 'bg-amber-50 text-amber-700 border border-amber-100';
+                    } else if (diffMs <= 12 * 3600000) {
+                        tone = 'bg-sky-50 text-sky-700 border border-sky-100';
+                    }
+                    return {
+                        tone,
+                        relative: formatRelativeTime(pickupDateTime),
+                        absolute: formatDateLabel(pickupDateTime)
+                    };
+                })();
+
+                const returnMeta = (() => {
+                    if (!returnDateTime) return null;
+                    const diffMs = returnDateTime.getTime() - now.getTime();
+                    let tone = 'text-gray-500';
+                    if (diffMs < 0) {
+                        tone = 'text-rose-600';
+                    } else if (diffMs <= 6 * 3600000) {
+                        tone = 'text-amber-600';
+                    }
+                    return {
+                        tone,
+                        relative: formatRelativeTime(returnDateTime),
+                        absolute: formatDateLabel(returnDateTime)
+                    };
+                })();
+
+                const depositInvoice = invoices.find(inv => normalizeStatus(inv.label || '').includes('deposit'))
+                    || invoices.find(inv => normalizeStatus(inv.description || '').includes('deposit'));
+                const depositStatus = depositInvoice?.status || (booking.deposit ? 'Not captured' : '—');
+                const depositClass = normalizeStatus(depositStatus) === 'authorized'
+                    ? 'text-emerald-600'
+                    : overdueInvoices.includes(depositInvoice) ? 'text-rose-600' : 'text-gray-700';
+
+                const paymentAlerts = [];
+                if (overdueInvoices.length) {
+                    paymentAlerts.push(`<li class="flex items-start gap-2"><span class="mt-1 h-2 w-2 rounded-full bg-rose-500"></span><span class="text-xs text-rose-600">${overdueInvoices.length} invoice${overdueInvoices.length === 1 ? '' : 's'} overdue</span></li>`);
+                }
+                if (dueSoonInvoices.length) {
+                    paymentAlerts.push(`<li class="flex items-start gap-2"><span class="mt-1 h-2 w-2 rounded-full bg-amber-500"></span><span class="text-xs text-amber-600">${dueSoonInvoices.length} invoice${dueSoonInvoices.length === 1 ? '' : 's'} due within 3 days</span></li>`);
+                }
+                if (!paymentAlerts.length) {
+                    paymentAlerts.push('<li class="text-xs text-emerald-600">No payment alerts</li>');
+                }
 
                 const historyEntries = Array.isArray(booking.history) ? [...booking.history] : [];
                 const historyEvents = new Set(historyEntries.map(entry => entry.event));
@@ -328,140 +534,363 @@ document.addEventListener('DOMContentLoaded', () => {
                     ensureHistoryEntry(`Driver ${assignedDriver.name} assigned`, existingDriverTs || booking.startDate || '—');
                 }
 
-                const bookingHistoryHtml = historyEntries.length
-                    ? historyEntries.map(h => `
-                        <li class="flex items-start gap-2">
-                            <span class="mt-1 text-gray-400">${getIcon('check', 'w-4 h-4')}</span>
-                            <div>
-                                <p class="text-sm font-medium text-gray-800">${h.event}</p>
-                                <p class="text-xs text-gray-500">${h.ts || '—'}</p>
-                            </div>
-                        </li>
-                    `).join('')
+                const enrichHistoryEntry = (entry) => {
+                    const ts = parseLooseDateTime(entry.ts);
+                    const relative = formatRelativeTime(ts);
+                    const absolute = entry.ts && entry.ts !== '—' ? entry.ts : (ts ? formatDateLabel(ts) : '—');
+                    const tone = ts && ts.getTime() > now.getTime() ? 'text-sky-600' : 'text-gray-500';
+                    return {
+                        event: entry.event,
+                        absolute,
+                        relative,
+                        tone
+                    };
+                };
+
+                const sortedHistoryEntries = historyEntries.slice().sort((a, b) => {
+                    const aDate = parseLooseDateTime(a.ts) || new Date(0);
+                    const bDate = parseLooseDateTime(b.ts) || new Date(0);
+                    return bDate - aDate;
+                });
+
+                const bookingHistoryHtml = sortedHistoryEntries.length
+                    ? sortedHistoryEntries.map(entry => {
+                        const enriched = enrichHistoryEntry(entry);
+                        const relativePart = enriched.relative ? `<span class="ml-1 text-[11px] text-gray-400">(${escapeHtml(enriched.relative)})</span>` : '';
+                        return `
+                            <li class="flex items-start gap-2 rounded-lg border border-gray-200/60 px-3 py-2">
+                                <span class="mt-1 text-emerald-500">${getIcon('check', 'w-4 h-4')}</span>
+                                <div>
+                                    <p class="text-sm font-medium text-gray-800">${escapeHtml(enriched.event)}</p>
+                                    <p class="text-xs ${enriched.tone}">${escapeHtml(enriched.absolute)}${relativePart}</p>
+                                </div>
+                            </li>
+                        `;
+                    }).join('')
                     : '<li class="text-sm text-gray-500">No history records</li>';
 
+                const relatedTasks = (MOCK_DATA.tasks || []).filter(task => Number(task.bookingId) === Number(booking.id));
+                const taskStatusMeta = {
+                    todo: { label: 'To do', badgeClass: 'bg-slate-100 text-slate-700 border border-slate-200' },
+                    inprogress: { label: 'In progress', badgeClass: 'bg-amber-100 text-amber-700 border border-amber-200' },
+                    done: { label: 'Completed', badgeClass: 'bg-emerald-100 text-emerald-700 border border-emerald-200' }
+                };
+
+                const getTaskDeadlineMeta = (deadlineValue) => {
+                    const deadlineDate = parseLooseDateTime(deadlineValue);
+                    if (!deadlineDate) {
+                        return { label: 'Deadline not set', tone: 'text-gray-500' };
+                    }
+                    const relative = formatRelativeTime(deadlineDate);
+                    let tone = 'text-gray-600';
+                    if (deadlineDate.getTime() < now.getTime()) {
+                        tone = 'text-rose-600';
+                    } else if (deadlineDate.getTime() - now.getTime() <= 6 * 3600000) {
+                        tone = 'text-amber-600';
+                    }
+                    return { label: `${formatDateLabel(deadlineDate)} (${relative || 'upcoming'})`, tone };
+                };
+
+                const bookingTasksContent = relatedTasks.length
+                    ? `<div class="grid gap-3">
+                            ${relatedTasks.map(task => {
+                                const assignee = task.assigneeId
+                                    ? MOCK_DATA.drivers.find(d => Number(d.id) === Number(task.assigneeId))
+                                    : null;
+                                const statusMeta = taskStatusMeta[task.status] || {
+                                    label: task.status ? `${task.status.charAt(0).toUpperCase()}${task.status.slice(1)}` : 'Unknown',
+                                    badgeClass: 'bg-gray-100 text-gray-600 border border-gray-200'
+                                };
+                                const deadlineMeta = getTaskDeadlineMeta(task.deadline);
+                                const initials = assignee ? assignee.name.split(' ').map(part => part[0]).join('').slice(0, 2).toUpperCase() : '';
+                                const assigneeBlock = assignee ? `<div class="flex items-center justify-between gap-2 text-xs text-gray-600"><span class="inline-flex h-6 w-6 items-center justify-center rounded-full bg-slate-200 text-[11px] font-semibold text-gray-700">${escapeHtml(initials)}</span><span class="font-medium">${escapeHtml(assignee.name)}</span></div>` : '';
+                                return `
+                                    <article class="space-y-3 rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
+                                        <div class="flex items-start justify-between gap-3">
+                                            <p class="text-sm font-semibold text-gray-900 leading-snug">${escapeHtml(task.title || 'Task')}</p>
+                                            <span class="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md ${statusMeta.badgeClass}">${escapeHtml(statusMeta.label)}</span>
+                                        </div>
+                                        <dl class="space-y-2 text-xs text-gray-500">
+                                            <div class="flex items-start justify-between gap-2">
+                                                <dt class="font-medium text-gray-600">Deadline</dt>
+                                                <dd class="text-right ${deadlineMeta.tone}">${escapeHtml(deadlineMeta.label)}</dd>
+                                            </div>
+                                            ${assigneeBlock}
+                                        </dl>
+                                    </article>
+                                `;
+                            }).join('')}
+                       </div>`
+                    : '<p class="text-sm text-gray-500">No tasks linked to this booking</p>';
+
+                const timelineStatusLabels = {
+                    preparation: 'Preparation',
+                    delivery: 'Delivery',
+                    inspection: 'Inspection',
+                    default: 'Update'
+                };
+
+                const timelineStatusClasses = {
+                    preparation: 'border-amber-200 bg-amber-50 text-amber-700',
+                    delivery: 'border-sky-200 bg-sky-50 text-sky-700',
+                    inspection: 'border-indigo-200 bg-indigo-50 text-indigo-700',
+                    default: 'border-gray-200 bg-gray-50 text-gray-600'
+                };
+
+                const operationalTimeline = timelineItems.length
+                    ? `<ul class="space-y-2">
+                            ${timelineItems.map(item => {
+                                const entryTs = parseLooseDateTime(item.ts);
+                                const labelKey = normalizeStatus(item.status);
+                                const badgeClass = timelineStatusClasses[labelKey] || timelineStatusClasses.default;
+                                const label = timelineStatusLabels[labelKey] || timelineStatusLabels.default;
+                                const relative = formatRelativeTime(entryTs);
+                                return `
+                                    <li class="flex items-start justify-between gap-3 rounded-lg border border-dashed px-3 py-2">
+                                        <div>
+                                            <span class="inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium ${badgeClass}">${escapeHtml(label)}</span>
+                                            ${item.note ? `<p class="mt-1 text-sm text-gray-700">${escapeHtml(item.note)}</p>` : ''}
+                                        </div>
+                                        <div class="text-right text-xs text-gray-500">
+                                            ${relative ? `<p>${escapeHtml(relative)}</p>` : ''}
+                                            ${entryTs ? `<p class="opacity-80">${escapeHtml(formatDateLabel(entryTs))}</p>` : ''}
+                                            ${item.actor ? `<p class="mt-1 font-medium text-gray-600">${escapeHtml(item.actor)}</p>` : ''}
+                                        </div>
+                                    </li>
+                                `;
+                            }).join('')}
+                        </ul>`
+                    : '';
+
+                const pickupMileageValue = formatMileageValue(booking.pickupMileage ?? booking.mileageAtPickup);
+                const pickupFuelValue = formatFuelValue(booking.pickupFuel ?? booking.fuelLevelAtPickup);
+                const returnMileageValue = formatMileageValue(booking.returnMileage ?? booking.mileage ?? booking.mileageAtReturn);
+                const returnFuelValue = formatFuelValue(booking.returnFuel ?? booking.fuelLevel ?? booking.fuelLevelAtReturn);
+
+                const bookingInvoices = Array.isArray(booking.invoices) ? booking.invoices : [];
+                const invoicesTable = bookingInvoices.length
+                    ? `
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full text-sm text-gray-600 border border-gray-200 rounded-lg overflow-hidden">
+                                <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wide">
+                                    <tr>
+                                        <th class="px-3 py-2 text-left">Invoice</th>
+                                        <th class="px-3 py-2 text-left">Description</th>
+                                        <th class="px-3 py-2 text-right">Amount</th>
+                                        <th class="px-3 py-2 text-left">Status</th>
+                                        <th class="px-3 py-2 text-left">Issued</th>
+                                        <th class="px-3 py-2 text-left">Due</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-200">
+                                    ${bookingInvoices.map(invoice => `
+                                        <tr>
+                                            <td class="px-3 py-2 font-medium text-gray-900">${escapeHtml(invoice.id || '—')}</td>
+                                            <td class="px-3 py-2">${escapeHtml(invoice.label || '—')}</td>
+                                            <td class="px-3 py-2 text-right">${formatAed(invoice.amount)}</td>
+                                            <td class="px-3 py-2">
+                                                <span class="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md bg-slate-100 text-slate-700">
+                                                    ${escapeHtml(invoice.status || '—')}
+                                                </span>
+                                            </td>
+                                            <td class="px-3 py-2">${escapeHtml(invoice.issuedDate || '—')}</td>
+                                            <td class="px-3 py-2">${escapeHtml(invoice.dueDate || '—')}</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    `
+                    : '<p class="text-sm text-gray-500">Инвойсы отсутствуют</p>';
+
+                const bookingIdentifier = escapeHtml(booking.code || `#${booking.id || ''}`);
+
                 const documentButtons = Array.isArray(booking.documents) && booking.documents.length
-                    ? booking.documents.map(doc => `
-                        <button class="doc-image relative group">
-                            <img src="${doc}" alt="Document preview" class="w-28 h-20 object-cover rounded-md border border-gray-200">
-                            <span class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white text-xs">View</span>
-                        </button>
-                    `).join('')
+                    ? booking.documents.map(doc => {
+                        const thumb = typeof doc === 'string' ? doc : doc.url;
+                        const label = typeof doc === 'string' ? 'Document' : (doc.name || doc.type || 'Document');
+                        if (!thumb) {
+                            return `<span class="inline-flex items-center px-2 py-1 text-xs rounded-md bg-gray-100 text-gray-600 border border-gray-200">${escapeHtml(label)}</span>`;
+                        }
+                        return `
+                            <button class="doc-image relative group">
+                                <img src="${thumb}" alt="Document preview" class="w-28 h-20 object-cover rounded-md border border-gray-200">
+                                <span class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white text-xs">${escapeHtml(label)}</span>
+                            </button>
+                        `;
+                    }).join('')
                     : '<p class="text-xs text-gray-500">No documents uploaded</p>';
 
-                const driverAssignmentControls = `
-                    <div class="space-y-2">
-                        <label class="block text-xs font-medium text-gray-500">Driver</label>
-                        <select class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm" ${isDriverAssignmentLocked ? 'disabled' : ''}>
-                            <option value="">Select driver</option>
-                            ${driverOptions}
-                        </select>
-                        ${isDriverAssignmentLocked
-                            ? '<p class="text-xs text-amber-600">Driver will be auto-assigned after confirmation</p>'
-                            : '<button class="geist-button geist-button-secondary text-xs">Assign driver</button>'}
-                    </div>`;
-
                 content = `
-                    <div class="p-6 border-b">
-                        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                            <div>
-                                <p class="text-xs uppercase tracking-wide text-gray-500">${BOOKING_PRIORITIES[booking.priority]?.label || 'Booking'}</p>
-                                <h2 class="text-2xl font-semibold mt-1">${booking.carName}</h2>
-                                <p class="text-sm text-gray-500 mt-1">Client ${client.name || booking.clientName} · ${booking.startDate} → ${booking.endDate}</p>
+                    <div class="p-6 border-b bg-slate-50/40">
+                        <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+                            <div class="space-y-3">
+                                <div class="flex flex-wrap items-center gap-2 text-xs font-medium text-gray-600">
+                                    <span class="inline-flex items-center px-2.5 py-1 rounded-md bg-white text-gray-700 border border-gray-200">Booking ${bookingIdentifier}</span>
+                                </div>
+                                <h2 class="text-2xl font-semibold text-gray-900">${escapeHtml(booking.carName)}</h2>
+                                <p class="text-sm text-gray-500">${escapeHtml(client.name || booking.clientName)}</p>
                             </div>
-                            <div class="text-right">
-                                <p class="text-sm text-gray-500">Outstanding</p>
-                                <p class="text-2xl font-semibold ${dueAmount > 0 ? 'text-amber-600' : 'text-emerald-600'}">${formatAed(dueAmount)}</p>
-                                <p class="text-xs text-gray-500 mt-1">Paid ${formatAed(booking.paidAmount)}</p>
+                            <div class="space-y-3 text-right">
+                                <div>
+                                    <p class="text-xs uppercase tracking-wide text-gray-500">Outstanding</p>
+                                    <p class="text-2xl font-semibold ${dueAmount > 0 ? 'text-amber-600' : 'text-emerald-600'}">${formatAed(dueAmount)}</p>
+                                    <p class="text-xs text-gray-500">Paid ${formatAed(booking.paidAmount)}</p>
+                                </div>
+                                ${pickupMeta ? `<div class="inline-flex max-w-xs flex-wrap items-center justify-end gap-2 rounded-lg px-3 py-2 text-xs font-medium ${pickupMeta.tone}"><span>Pickup ${escapeHtml(pickupMeta.relative || '')}</span><span class="text-[11px] opacity-70">${escapeHtml(pickupMeta.absolute)}</span></div>` : ''}
                             </div>
                         </div>
+                        <div class="mt-5 border-t border-slate-200 pt-4 overflow-x-auto">${stageProgressHtml}</div>
                     </div>
                     <div class="p-6 space-y-6">
-                        <div class="grid gap-6 lg:grid-cols-[2fr,1fr]">
-                            <div class="space-y-6">
-                                <div class="geist-card p-4 border border-gray-200 rounded-xl">
-                                    <h3 class="font-semibold text-gray-800 mb-4">Timeline</h3>
-                                    <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3 text-sm text-gray-600">
-                                        <div>
-                                            <p class="font-semibold text-gray-500">Pickup</p>
-                                            <p class="mt-1">${formatDateTime(booking.startDate, booking.startTime)}</p>
-                                            <p class="mt-1 flex items-center gap-2">${getIcon('mapPin', 'w-4 h-4 text-gray-400')}${formatLocationLink(booking.pickupLocation)}</p>
-                                        </div>
-                                        <div>
-                                            <p class="font-semibold text-gray-500">Return</p>
-                                            <p class="mt-1">${formatDateTime(booking.endDate, booking.endTime)}</p>
-                                            <p class="mt-1 flex items-center gap-2">${getIcon('mapPin', 'w-4 h-4 text-gray-400')}${formatLocationLink(booking.dropoffLocation)}</p>
-                                        </div>
-                                        <div>
-                                            <p class="font-semibold text-gray-500">Mileage / fuel</p>
-                                            <p class="mt-1">${booking.mileage || '—'} km</p>
-                                            <p class="text-xs text-gray-400">Fuel ${booking.fuelLevel || 'N/A'}</p>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="geist-card p-4 border border-gray-200 rounded-xl">
-                                    <h3 class="font-semibold text-gray-800 mb-4">Documents</h3>
-                                    <div class="flex flex-wrap gap-3">${documentButtons}</div>
-                                </div>
-                                <div class="geist-card p-4 border border-gray-200 rounded-xl">
-                                    <h3 class="font-semibold text-gray-800 mb-4">Driver assignment</h3>
-                                    <div class="grid gap-4 md:grid-cols-2">
-                                        ${driverAssignmentControls}
-                                        <div class="space-y-2">
-                                            <p class="text-xs uppercase tracking-wide text-gray-500">Status</p>
-                                            <span class="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${KANBAN_STATUS_META[booking.status]?.badgeClass || 'bg-gray-100 text-gray-600'}">
-                                                ${KANBAN_STATUS_META[booking.status]?.label || booking.status}
-                                            </span>
-                                            ${assignedDriver ? `<p class="text-xs text-gray-500">Assigned to ${assignedDriver.name}</p>` : ''}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="space-y-6">
-                                <div class="geist-card p-4 border border-gray-200 rounded-xl">
-                                    <h3 class="font-semibold text-gray-800 mb-3">Client</h3>
-                                    <div class="space-y-1 text-sm text-gray-600">
-                                        <p class="font-semibold text-gray-900">${client.name || booking.clientName}</p>
-                                        <p>${client.email || '—'}</p>
-                                        <p>${client.phone || '—'}</p>
-                                        <p class="text-xs text-gray-500">Country ${client.country || '—'}</p>
-                                    </div>
-                                </div>
-                                <div class="geist-card p-4 border border-gray-200 rounded-xl" id="payment-actions">
-                                    <h3 class="font-semibold text-gray-800 mb-3">Payments</h3>
-                                    <div class="space-y-2 text-sm text-gray-600">
-                                        <p>Total ${formatAed(booking.totalAmount)}</p>
-                                        <p>Deposit ${formatAed(booking.deposit)}</p>
-                                        <div class="pt-3 border-t">
-                                            <h4 class="font-medium text-sm text-gray-700 mb-2">Generate payment link</h4>
-                                            <div class="space-y-3">
-                                                <input type="number" value="${Math.max(dueAmount, 0)}" placeholder="Amount" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md stripe-amount-input">
-                                                <select class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md stripe-reason-select">
-                                                    <option>Rental top-up</option>
-                                                    <option>Extension</option>
-                                                    <option>Additional mileage</option>
-                                                </select>
-                                                <button type="button" class="w-full geist-button geist-button-secondary text-sm generate-stripe-link" data-booking-id="${booking.id}">Create Stripe link</button>
-                                                <div id="stripe-link-result" class="hidden space-y-2">
-                                                    <div class="flex items-center justify-between bg-gray-100 rounded-md px-3 py-2 gap-3">
-                                                        <a id="stripe-link-anchor" href="#" target="_blank" rel="noopener" class="text-blue-600 hover:underline break-all flex-1">—</a>
-                                                        <button type="button" class="copy-stripe-link p-2 text-gray-500 hover:text-black rounded-md" title="Copy link">${getIcon('copy', 'w-4 h-4')}</button>
+                        <div class="space-y-6 max-w-5xl mx-auto">
+                            <div class="grid gap-6 lg:grid-cols-3">
+                                <div class="lg:col-span-2 space-y-6">
+                                    <div class="geist-card p-4 border border-gray-200 rounded-xl">
+                                        <h3 class="font-semibold text-gray-800 mb-4">Timeline & logistics</h3>
+                                        <div class="grid gap-4 md:grid-cols-2 text-sm text-gray-600">
+                                            <div>
+                                                <p class="font-semibold text-gray-500">Pickup</p>
+                                                <p class="mt-1 text-gray-900">${formatDateTime(booking.startDate, booking.startTime)}</p>
+                                                ${pickupMeta ? `<p class="text-xs text-gray-500">${escapeHtml(pickupMeta.relative || '')}</p>` : ''}
+                                                <p class="mt-2 flex items-center gap-2">${getIcon('mapPin', 'w-4 h-4 text-gray-400')}${formatLocationLink(booking.pickupLocation)}</p>
+                                                <div class="mt-3 space-y-1 text-xs text-gray-500">
+                                                    <div class="flex items-center justify-between">
+                                                        <span>Mileage</span>
+                                                        <span class="text-gray-900">${pickupMileageValue}</span>
                                                     </div>
-                                                    <p id="stripe-copy-feedback" class="text-xs text-emerald-600 hidden">Link copied</p>
+                                                    <div class="flex items-center justify-between">
+                                                        <span>Fuel</span>
+                                                        <span class="text-gray-900">${pickupFuelValue}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <p class="font-semibold text-gray-500">Return</p>
+                                                <p class="mt-1 text-gray-900">${formatDateTime(booking.endDate, booking.endTime)}</p>
+                                                ${returnMeta ? `<p class="text-xs ${returnMeta.tone}">${escapeHtml(returnMeta.relative || '')}</p>` : ''}
+                                                <p class="mt-2 flex items-center gap-2">${getIcon('mapPin', 'w-4 h-4 text-gray-400')}${formatLocationLink(booking.dropoffLocation)}</p>
+                                                <div class="mt-3 space-y-1 text-xs text-gray-500">
+                                                    <div class="flex items-center justify-between">
+                                                        <span>Mileage</span>
+                                                        <span class="text-gray-900">${returnMileageValue}</span>
+                                                    </div>
+                                                    <div class="flex items-center justify-between">
+                                                        <span>Fuel</span>
+                                                        <span class="text-gray-900">${returnFuelValue}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="mt-5 space-y-3">
+                                            ${operationalTimeline}
+                                        </div>
+                                    </div>
+                                    <div class="geist-card p-4 border border-gray-200 rounded-xl">
+                                        <h3 class="font-semibold text-gray-800 mb-4">Documents</h3>
+                                        <div class="flex flex-wrap gap-3">${documentButtons}</div>
+                                    </div>
+                                </div>
+                                <div class="space-y-6">
+                                    <div class="geist-card p-4 border border-gray-200 rounded-xl">
+                                        <div class="flex items-center justify-between mb-3 gap-3">
+                                            <h3 class="font-semibold text-gray-800">Client</h3>
+                                            ${clientDetailLink}
+                                        </div>
+                                        <div class="space-y-4 text-sm text-gray-600">
+                                            <div class="flex flex-wrap items-start gap-3">
+                                                <div>
+                                                    <p class="text-base font-semibold text-gray-900">${escapeHtml(client.name || booking.clientName)}</p>
+                                                    <p class="text-sm text-gray-500">${escapeHtml(client.email || booking.clientEmail || '—')} · ${escapeHtml(client.phone || booking.clientPhone || '—')}</p>
+                                                    <div class="mt-2 flex flex-wrap items-center gap-2 text-[11px] font-medium">
+                                                        <span class="inline-flex items-center rounded-md bg-slate-100 px-2 py-1 text-slate-600 border border-slate-200">Segment: ${escapeHtml(client.segment || booking.segment || '—')}</span>
+                                                        <span class="inline-flex items-center rounded-md bg-slate-100 px-2 py-1 text-slate-600 border border-slate-200">Channel: ${escapeHtml(booking.channel || '—')}</span>
+                                                        <span class="inline-flex items-center rounded-md bg-slate-100 px-2 py-1 text-slate-600 border border-slate-200">Status: ${escapeHtml(client.status || '—')}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="flex flex-wrap gap-2 text-xs">
+                                                <a class="geist-button geist-button-secondary text-xs" href="tel:${client.phone || booking.clientPhone || ''}">Call</a>
+                                                <a class="geist-button geist-button-secondary text-xs" href="mailto:${client.email || booking.clientEmail || ''}">Email</a>
+                                                ${client.preferences?.notifications?.includes('whatsapp') ? `<a class="geist-button geist-button-secondary text-xs" href="https://wa.me/${(client.phone || '').replace(/[^0-9]/g, '')}" target="_blank" rel="noopener">WhatsApp</a>` : ''}
+                                            </div>
+                                            <div class="grid gap-2 text-xs">
+                                                <div class="space-y-1">
+                                                    <p class="font-medium text-gray-600">Lifetime value</p>
+                                                    <p class="text-sm text-gray-900">${formatAed(client.lifetimeValue || client.turnover || 0)}</p>
+                                                    <p class="text-xs text-gray-500">Outstanding: ${formatAed(client.outstanding || 0)}</p>
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <p class="text-xs font-medium text-gray-500">Responsible manager</p>
+                                                <p class="text-sm text-gray-900">${escapeHtml(responsibleSalesPerson)}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="geist-card p-4 border border-gray-200 rounded-xl">
+                                        <h3 class="font-semibold text-gray-800 mb-3">Payments</h3>
+                                        <div class="space-y-4 text-sm text-gray-600">
+                                            <div class="grid gap-2 sm:grid-cols-3">
+                                                <div class="rounded-lg border border-gray-200 px-3 py-2">
+                                                    <p class="text-xs uppercase tracking-wide text-gray-500">Paid</p>
+                                                    <p class="text-base font-semibold text-gray-900 mt-1">${formatAed(booking.paidAmount)}</p>
+                                                </div>
+                                                <div class="rounded-lg border border-gray-200 px-3 py-2">
+                                                    <p class="text-xs uppercase tracking-wide text-gray-500">Outstanding</p>
+                                                    <p class="text-base font-semibold ${dueAmount > 0 ? 'text-amber-600' : 'text-emerald-600'} mt-1">${formatAed(dueAmount)}</p>
+                                                </div>
+                                                <div class="rounded-lg border border-gray-200 px-3 py-2">
+                                                    <p class="text-xs uppercase tracking-wide text-gray-500">Deposit</p>
+                                                    <p class="text-base font-semibold text-gray-900 mt-1">${formatAed(booking.deposit)}</p>
+                                                    <p class="text-[11px] ${depositClass}">${escapeHtml(depositStatus)}</p>
+                                                </div>
+                                            </div>
+                                            <div class="rounded-lg border border-dashed border-gray-200 bg-gray-50 px-3 py-2">
+                                                <p class="text-xs font-medium text-gray-600">Alerts</p>
+                                                <ul class="mt-2 space-y-1">
+                                                    ${paymentAlerts.join('')}
+                                                </ul>
+                                            </div>
+                                            <div class="pt-3 border-t">
+                                                <h4 class="font-medium text-sm text-gray-700 mb-2">Invoices</h4>
+                                                ${invoicesTable}
+                                            </div>
+                                            <div class="pt-3 border-t">
+                                                <h4 class="font-medium text-sm text-gray-700 mb-2">Generate payment link</h4>
+                                                <div class="space-y-3">
+                                                    <input type="number" value="${Math.max(dueAmount, 0)}" placeholder="Amount" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md stripe-amount-input">
+                                                    <select class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md stripe-reason-select">
+                                                        <option>Rental top-up</option>
+                                                        <option>Extension</option>
+                                                        <option>Additional mileage</option>
+                                                    </select>
+                                                    <button type="button" class="w-full geist-button geist-button-secondary text-sm generate-stripe-link" data-booking-id="${booking.id}">Create Stripe link</button>
+                                                    <div id="stripe-link-result" class="hidden space-y-2">
+                                                        <div class="flex items-center justify-between bg-gray-100 rounded-md px-3 py-2 gap-3">
+                                                            <a id="stripe-link-anchor" href="#" target="_blank" rel="noopener" class="text-blue-600 hover:underline break-all flex-1">—</a>
+                                                            <button type="button" class="copy-stripe-link p-2 text-gray-500 hover:text-black rounded-md" title="Copy link">${getIcon('copy', 'w-4 h-4')}</button>
+                                                        </div>
+                                                        <p id="stripe-copy-feedback" class="text-xs text-emerald-600 hidden">Link copied</p>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
-                                </div>
-                                <div class="geist-card p-4 border border-gray-200 rounded-xl">
-                                    <h3 class="font-semibold text-gray-800 mb-3">Activity</h3>
-                                    <ul class="space-y-3">
-                                        ${bookingHistoryHtml}
-                                    </ul>
+                                    <div class="geist-card p-4 border border-gray-200 rounded-xl">
+                                        <h3 class="font-semibold text-gray-800 mb-4">Tasks</h3>
+                                        ${bookingTasksContent}
+                                    </div>
+                                    <div class="geist-card p-4 border border-gray-200 rounded-xl">
+                                        <h3 class="font-semibold text-gray-800 mb-3">History</h3>
+                                        <ul class="space-y-3">
+                                            ${bookingHistoryHtml}
+                                        </ul>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>`;
+
             } else if (type === 'fleet-table') {
                  const car = MOCK_DATA.cars.find(c => c.id == id);
                  if (!car || !fleetDetailContent) return false;
@@ -614,7 +1043,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return `
                 <div class="space-y-1">
                     <p class="font-semibold text-sm text-gray-900">${client.name}</p>
-                    <p class="text-xs text-gray-500">${client.email} · ${client.phone}</p>
+                    <p class="text-xs text-gray-500">${client.phone || '—'}</p>
                     <span class="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md ${badgeClass}">${client.status}</span>
                 </div>
             `;
@@ -632,7 +1061,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         <span>Outstanding</span>
                         <span class="${outstandingClass}">${formatCurrency(client.outstanding)}</span>
                     </div>
-                    <p class="text-xs text-gray-500">Segment: ${client.segment || '—'}</p>
                 </div>
             `;
         };
@@ -656,6 +1084,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const tableTitleEl = document.getElementById('table-title');
             const tableHeadEl = document.getElementById('table-head');
             const tableBodyEl = document.getElementById('table-body');
+            const tableSearchWrapper = document.getElementById('table-search-wrapper');
+            const tableSearchInput = document.getElementById('table-search');
             let columns = [];
             let rows = [];
 
@@ -668,14 +1098,61 @@ document.addEventListener('DOMContentLoaded', () => {
                     { label: 'Service', render: renderVehicleService },
                     { label: 'Reminders', render: renderVehicleReminders }
                 ];
+                if (tableSearchWrapper) tableSearchWrapper.classList.add('hidden');
             } else if (dataType === 'clients-table') {
                 tableTitleEl.textContent = 'Clients';
                 rows = MOCK_DATA.clients;
+                if (appState.currentRole === 'sales') {
+                    const ownerFilter = appState.filters.sales?.owner || 'all';
+                    if (ownerFilter !== 'all') {
+                        const leadClientIds = (MOCK_DATA.salesPipeline?.leads || [])
+                            .filter(lead => lead.ownerId === ownerFilter)
+                            .map(lead => Number(lead.clientId));
+                        const bookingClientIds = (MOCK_DATA.bookings || [])
+                            .filter(booking => booking.ownerId === ownerFilter)
+                            .map(booking => Number(booking.clientId));
+                        const allowedClientIds = new Set([...leadClientIds, ...bookingClientIds].filter(Boolean));
+                        rows = rows.filter(client => allowedClientIds.has(Number(client.id)));
+                    }
+                }
+                const searchValue = appState.filters.clientsTable?.search?.toLowerCase().trim();
+                if (searchValue) {
+                    rows = rows.filter((client) => {
+                        const haystack = [
+                            client.name,
+                            client.email,
+                            client.phone,
+                            client.company,
+                            client.segment
+                        ].filter(Boolean).join(' ').toLowerCase();
+                        return haystack.includes(searchValue);
+                    });
+                }
                 columns = [
                     { label: 'Client', render: renderClientInfo },
                     { label: 'Finances', render: renderClientFinance },
                     { label: 'Documents', render: renderClientDocuments }
                 ];
+                if (tableSearchWrapper) {
+                    tableSearchWrapper.classList.remove('hidden');
+                    if (tableSearchInput) {
+                        if (tableSearchInput.dataset.bound !== 'true') {
+                            let searchTimeout = null;
+                            tableSearchInput.addEventListener('input', (event) => {
+                                const value = event.target.value;
+                                clearTimeout(searchTimeout);
+                                searchTimeout = setTimeout(() => {
+                                    appState.filters.clientsTable.search = value;
+                                    renderTableView('clients-table');
+                                }, 150);
+                            });
+                            tableSearchInput.dataset.bound = 'true';
+                        }
+                        if (tableSearchInput.value !== appState.filters.clientsTable.search) {
+                            tableSearchInput.value = appState.filters.clientsTable.search || '';
+                        }
+                    }
+                }
             } else {
                 return;
             }
@@ -1081,189 +1558,33 @@ document.addEventListener('DOMContentLoaded', () => {
         };
         
         const renderCalendar = () => {
-            const grid = document.getElementById('calendar-grid');
-            if (!grid) return;
+            renderFleetCalendar();
+        };
 
-            bindCalendarControls();
-
-            const classFilterValue = document.getElementById('fleet-calendar-class-filter')?.value || '';
-            const statusFilterValue = document.getElementById('fleet-calendar-status-filter')?.value || '';
-            const viewMode = appState.filters.calendar.view || 'week';
-            const typeFilterValue = appState.filters.calendar.type || 'all';
-
-            const daysCount = viewMode === 'two-week' ? 14 : 7;
-            const startDate = new Date(appState.calendarStart + 'T00:00:00');
-            const dates = Array.from({ length: daysCount }, (_, index) => new Date(startDate.getTime() + index * 86400000));
-            const endDate = new Date(startDate.getTime() + (daysCount - 1) * 86400000);
-            const firstColWidth = 220;
-            const columnsStyle = `grid-template-columns: ${firstColWidth}px repeat(${daysCount}, minmax(140px, 1fr));`;
-            const todayStr = new Date().toISOString().slice(0, 10);
-
-            const viewSelect = document.getElementById('calendar-view-select');
-            if (viewSelect) viewSelect.value = viewMode;
-            const typeSelect = document.getElementById('calendar-type-filter');
-            if (typeSelect) typeSelect.value = typeFilterValue;
-
-            let cars = MOCK_DATA.cars.slice();
-            if (classFilterValue) cars = cars.filter(car => car.class === classFilterValue);
-            if (statusFilterValue) cars = cars.filter(car => car.status === statusFilterValue);
-
-            const bookingEvents = MOCK_DATA.bookings.map(booking => ({
-                id: `booking-${booking.id}`,
-                calendarEventId: null,
-                bookingId: booking.id,
-                carId: booking.carId,
-                type: 'rental',
-                title: booking.clientName,
-                bookingCode: booking.code,
-                start: `${booking.startDate}T${booking.startTime || '09:00'}`,
-                end: `${booking.endDate}T${booking.endTime || '18:00'}`,
-                priority: booking.priority || 'medium'
-            }));
-
-            const additionalEvents = MOCK_DATA.calendarEvents.map(event => ({
-                id: event.id,
-                calendarEventId: event.id,
-                bookingId: null,
-                carId: event.carId,
-                type: event.type,
-                title: event.title,
-                start: event.start,
-                end: event.end,
-                priority: event.priority || 'low'
-            }));
-
-            const combinedEvents = [...bookingEvents, ...additionalEvents].filter(event => typeFilterValue === 'all' || event.type === typeFilterValue);
-
-            const eventsByCar = combinedEvents.reduce((acc, event) => {
-                acc[event.carId] = acc[event.carId] || [];
-                acc[event.carId].push(event);
-                return acc;
-            }, {});
-
-            Object.values(eventsByCar).forEach(list => list.sort((a, b) => new Date(a.start) - new Date(b.start)));
-
-            const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-            const headerHtml = `
-                <div class="grid bg-gray-50 border border-gray-200 rounded-md text-sm font-semibold text-gray-500" style="${columnsStyle}">
-                    <div class="px-3 py-2 uppercase tracking-wide">Vehicle</div>
-                    ${dates.map(date => {
-                        const dateStr = date.toISOString().slice(0, 10);
-                        const highlight = dateStr === todayStr ? 'bg-white text-indigo-600' : 'text-gray-900';
-                        return `<div class="py-2 px-2 text-center border-l border-gray-200 ${highlight}">${dayNames[date.getDay()]}<span class=\"block text-xs text-gray-500 mt-1\">${date.getDate()}</span></div>`;
-                    }).join('')}
-                </div>
-            `;
-
-            const rowsHtml = cars.length === 0
-                ? `<div class="p-6 text-sm text-gray-500 border border-t-0 border-gray-200 bg-white">No vehicles match the selected filters.</div>`
-                : cars.map(car => {
-                    const events = eventsByCar[car.id] || [];
-                    const eventBlocks = events.map((event, index) => {
-                        const start = new Date(event.start);
-                        const end = new Date(event.end || event.start);
-                        if (end < startDate || start > endDate) return '';
-                        const clampedStart = start < startDate ? startDate : start;
-                        const clampedEnd = end > endDate ? endDate : end;
-                        const dayOffsetStart = Math.max(0, Math.floor((clampedStart - startDate) / 86400000));
-                        const dayOffsetEnd = Math.max(dayOffsetStart, Math.floor((clampedEnd - startDate) / 86400000));
-                        const widthPercent = ((dayOffsetEnd - dayOffsetStart + 1) / daysCount) * 100;
-                        const leftPercent = (dayOffsetStart / daysCount) * 100;
-                        const meta = CALENDAR_EVENT_TYPES[event.type] || { color: 'bg-gray-200 text-gray-700', border: 'border-gray-200', label: event.type };
-                        const startTimeLabel = `${String(start.getHours()).padStart(2, '0')}:${String(start.getMinutes()).padStart(2, '0')}`;
-                        const endTimeLabel = `${String(end.getHours()).padStart(2, '0')}:${String(end.getMinutes()).padStart(2, '0')}`;
-                        const isBooking = Boolean(event.bookingId);
-                        const bookingHeader = isBooking
-                            ? `
-                                <div class="flex justify-between items-center text-[11px] font-semibold">
-                                    <span>${event.bookingCode || `#${event.bookingId}`}</span>
-                                    <span class="text-[10px] opacity-80">${startTimeLabel}–${endTimeLabel}</span>
-                                </div>
-                                <p class="text-[10px] opacity-80 truncate">${event.title}</p>
-                              `
-                            : `
-                                <div class="flex justify-between items-center gap-2">
-                                    <span class="truncate">${event.title}</span>
-                                    <span class="text-[10px] opacity-80">${startTimeLabel}–${endTimeLabel}</span>
-                                </div>
-                              `;
-                        return `
-                            <div class="absolute calendar-event ${meta.color} border ${meta.border} text-xs font-medium px-2 py-1 rounded-md shadow-sm pointer-events-auto"
-                                 data-booking-id="${event.bookingId || ''}"
-                                 data-calendar-event-id="${event.calendarEventId || ''}"
-                                 style="left: calc(${leftPercent}% + 4px); width: calc(${widthPercent}% - 8px); top: ${index * 24 + 4}px;">
-                                ${bookingHeader}
-                            </div>
-                        `;
-                    }).join('');
-
-                    const statusIndicator = car.status === 'In Rent'
-                        ? 'bg-blue-500'
-                        : car.status === 'Maintenance'
-                        ? 'bg-yellow-500'
-                        : 'bg-green-500';
-
-                    const dateCells = dates.map(date => {
-                        const dateStr = date.toISOString().slice(0, 10);
-                        const highlight = dateStr === todayStr ? 'bg-indigo-50' : 'bg-gray-50';
-                        return `<div class="h-14 border-l border-gray-100 ${highlight}"></div>`;
-                    }).join('');
-
-                    return `
-                        <div class="grid border border-t-0 border-gray-200 bg-white relative" style="${columnsStyle}">
-                            <div class="px-3 py-2 flex items-center gap-3 border-r border-gray-200">
-                                <div class="relative">
-                                    <img src="${car.imageUrl}" alt="${car.name}" class="w-10 h-6 object-cover rounded-md">
-                                    <span class="absolute -bottom-1 -right-1 w-3 h-3 rounded-full ${statusIndicator} border border-white"></span>
-                                </div>
-                                <div>
-                                    <p class="font-semibold text-xs text-gray-900">${car.name}</p>
-                                    <p class="text-xs text-gray-500">${car.plate}</p>
-                                </div>
-                            </div>
-                            ${dateCells}
-                            <div class="absolute inset-y-1" style="left:${firstColWidth}px; right:0;">
-                                ${eventBlocks}
-                            </div>
-                        </div>
-                    `;
-                }).join('');
-
-            grid.innerHTML = headerHtml + rowsHtml;
-
-            const rangeLabel = document.getElementById('calendar-range-label');
-            if (rangeLabel) {
-                const formatter = new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'long' });
-                const startLabel = formatter.format(startDate);
-                const endLabel = formatter.format(endDate);
-                rangeLabel.textContent = `${startLabel} — ${endLabel} ${endDate.getFullYear()}`;
-            }
-
-            const legendEl = document.getElementById('calendar-legend');
-            if (legendEl) {
-                legendEl.innerHTML = Object.entries(CALENDAR_EVENT_TYPES).map(([key, meta]) => {
-                    const colorClass = meta.color.split(' ')[0];
-                    return `
-                        <div class="geist-card p-3 flex items-center gap-3">
-                            <span class="w-3 h-3 rounded-full ${colorClass}"></span>
-                            <p class="text-sm font-medium text-gray-900">${meta.label}</p>
-                        </div>
-                    `;
-                }).join('');
+        function renderCurrentPageWithSalesFilter() {
+            if (appState.currentRole !== 'sales') return;
+            switch (appState.currentPage) {
+                case 'bookings':
+                    renderKanbanBoard();
+                    break;
+                case 'fleet-calendar':
+                    renderCalendar();
+                    break;
+                case 'clients-table':
+                    renderTableView('clients-table');
+                    break;
+                case 'analytics':
+                    renderAnalyticsPage();
+                    renderSalesPipeline();
+                    break;
+                case 'sales-pipeline':
+                    renderSalesPipeline();
+                    break;
+                default:
+                    break;
             }
         }
-        
-        const shiftCalendarStart = (deltaDays) => {
-            const numericDelta = Number(deltaDays);
-            const effectiveDelta = Number.isFinite(numericDelta) ? numericDelta : 0;
-            const base = appState.calendarStart
-                ? new Date(`${appState.calendarStart}T00:00:00`)
-                : new Date();
-            base.setDate(base.getDate() + effectiveDelta);
-            appState.calendarStart = base.toISOString().slice(0, 10);
-            renderCalendar();
-        };
-        
+
         const renderReports = () => {
             const topCarsEl = document.getElementById('top-cars-report');
             if(!topCarsEl) return;
@@ -1766,6 +2087,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!isDesktop) {
                 desktopPages.forEach(page => page.classList.add('hidden'));
             }
+
+            updateSalesOwnerFilterVisibility(role);
         };
         
         // --- HASH ROUTING ---
@@ -1917,7 +2240,10 @@ document.addEventListener('DOMContentLoaded', () => {
             // Render content for specific pages
             if(appState.currentPage === 'bookings') renderKanbanBoard();
             if(appState.currentPage === 'dashboard') renderDashboard();
-            if(appState.currentPage === 'analytics') renderAnalyticsPage();
+            if(appState.currentPage === 'analytics') {
+                renderAnalyticsPage();
+                renderSalesPipeline();
+            }
             if(appState.currentPage === 'driver-tasks') renderDriverTasks();
             if(appState.currentPage === 'driver-tasks') startTimers();
             if(appState.currentPage === 'fleet-calendar') renderCalendar();
@@ -1928,7 +2254,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 stopDriverTracking();
             }
         };
-        
+
+        initFleetCalendar(router);
+
         const renderMaintenanceForm = () => {
             if (!maintenanceCreateContent) return false;
             const defaultDate = appState.calendarStart || getStartOfWeek();
@@ -2042,6 +2370,16 @@ document.addEventListener('DOMContentLoaded', () => {
                             <div>
                                 <label class="block text-sm font-medium text-gray-700">End date</label>
                                 <input type="date" value="${templateBooking?.endDate || ''}" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md" name="end">
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4 md:col-span-2">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Start time</label>
+                                <input type="time" value="${templateBooking?.startTime || ''}" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md" name="startTime">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">End time</label>
+                                <input type="time" value="${templateBooking?.endTime || ''}" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md" name="endTime">
                             </div>
                         </div>
                         <div class="grid grid-cols-2 gap-4 md:col-span-2">

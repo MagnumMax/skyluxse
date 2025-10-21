@@ -13,24 +13,20 @@ let kanbanFiltersBound = false;
 
 const bindKanbanFilters = () => {
     if (kanbanFiltersBound) return;
-    const prioritySelect = document.getElementById('kanban-filter-priority');
     const typeSelect = document.getElementById('kanban-filter-type');
     const driverSelect = document.getElementById('kanban-filter-driver');
+    const searchInput = document.getElementById('kanban-search');
     const resetBtn = document.getElementById('kanban-reset-filters');
     const createBtn = document.getElementById('kanban-create-booking');
+    const filters = appState.filters.bookings;
+    if (searchInput) {
+        searchInput.value = filters.search || '';
+    }
 
     if (driverSelect && !driverSelect.dataset.optionsReady) {
         const driverOptions = MOCK_DATA.drivers.map(driver => `<option value="${driver.id}">${driver.name}</option>`).join('');
         driverSelect.insertAdjacentHTML('beforeend', driverOptions);
         driverSelect.dataset.optionsReady = 'true';
-    }
-
-
-    if (prioritySelect) {
-        prioritySelect.addEventListener('change', (event) => {
-            appState.filters.bookings.priority = event.target.value;
-            renderKanbanBoard();
-        });
     }
     if (typeSelect) {
         typeSelect.addEventListener('change', (event) => {
@@ -44,12 +40,23 @@ const bindKanbanFilters = () => {
             renderKanbanBoard();
         });
     }
+    if (searchInput) {
+        let searchTimeout = null;
+        searchInput.addEventListener('input', (event) => {
+            const value = event.target.value.trim();
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                appState.filters.bookings.search = value;
+                renderKanbanBoard();
+            }, 150);
+        });
+    }
     if (resetBtn) {
         resetBtn.addEventListener('click', () => {
-            appState.filters.bookings = { priority: 'all', type: 'all', driver: 'all' };
-            if (prioritySelect) prioritySelect.value = 'all';
+            appState.filters.bookings = { type: 'all', driver: 'all', search: '' };
             if (typeSelect) typeSelect.value = 'all';
             if (driverSelect) driverSelect.value = 'all';
+            if (searchInput) searchInput.value = '';
             renderKanbanBoard();
         });
     }
@@ -130,22 +137,41 @@ export const renderKanbanBoard = () => {
     bindKanbanFilters();
 
     const filters = appState.filters.bookings;
-    const prioritySelect = document.getElementById('kanban-filter-priority');
+    const ownerFilter = appState.currentRole === 'sales'
+        ? (appState.filters.sales?.owner || 'all')
+        : 'all';
     const typeSelect = document.getElementById('kanban-filter-type');
     const driverSelect = document.getElementById('kanban-filter-driver');
+    const searchInput = document.getElementById('kanban-search');
 
-    if (prioritySelect) prioritySelect.value = filters.priority;
     if (typeSelect) typeSelect.value = filters.type;
     if (driverSelect) driverSelect.value = filters.driver;
+    if (searchInput && searchInput.value !== filters.search) {
+        searchInput.value = filters.search || '';
+    }
 
     const driverMap = new Map(MOCK_DATA.drivers.map(driver => [driver.id, driver]));
+    const searchTerm = (filters.search || '').trim().toLowerCase();
 
     const filteredBookings = MOCK_DATA.bookings.filter(booking => {
-        if (filters.priority !== 'all' && booking.priority !== filters.priority) return false;
         if (filters.type !== 'all' && booking.type !== filters.type) return false;
         if (filters.driver !== 'all') {
             if (filters.driver === 'unassigned' && booking.driverId) return false;
             if (filters.driver !== 'unassigned' && String(booking.driverId || '') !== filters.driver) return false;
+        }
+        if (ownerFilter !== 'all') {
+            const bookingOwner = booking.ownerId || 'unassigned';
+            if (bookingOwner !== ownerFilter) return false;
+        }
+        if (searchTerm) {
+            const haystack = [
+                booking.code,
+                booking.clientName,
+                booking.carName,
+                booking.pickupLocation,
+                booking.dropoffLocation
+            ].filter(Boolean).join(' ').toLowerCase();
+            if (!haystack.includes(searchTerm)) return false;
         }
         return true;
     });

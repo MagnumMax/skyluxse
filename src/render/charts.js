@@ -1,66 +1,162 @@
 import { MOCK_DATA } from '../data/index.js';
 import { appState } from '../state/appState.js';
-import { formatCurrency, formatPercent } from './utils.js';
+import { buildHash } from '../state/navigation.js';
+import { formatCurrency } from './utils.js';
 import { getIcon } from '../ui/icons.js';
 
-let analyticsRevenueChart;
-let analyticsSegmentChart;
-let analyticsForecastChart;
+let analyticsManagerChart;
+let analyticsSourcesChart;
 let salesStageChart;
 
 let analyticsFiltersBound = false;
 let salesFiltersBound = false;
 
-const getRevenueSeries = (range) => {
-    const base = MOCK_DATA.analytics.revenueDaily;
-    if (range === '7d') return base;
-    const factor = range === '30d' ? 4 : 12;
-    return base.map((item, index) => ({
-        date: item.date,
-        revenue: Math.round((item.revenue * factor / base.length) * (1 + index * 0.03)),
-        expenses: Math.round((item.expenses * factor / base.length) * (1 + index * 0.025)),
-        bookings: Math.max(1, Math.round(item.bookings * factor / base.length)),
-        cancellations: item.cancellations
-    }));
-};
-
-const getSegmentMix = (segment) => {
-    const mix = MOCK_DATA.analytics.segmentMix;
-    if (!segment || segment === 'all') {
-        return mix;
-    }
-    const selected = mix.find(item => item.segment.toLowerCase() === segment);
-    if (!selected) return mix;
-    return [
-        selected,
-        { segment: 'Other', share: Math.max(0, 1 - selected.share) }
-    ];
-};
-
-const buildAnalyticsInsights = (segment, vehicleClass) => {
-    const insights = [];
-    const kpis = MOCK_DATA.analytics.kpis;
-    insights.push(`Average revenue per car remains at ${formatCurrency(kpis.avgRevenuePerCar)} per day.`);
-    const leadingSegment = MOCK_DATA.analytics.segmentMix.reduce((acc, cur) => (cur.share > acc.share ? cur : acc));
-    if (segment !== 'all') {
-        const selected = MOCK_DATA.analytics.segmentMix.find(item => item.segment.toLowerCase() === segment);
-        if (selected) {
-            insights.push(`The ${selected.segment} segment generates ${formatPercent(selected.share, 0)} of current revenue.`);
-        }
+const parseDateInput = (value, endOfDay = false) => {
+    if (!value) return null;
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return null;
+    if (endOfDay) {
+        date.setHours(23, 59, 59, 999);
     } else {
-        insights.push(`The leading segment is ${leadingSegment.segment} (${formatPercent(leadingSegment.share, 0)}).`);
+        date.setHours(0, 0, 0, 0);
     }
-    const forecast = MOCK_DATA.analytics.forecast[0];
-    insights.push(`Forecast for ${forecast.week}: ${formatCurrency(forecast.expectedRevenue)} and ${forecast.expectedBookings} bookings.`);
-    if (vehicleClass !== 'all') {
-        const carClassMap = new Map(MOCK_DATA.cars.map(car => [car.id, car.class]));
-        const classBookings = MOCK_DATA.bookings.filter(booking => carClassMap.get(booking.carId) === vehicleClass);
-        if (classBookings.length) {
-            const classRevenue = classBookings.reduce((sum, booking) => sum + (booking.totalAmount || 0), 0);
-            insights.push(`${vehicleClass} class: ${classBookings.length} active bookings, revenue ${formatCurrency(classRevenue)}.`);
+    return date;
+};
+
+const getBookingDate = (booking) => {
+    if (!booking) return null;
+    if (booking.startDate) {
+        const composed = `${booking.startDate}${booking.startTime ? `T${booking.startTime}` : 'T00:00'}`;
+        const parsed = new Date(composed);
+        if (!Number.isNaN(parsed.getTime())) return parsed;
+    }
+    return null;
+};
+
+const resolveAnalyticsRange = (range, dateFrom, dateTo) => {
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
+
+    const bookingTimestamps = (MOCK_DATA.bookings || [])
+        .map(getBookingDate)
+        .filter(Boolean)
+        .map(date => date.getTime());
+    const maxBookingTs = bookingTimestamps.length ? Math.max(...bookingTimestamps) : null;
+
+    let end = parseDateInput(dateTo, true);
+    if (!end) {
+        const targetTs = maxBookingTs && maxBookingTs > today.getTime() ? maxBookingTs : today.getTime();
+        end = new Date(targetTs);
+        end.setHours(23, 59, 59, 999);
+    }
+
+    let start = parseDateInput(dateFrom);
+    if (!start) {
+        const clone = new Date(end);
+        const days = range === '90d' ? 90 : range === '30d' ? 30 : 7;
+        clone.setDate(clone.getDate() - (days - 1));
+        clone.setHours(0, 0, 0, 0);
+        start = clone;
+    }
+
+    if (start > end) {
+        return { start: end, end };
+    }
+    return { start, end };
+};
+
+const isDateWithinRange = (date, start, end) => {
+    if (!date) return false;
+    if (start && date < start) return false;
+    if (end && date > end) return false;
+    return true;
+};
+
+const getFilteredBookings = (rangeBounds, segment, vehicleClass) => {
+    const bookings = MOCK_DATA.bookings || [];
+    const carsById = new Map((MOCK_DATA.cars || []).map(car => [car.id, car]));
+    const normalizedSegment = segment?.toLowerCase();
+    const pipeline = MOCK_DATA.salesPipeline || {};
+    const leads = pipeline.leads || [];
+    const ownerFilter = appState.currentRole === 'sales'
+        ? (appState.filters.sales?.owner || 'all')
+        : 'all';
+    return bookings.filter(booking => {
+        const startDate = getBookingDate(booking);
+        if (!isDateWithinRange(startDate, rangeBounds.start, rangeBounds.end)) return false;
+
+        if (normalizedSegment && normalizedSegment !== 'all') {
+            const bookingSegment = (booking.segment || '').toLowerCase();
+            if (bookingSegment !== normalizedSegment) return false;
         }
-    }
-    return insights;
+
+        if (vehicleClass && vehicleClass !== 'all') {
+            const car = carsById.get(booking.carId);
+            if (!car || car.class !== vehicleClass) return false;
+        }
+
+        if (ownerFilter !== 'all') {
+            const bookingOwner = resolveBookingOwnerId(booking, leads) || 'unassigned';
+            if (bookingOwner !== ownerFilter) return false;
+        }
+
+        return true;
+    });
+};
+
+const resolveBookingOwnerId = (booking, leads) => {
+    if (!booking) return null;
+    if (booking.ownerId) return booking.ownerId;
+    if (!Array.isArray(leads) || !leads.length) return null;
+    const clientLeads = leads.filter(lead => Number(lead.clientId) === Number(booking.clientId));
+    if (!clientLeads.length) return null;
+    clientLeads.sort((a, b) => {
+        const first = new Date(a.closedAt || a.expectedCloseDate || a.createdAt || 0).getTime();
+        const second = new Date(b.closedAt || b.expectedCloseDate || b.createdAt || 0).getTime();
+        return second - first;
+    });
+    return clientLeads[0].ownerId || null;
+};
+
+const getManagerRevenueBreakdown = (bookings) => {
+    const pipeline = MOCK_DATA.salesPipeline || {};
+    const owners = pipeline.owners || [];
+    const leads = pipeline.leads || [];
+    const ownerNameById = new Map(owners.map(owner => [owner.id, owner.name]));
+    const totals = new Map();
+
+    bookings.forEach(booking => {
+        const ownerId = resolveBookingOwnerId(booking, leads) || 'unassigned';
+        const current = totals.get(ownerId) || 0;
+        totals.set(ownerId, current + (Number(booking.totalAmount) || 0));
+    });
+
+    return Array.from(totals.entries())
+        .filter(([, value]) => value > 0)
+        .map(([ownerId, value]) => ({
+            ownerId,
+            ownerName: ownerNameById.get(ownerId) || 'Unassigned',
+            revenue: Math.round(value)
+        }))
+        .sort((a, b) => b.revenue - a.revenue);
+};
+
+const getBookingSourcesBreakdown = (bookings) => {
+    if (!bookings.length) return [];
+    const counts = new Map();
+    bookings.forEach(booking => {
+        const rawSource = (booking.channel || 'Other').trim();
+        const key = rawSource ? rawSource : 'Other';
+        counts.set(key, (counts.get(key) || 0) + 1);
+    });
+    const total = Array.from(counts.values()).reduce((sum, value) => sum + value, 0);
+    if (!total) return [];
+    return Array.from(counts.entries())
+        .map(([source, count]) => ({
+            source,
+            share: count / total
+        }))
+        .sort((a, b) => b.share - a.share);
 };
 
 const bindAnalyticsFilters = () => {
@@ -68,6 +164,8 @@ const bindAnalyticsFilters = () => {
     const rangeSelect = document.getElementById('analytics-range');
     const segmentSelect = document.getElementById('analytics-segment');
     const classSelect = document.getElementById('analytics-class');
+    const dateFromInput = document.getElementById('analytics-date-from');
+    const dateToInput = document.getElementById('analytics-date-to');
 
     if (rangeSelect) {
         rangeSelect.addEventListener('change', (event) => {
@@ -87,141 +185,115 @@ const bindAnalyticsFilters = () => {
             renderAnalyticsPage();
         });
     }
+    if (dateFromInput) {
+        dateFromInput.addEventListener('change', (event) => {
+            appState.filters.analytics.dateFrom = event.target.value;
+            renderAnalyticsPage();
+        });
+    }
+    if (dateToInput) {
+        dateToInput.addEventListener('change', (event) => {
+            appState.filters.analytics.dateTo = event.target.value;
+            renderAnalyticsPage();
+        });
+    }
     analyticsFiltersBound = true;
 };
 
 export const renderAnalyticsPage = () => {
-    const revenueCtx = document.getElementById('analytics-revenue-chart')?.getContext('2d');
-    if (!revenueCtx) return;
+    const managerCtx = document.getElementById('analytics-manager-chart')?.getContext('2d');
+    if (!managerCtx) return;
 
     bindAnalyticsFilters();
 
-    const { range, segment, vehicleClass } = appState.filters.analytics;
+    const { range, segment, vehicleClass, dateFrom, dateTo } = appState.filters.analytics;
     const rangeSelect = document.getElementById('analytics-range');
     const segmentSelect = document.getElementById('analytics-segment');
     const classSelect = document.getElementById('analytics-class');
+    const dateFromInput = document.getElementById('analytics-date-from');
+    const dateToInput = document.getElementById('analytics-date-to');
 
     if (rangeSelect) rangeSelect.value = range;
     if (segmentSelect) segmentSelect.value = segment;
     if (classSelect) classSelect.value = vehicleClass;
+    if (dateFromInput) dateFromInput.value = dateFrom;
+    if (dateToInput) dateToInput.value = dateTo;
 
-    const revenueSeries = getRevenueSeries(range);
-    const revenueValues = revenueSeries.map(item => item.revenue);
-    const expenseValues = revenueSeries.map(item => item.expenses);
+    const rangeBounds = resolveAnalyticsRange(range, dateFrom, dateTo);
+    const bookings = getFilteredBookings(rangeBounds, segment, vehicleClass);
+    const managerData = getManagerRevenueBreakdown(bookings);
+    const managerLabels = managerData.map(item => item.ownerName);
+    const managerValues = managerData.map(item => item.revenue);
 
-    if (analyticsRevenueChart) analyticsRevenueChart.destroy();
-    analyticsRevenueChart = new Chart(revenueCtx, {
-        type: 'line',
+    const resolvedLabels = managerLabels.length ? managerLabels : ['No data'];
+    const resolvedValues = managerLabels.length ? managerValues : [0];
+
+    if (analyticsManagerChart) analyticsManagerChart.destroy();
+    analyticsManagerChart = new Chart(managerCtx, {
+        type: 'bar',
         data: {
-            labels: revenueSeries.map(item => item.date),
+            labels: resolvedLabels,
             datasets: [
                 {
-                    label: 'Revenue',
-                    data: revenueValues,
-                    borderColor: '#111827',
-                    backgroundColor: 'rgba(17,24,39,0.12)',
-                    tension: 0.4,
-                    fill: true
-                },
-                {
-                    label: 'Expenses',
-                    data: expenseValues,
-                    borderColor: '#f97316',
-                    backgroundColor: 'rgba(249,115,22,0.1)',
-                    tension: 0.4,
-                    fill: true
+                    label: 'Expected revenue',
+                    data: resolvedValues,
+                    backgroundColor: '#111827',
+                    borderRadius: 6,
+                    maxBarThickness: 48
                 }
             ]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            plugins: { legend: { position: 'bottom' } },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: (context) => formatCurrency(context.parsed.y || 0)
+                    }
+                }
+            },
             scales: {
                 y: {
-                    ticks: { callback: value => `AED ${Math.round(value / 1000)}k` }
+                    beginAtZero: true,
+                    ticks: {
+                        callback: value => formatCurrency(value)
+                    }
                 },
                 x: { grid: { display: false } }
             }
         }
     });
 
-    const segmentCtx = document.getElementById('analytics-segment-chart')?.getContext('2d');
-    if (segmentCtx) {
-        const segmentData = getSegmentMix(segment);
-        if (analyticsSegmentChart) analyticsSegmentChart.destroy();
-        analyticsSegmentChart = new Chart(segmentCtx, {
+    const sourcesCtx = document.getElementById('analytics-sources-chart')?.getContext('2d');
+    if (sourcesCtx) {
+        const sourcesData = getBookingSourcesBreakdown(bookings);
+        const sourceLabels = sourcesData.length ? sourcesData.map(item => item.source) : ['No data'];
+        const sourceValues = sourcesData.length ? sourcesData.map(item => +(item.share * 100).toFixed(1)) : [100];
+        if (analyticsSourcesChart) analyticsSourcesChart.destroy();
+        analyticsSourcesChart = new Chart(sourcesCtx, {
             type: 'doughnut',
             data: {
-                labels: segmentData.map(item => item.segment),
+                labels: sourceLabels,
                 datasets: [{
-                    data: segmentData.map(item => +(item.share * 100).toFixed(1)),
-                    backgroundColor: ['#111827', '#6366f1', '#0ea5e9', '#10b981']
+                    data: sourceValues,
+                    backgroundColor: ['#111827', '#6366f1', '#0ea5e9', '#10b981', '#14b8a6']
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                plugins: { legend: { position: 'bottom' } }
-            }
-        });
-    }
-
-    const forecastCtx = document.getElementById('analytics-forecast-chart')?.getContext('2d');
-    if (forecastCtx) {
-        const forecastData = MOCK_DATA.analytics.forecast;
-        if (analyticsForecastChart) analyticsForecastChart.destroy();
-        analyticsForecastChart = new Chart(forecastCtx, {
-            type: 'bar',
-            data: {
-                labels: forecastData.map(item => item.week),
-                datasets: [
-                    {
-                        type: 'bar',
-                        label: 'Revenue',
-                        data: forecastData.map(item => item.expectedRevenue),
-                        backgroundColor: '#1f2937',
-                        yAxisID: 'y'
-                    },
-                    {
-                        type: 'line',
-                        label: 'Bookings',
-                        data: forecastData.map(item => item.expectedBookings),
-                        borderColor: '#6366f1',
-                        tension: 0.3,
-                        fill: false,
-                        yAxisID: 'y1'
+                plugins: {
+                    legend: { position: 'bottom' },
+                    tooltip: {
+                        callbacks: {
+                            label: (context) => `${context.label}: ${context.parsed}%`
+                        }
                     }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { position: 'bottom' } },
-                scales: {
-                    y: {
-                        position: 'left',
-                        ticks: { callback: value => `AED ${Math.round(value / 1000)}k` }
-                    },
-                    y1: {
-                        position: 'right',
-                        grid: { drawOnChartArea: false }
-                    },
-                    x: { grid: { display: false } }
                 }
             }
         });
-    }
-
-    const insightsEl = document.getElementById('analytics-insights');
-    if (insightsEl) {
-        const insights = buildAnalyticsInsights(segment, vehicleClass);
-        insightsEl.innerHTML = insights.map(item => `
-            <li class="flex items-start gap-2">
-                <span class="mt-1.5 w-2 h-2 rounded-full bg-gray-300 flex-shrink-0"></span>
-                <span>${item}</span>
-            </li>
-        `).join('');
     }
 };
 
@@ -297,6 +369,19 @@ const formatDateShort = (value) => {
     return dateFormatter.format(date);
 };
 
+const calculateAge = (value) => {
+    if (!value) return null;
+    const date = value instanceof Date ? value : new Date(value);
+    if (Number.isNaN(date.getTime())) return null;
+    const today = new Date();
+    let age = today.getFullYear() - date.getFullYear();
+    const monthDiff = today.getMonth() - date.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < date.getDate())) {
+        age -= 1;
+    }
+    return age;
+};
+
 const formatDateTimeValue = (value) => {
     if (!value) return '—';
     const date = value instanceof Date ? value : new Date(value);
@@ -327,74 +412,74 @@ export const renderClientCard = (lead, client, detail) => {
     if (!client) {
         return '<p class="text-sm text-gray-500">No client data available.</p>';
     }
-    const loyaltyClassMap = {
-        VIP: 'bg-purple-100 text-purple-700',
-        Gold: 'bg-amber-100 text-amber-700',
-        Silver: 'bg-slate-100 text-slate-600'
-    };
     const statusLabel = client.status || '—';
-    const loyaltyClass = loyaltyClassMap[statusLabel] || 'bg-gray-100 text-gray-600';
-    const segmentLabel = client.segment || '—';
     const companyLabel = client.company || lead?.company || '—';
-    const rentals = (client.rentals || []).slice(0, 2);
+    const rentalsAll = client.rentals || [];
+    const rentals = rentalsAll.slice(0, 2);
+    const rentalCount = rentalsAll.length;
     const documents = (detail && detail.documents && detail.documents.length)
         ? detail.documents
         : (client.documents || []);
     const financials = detail?.financials || client.financials;
     const payments = (client.payments || []).slice(0, 2);
-    const notifications = (client.preferences?.notifications || []).join(', ') || '—';
-    const language = client.preferences?.language || '—';
+    const ltvValue = formatCurrency(client.lifetimeValue || 0);
+    const residency = detail?.profile?.residencyCountry || client.residencyCountry || '—';
+    const birthDate = detail?.profile?.birthDate || client.birthDate || null;
+    const birthDateLabel = birthDate ? formatDateShort(birthDate) : '—';
+    const ageValue = birthDate ? calculateAge(birthDate) : null;
+    const identitySummary = [
+        `Residency country: ${residency}`,
+        `Birth date: ${birthDateLabel}`,
+        `Age: ${ageValue !== null ? `${ageValue} y.o.` : '—'}`
+    ].join(' · ');
 
     const documentsHtml = documents.length
         ? documents.map(doc => {
-            const statusKey = (doc.status || '').toLowerCase();
-            const badgeClass = DOCUMENT_STATUS_CLASS[statusKey] || 'bg-gray-100 text-gray-600';
-            const statusLabel = DOCUMENT_STATUS_LABEL[statusKey] || doc.status || '—';
-            const metaParts = [
-                doc.source ? `Source: ${doc.source}` : '',
-                doc.expiry ? `Valid until ${formatDateShort(doc.expiry)}` : '',
-                doc.updatedAt ? `Updated ${formatDateTimeValue(doc.updatedAt)}` : ''
-            ].filter(Boolean).join(' · ');
+            const documentNumber = doc.number || doc.id || '—';
+            const expiryLabel = doc.expiry ? formatDateShort(doc.expiry) : '—';
             return `
-                <li class="flex items-start justify-between gap-3">
-                    <div>
-                        <p class="text-sm font-medium text-gray-800">${doc.name}</p>
-                        <p class="text-xs text-gray-500">${metaParts || 'No metadata'}</p>
+                <li class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <p class="text-sm font-semibold text-gray-900">${doc.name}</p>
+                    <div class="mt-2 grid gap-1 text-xs text-gray-600 sm:grid-cols-2">
+                        <span>Document No.: ${documentNumber}</span>
+                        <span>Expiry date: ${expiryLabel}</span>
                     </div>
-                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${badgeClass}">${statusLabel}</span>
                 </li>
             `;
         }).join('')
         : '<li class="text-sm text-gray-500">No documents</li>';
 
     const rentalsHtml = rentals.length
-        ? rentals.map(rental => `
-            <li class="flex items-center justify-between gap-3">
-                <div>
-                    <p class="text-sm font-medium text-gray-900">${rental.carName}</p>
-                    <p class="text-xs text-gray-500">${formatDateShort(rental.startDate)} — ${formatDateShort(rental.endDate)} · ${rental.status}</p>
-                </div>
-                <span class="text-xs text-gray-500">${formatCurrency(rental.totalAmount || 0)}</span>
-            </li>
-        `).join('')
+        ? rentals.map(rental => {
+            const bookingHash = buildHash(appState.currentRole, 'booking-detail', rental.bookingId);
+            return `
+                <li>
+                    <a href="${bookingHash}" class="flex items-center justify-between gap-3 rounded-lg border border-transparent px-3 py-2 transition hover:border-slate-200 hover:bg-slate-50">
+                        <div>
+                            <p class="text-sm font-medium text-gray-900">${rental.carName}</p>
+                            <p class="text-xs text-gray-500">${formatDateShort(rental.startDate)} — ${formatDateShort(rental.endDate)} · ${rental.status}</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs font-medium text-gray-600">${formatCurrency(rental.totalAmount || 0)}</span>
+                            ${getIcon('chevronRight', 'w-4 h-4 text-gray-400')}
+                        </div>
+                    </a>
+                </li>
+            `;
+        }).join('')
         : '<li class="text-sm text-gray-500">Rental history unavailable</li>';
-
-    const upcomingHtml = (financials?.upcoming || []).length
-        ? financials.upcoming.map(item => `
-            <li class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
-                <span>${item.label}</span>
-                <span class="font-medium text-gray-900">${formatCurrency(item.amount || 0)}</span>
-                <span class="text-xs text-gray-400">due ${formatDateShort(item.dueDate)}</span>
-            </li>
-        `).join('')
-        : '<li class="text-xs text-gray-500">No expected payments</li>';
 
     const paymentsHtml = payments.length
         ? payments.map(payment => `
-            <li class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
-                <span>${payment.type}</span>
-                <span>${formatCurrency(payment.amount || 0)}</span>
-                <span class="text-xs text-gray-400">${payment.status || ''}</span>
+            <li class="flex flex-col gap-0.5">
+                <div class="flex items-center justify-between text-sm text-gray-700">
+                    <span class="font-medium text-gray-800">${payment.type}</span>
+                    <span>${formatCurrency(payment.amount || 0)}</span>
+                </div>
+                <div class="flex items-center justify-between text-xs text-gray-400">
+                    <span>${payment.status || '—'}</span>
+                    <span>${payment.date ? formatDateShort(payment.date) : ''}</span>
+                </div>
             </li>
         `).join('')
         : '<li class="text-xs text-gray-500">No transactions</li>';
@@ -403,44 +488,67 @@ export const renderClientCard = (lead, client, detail) => {
     const lastSync = financials?.lastSync ? formatDateTimeValue(financials.lastSync) : '—';
 
     return `
-        <div class="space-y-5">
-            <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-                <div>
-                    <p class="text-xs uppercase text-gray-500">Client</p>
-                    <h4 class="text-lg font-semibold text-gray-900">${client.name}</h4>
-                    <p class="text-sm text-gray-500">${segmentLabel} · ${companyLabel}</p>
+        <div class="space-y-6">
+            <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div class="space-y-2">
+                    ${companyLabel && companyLabel !== '—'
+                        ? `<p class="text-sm text-gray-500">${companyLabel}</p>`
+                        : ''}
+                    <div class="flex flex-wrap items-center gap-2">
+                        <span class="inline-flex items-center rounded-full bg-purple-50 px-3 py-1 text-xs font-semibold text-purple-700">
+                            ${statusLabel}
+                        </span>
+                        <span class="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
+                            LTV ${ltvValue}
+                        </span>
+                    </div>
                 </div>
-                <div class="flex flex-col items-start sm:items-end gap-2">
-                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${loyaltyClass}">${statusLabel}</span>
-                    <p class="text-xs text-gray-400">LTV ${formatCurrency(client.lifetimeValue || 0)}</p>
-                </div>
+                <button type="button" class="geist-button geist-button-secondary inline-flex items-center gap-2 text-sm shadow-sm hover:shadow-md transition">
+                    ${getIcon('edit', 'w-4 h-4')}
+                    <span>Редактировать</span>
+                </button>
             </div>
-            <div class="grid gap-4 md:grid-cols-2">
-                <div class="space-y-3">
-                    <div class="text-sm text-gray-700 space-y-1">
-                        <p class="flex items-center gap-2">${getIcon('phone', 'w-4 h-4')}<span>${client.phone || '—'}</span></p>
-                        <p class="flex items-center gap-2">${getIcon('mail', 'w-4 h-4')}<span>${client.email || '—'}</span></p>
-                        <p class="text-xs text-gray-500">Notifications: ${notifications} · Language: ${language}</p>
+            <div class="grid gap-4 lg:grid-cols-[1.1fr,1fr]">
+                <div class="space-y-4">
+                    <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                        <p class="text-xs uppercase tracking-wide text-gray-500">Contact</p>
+                        <div class="mt-4 space-y-3 text-sm text-gray-700">
+                            <p class="flex items-center gap-2">${getIcon('phone', 'w-4 h-4 text-gray-400')}<span>${client.phone || '—'}</span></p>
+                            <p class="flex items-center gap-2">${getIcon('mail', 'w-4 h-4 text-gray-400')}<span>${client.email || '—'}</span></p>
+                        </div>
                     </div>
-                    <div>
-                        <h5 class="text-xs uppercase text-gray-500 tracking-wide mb-2">Rental history</h5>
-                        <ul class="space-y-2">${rentalsHtml}</ul>
+                    <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                        <div class="flex items-center justify-between">
+                            <h5 class="text-xs uppercase text-gray-500 tracking-wide">Rental history</h5>
+                            <span class="text-xs text-gray-400">${rentalCount} records</span>
+                        </div>
+                        <ul class="mt-3 space-y-2">${rentalsHtml}</ul>
                     </div>
                 </div>
-                <div class="space-y-3">
-                    <div>
-                        <h5 class="text-xs uppercase text-gray-500 tracking-wide mb-2">Documents and validation</h5>
-                        <ul class="space-y-2">${documentsHtml}</ul>
+                <div class="space-y-4">
+                    <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                        <div class="flex items-center justify-between">
+                            <h5 class="text-xs uppercase text-gray-500 tracking-wide">Documents and validation</h5>
+                        </div>
+                        <p class="mt-2 text-xs text-gray-500">${identitySummary}</p>
+                        <ul class="mt-3 space-y-3">${documentsHtml}</ul>
                     </div>
-                    <div class="p-3 rounded-lg bg-slate-50 border border-slate-100">
-                        <p class="text-xs uppercase text-gray-500 tracking-wide">Finances (Zoho)</p>
-                        <p class="text-sm text-gray-700 mt-1">Outstanding balance: <span class="font-semibold text-gray-900">${outstandingValue}</span></p>
-                        <ul class="mt-2 space-y-1 text-xs text-gray-600">${upcomingHtml}</ul>
-                        <p class="text-xs text-gray-400 mt-2">Synced: ${lastSync}</p>
-                    </div>
-                    <div>
-                        <h5 class="text-xs uppercase text-gray-500 tracking-wide mb-2">Recent payments</h5>
-                        <ul class="space-y-1 text-xs text-gray-600">${paymentsHtml}</ul>
+                    <div class="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                        <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                            <div>
+                                <p class="text-xs uppercase text-gray-500 tracking-wide">Finances (Zoho)</p>
+                                <p class="mt-2 text-sm text-gray-700">Outstanding balance: <span class="font-semibold text-gray-900">${outstandingValue}</span></p>
+                                <p class="text-xs text-gray-400 mt-1">Synced: ${lastSync}</p>
+                            </div>
+                            <button type="button" class="inline-flex items-center gap-2 rounded-md border border-slate-200 px-3 py-1.5 text-xs font-medium text-gray-700 transition hover:bg-slate-50">
+                                ${getIcon('fileText', 'w-4 h-4 text-gray-500')}
+                                <span>Скачать SOA</span>
+                            </button>
+                        </div>
+                        <div>
+                            <p class="text-xs uppercase text-gray-500 tracking-wide mb-2">Recent payments</p>
+                            <ul class="space-y-2 text-xs text-gray-600">${paymentsHtml}</ul>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -765,10 +873,12 @@ const bindSalesPipelineFilters = () => {
         sourceSelect.dataset.bound = 'true';
     }
 
-    ownerSelect?.addEventListener('change', (event) => {
-        appState.filters.sales.owner = event.target.value;
-        renderSalesPipeline();
-    });
+    if (ownerSelect && ownerSelect.dataset.globalHandler !== 'true') {
+        ownerSelect.addEventListener('change', (event) => {
+            appState.filters.sales.owner = event.target.value;
+            renderSalesPipeline();
+        });
+    }
 
     sourceSelect?.addEventListener('change', (event) => {
         appState.filters.sales.source = event.target.value;
@@ -788,6 +898,13 @@ export const renderSalesPipeline = () => {
     const stages = pipeline.stages || [];
     const stageMap = new Map(stages.map(stage => [stage.id, stage]));
     const leads = getFilteredLeads();
+
+    const clientsById = new Map((MOCK_DATA.clients || []).map(client => [client.id, client]));
+    const uniqueClientIds = Array.from(new Set(leads.map(lead => lead.clientId).filter(Boolean)));
+    const outstandingTotal = uniqueClientIds.reduce((sum, clientId) => {
+        const client = clientsById.get(clientId);
+        return sum + (client?.outstanding || 0);
+    }, 0);
 
     const totalValue = leads.reduce((sum, lead) => sum + (lead.value || 0), 0);
     const weightedValue = leads.reduce((sum, lead) => sum + (lead.value || 0) * (lead.probability || 0), 0);
@@ -811,6 +928,12 @@ export const renderSalesPipeline = () => {
             value: formatCurrency(weightedValue),
             helper: 'Based on close probability',
             icon: 'target'
+        },
+        {
+            label: 'Outstanding',
+            value: formatCurrency(outstandingTotal),
+            helper: 'Client debt for selected portfolio',
+            icon: 'creditCard'
         },
         {
             label: 'Win rate',
