@@ -30,8 +30,16 @@ import { showToast } from './ui/toast.js';
 import { getIcon } from './ui/icons.js';
 
 document.addEventListener('DOMContentLoaded', () => {
+        console.log('🚀 SkyLuxse приложение загружается...');
+        console.log('📍 Текущий URL:', window.location.href);
+        console.log('🔍 Поиск service worker...');
+
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('sw.js').catch(err => console.error('SW registration failed', err));
+            navigator.serviceWorker.register('sw.js')
+                .then(() => console.log('✅ Service Worker зарегистрирован'))
+                .catch(err => console.error('❌ Ошибка регистрации SW:', err));
+        } else {
+            console.log('⚠️ Service Worker не поддерживается');
         }
 
         // --- DOM Elements ---
@@ -89,8 +97,31 @@ document.addEventListener('DOMContentLoaded', () => {
                     window.history.back();
                 }
             });
+    
+            // --- ГЛОБАЛЬНАЯ ОБРАБОТКА ОШИБОК РЕСУРСОВ ---
+            window.addEventListener('error', (event) => {
+                console.error('🚨 Глобальная ошибка:', {
+                    message: event.message,
+                    filename: event.filename,
+                    lineno: event.lineno,
+                    colno: event.colno,
+                    error: event.error
+                });
+    
+                // Специальная обработка ошибок ресурсов
+                if (event.filename && event.filename.includes('cdn')) {
+                    console.error('🌐 Ошибка загрузки внешнего ресурса:', event.filename);
+                }
+            });
+    
+            // Обработка ошибок промисов
+            window.addEventListener('unhandledrejection', (event) => {
+                console.error('💥 Необработанная ошибка промиса:', event.reason);
+            });
+    
+            console.log('✅ Диагностические логи добавлены');
+    
         });
-
         if (otpInput) {
             otpInput.setAttribute('disabled', 'disabled');
         }
@@ -2381,11 +2412,22 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // --- HASH ROUTING ---
         const router = () => {
-            if (appState.timerInterval) clearInterval(appState.timerInterval);
+            console.log('🧭 Запуск роутера...');
+            console.log('🔗 Текущий хэш:', window.location.hash);
+
+            if (appState.timerInterval) {
+                clearInterval(appState.timerInterval);
+                console.log('🕐 Таймеры очищены');
+            }
+
             const parsedHash = parseHash(window.location.hash);
             let { role, page, selector } = parsedHash;
+            console.log('📋 Парсинг хэша:', { role, page, selector });
+
             const roleConfig = ROLES_CONFIG[role];
             const layout = roleConfig?.layout || 'desktop';
+            console.log('🏗️ Конфигурация роли:', { layout, roleConfig: !!roleConfig });
+
             let normalizedSelector = selector;
             let needsUpdate = !parsedHash.isCanonical;
 
@@ -2486,21 +2528,29 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
 
+            console.log('🎯 Целевая страница:', pageId);
+
             const targetPage = document.getElementById(pageId);
             if (targetPage) {
                 targetPage.classList.remove('hidden');
+                console.log('✅ Страница найдена и показана:', pageId);
             } else {
+                console.log('❌ Страница не найдена:', pageId);
                 // Fallback to default page for the role
                 const defaultPage = roleConfig?.defaultPage || 'dashboard';
                 const defaultPageEl = document.getElementById(`page-${defaultPage}`);
                 if (defaultPageEl) {
                     defaultPageEl.classList.remove('hidden');
                     appState.currentPage = defaultPage;
+                    console.log('🔄 Переход на страницу по умолчанию:', defaultPage);
+                } else {
+                    console.error('❌ Страница по умолчанию не найдена:', defaultPage);
                 }
                 // Update URL to correct hash
                 const newHash = buildHash(appState.currentRole, appState.currentPage);
                 if (window.location.hash !== newHash) {
                     window.location.hash = newHash;
+                    console.log('🔗 Хэш обновлен:', newHash);
                 }
             }
 
@@ -2526,20 +2576,53 @@ document.addEventListener('DOMContentLoaded', () => {
             updateActiveLink();
 
             // Render content for specific pages
-            if(appState.currentPage === 'bookings') renderKanbanBoard();
-            if(appState.currentPage === 'dashboard') renderDashboard();
-            if(appState.currentPage === 'analytics') {
-                renderAnalyticsPage();
-                renderSalesPipeline();
-            }
-            if(appState.currentPage === 'driver-tasks') renderDriverTasks();
-            if(appState.currentPage === 'driver-tasks') startTimers();
-            if(appState.currentPage === 'fleet-calendar') renderCalendar();
-            if(appState.currentPage === 'reports') renderReports();
-            if(appState.currentPage === 'tasks') renderTasksPage();
-            if(appState.currentPage === 'sales-pipeline') renderSalesPipeline();
-            if(appState.currentPage !== 'driver-tasks' && appState.driverContext?.tracking?.enabled) {
-                stopDriverTracking();
+            console.log('🎨 Рендеринг контента для страницы:', appState.currentPage);
+
+            try {
+                if(appState.currentPage === 'bookings') {
+                    console.log('📋 Рендеринг Kanban доски...');
+                    renderKanbanBoard();
+                }
+                if(appState.currentPage === 'dashboard') {
+                    console.log('📊 Рендеринг dashboard...');
+                    renderDashboard();
+                }
+                if(appState.currentPage === 'analytics') {
+                    console.log('📈 Рендеринг analytics...');
+                    renderAnalyticsPage();
+                    renderSalesPipeline();
+                }
+                if(appState.currentPage === 'driver-tasks') {
+                    console.log('🚗 Рендеринг задач водителя...');
+                    renderDriverTasks();
+                    startTimers();
+                }
+                if(appState.currentPage === 'fleet-calendar') {
+                    console.log('📅 Рендеринг календаря автопарка...');
+                    renderCalendar();
+                }
+                if(appState.currentPage === 'reports') {
+                    console.log('📋 Рендеринг отчетов...');
+                    renderReports();
+                }
+                if(appState.currentPage === 'tasks') {
+                    console.log('✅ Рендеринг задач...');
+                    renderTasksPage();
+                }
+                if(appState.currentPage === 'sales-pipeline') {
+                    console.log('💼 Рендеринг sales pipeline...');
+                    renderSalesPipeline();
+                }
+
+                if(appState.currentPage !== 'driver-tasks' && appState.driverContext?.tracking?.enabled) {
+                    console.log('🚫 Остановка трекинга водителя...');
+                    stopDriverTracking();
+                }
+
+                console.log('✅ Роутер завершен успешно');
+
+            } catch (error) {
+                console.error('❌ Ошибка при рендеринге страницы:', appState.currentPage, error);
             }
         };
 
@@ -2775,11 +2858,14 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         // --- EVENT LISTENERS ---
+        console.log('🔗 Настройка обработчиков событий...');
+
         if (loginRoleSelect) {
             loginRoleSelect.addEventListener('change', (e) => {
                 const preset = ROLE_EMAIL_PRESETS[e.target.value];
                 if (preset && loginEmailInput) {
                     loginEmailInput.value = preset;
+                    console.log('📧 Email предустановлен:', preset);
                 }
             });
         }
@@ -3110,21 +3196,42 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // --- APP INITIALIZATION ---
         const initApp = () => {
-            document.querySelector('#burger-menu').innerHTML = getIcon('menu');
-            const backBtn = document.querySelector('.back-to-tasks');
-            if (backBtn && !backBtn.innerHTML.includes('svg')) {
-                 backBtn.insertAdjacentHTML('afterbegin', getIcon('chevronLeft'));
-            }
-            updateLayoutForRole(appState.currentRole);
-            renderSidebar();
+            console.log('🔧 Инициализация приложения...');
+            console.log('👤 Текущая роль пользователя:', appState.currentRole);
 
-            // Handle initial URL - redirect root to default role/page
-            if (window.location.hash === '' || window.location.hash === '#') {
-                const defaultPage = ROLES_CONFIG[appState.currentRole]?.defaultPage || 'dashboard';
-                const targetHash = buildHash(appState.currentRole, defaultPage);
-                window.location.hash = targetHash;
+            try {
+                const burgerMenu = document.querySelector('#burger-menu');
+                if (burgerMenu) {
+                    burgerMenu.innerHTML = getIcon('menu');
+                    console.log('✅ Меню бургер инициализировано');
+                }
+
+                const backBtn = document.querySelector('.back-to-tasks');
+                if (backBtn && !backBtn.innerHTML.includes('svg')) {
+                     backBtn.insertAdjacentHTML('afterbegin', getIcon('chevronLeft'));
+                     console.log('✅ Кнопка назад инициализирована');
+                }
+
+                updateLayoutForRole(appState.currentRole);
+                console.log('✅ Layout обновлен для роли:', appState.currentRole);
+
+                renderSidebar();
+                console.log('✅ Sidebar отрендерен');
+
+                // Handle initial URL - redirect root to default role/page
+                if (window.location.hash === '' || window.location.hash === '#') {
+                    const defaultPage = ROLES_CONFIG[appState.currentRole]?.defaultPage || 'dashboard';
+                    const targetHash = buildHash(appState.currentRole, defaultPage);
+                    console.log('🔀 Перенаправление на страницу по умолчанию:', defaultPage);
+                    window.location.hash = targetHash;
+                }
+
+                router();
+                console.log('✅ Роутер запущен');
+
+            } catch (error) {
+                console.error('❌ Ошибка при инициализации приложения:', error);
             }
-            router();
         };
         
     });
