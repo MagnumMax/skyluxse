@@ -8,13 +8,13 @@
   ],
   "rewrites": [
     {
-      "source": "/((?!api|_next|favicon.ico).*)",
+      "source": "/(.*)",
       "destination": "/index.html"
     }
   ],
   "headers": [
     {
-      "source": "/((?!sw.js|manifest.json).*)",
+      "source": "/(.*)",
       "headers": [
         {
           "key": "X-Frame-Options",
@@ -61,7 +61,7 @@
       ]
     },
     {
-      "source": "/*.(js|css|png|jpg|jpeg|gif|ico|svg)",
+      "source": "/**/*.(js|css|png|jpg|jpeg|gif|ico|svg)",
       "headers": [
         {
           "key": "Cache-Control",
