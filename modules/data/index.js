@@ -9,7 +9,7 @@ export const MOCK_DATA = {
       mileage: 15000,
       class: 'Luxury',
       segment: 'Sedan',
-      imageUrl: 'public/images/rolls-royce-ghost.jpg',
+      imageUrl: '/images/rolls-royce-ghost.jpg',
       color: 'Black',
       year: 2023,
       insuranceExpiry: '2025-10-05',
@@ -24,13 +24,13 @@ export const MOCK_DATA = {
         mileageToService: 850
       },
       documents: [
-        { id: 'DOC-GHOST-INS', type: 'insurance', name: 'Insurance policy', expiry: '2025-10-05', status: 'active', url: 'public/images/docs/doc-insurance.jpg', reminderDays: 30, lastCheck: '2024-09-12' },
-        { id: 'DOC-GHOST-MUL', type: 'mulkiya', name: 'Mulkiya', expiry: '2025-11-20', status: 'active', url: 'public/images/docs/doc-mulkiya.jpg', reminderDays: 45, lastCheck: '2024-09-10' }
+        { id: 'DOC-GHOST-INS', type: 'insurance', name: 'Insurance policy', expiry: '2025-10-05', status: 'active', url: '/images/docs/doc-insurance.jpg', reminderDays: 30, lastCheck: '2024-09-12' },
+        { id: 'DOC-GHOST-MUL', type: 'mulkiya', name: 'Mulkiya', expiry: '2025-11-20', status: 'active', url: '/images/docs/doc-mulkiya.jpg', reminderDays: 45, lastCheck: '2024-09-10' }
       ],
-      documentGallery: ['public/images/docs/doc-insurance.jpg', 'public/images/docs/doc-mulkiya.jpg'],
+      documentGallery: ['/images/docs/doc-insurance.jpg', '/images/docs/doc-mulkiya.jpg'],
       inspections: [
-        { date: '2024-09-10', driver: 'Ivanov I.', notes: 'Wipe the cabin and check parking sensors', photos: ['public/images/inspections/inspection-damage-1.jpg', 'public/images/inspections/inspection-clean.jpg'] },
-        { date: '2024-08-18', driver: 'Petrov P.', notes: 'No remarks', photos: ['public/images/inspections/inspection-clean.jpg'] }
+        { date: '2024-09-10', driver: 'Ivanov I.', notes: 'Wipe the cabin and check parking sensors', photos: ['/images/inspections/inspection-damage-1.jpg', '/images/inspections/inspection-clean.jpg'] },
+        { date: '2024-08-18', driver: 'Petrov P.', notes: 'No remarks', photos: ['/images/inspections/inspection-clean.jpg'] }
       ],
       maintenanceHistory: [
         { id: 'MT-120', date: '2024-08-12', type: 'Maintenance', odometer: 14200, notes: 'Service, oil change' }
@@ -47,7 +47,7 @@ export const MOCK_DATA = {
       mileage: 25000,
       class: 'SUV',
       segment: 'SUV',
-      imageUrl: 'public/images/mercedes-g-class.jpg',
+      imageUrl: '/images/mercedes-g-class.jpg',
       color: 'White',
       year: 2022,
       insuranceExpiry: '2025-08-15',
@@ -62,12 +62,12 @@ export const MOCK_DATA = {
         mileageToService: 450
       },
       documents: [
-        { id: 'DOC-GWAGEN-INS', type: 'insurance', name: 'Insurance policy', expiry: '2025-08-15', status: 'active', url: 'public/images/docs/doc-insurance.jpg', reminderDays: 30, lastCheck: '2024-09-01' },
-        { id: 'DOC-GWAGEN-MUL', type: 'mulkiya', name: 'Mulkiya', expiry: '2025-09-10', status: 'active', url: 'public/images/docs/doc-mulkiya.jpg', reminderDays: 30, lastCheck: '2024-09-01' }
+        { id: 'DOC-GWAGEN-INS', type: 'insurance', name: 'Insurance policy', expiry: '2025-08-15', status: 'active', url: '/images/docs/doc-insurance.jpg', reminderDays: 30, lastCheck: '2024-09-01' },
+        { id: 'DOC-GWAGEN-MUL', type: 'mulkiya', name: 'Mulkiya', expiry: '2025-09-10', status: 'active', url: '/images/docs/doc-mulkiya.jpg', reminderDays: 30, lastCheck: '2024-09-01' }
       ],
-      documentGallery: ['public/images/docs/doc-insurance.jpg', 'public/images/docs/doc-mulkiya.jpg'],
+      documentGallery: ['/images/docs/doc-insurance.jpg', '/images/docs/doc-mulkiya.jpg'],
       inspections: [
-        { date: '2024-09-14', driver: 'Sidorov S.', notes: 'Polish the rear fender', photos: ['public/images/inspections/inspection-damage-2.jpg'] }
+        { date: '2024-09-14', driver: 'Sidorov S.', notes: 'Polish the rear fender', photos: ['/images/inspections/inspection-damage-2.jpg'] }
       ],
       maintenanceHistory: [
         { id: 'MT-212', date: '2024-07-30', type: 'Maintenance', odometer: 23200, notes: 'Scheduled maintenance' }
@@ -84,7 +84,7 @@ export const MOCK_DATA = {
       mileage: 8000,
       class: 'Sport',
       segment: 'Coupe',
-      imageUrl: 'public/images/lamborghini-huracan.jpg',
+      imageUrl: '/images/lamborghini-huracan.jpg',
       color: 'Green',
       year: 2023,
       insuranceExpiry: '2026-01-20',
@@ -99,11 +99,11 @@ export const MOCK_DATA = {
         mileageToService: 350
       },
       documents: [
-        { id: 'DOC-HURACAN-INS', type: 'insurance', name: 'Insurance policy', expiry: '2026-01-20', status: 'active', url: 'public/images/docs/doc-insurance.jpg', reminderDays: 60, lastCheck: '2024-08-29' }
+        { id: 'DOC-HURACAN-INS', type: 'insurance', name: 'Insurance policy', expiry: '2026-01-20', status: 'active', url: '/images/docs/doc-insurance.jpg', reminderDays: 60, lastCheck: '2024-08-29' }
       ],
-      documentGallery: ['public/images/docs/doc-insurance.jpg'],
+      documentGallery: ['/images/docs/doc-insurance.jpg'],
       inspections: [
-        { date: '2024-09-12', driver: 'Petrov P.', notes: 'Check oil level', photos: ['public/images/inspections/inspection-clean.jpg'] }
+        { date: '2024-09-12', driver: 'Petrov P.', notes: 'Check oil level', photos: ['/images/inspections/inspection-clean.jpg'] }
       ],
       maintenanceHistory: [
         { id: 'MT-305', date: '2024-07-02', type: 'Maintenance', odometer: 7200, notes: 'Comprehensive diagnostics' }
@@ -120,7 +120,7 @@ export const MOCK_DATA = {
       mileage: 32000,
       class: 'Luxury',
       segment: 'Coupe',
-      imageUrl: 'public/images/bentley-continental.jpg',
+      imageUrl: '/images/bentley-continental.jpg',
       color: 'Silver',
       year: 2021,
       insuranceExpiry: '2025-07-30',
@@ -135,12 +135,12 @@ export const MOCK_DATA = {
         mileageToService: 1800
       },
       documents: [
-        { id: 'DOC-BENTLEY-INS', type: 'insurance', name: 'Insurance policy', expiry: '2025-07-30', status: 'active', url: 'public/images/docs/doc-insurance.jpg', reminderDays: 45, lastCheck: '2024-08-30' },
-        { id: 'DOC-BENTLEY-MUL', type: 'mulkiya', name: 'Mulkiya', expiry: '2025-08-25', status: 'active', url: 'public/images/docs/doc-mulkiya.jpg', reminderDays: 60, lastCheck: '2024-08-28' }
+        { id: 'DOC-BENTLEY-INS', type: 'insurance', name: 'Insurance policy', expiry: '2025-07-30', status: 'active', url: '/images/docs/doc-insurance.jpg', reminderDays: 45, lastCheck: '2024-08-30' },
+        { id: 'DOC-BENTLEY-MUL', type: 'mulkiya', name: 'Mulkiya', expiry: '2025-08-25', status: 'active', url: '/images/docs/doc-mulkiya.jpg', reminderDays: 60, lastCheck: '2024-08-28' }
       ],
-      documentGallery: ['public/images/docs/doc-insurance.jpg', 'public/images/docs/doc-mulkiya.jpg'],
+      documentGallery: ['/images/docs/doc-insurance.jpg', '/images/docs/doc-mulkiya.jpg'],
       inspections: [
-        { date: '2024-09-05', driver: 'Ivanov I.', notes: 'Inspect suspension', photos: ['public/images/inspections/inspection-damage-2.jpg'] }
+        { date: '2024-09-05', driver: 'Ivanov I.', notes: 'Inspect suspension', photos: ['/images/inspections/inspection-damage-2.jpg'] }
       ],
       maintenanceHistory: [
         { id: 'MT-401', date: '2024-08-25', type: 'Repair', odometer: 31800, notes: 'Brake pad replacement' }
@@ -157,7 +157,7 @@ export const MOCK_DATA = {
       mileage: 12000,
       class: 'Sport',
       segment: 'Convertible',
-      imageUrl: 'public/images/ferrari-488-spider.jpg',
+      imageUrl: '/images/ferrari-488-spider.jpg',
       color: 'Red',
       year: 2022,
       insuranceExpiry: '2025-12-01',
@@ -172,11 +172,11 @@ export const MOCK_DATA = {
         mileageToService: 1600
       },
       documents: [
-        { id: 'DOC-FERRARI-INS', type: 'insurance', name: 'Insurance policy', expiry: '2025-12-01', status: 'active', url: 'public/images/docs/doc-insurance.jpg', reminderDays: 60, lastCheck: '2024-09-01' }
+        { id: 'DOC-FERRARI-INS', type: 'insurance', name: 'Insurance policy', expiry: '2025-12-01', status: 'active', url: '/images/docs/doc-insurance.jpg', reminderDays: 60, lastCheck: '2024-09-01' }
       ],
-      documentGallery: ['public/images/docs/doc-insurance.jpg'],
+      documentGallery: ['/images/docs/doc-insurance.jpg'],
       inspections: [
-        { date: '2024-09-11', driver: 'Sidorov S.', notes: 'Assess bumper chips', photos: ['public/images/inspections/inspection-damage-1.jpg'] }
+        { date: '2024-09-11', driver: 'Sidorov S.', notes: 'Assess bumper chips', photos: ['/images/inspections/inspection-damage-1.jpg'] }
       ],
       maintenanceHistory: [
         { id: 'MT-515', date: '2024-08-05', type: 'Maintenance', odometer: 11500, notes: 'Routine maintenance' }

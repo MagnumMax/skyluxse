@@ -945,14 +945,8 @@ document.addEventListener('DOMContentLoaded', () => {
         ? `${Number(car.mileage).toLocaleString('en-US')} km`
         : '—';
       let heroImage = '';
-      if (typeof car.imageUrl === 'string') {
-        if (car.imageUrl.includes('100/60')) {
-          heroImage = car.imageUrl.replace('100/60', '400/240');
-        } else if (car.imageUrl.includes('100x60')) {
-          heroImage = car.imageUrl.replace('100x60', '400x240');
-        } else {
-          heroImage = car.imageUrl;
-        }
+      if (typeof car.imagePath === 'string') {
+          heroImage = car.imagePath;
       }
       const reminders = Array.isArray(car.reminders) ? car.reminders : [];
       const reminderTone = {
@@ -1289,7 +1283,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const badgeClass = statusClasses[car.status] || 'bg-gray-100 text-gray-600 border border-gray-200';
     return `
                 <div class="flex items-center gap-3">
-                    <img src="${car.imageUrl}" alt="${car.name}" class="w-14 h-10 object-cover rounded-md">
+                    <img src="${car.imagePath}" alt="${car.name}" class="w-14 h-10 object-cover rounded-md">
                     <div>
                         <p class="font-semibold text-sm text-gray-900">${car.name}</p>
                         <p class="text-xs text-gray-500">${car.plate} · ${car.color} · ${car.year}</p>
@@ -1924,7 +1918,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <li class="flex items-center justify-between py-2 border-b last:border-b-0">
                     <div class="flex items-center">
                         <span class="text-gray-500 font-bold w-6">${index + 1}.</span>
-                        <img src="${car.imageUrl}" class="w-12 h-8 object-cover rounded-md mx-4">
+                        <img src="${car.imagePath}" class="w-12 h-8 object-cover rounded-md mx-4">
                         <span class="font-semibold">${car.name}</span>
                     </div>
                     <span class="font-bold text-lg">AED ${((5-index)*2500 + 1000).toLocaleString()}</span>

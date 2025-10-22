@@ -1429,7 +1429,7 @@ export const renderFleetCalendar = () => {
                     <div class="px-3 py-3 flex flex-col gap-2 border-r border-gray-200" title="${escapeAttr(tooltipText)}">
                         <div class="flex items-center gap-3">
                             <div class="relative">
-                                <img src="${car.imageUrl}" alt="${car.name}" class="w-12 h-8 object-cover rounded-md">
+                                <img src="${car.imagePath}" alt="${car.name}" class="w-12 h-8 object-cover rounded-md">
                                 <span class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full ${statusDot} border border-white"></span>
                             </div>
                             <div class="min-w-0">
