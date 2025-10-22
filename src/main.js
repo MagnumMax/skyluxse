@@ -2414,6 +2414,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const router = () => {
     console.log('🧭 Запуск роутера...');
     console.log('🔗 Текущий хэш:', window.location.hash);
+    console.log('👤 Текущая роль в состоянии:', appState.currentRole);
 
     if (appState.timerInterval) {
       clearInterval(appState.timerInterval);
@@ -2423,10 +2424,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const parsedHash = parseHash(window.location.hash);
     let { role, page, selector } = parsedHash;
     console.log('📋 Парсинг хэша:', { role, page, selector });
+    console.log('🔍 Сравнение ролей - хэш:', role, 'состояние:', appState.currentRole);
 
     const roleConfig = ROLES_CONFIG[role];
     const layout = roleConfig?.layout || 'desktop';
-    console.log('🏗️ Конфигурация роли:', { layout, roleConfig: !!roleConfig });
+    console.log('🏗️ Конфигурация роли:', { layout, roleConfig: !!roleConfig, defaultPage: roleConfig?.defaultPage });
 
     let normalizedSelector = selector;
     let needsUpdate = !parsedHash.isCanonical;
@@ -2577,6 +2579,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Render content for specific pages
     console.log('🎨 Рендеринг контента для страницы:', appState.currentPage);
+    console.log('🏗️ Layout для роли:', layout);
 
     try {
       if(appState.currentPage === 'bookings') {
@@ -2619,10 +2622,11 @@ document.addEventListener('DOMContentLoaded', () => {
         stopDriverTracking();
       }
 
-      console.log('✅ Роутер завершен успешно');
+      console.log('✅ Роутер завершен успешно для страницы:', appState.currentPage);
 
     } catch (error) {
       console.error('❌ Ошибка при рендеринге страницы:', appState.currentPage, error);
+      console.error('❌ Stack trace:', error.stack);
     }
   };
 
@@ -2908,13 +2912,44 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   document.getElementById('login-button').addEventListener('click', () => {
+    console.log('🔐 Клик по кнопке Sign in обнаружен');
+
     const selectedRole = loginRoleSelect?.value || 'operations';
+    console.log('👤 Выбранная роль:', selectedRole);
+
+    const roleConfig = ROLES_CONFIG[selectedRole];
+    console.log('⚙️ Конфигурация роли:', roleConfig);
+
+    if (!roleConfig) {
+      console.error('❌ Конфигурация роли не найдена для:', selectedRole);
+      showToast('Ошибка конфигурации роли', 'error');
+      return;
+    }
+
+    const defaultPage = roleConfig?.defaultPage || 'dashboard';
+    console.log('📄 Страница по умолчанию:', defaultPage);
+
     appState.currentRole = selectedRole;
-    const defaultPage = ROLES_CONFIG[selectedRole]?.defaultPage || 'dashboard';
-    document.getElementById('page-login').classList.add('hidden');
-    appContainer.classList.remove('hidden');
-    window.location.hash = buildHash(selectedRole, defaultPage);
-    initApp();
+    console.log('💾 Состояние приложения обновлено, текущая роль:', appState.currentRole);
+
+    try {
+      document.getElementById('page-login').classList.add('hidden');
+      appContainer.classList.remove('hidden');
+      console.log('✅ Элементы DOM обновлены');
+
+      const targetHash = buildHash(selectedRole, defaultPage);
+      console.log('🔗 Целевой хэш:', targetHash);
+
+      window.location.hash = targetHash;
+      console.log('✅ Хэш обновлен');
+
+      initApp();
+      console.log('🚀 initApp() вызвана');
+
+    } catch (error) {
+      console.error('❌ Ошибка при аутентификации:', error);
+      showToast('Ошибка при входе в систему', 'error');
+    }
   });
   document.getElementById('sidebar-nav').addEventListener('click', (e) => {
     if(window.innerWidth < 768) sidebar.classList.add('-translate-x-full');
@@ -3198,6 +3233,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const initApp = () => {
     console.log('🔧 Инициализация приложения...');
     console.log('👤 Текущая роль пользователя:', appState.currentRole);
+    console.log('🔗 Текущий хэш:', window.location.hash);
 
     try {
       const burgerMenu = document.querySelector('#burger-menu');
@@ -3212,9 +3248,11 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log('✅ Кнопка назад инициализирована');
       }
 
+      console.log('🏗️ Обновление layout для роли:', appState.currentRole);
       updateLayoutForRole(appState.currentRole);
-      console.log('✅ Layout обновлен для роли:', appState.currentRole);
+      console.log('✅ Layout обновлен');
 
+      console.log('📱 Рендеринг sidebar...');
       renderSidebar();
       console.log('✅ Sidebar отрендерен');
 
@@ -3222,15 +3260,18 @@ document.addEventListener('DOMContentLoaded', () => {
       if (window.location.hash === '' || window.location.hash === '#') {
         const defaultPage = ROLES_CONFIG[appState.currentRole]?.defaultPage || 'dashboard';
         const targetHash = buildHash(appState.currentRole, defaultPage);
-        console.log('🔀 Перенаправление на страницу по умолчанию:', defaultPage);
+        console.log('🔀 Перенаправление на страницу по умолчанию:', defaultPage, 'хэш:', targetHash);
         window.location.hash = targetHash;
+        return; // Выходим, чтобы роутер не запускался дважды
       }
 
+      console.log('🧭 Запуск роутера...');
       router();
       console.log('✅ Роутер запущен');
 
     } catch (error) {
       console.error('❌ Ошибка при инициализации приложения:', error);
+      console.error('❌ Stack trace:', error.stack);
     }
   };
         

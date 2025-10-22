@@ -74,6 +74,15 @@
       ]
     },
     {
+      "source": "/(.*\\.css)",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "text/css"
+        }
+      ]
+    },
+    {
       "source": "/(.*)",
       "headers": [
         {

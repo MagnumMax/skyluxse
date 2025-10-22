@@ -5,8 +5,9 @@
   "main": "sw.js",
   "scripts": {
     "build-css": "npx tailwindcss -i ./src/input.css -o ./dist/output.css",
-    "build": "npm run build-css && cp index.html dist/",
-    "dev": "npx tailwindcss -i ./src/input.css -o ./dist/output.css --watch",
+    "copy-static": "mkdir -p dist && cp -r public/* dist/ 2>/dev/null || true && cp -r modules/* dist/ 2>/dev/null || true && cp index.html dist/ && cp manifest.json dist/ && cp sw.js dist/",
+    "build": "npm run build-css && npm run copy-static",
+    "dev": "npm run build-css && npm run copy-static && npx tailwindcss -i ./src/input.css -o ./dist/output.css --watch",
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx --fix",
     "test": "echo \"Error: no test specified\" && exit 1"
   },

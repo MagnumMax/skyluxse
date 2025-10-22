@@ -8,7 +8,7 @@
     <link rel="manifest" href="manifest.json?v=2">
     
     <!-- Tailwind CSS local -->
-    <link href="./dist/output.css" rel="stylesheet">
+    <link href="output.css" rel="stylesheet">
     
     <!-- Google Fonts: Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -927,21 +927,21 @@
         console.log('🔍 [DEBUG] Base URL:', window.location.origin);
         
         // Проверяем доступность main.js перед загрузкой
-        fetch('public/main.js?v=2')
+        fetch('main.js?v=2')
             .then(response => {
-                console.log('🔍 [DEBUG] Статус public/main.js:', response.status);
+                console.log('🔍 [DEBUG] Статус main.js:', response.status);
                 if (!response.ok) {
-                    console.error('❌ [DEBUG] public/main.js недоступен:', response.status, response.statusText);
+                    console.error('❌ [DEBUG] main.js недоступен:', response.status, response.statusText);
                 } else {
-                    console.log('✅ [DEBUG] public/main.js доступен');
+                    console.log('✅ [DEBUG] main.js доступен');
                 }
             })
             .catch(error => {
-                console.error('❌ [DEBUG] Ошибка при проверке public/main.js:', error);
+                console.error('❌ [DEBUG] Ошибка при проверке main.js:', error);
             });
     </script>
     
-    <script type="module" src="public/main.js?v=2"></script>
+    <script type="module" src="main.js?v=2"></script>
 
 </body>
 </html>
