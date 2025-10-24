@@ -793,7 +793,6 @@ export const renderBookingDetail = (id) => {
                         <div class="space-y-6 max-w-5xl mx-auto">
                             <div class="grid gap-6 lg:grid-cols-3">
                                 <div class="lg:col-span-2 space-y-6">
-                                    ${extensionSectionHtml}
                                     <div class="geist-card p-4 border border-gray-200 rounded-xl">
                                         <h3 class="font-semibold text-gray-800 mb-4">Timeline & logistics</h3>
                                         <div class="grid gap-4 md:grid-cols-2 text-sm text-gray-600">
@@ -834,6 +833,7 @@ export const renderBookingDetail = (id) => {
                                             ${operationalTimeline}
                                         </div>
                                     </div>
+                                    ${extensionSectionHtml}
                                     <div class="geist-card p-4 border border-gray-200 rounded-xl">
                                         <h3 class="font-semibold text-gray-800 mb-4">Documents</h3>
                                         <div class="flex flex-wrap gap-3">${documentButtons}</div>
