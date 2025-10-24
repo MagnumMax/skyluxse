@@ -991,6 +991,9 @@ const bindFleetCalendarControls = () => {
       const eventId = target.dataset.eventId;
       const bookingEvent = currentEventsSnapshot.find(item => item.id === eventId);
       if (!bookingEvent) return;
+      if (appState.currentRole === 'operations' && bookingEvent.type === 'rental') {
+        return;
+      }
       if (bookingEvent.bookingId) {
         closeCalendarDrawer();
         window.location.hash = buildHash(appState.currentRole, 'booking-detail', bookingEvent.bookingId);
@@ -1215,9 +1218,12 @@ export const renderFleetCalendar = () => {
         const lifecycleBadge = lifecycleMeta
           ? `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${lifecycleMeta.badge}">${lifecycleMeta.label}</span>`
           : '';
+        const disableRentalInteraction = appState.currentRole === 'operations' && event.type === 'rental';
+        const pointerClass = disableRentalInteraction ? 'pointer-events-none' : 'pointer-events-auto';
+        const ariaDisabledAttr = disableRentalInteraction ? ' aria-disabled="true"' : '';
 
         return `
-                    <div class="absolute calendar-event ${meta.color} border ${meta.border} ${priorityMeta.ring} text-xs font-medium px-2 py-1 rounded-md pointer-events-auto"
+                    <div class="absolute calendar-event ${meta.color} border ${meta.border} ${priorityMeta.ring} text-xs font-medium px-2 py-1 rounded-md ${pointerClass}"${ariaDisabledAttr}
                          data-event-id="${event.id}"
                          data-booking-id="${event.bookingId || ''}"
                          data-calendar-event-id="${event.calendarEventId || ''}"
@@ -1283,7 +1289,7 @@ export const renderFleetCalendar = () => {
                             </div>
                         </div>
                         <div class="flex flex-wrap gap-1">
-                            <button class="calendar-vehicle-action inline-flex items-center gap-1 rounded-md border border-gray-200 bg-white px-2 py-1 text-[11px] font-medium text-gray-600 hover:border-indigo-200 hover:text-indigo-600 transition" data-car-id="${car.id}" data-vehicle-action="create-booking">+ Бронь</button>
+                            ${appState.currentRole === 'operations' ? '' : `<button class="calendar-vehicle-action inline-flex items-center gap-1 rounded-md border border-gray-200 bg-white px-2 py-1 text-[11px] font-medium text-gray-600 hover:border-indigo-200 hover:text-indigo-600 transition" data-car-id="${car.id}" data-vehicle-action="create-booking">+ Бронь</button>`}
                             ${appState.currentRole === 'sales' ? '' : `<button class="calendar-vehicle-action inline-flex items-center gap-1 rounded-md border border-gray-200 bg-white px-2 py-1 text-[11px] font-medium text-gray-600 hover:border-indigo-200 hover:text-indigo-600 transition" data-car-id="${car.id}" data-vehicle-action="schedule-maintenance">Сервис</button>`}
                         </div>
                         ${taskBadges}

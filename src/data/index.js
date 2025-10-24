@@ -856,16 +856,15 @@ export const KANBAN_STATUSES = Object.fromEntries(
 
 export const ROLES_CONFIG = {
   operations: {
-    name: 'Operations Manager',
-    label: 'Operations Manager',
+    name: 'Fleet manager',
+    label: 'Fleet manager',
     email: 'ops@skyluxse.ae',
     defaultPage: 'fleet-calendar',
     layout: 'desktop',
     nav: [
       { id: 'fleet-calendar', name: 'Fleet Calendar', icon: 'calendar' },
       { id: 'tasks', name: 'Tasks', icon: 'clipboardCheck' },
-      { id: 'fleet-table', name: 'Fleet', icon: 'car' },
-      { id: 'clients-table', name: 'Clients', icon: 'users' }
+      { id: 'fleet-table', name: 'Fleet', icon: 'car' }
     ],
     permissions: {
       canAssignDrivers: true,

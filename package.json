@@ -4,7 +4,7 @@
   "description": "Современное веб-приложение для управления автопарком с интерактивным интерфейсом.",
   "main": "sw.js",
   "scripts": {
-    "build": "echo 'Build complete - no compilation needed'",
+    "build": "node scripts/build.mjs",
     "dev": "echo 'Development mode - open index.html in browser'",
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx --fix",
     "test": "echo \"Error: no test specified\" && exit 1"

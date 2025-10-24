@@ -204,6 +204,186 @@ export const renderFleetDetail = (id) => {
     ? `<div class="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">${documentGalleryHtml}</div>`
     : '';
 
+  if (appState.currentRole === 'operations') {
+    const parseHistoryDate = (value) => {
+      if (!value) {
+        return { ts: 0, label: '—' };
+      }
+      const parsed = new Date(value);
+      if (Number.isNaN(parsed.getTime())) {
+        return { ts: 0, label: value };
+      }
+      const formatted = parsed.toLocaleDateString('en-GB', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric'
+      });
+      return { ts: parsed.getTime(), label: formatted };
+    };
+
+    const historyEntries = [];
+    maintenanceHistory.forEach(item => {
+      const { ts, label } = parseHistoryDate(item.date);
+      historyEntries.push({
+        type: 'maintenance',
+        timestamp: ts,
+        dateLabel: label,
+        title: item.type || 'Maintenance',
+        odometer: item.odometer,
+        notes: item.notes || ''
+      });
+    });
+    inspections.forEach(insp => {
+      const { ts, label } = parseHistoryDate(insp.date);
+      historyEntries.push({
+        type: 'inspection',
+        timestamp: ts,
+        dateLabel: label,
+        title: insp.driver ? `Inspection (${insp.driver})` : 'Inspection',
+        driver: insp.driver || '',
+        notes: insp.notes || '',
+        photos: Array.isArray(insp.photos) ? insp.photos : []
+      });
+    });
+    historyEntries.sort((a, b) => b.timestamp - a.timestamp);
+
+    const historyEntriesHtml = historyEntries.length
+      ? historyEntries.map(entry => {
+        const tone = entry.type === 'maintenance'
+          ? 'bg-indigo-50 text-indigo-700 border border-indigo-100'
+          : 'bg-amber-50 text-amber-700 border border-amber-100';
+        const typeLabel = entry.type === 'maintenance' ? 'Maintenance' : 'Inspection';
+        const odometerHtml = entry.type === 'maintenance'
+          ? `<div class="flex items-center justify-between text-xs text-gray-500">
+                                      <span>Odometer</span>
+                                      <span>${entry.odometer != null ? escapeHtml(`${Number(entry.odometer).toLocaleString('en-US')} km`) : '—'}</span>
+                                  </div>`
+          : '';
+        const driverHtml = entry.type === 'inspection' && entry.driver
+          ? `<div class="text-xs text-gray-500">Driver: ${escapeHtml(entry.driver)}</div>`
+          : '';
+        const notesHtml = entry.notes
+          ? `<p class="text-xs text-gray-500">${escapeHtml(entry.notes)}</p>`
+          : '';
+        const photosHtml = entry.type === 'inspection' && Array.isArray(entry.photos) && entry.photos.length
+          ? `<div class="mt-3 grid grid-cols-3 gap-2">
+                                      ${entry.photos.map(photo => `<img src="${escapeHtml(photo)}" class="h-16 w-full rounded object-cover doc-image" alt="Inspection photo">`).join('')}
+                                  </div>`
+          : '';
+        const detailsHtml = [odometerHtml, driverHtml, notesHtml].filter(Boolean).join('\n                                  ');
+        return `
+                          <li class="fleet-history-entry rounded-md border border-gray-200 p-3 text-sm" data-history-type="${entry.type}">
+                              <div class="flex items-center justify-between gap-3 text-gray-700">
+                                  <div class="flex items-center gap-2">
+                                      <span class="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md ${tone}">${typeLabel}</span>
+                                      <span class="font-medium text-gray-900">${escapeHtml(entry.title)}</span>
+                                  </div>
+                                  <span class="text-xs text-gray-500">${escapeHtml(entry.dateLabel)}</span>
+                              </div>
+                              ${detailsHtml ? `<div class="mt-3 space-y-2">${detailsHtml}</div>` : ''}
+                              ${photosHtml}
+                          </li>
+                      `;
+      }).join('')
+      : '<p class="text-sm text-gray-500">No history records yet</p>';
+
+    const operationsContent = `
+                    <div class="p-6 border-b bg-white">
+                        <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                            <div>
+                                <h2 class="text-2xl font-semibold text-gray-900">${escapeHtml(car.name)}</h2>
+                                <div class="mt-1 flex flex-wrap items-center gap-3 text-sm text-gray-500">
+                                    <span>${escapeHtml(car.plate || '—')}</span>
+                                    <span>·</span>
+                                    <span>${escapeHtml(String(car.year || '—'))}</span>
+                                    <span>·</span>
+                                    <span>${escapeHtml(car.color || '—')}</span>
+                                </div>
+                            </div>
+                            <div class="flex flex-wrap items-center gap-3">
+                                <span class="inline-flex items-center px-3 py-1 text-xs font-medium rounded-md ${badgeClass}">${escapeHtml(car.status || '—')}</span>
+                                <div class="text-xs text-gray-500">
+                                    <p>Class: ${escapeHtml(car.class || '—')}</p>
+                                    <p>Segment: ${escapeHtml(car.segment || '—')}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="p-6 space-y-6 bg-white">
+                        <div class="grid gap-6 lg:grid-cols-3">
+                            <div class="geist-card overflow-hidden lg:col-span-2">
+                                <img src="${escapeHtml(heroImage)}" class="h-56 w-full object-cover" alt="${escapeHtml(car.name)}">
+                                <div class="p-5 space-y-5">
+                                    <div class="grid gap-4 sm:grid-cols-2">
+                                        <div class="space-y-3">
+                                            <h3 class="font-semibold text-gray-900">Readiness</h3>
+                                            <div class="flex items-center justify-between text-sm text-gray-700">
+                                                <span>${escapeHtml(service.label || '—')}</span>
+                                                ${service.nextService ? `<span class="text-xs text-gray-500">Next service ${escapeHtml(service.nextService)}</span>` : ''}
+                                            </div>
+                                            <div class="w-full rounded-full bg-gray-200 h-2">
+                                                <div class="h-2 rounded-full ${healthClass}" style="width: ${healthPercent}%"></div>
+                                            </div>
+                                            <div class="flex flex-wrap items-center gap-3 text-xs text-gray-500">
+                                                <span>Technical readiness ${healthPercent}%</span>
+                                                <span>·</span>
+                                                <span>Mileage to service ${escapeHtml(mileageToService)}</span>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <h3 class="font-semibold text-gray-900">Reminders</h3>
+                                            <ul class="mt-3 space-y-2">
+                                                ${remindersHtml}
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="geist-card p-5 space-y-4">
+                                <div>
+                                    <h3 class="font-semibold text-gray-900">Quick actions</h3>
+                                    <div class="mt-3 flex flex-wrap gap-2">
+                                        <button class="geist-button geist-button-secondary text-xs fleet-quick-action" data-action="maintenance" data-car-id="${car.id}">Schedule maintenance</button>
+                                        <button class="geist-button geist-button-secondary text-xs fleet-quick-action" data-action="inspection" data-car-id="${car.id}">Log inspection</button>
+                                        <button class="geist-button geist-button-secondary text-xs fleet-quick-action" data-action="detailing" data-car-id="${car.id}">Plan detailing</button>
+                                        <button class="geist-button geist-button-secondary text-xs fleet-quick-action" data-action="fines" data-car-id="${car.id}">Check fines</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="grid gap-6 lg:grid-cols-2">
+                            <div class="geist-card p-5 space-y-4 fleet-history-section">
+                                <div class="flex flex-wrap items-center justify-between gap-3">
+                                    <div>
+                                        <h3 class="font-semibold text-gray-900">History</h3>
+                                        <p class="text-sm text-gray-500">Maintenance, inspections and recent actions</p>
+                                    </div>
+                                    <div class="flex flex-wrap gap-2">
+                                        <button type="button" class="fleet-history-filter inline-flex items-center rounded-full border border-gray-900 bg-gray-900 px-3 py-1 text-xs font-medium text-white transition" data-type="all">All</button>
+                                        <button type="button" class="fleet-history-filter inline-flex items-center rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-gray-600 hover:border-gray-300 transition" data-type="maintenance">Maintenance</button>
+                                        <button type="button" class="fleet-history-filter inline-flex items-center rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-gray-600 hover:border-gray-300 transition" data-type="inspection">Inspections</button>
+                                    </div>
+                                </div>
+                                <ul class="space-y-3">
+                                    ${historyEntriesHtml}
+                                </ul>
+                            </div>
+                            <div class="geist-card p-5 space-y-4">
+                                <div>
+                                    <h3 class="font-semibold text-gray-900">Documents</h3>
+                                    <p class="text-sm text-gray-500">Expiry control and quick access</p>
+                                </div>
+                                <ul class="space-y-2">
+                                    ${documentStatusHtml}
+                                </ul>
+                                ${gallerySection}
+                            </div>
+                        </div>
+                    </div>`;
+
+    return operationsContent;
+  }
+
   const content = `
                     <div class="p-6 border-b bg-white">
                         <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">

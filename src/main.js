@@ -210,7 +210,6 @@ document.addEventListener('DOMContentLoaded', () => {
       addMessage('End time must be later than start time', 'error');
     }
 
-    const baseStart = parseDateTimeLocal(booking.startDate, booking.startTime);
     const baseEnd = parseDateTimeLocal(booking.endDate, booking.endTime);
     if (baseEnd && start < baseEnd) {
       addMessage('Extension should begin after the current end time', 'error');
@@ -287,7 +286,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const getField = (field) => {
       const input = planner.querySelector(`[data-extension-field="${field}"]`);
       if (!input) return '';
-      if (input instanceof HTMLInputElement && input.type === 'checkbox') {
+      if (input instanceof window.HTMLInputElement && input.type === 'checkbox') {
         return input.checked;
       }
       return input.value || '';
@@ -2040,6 +2039,28 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         return;
       }
+    }
+
+    const historyFilterBtn = e.target.closest('.fleet-history-filter');
+    if (historyFilterBtn) {
+      e.preventDefault();
+      const historySection = historyFilterBtn.closest('.fleet-history-section');
+      if (!historySection) return;
+      const selectedType = historyFilterBtn.dataset.type || 'all';
+      const activeClasses = ['border-gray-900', 'bg-gray-900', 'text-white'];
+      const inactiveClasses = ['border-gray-200', 'bg-white', 'text-gray-600'];
+      historySection.querySelectorAll('.fleet-history-filter').forEach(btn => {
+        const isActive = btn === historyFilterBtn;
+        activeClasses.forEach(cls => btn.classList.toggle(cls, isActive));
+        inactiveClasses.forEach(cls => btn.classList.toggle(cls, !isActive));
+        btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+      });
+      historySection.querySelectorAll('.fleet-history-entry').forEach(entry => {
+        const entryType = entry.dataset.historyType || '';
+        const shouldShow = selectedType === 'all' || entryType === selectedType;
+        entry.classList.toggle('hidden', !shouldShow);
+      });
+      return;
     }
 
     const clientDocLink = e.target.closest('.client-doc-link');
