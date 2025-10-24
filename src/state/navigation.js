@@ -1,5 +1,5 @@
-import { ROLES_CONFIG } from '../data/index.js';
-import { appState } from './appState.js';
+import { ROLES_CONFIG } from '/src/data/index.js';
+import { appState } from '/src/state/appState.js';
 
 export const HASH_DEFAULT_SELECTOR = 'main';
 

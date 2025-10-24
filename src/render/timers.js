@@ -1,5 +1,5 @@
-import { appState } from '../state/appState.js';
-import { getIcon } from '../ui/icons.js';
+import { appState } from '/src/state/appState.js';
+import { getIcon } from '/src/ui/icons.js';
 
 export const startTimers = () => {
   if (appState.timerInterval) clearInterval(appState.timerInterval);

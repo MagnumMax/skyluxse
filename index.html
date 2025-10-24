@@ -7,8 +7,8 @@
     <meta name="theme-color" content="#111827">
     <link rel="manifest" href="manifest.json?v=2">
     
-    <!-- Tailwind CSS local -->
-    <link href="output.css" rel="stylesheet">
+    <!-- Tailwind CSS via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
     
     <!-- Google Fonts: Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -623,7 +623,7 @@
                                     </select>
                                     <select id="calendar-group-select" class="px-3 py-2 border border-gray-300 rounded-md text-sm">
                                         <option value="vehicle">Group by vehicle</option>
-                                        <option value="class">Group by class</option>
+                                        <option value="class" selected>Group by class</option>
                                         <option value="location">Group by location</option>
                                         <option value="owner">Group by owner</option>
                                     </select>
@@ -642,8 +642,16 @@
                                                     <option value="all">All events</option>
                                                     <option value="rental">Rental</option>
                                                     <option value="maintenance">Maintenance</option>
-                                                    <option value="inspection">Inspection</option>
-                                                    <option value="detailing">Detailing</option>
+                                                    <option value="repair">Repair</option>
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label class="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wide">Booking status</label>
+                                                <select id="calendar-booking-status-filter" class="px-3 py-2 border border-gray-300 rounded-md text-sm w-full">
+                                                    <option value="all">All statuses</option>
+                                                    <option value="reservation">Reservation</option>
+                                                    <option value="booking">Booking</option>
+                                                    <option value="rental">Rental</option>
                                                 </select>
                                             </div>
                                             <div>
@@ -676,12 +684,8 @@
                                                         Maintenance
                                                     </label>
                                                     <label class="inline-flex items-center gap-2">
-                                                        <input type="checkbox" data-calendar-layer="inspection" class="rounded border-gray-300 text-indigo-500 focus:ring-indigo-400" checked>
-                                                        Inspection
-                                                    </label>
-                                                    <label class="inline-flex items-center gap-2">
-                                                        <input type="checkbox" data-calendar-layer="detailing" class="rounded border-gray-300 text-indigo-500 focus:ring-indigo-400" checked>
-                                                        Detailing
+                                                        <input type="checkbox" data-calendar-layer="repair" class="rounded border-gray-300 text-indigo-500 focus:ring-indigo-400" checked>
+                                                        Repair
                                                     </label>
                                                 </div>
                                             </div>
@@ -925,9 +929,9 @@
         console.log('🔍 [DEBUG] Начинаем загрузку скриптов...');
         console.log('🔍 [DEBUG] Текущий URL:', window.location.href);
         console.log('🔍 [DEBUG] Base URL:', window.location.origin);
-        
+
         // Проверяем доступность main.js перед загрузкой
-        fetch('main.js?v=2')
+        fetch('public/main.js?v=2')
             .then(response => {
                 console.log('🔍 [DEBUG] Статус main.js:', response.status);
                 if (!response.ok) {
@@ -940,8 +944,8 @@
                 console.error('❌ [DEBUG] Ошибка при проверке main.js:', error);
             });
     </script>
-    
-    <script type="module" src="main.js?v=2"></script>
+
+    <script type="module" src="public/main.js?v=2"></script>
 
 </body>
 </html>

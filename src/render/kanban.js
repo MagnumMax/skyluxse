@@ -1,13 +1,13 @@
-import { appState } from '../state/appState.js';
+import { appState } from '/src/state/appState.js';
 import {
   MOCK_DATA,
   BOOKING_PRIORITIES,
   BOOKING_TYPES,
   KANBAN_STATUS_META,
   KANBAN_STATUSES
-} from '../data/index.js';
-import { showToast } from '../ui/toast.js';
-import { startTimers } from './timers.js';
+} from '/src/data/index.js';
+import { showToast } from '/src/ui/toast.js';
+import { startTimers } from '/src/render/timers.js';
 
 let kanbanFiltersBound = false;
 

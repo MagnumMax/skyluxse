@@ -1,39 +1,40 @@
 import {
   MOCK_DATA,
-  BOOKING_PRIORITIES,
-  BOOKING_TYPES,
-  CALENDAR_EVENT_TYPES,
   TASK_TYPES,
-  KANBAN_STATUS_META,
   ROLE_EMAIL_PRESETS,
   ROLES_CONFIG
-} from './data/index.js';
+} from '/src/data/index.js';
 import {
   appState,
   enqueueOfflineAction,
   syncOfflineQueue,
   getStartOfWeek
-} from './state/appState.js';
+} from '/src/state/appState.js';
 import {
   HASH_DEFAULT_SELECTOR,
   buildHash,
   parseHash,
   isDefaultSelector
-} from './state/navigation.js';
-import { renderKanbanBoard } from './render/kanban.js';
-import { renderDashboard } from './render/dashboard.js';
-import { renderAnalyticsPage, renderSalesPipeline, renderClientCard } from './render/charts.js';
-import { startTimers } from './render/timers.js';
-import { formatCurrency } from './render/utils.js';
-import { renderFleetCalendar, initFleetCalendar } from './render/fleetCalendar.js';
-import { showToast } from './ui/toast.js';
-import { getIcon } from './ui/icons.js';
+} from '/src/state/navigation.js';
+import { renderKanbanBoard } from '/src/render/kanban.js';
+import { renderAnalyticsPage, renderSalesPipeline } from '/src/render/charts.js';
+import { startTimers } from '/src/render/timers.js';
+import { formatCurrency, formatDateLabel } from '/src/render/formatters.js';
+import { renderFleetCalendar, initFleetCalendar } from '/src/render/fleetCalendar.js';
+import { showToast } from '/src/ui/toast.js';
+import { getIcon } from '/src/ui/icons.js';
+import { createRouter } from '/src/router.js';
 
+/**
+ * Основная точка входа приложения SkyLuxse
+ * Инициализирует все компоненты, обработчики событий и роутинг
+ */
 document.addEventListener('DOMContentLoaded', () => {
   console.log('🚀 SkyLuxse приложение загружается...');
   console.log('📍 Текущий URL:', window.location.href);
   console.log('🔍 Поиск service worker...');
 
+  // Регистрация Service Worker для оффлайн поддержки
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js')
       .then(() => console.log('✅ Service Worker зарегистрирован'))
@@ -49,8 +50,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const desktopShell = document.getElementById('desktop-shell');
   const mobileViewContainer = document.getElementById('mobile-view');
   const bookingDetailContent = document.getElementById('booking-detail-content');
-  const fleetDetailContent = document.getElementById('fleet-detail-content');
-  const clientDetailContent = document.getElementById('client-detail-content');
   const taskDetailContent = document.getElementById('task-detail-content');
   const maintenanceCreateContent = document.getElementById('maintenance-create-content');
   const bookingCreateContent = document.getElementById('booking-create-content');
@@ -69,17 +68,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const otpInput = document.getElementById('otp');
   const sidebarCollapseBtn = document.getElementById('sidebar-collapse');
 
-  const AUXILIARY_PAGES = [
-    'booking-detail',
-    'fleet-detail',
-    'client-detail',
-    'task-detail',
-    'maintenance-create',
-    'booking-create',
-    'vehicle-create',
-    'document-viewer'
-  ];
-
+  /**
+   * @param {string} basePage 
+   * @returns {string}
+   */
   const getDetailPageId = (basePage) => {
     if (basePage === 'bookings') return 'booking-detail';
     if (basePage === 'fleet-table') return 'fleet-detail';
@@ -88,9 +80,10 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   pageBackButtons.forEach(button => {
-    button.addEventListener('click', (event) => {
+    button.addEventListener('click', (/** @type {Event} */ event) => {
       event.preventDefault();
-      const targetPage = button.dataset.backPage;
+      const htmlButton = /** @type {HTMLElement} */ (button);
+      const targetPage = htmlButton.dataset.backPage;
       if (targetPage) {
         window.location.hash = buildHash(appState.currentRole, targetPage);
       } else {
@@ -142,13 +135,17 @@ document.addEventListener('DOMContentLoaded', () => {
       appState.filters.sales.owner = 'all';
       ownerChanged = true;
     }
-    salesOwnerFilter.value = appState.filters.sales.owner || 'all';
-    salesOwnerFilter.dataset.bound = 'true';
+    const selectElement = /** @type {HTMLSelectElement} */ (salesOwnerFilter);
+    selectElement.value = appState.filters.sales.owner || 'all';
+    selectElement.dataset.bound = 'true';
     if (ownerChanged) {
       renderCurrentPageWithSalesFilter();
     }
   };
 
+  /**
+   * @param {string} role
+   */
   const updateSalesOwnerFilterVisibility = (role) => {
     if (!salesOwnerFilterWrapper) return;
     if (role === 'sales') {
@@ -160,15 +157,16 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   if (salesOwnerFilter && !salesOwnerFilter.dataset.globalHandler) {
-    salesOwnerFilter.addEventListener('change', (event) => {
-      appState.filters.sales.owner = event.target.value || 'all';
+    salesOwnerFilter.addEventListener('change', (/** @type {Event} */ event) => {
+      const target = /** @type {HTMLSelectElement} */ (event.target);
+      appState.filters.sales.owner = target?.value || 'all';
       renderCurrentPageWithSalesFilter();
     });
     salesOwnerFilter.dataset.globalHandler = 'true';
   }
 
   const updateSidebarToggleState = () => {
-    if (!sidebarCollapseBtn) return;
+    if (!sidebarCollapseBtn || !sidebar) return;
     const isCollapsed = sidebar.classList.contains('sidebar-collapsed');
     sidebarCollapseBtn.innerHTML = isCollapsed
       ? getIcon('chevronRight', 'w-5 h-5')
@@ -177,19 +175,222 @@ document.addEventListener('DOMContentLoaded', () => {
     sidebarCollapseBtn.setAttribute('aria-label', isCollapsed ? 'Развернуть панель' : 'Свернуть панель');
   };
 
+  const escapeHtml = (value) => String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+
+  const toStatusKey = (value) => (value ?? '').toString().trim().toLowerCase();
+  const toSlug = (value) => (value ?? '').toString().trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+
+  const parseDateTimeLocal = (dateStr, timeStr) => {
+    if (!dateStr) return null;
+    const timeValue = (timeStr || '00:00').trim();
+    const normalized = `${dateStr}T${timeValue.length === 5 ? `${timeValue}:00` : timeValue}`;
+    const parsed = new Date(normalized);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  };
+
+  const rangesOverlap = (startA, endA, startB, endB) => {
+    if (!startA || !endA || !startB || !endB) return false;
+    return startA < endB && startB < endA;
+  };
+
+  const detectExtensionConflicts = (booking, start, end, options = {}) => {
+    const messages = [];
+    const addMessage = (text, type = 'error') => messages.push({ text, type });
+
+    if (!start || !end) {
+      return { messages, hasBlocking: false };
+    }
+
+    if (end <= start) {
+      addMessage('End time must be later than start time', 'error');
+    }
+
+    const baseStart = parseDateTimeLocal(booking.startDate, booking.startTime);
+    const baseEnd = parseDateTimeLocal(booking.endDate, booking.endTime);
+    if (baseEnd && start < baseEnd) {
+      addMessage('Extension should begin after the current end time', 'error');
+    }
+
+    if (Array.isArray(booking.extensions)) {
+      booking.extensions.forEach(ext => {
+        if (!ext || toStatusKey(ext.status) === 'cancelled') return;
+        const extStart = parseDateTimeLocal(ext.startDate || ext.period?.startDate, ext.startTime || ext.period?.startTime);
+        const extEnd = parseDateTimeLocal(ext.endDate || ext.period?.endDate, ext.endTime || ext.period?.endTime);
+        if (!extStart || !extEnd) return;
+        if (options.skipExtensionId && options.skipExtensionId === ext.id) return;
+        if (rangesOverlap(start, end, extStart, extEnd)) {
+          addMessage(`Overlaps with extension ${ext.label || ext.id || ''}`, 'error');
+        }
+      });
+    }
+
+    const carId = booking.carId;
+    if (carId) {
+      MOCK_DATA.bookings.forEach(other => {
+        if (!other || Number(other.carId) !== Number(carId)) return;
+        if (String(other.id) === String(booking.id)) return;
+        const otherStart = parseDateTimeLocal(other.startDate, other.startTime);
+        const otherEnd = parseDateTimeLocal(other.endDate, other.endTime);
+        if (rangesOverlap(start, end, otherStart, otherEnd)) {
+          addMessage(`Vehicle already booked (${other.code || `#${other.id}`})`, 'error');
+        }
+        if (Array.isArray(other.extensions)) {
+          other.extensions.forEach(ext => {
+            if (!ext || toStatusKey(ext.status) === 'cancelled') return;
+            const extStart = parseDateTimeLocal(ext.startDate || ext.period?.startDate, ext.startTime || ext.period?.startTime);
+            const extEnd = parseDateTimeLocal(ext.endDate || ext.period?.endDate, ext.endTime || ext.period?.endTime);
+            if (rangesOverlap(start, end, extStart, extEnd)) {
+              addMessage(`Vehicle in use by extension ${ext.label || ext.id} for booking ${other.code || `#${other.id}`}`, 'error');
+            }
+          });
+        }
+      });
+
+      (MOCK_DATA.calendarEvents || []).forEach(event => {
+        if (!event || Number(event.carId) !== Number(carId)) return;
+        const eventStart = new Date(event.start);
+        const eventEnd = new Date(event.end);
+        if (rangesOverlap(start, end, eventStart, eventEnd)) {
+          addMessage(`Conflicts with ${event.type || 'calendar'} event "${event.title || event.id}"`, 'warning');
+        }
+      });
+    }
+
+    if (start < new Date()) {
+      addMessage('Extension start is in the past', 'warning');
+    }
+
+    if ((booking.totalAmount || 0) > (booking.paidAmount || 0)) {
+      addMessage('Base booking has outstanding balance', 'warning');
+    }
+
+    if (baseEnd && start && !options.maintenanceSlot) {
+      const gapHours = (start.getTime() - baseEnd.getTime()) / 3600000;
+      if (gapHours > 6) {
+        addMessage('Gap before extension exceeds 6 hours — consider inserting a maintenance buffer', 'warning');
+      }
+    }
+
+    return {
+      messages,
+      hasBlocking: messages.some(msg => msg.type === 'error')
+    };
+  };
+
+  const collectExtensionPlannerValues = (planner) => {
+    if (!planner) return null;
+    const getField = (field) => {
+      const input = planner.querySelector(`[data-extension-field="${field}"]`);
+      if (!input) return '';
+      if (input instanceof HTMLInputElement && input.type === 'checkbox') {
+        return input.checked;
+      }
+      return input.value || '';
+    };
+    const baseAmount = Number.parseFloat(getField('baseAmount')) || 0;
+    const addonsAmount = Number.parseFloat(getField('addonsAmount')) || 0;
+    const feesAmount = Number.parseFloat(getField('feesAmount')) || 0;
+    const discountsAmount = Number.parseFloat(getField('discountsAmount')) || 0;
+    return {
+      startDate: getField('startDate'),
+      startTime: getField('startTime') || '00:00',
+      endDate: getField('endDate'),
+      endTime: getField('endTime') || '00:00',
+      baseAmount,
+      addonsAmount,
+      feesAmount,
+      discountsAmount,
+      maintenanceSlot: Boolean(getField('maintenanceSlot')),
+      notes: getField('notes')
+    };
+  };
+
+  const updateExtensionPlannerView = (planner, booking) => {
+    if (!planner || !booking) return null;
+    const values = collectExtensionPlannerValues(planner);
+    if (!values) return null;
+    const start = parseDateTimeLocal(values.startDate, values.startTime);
+    const end = parseDateTimeLocal(values.endDate, values.endTime);
+    const totalRaw = values.baseAmount + values.addonsAmount + values.feesAmount - values.discountsAmount;
+    const total = totalRaw > 0 ? totalRaw : 0;
+    const totalEl = planner.querySelector('[data-role="extension-total"]');
+    if (totalEl) totalEl.textContent = formatCurrency(total);
+    const outstandingEl = planner.querySelector('[data-role="extension-outstanding"]');
+    if (outstandingEl) outstandingEl.textContent = formatCurrency(total);
+    const endPreview = planner.querySelector('[data-role="extension-end-preview"]');
+    if (endPreview) {
+      endPreview.textContent = end ? formatDateLabel(end) : '—';
+    }
+    const conflictEl = planner.querySelector('.extension-conflict-alert');
+    const conflict = detectExtensionConflicts(booking, start, end, { maintenanceSlot: values.maintenanceSlot });
+    if (conflictEl) {
+      if (conflict.messages.length) {
+        conflictEl.innerHTML = `<ul class="list-disc pl-4 space-y-1">${conflict.messages.map(item => `<li>${escapeHtml(item.text)}</li>`).join('')}</ul>`;
+        conflictEl.classList.remove('hidden');
+        conflictEl.classList.toggle('border-rose-200', conflict.hasBlocking);
+        conflictEl.classList.toggle('bg-rose-50', conflict.hasBlocking);
+        conflictEl.classList.toggle('text-rose-700', conflict.hasBlocking);
+        conflictEl.classList.toggle('border-amber-200', !conflict.hasBlocking);
+        conflictEl.classList.toggle('bg-amber-50', !conflict.hasBlocking);
+        conflictEl.classList.toggle('text-amber-700', !conflict.hasBlocking);
+      } else {
+        conflictEl.classList.add('hidden');
+        conflictEl.innerHTML = '';
+      }
+    }
+    return { values, start, end, total, conflict };
+  };
+
+  const findBookingById = (id) => MOCK_DATA.bookings.find(booking => String(booking.id) === String(id));
+
+  const getBookingIdFromElement = (element) => {
+    const container = element?.closest('[data-booking-id]');
+    if (container?.dataset.bookingId) {
+      return container.dataset.bookingId;
+    }
+    const parsed = parseHash(window.location.hash);
+    return parsed.selector && !isDefaultSelector(parsed.selector) ? parsed.selector : null;
+  };
+
+  const handlePlannerChange = (target) => {
+    if (!target) return;
+    const planner = target.closest('.extension-planner');
+    if (!planner || planner.classList.contains('hidden')) return;
+    const bookingId = planner.dataset.bookingId || getBookingIdFromElement(planner);
+    const booking = bookingId ? findBookingById(bookingId) : null;
+    if (booking) {
+      updateExtensionPlannerView(planner, booking);
+    }
+  };
+
+  const getNextTaskId = () => {
+    const maxId = MOCK_DATA.tasks.reduce((max, task) => {
+      const numericId = Number(task.id) || 0;
+      return numericId > max ? numericId : max;
+    }, 0);
+    return maxId + 1;
+  };
+
   const renderSidebar = () => {
-    const roleConfig = ROLES_CONFIG[appState.currentRole];
+    const roleConfig = ROLES_CONFIG[/** @type {keyof typeof ROLES_CONFIG} */ (appState.currentRole)];
     const navEl = document.getElementById('sidebar-nav');
     const profileEl = document.getElementById('sidebar-profile');
 
     if (!roleConfig || roleConfig.layout !== 'desktop') {
-      navEl.innerHTML = '';
-      profileEl.innerHTML = '';
+      if (navEl) navEl.innerHTML = '';
+      if (profileEl) profileEl.innerHTML = '';
       updateSalesOwnerFilterVisibility(appState.currentRole);
       return;
     }
+    
+    if (!navEl || !profileEl) return;
             
-    navEl.innerHTML = roleConfig.nav.map(item => `
+    navEl.innerHTML = roleConfig.nav.map((/** @type {any} */ item) => `
                 <a href="${buildHash(appState.currentRole, item.id)}" class="nav-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm" data-page="${item.id}">
                     ${getIcon(item.icon, 'w-5 h-5')}
                     <span class="font-medium">${item.name}</span>
@@ -214,8 +415,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const logoutBtn = profileEl.querySelector('#sidebar-logout');
     if (logoutBtn) {
       logoutBtn.addEventListener('click', () => {
-        appContainer.classList.add('hidden');
-        document.getElementById('page-login').classList.remove('hidden');
+        if (appContainer) appContainer.classList.add('hidden');
+        const loginPage = document.getElementById('page-login');
+        if (loginPage) loginPage.classList.remove('hidden');
         window.location.hash = '';
 
         if (otpContainer) {
@@ -223,8 +425,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (otpInput) {
-          otpInput.value = '';
-          otpInput.setAttribute('disabled', 'disabled');
+          const inputElement = /** @type {HTMLInputElement} */ (otpInput);
+          inputElement.value = '';
+          inputElement.setAttribute('disabled', 'disabled');
         }
 
         if (requestOtpBtn) {
@@ -250,1030 +453,6 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   };
-        
-  const renderDetailPanel = (type, id) => {
-    let content = '';
-    let targetContainer = null;
-
-    if (type === 'bookings') {
-      const booking = MOCK_DATA.bookings.find(b => b.id == id);
-      if (!booking || !bookingDetailContent) return false;
-      targetContainer = bookingDetailContent;
-      const client = MOCK_DATA.clients.find(c => c.name === booking.clientName) || {};
-      const dueAmount = (booking.totalAmount || 0) - (booking.paidAmount || 0);
-      const formatAed = (value) => {
-        const numeric = Number(value) || 0;
-        return `AED ${Math.round(numeric).toLocaleString('en-US')}`;
-      };
-      const formatDateTime = (date, time) => {
-        if (!date && !time) return '—';
-        if (!date) return time || '—';
-        return time ? `${date} ${time}` : date;
-      };
-      const formatLocationLink = (label) => {
-        if (!label) {
-          return '<span class="text-gray-400">—</span>';
-        }
-        const encoded = encodeURIComponent(label);
-        return `<span class="min-w-0 max-w-full"><a href="https://www.google.com/maps/search/?api=1&query=${encoded}" target="_blank" rel="noopener" class="inline-block max-w-full break-words text-blue-600 hover:underline">${label}</a></span>`;
-      };
-      const assignedDriver = booking.driverId
-        ? MOCK_DATA.drivers.find(d => Number(d.id) === Number(booking.driverId))
-        : null;
-
-      const clientId = client.id || booking.clientId;
-      const salesOwnerMap = Object.fromEntries((MOCK_DATA.salesPipeline?.owners || []).map(owner => [owner.id, owner.name]));
-      const responsibleSalesPerson = booking.ownerId
-        ? (salesOwnerMap[booking.ownerId] || booking.ownerId)
-        : 'Unassigned';
-      const clientDetailLink = clientId
-        ? `<a href="${buildHash(appState.currentRole, 'client-detail', clientId)}" class="text-sm font-medium text-indigo-600 hover:text-indigo-800">Open client card</a>`
-        : '';
-
-      const formatMileageValue = (value) => {
-        if (value === 0) return '0 km';
-        const numeric = Number(value);
-        if (Number.isFinite(numeric)) {
-          return `${numeric.toLocaleString('en-US')} km`;
-        }
-        if (typeof value === 'string' && value.trim()) {
-          return value;
-        }
-        return '—';
-      };
-
-      const formatFuelValue = (value) => {
-        if (value === 0) return '0';
-        if (value == null) return '—';
-        const str = String(value).trim();
-        return str.length ? str : '—';
-      };
-
-      const parseDateOnly = (value) => {
-        if (!value || typeof value !== 'string') return null;
-        const [year, month, day] = value.split('-').map(Number);
-        if (!year || !month || !day) return null;
-        return new Date(year, month - 1, day, 12, 0, 0);
-      };
-
-      const parseDateTime = (dateStr, timeStr) => {
-        if (!dateStr) return null;
-        const timeValue = timeStr || '00:00';
-        const normalized = `${dateStr}T${timeValue.length === 5 ? `${timeValue}:00` : timeValue}`;
-        const parsed = new Date(normalized);
-        if (Number.isNaN(parsed.getTime())) {
-          return null;
-        }
-        return parsed;
-      };
-
-      const parseLooseDateTime = (value) => {
-        if (!value || typeof value !== 'string') return null;
-        if (value.includes('T')) {
-          const parsed = new Date(value);
-          return Number.isNaN(parsed.getTime()) ? null : parsed;
-        }
-        const normalized = value.replace(' ', 'T');
-        const parsed = new Date(`${normalized.length === 16 ? `${normalized}:00` : normalized}`);
-        return Number.isNaN(parsed.getTime()) ? null : parsed;
-      };
-
-      const now = new Date();
-      const pickupDateTime = parseDateTime(booking.startDate, booking.startTime);
-      const returnDateTime = parseDateTime(booking.endDate, booking.endTime);
-      const normalizeStatus = (status) => (status || '').toLowerCase();
-
-      const formatRelativeTime = (targetDate) => {
-        if (!targetDate || Number.isNaN(targetDate.getTime())) return '';
-        const diffMs = targetDate.getTime() - now.getTime();
-        const absMs = Math.abs(diffMs);
-        const minutes = Math.round(absMs / 60000);
-        const hours = Math.round(absMs / 3600000);
-        const days = Math.round(absMs / 86400000);
-        const suffix = diffMs < 0 ? ' ago' : '';
-        const prefix = diffMs >= 0 ? 'in ' : '';
-        if (minutes < 60) {
-          const value = Math.max(minutes, 1);
-          return `${prefix}${value} min${value === 1 ? '' : 's'}${suffix}`.trim();
-        }
-        if (hours < 48) {
-          return `${prefix}${hours} h${hours === 1 ? '' : 's'}${suffix}`.trim();
-        }
-        return `${prefix}${days} day${days === 1 ? '' : 's'}${suffix}`.trim();
-      };
-
-      const formatDateLabel = (targetDate) => {
-        if (!targetDate || Number.isNaN(targetDate.getTime())) return '—';
-        return targetDate.toLocaleString('en-GB', {
-          day: '2-digit',
-          month: 'short',
-          year: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit'
-        });
-      };
-
-      const contractDoc = (booking.documents || []).find(doc => doc.type === 'contract');
-      const contractStatus = normalizeStatus(contractDoc?.status);
-      let documentsState = 'pending';
-      let documentsCaption = 'Not uploaded';
-      if (!contractDoc) {
-        documentsState = 'attention';
-        documentsCaption = 'Contract missing';
-      } else if (['signed', 'approved', 'verified'].includes(contractStatus)) {
-        documentsState = 'done';
-        documentsCaption = 'Signed';
-      } else if (['pending-signature', 'in-review', 'pending'].includes(contractStatus)) {
-        documentsState = 'in-progress';
-        documentsCaption = 'Awaiting signature';
-      } else {
-        documentsState = 'attention';
-        documentsCaption = contractDoc.status ? contractDoc.status : 'Check status';
-      }
-
-      const invoices = Array.isArray(booking.invoices) ? booking.invoices : [];
-      const isInvoiceOverdue = (invoice) => {
-        if (!invoice) return false;
-        const status = normalizeStatus(invoice.status);
-        if (['paid', 'settled', 'authorized'].includes(status)) return false;
-        const dueDate = parseDateOnly(invoice.dueDate);
-        return !!dueDate && dueDate.getTime() < now.setHours(0, 0, 0, 0);
-      };
-      const isInvoiceDueSoon = (invoice) => {
-        if (!invoice) return false;
-        const status = normalizeStatus(invoice.status);
-        if (['paid', 'settled', 'authorized'].includes(status)) return false;
-        const dueDate = parseDateOnly(invoice.dueDate);
-        if (!dueDate) return false;
-        const diffDays = Math.round((dueDate.getTime() - now.getTime()) / 86400000);
-        return diffDays >= 0 && diffDays <= 3;
-      };
-      const overdueInvoices = invoices.filter(isInvoiceOverdue);
-      const dueSoonInvoices = invoices.filter(isInvoiceDueSoon);
-
-      let paymentState = 'pending';
-      let paymentCaption = dueAmount > 0 ? `Remaining ${formatAed(dueAmount)}` : 'All paid';
-      if (dueAmount <= 0) {
-        paymentState = 'done';
-      } else if (overdueInvoices.length) {
-        paymentState = 'attention';
-        paymentCaption = `Overdue ${formatAed(dueAmount)}`;
-      } else if ((booking.paidAmount || 0) > 0) {
-        paymentState = 'in-progress';
-      }
-
-      const bookingStatus = normalizeStatus(booking.status);
-      const timelineItems = Array.isArray(booking.timeline) ? booking.timeline : [];
-      const getLatestTimelineEntry = (status) => {
-        const entries = timelineItems.filter(item => normalizeStatus(item.status) === status);
-        if (!entries.length) return null;
-        return entries.slice().sort((a, b) => {
-          const aDate = parseLooseDateTime(a.ts) || new Date(0);
-          const bDate = parseLooseDateTime(b.ts) || new Date(0);
-          return bDate - aDate;
-        })[0];
-      };
-      const latestPrep = getLatestTimelineEntry('preparation');
-      const latestDelivery = getLatestTimelineEntry('delivery');
-
-      let preparationState = 'pending';
-      let preparationCaption = latestPrep?.note || '';
-      if (bookingStatus === 'preparation') {
-        preparationState = 'in-progress';
-      } else if (['delivery', 'in-rent', 'settlement', 'completed'].includes(bookingStatus)) {
-        preparationState = 'done';
-      }
-      if (!preparationCaption && preparationState === 'done') {
-        preparationCaption = 'Vehicle ready';
-      }
-
-      let handoverState = 'pending';
-      let handoverCaption = latestDelivery?.note || '';
-      if (bookingStatus === 'delivery') {
-        handoverState = 'in-progress';
-      } else if (['in-rent', 'settlement', 'completed'].includes(bookingStatus)) {
-        handoverState = 'done';
-      }
-      if (!handoverCaption && handoverState === 'done') {
-        handoverCaption = 'Handed over to client';
-      }
-
-      let closureState = 'pending';
-      let closureCaption = '';
-      if (bookingStatus === 'in-rent') {
-        closureState = 'in-progress';
-        closureCaption = 'Rental in progress';
-      } else if (['settlement', 'completed'].includes(bookingStatus)) {
-        closureState = bookingStatus === 'completed' ? 'done' : 'in-progress';
-        closureCaption = bookingStatus === 'completed' ? 'Closed' : 'Awaiting return checks';
-      }
-
-      const stageProgress = [
-        { id: 'documents', label: 'Documents', state: documentsState, caption: documentsCaption },
-        { id: 'payment', label: 'Payment', state: paymentState, caption: paymentCaption },
-        { id: 'preparation', label: 'Preparation', state: preparationState, caption: preparationCaption },
-        { id: 'handover', label: 'Handover', state: handoverState, caption: handoverCaption },
-        { id: 'closure', label: 'Closure', state: closureState, caption: closureCaption }
-      ];
-
-      const currentStage = stageProgress.find(stage => stage.state !== 'done') || stageProgress[stageProgress.length - 1];
-
-      const stageProgressHtml = currentStage
-        ? `
-                        <div class="inline-flex flex-col md:flex-row md:items-center gap-1 md:gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs">
-                            <span class="font-semibold text-slate-700 uppercase tracking-wide">Current stage:</span>
-                            <span class="font-medium text-slate-900">${escapeHtml(currentStage.label)}</span>
-                            ${currentStage.caption ? `<span class="text-slate-500">· ${escapeHtml(currentStage.caption)}</span>` : ''}
-                        </div>
-                    `
-        : '';
-
-      const pickupMeta = (() => {
-        if (!pickupDateTime) return null;
-        const diffMs = pickupDateTime.getTime() - now.getTime();
-        let tone = 'bg-slate-100 text-slate-700 border border-slate-200';
-        if (diffMs < 0) {
-          tone = 'bg-rose-50 text-rose-700 border border-rose-100';
-        } else if (diffMs <= 2 * 3600000) {
-          tone = 'bg-amber-50 text-amber-700 border border-amber-100';
-        } else if (diffMs <= 12 * 3600000) {
-          tone = 'bg-sky-50 text-sky-700 border border-sky-100';
-        }
-        return {
-          tone,
-          relative: formatRelativeTime(pickupDateTime),
-          absolute: formatDateLabel(pickupDateTime)
-        };
-      })();
-
-      const returnMeta = (() => {
-        if (!returnDateTime) return null;
-        const diffMs = returnDateTime.getTime() - now.getTime();
-        let tone = 'text-gray-500';
-        if (diffMs < 0) {
-          tone = 'text-rose-600';
-        } else if (diffMs <= 6 * 3600000) {
-          tone = 'text-amber-600';
-        }
-        return {
-          tone,
-          relative: formatRelativeTime(returnDateTime),
-          absolute: formatDateLabel(returnDateTime)
-        };
-      })();
-
-      const depositInvoice = invoices.find(inv => normalizeStatus(inv.label || '').includes('deposit'))
-                    || invoices.find(inv => normalizeStatus(inv.description || '').includes('deposit'));
-      const depositStatus = depositInvoice?.status || (booking.deposit ? 'Not captured' : '—');
-      const depositClass = normalizeStatus(depositStatus) === 'authorized'
-        ? 'text-emerald-600'
-        : overdueInvoices.includes(depositInvoice) ? 'text-rose-600' : 'text-gray-700';
-
-      const paymentAlerts = [];
-      if (overdueInvoices.length) {
-        paymentAlerts.push(`<li class="flex items-start gap-2"><span class="mt-1 h-2 w-2 rounded-full bg-rose-500"></span><span class="text-xs text-rose-600">${overdueInvoices.length} invoice${overdueInvoices.length === 1 ? '' : 's'} overdue</span></li>`);
-      }
-      if (dueSoonInvoices.length) {
-        paymentAlerts.push(`<li class="flex items-start gap-2"><span class="mt-1 h-2 w-2 rounded-full bg-amber-500"></span><span class="text-xs text-amber-600">${dueSoonInvoices.length} invoice${dueSoonInvoices.length === 1 ? '' : 's'} due within 3 days</span></li>`);
-      }
-      if (!paymentAlerts.length) {
-        paymentAlerts.push('<li class="text-xs text-emerald-600">No payment alerts</li>');
-      }
-
-      const historyEntries = Array.isArray(booking.history) ? [...booking.history] : [];
-      const historyEvents = new Set(historyEntries.map(entry => entry.event));
-      const ensureHistoryEntry = (event, tsFallback) => {
-        if (!event || historyEvents.has(event)) return;
-        historyEntries.push({
-          event,
-          ts: tsFallback || '—'
-        });
-        historyEvents.add(event);
-      };
-
-      if (booking.documents && booking.documents.length) {
-        ensureHistoryEntry('Documents received', booking.history?.[0]?.ts || booking.startDate || '—');
-      }
-
-      if (booking.deposit) {
-        ensureHistoryEntry(`Deposit received ${formatAed(booking.deposit)}`, booking.startDate || '—');
-      }
-
-      if (assignedDriver) {
-        const existingDriverEntry = historyEntries.find(item => typeof item.event === 'string' && item.event.toLowerCase().includes('driver'));
-        const existingDriverTs = existingDriverEntry?.ts;
-        ensureHistoryEntry(`Driver ${assignedDriver.name} assigned`, existingDriverTs || booking.startDate || '—');
-      }
-
-      const enrichHistoryEntry = (entry) => {
-        const ts = parseLooseDateTime(entry.ts);
-        const relative = formatRelativeTime(ts);
-        const absolute = entry.ts && entry.ts !== '—' ? entry.ts : (ts ? formatDateLabel(ts) : '—');
-        const tone = ts && ts.getTime() > now.getTime() ? 'text-sky-600' : 'text-gray-500';
-        return {
-          event: entry.event,
-          absolute,
-          relative,
-          tone
-        };
-      };
-
-      const sortedHistoryEntries = historyEntries.slice().sort((a, b) => {
-        const aDate = parseLooseDateTime(a.ts) || new Date(0);
-        const bDate = parseLooseDateTime(b.ts) || new Date(0);
-        return bDate - aDate;
-      });
-
-      const bookingHistoryHtml = sortedHistoryEntries.length
-        ? sortedHistoryEntries.map(entry => {
-          const enriched = enrichHistoryEntry(entry);
-          const relativePart = enriched.relative ? `<span class="ml-1 text-[11px] text-gray-400">(${escapeHtml(enriched.relative)})</span>` : '';
-          return `
-                            <li class="flex items-start gap-2 rounded-lg border border-gray-200/60 px-3 py-2">
-                                <span class="mt-1 text-emerald-500">${getIcon('check', 'w-4 h-4')}</span>
-                                <div>
-                                    <p class="text-sm font-medium text-gray-800">${escapeHtml(enriched.event)}</p>
-                                    <p class="text-xs ${enriched.tone}">${escapeHtml(enriched.absolute)}${relativePart}</p>
-                                </div>
-                            </li>
-                        `;
-        }).join('')
-        : '<li class="text-sm text-gray-500">No history records</li>';
-
-      const relatedTasks = (MOCK_DATA.tasks || []).filter(task => Number(task.bookingId) === Number(booking.id));
-      const taskStatusMeta = {
-        todo: { label: 'To do', badgeClass: 'bg-slate-100 text-slate-700 border border-slate-200' },
-        inprogress: { label: 'In progress', badgeClass: 'bg-amber-100 text-amber-700 border border-amber-200' },
-        done: { label: 'Completed', badgeClass: 'bg-emerald-100 text-emerald-700 border border-emerald-200' }
-      };
-
-      const getTaskDeadlineMeta = (deadlineValue) => {
-        const deadlineDate = parseLooseDateTime(deadlineValue);
-        if (!deadlineDate) {
-          return { label: 'Deadline not set', tone: 'text-gray-500' };
-        }
-        const relative = formatRelativeTime(deadlineDate);
-        let tone = 'text-gray-600';
-        if (deadlineDate.getTime() < now.getTime()) {
-          tone = 'text-rose-600';
-        } else if (deadlineDate.getTime() - now.getTime() <= 6 * 3600000) {
-          tone = 'text-amber-600';
-        }
-        return { label: `${formatDateLabel(deadlineDate)} (${relative || 'upcoming'})`, tone };
-      };
-
-      const bookingTasksContent = relatedTasks.length
-        ? `<div class="grid gap-3">
-                            ${relatedTasks.map(task => {
-    const assignee = task.assigneeId
-      ? MOCK_DATA.drivers.find(d => Number(d.id) === Number(task.assigneeId))
-      : null;
-    const statusMeta = taskStatusMeta[task.status] || {
-      label: task.status ? `${task.status.charAt(0).toUpperCase()}${task.status.slice(1)}` : 'Unknown',
-      badgeClass: 'bg-gray-100 text-gray-600 border border-gray-200'
-    };
-    const deadlineMeta = getTaskDeadlineMeta(task.deadline);
-    const initials = assignee ? assignee.name.split(' ').map(part => part[0]).join('').slice(0, 2).toUpperCase() : '';
-    const assigneeBlock = assignee ? `<div class="flex items-center justify-between gap-2 text-xs text-gray-600"><span class="inline-flex h-6 w-6 items-center justify-center rounded-full bg-slate-200 text-[11px] font-semibold text-gray-700">${escapeHtml(initials)}</span><span class="font-medium">${escapeHtml(assignee.name)}</span></div>` : '';
-    return `
-                                    <article class="space-y-3 rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
-                                        <div class="flex items-start justify-between gap-3">
-                                            <p class="text-sm font-semibold text-gray-900 leading-snug">${escapeHtml(task.title || 'Task')}</p>
-                                            <span class="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md ${statusMeta.badgeClass}">${escapeHtml(statusMeta.label)}</span>
-                                        </div>
-                                        <dl class="space-y-2 text-xs text-gray-500">
-                                            <div class="flex items-start justify-between gap-2">
-                                                <dt class="font-medium text-gray-600">Deadline</dt>
-                                                <dd class="text-right ${deadlineMeta.tone}">${escapeHtml(deadlineMeta.label)}</dd>
-                                            </div>
-                                            ${assigneeBlock}
-                                        </dl>
-                                    </article>
-                                `;
-  }).join('')}
-                       </div>`
-        : '<p class="text-sm text-gray-500">No tasks linked to this booking</p>';
-
-      const timelineStatusLabels = {
-        preparation: 'Preparation',
-        delivery: 'Delivery',
-        inspection: 'Inspection',
-        default: 'Update'
-      };
-
-      const timelineStatusClasses = {
-        preparation: 'border-amber-200 bg-amber-50 text-amber-700',
-        delivery: 'border-sky-200 bg-sky-50 text-sky-700',
-        inspection: 'border-indigo-200 bg-indigo-50 text-indigo-700',
-        default: 'border-gray-200 bg-gray-50 text-gray-600'
-      };
-
-      const operationalTimeline = timelineItems.length
-        ? `<ul class="space-y-2">
-                            ${timelineItems.map(item => {
-    const entryTs = parseLooseDateTime(item.ts);
-    const labelKey = normalizeStatus(item.status);
-    const badgeClass = timelineStatusClasses[labelKey] || timelineStatusClasses.default;
-    const label = timelineStatusLabels[labelKey] || timelineStatusLabels.default;
-    const relative = formatRelativeTime(entryTs);
-    return `
-                                    <li class="flex items-start justify-between gap-3 rounded-lg border border-dashed px-3 py-2">
-                                        <div>
-                                            <span class="inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium ${badgeClass}">${escapeHtml(label)}</span>
-                                            ${item.note ? `<p class="mt-1 text-sm text-gray-700">${escapeHtml(item.note)}</p>` : ''}
-                                        </div>
-                                        <div class="text-right text-xs text-gray-500">
-                                            ${relative ? `<p>${escapeHtml(relative)}</p>` : ''}
-                                            ${entryTs ? `<p class="opacity-80">${escapeHtml(formatDateLabel(entryTs))}</p>` : ''}
-                                            ${item.actor ? `<p class="mt-1 font-medium text-gray-600">${escapeHtml(item.actor)}</p>` : ''}
-                                        </div>
-                                    </li>
-                                `;
-  }).join('')}
-                        </ul>`
-        : '';
-
-      const pickupMileageValue = formatMileageValue(booking.pickupMileage ?? booking.mileageAtPickup);
-      const pickupFuelValue = formatFuelValue(booking.pickupFuel ?? booking.fuelLevelAtPickup);
-      const returnMileageValue = formatMileageValue(booking.returnMileage ?? booking.mileage ?? booking.mileageAtReturn);
-      const returnFuelValue = formatFuelValue(booking.returnFuel ?? booking.fuelLevel ?? booking.fuelLevelAtReturn);
-
-      const bookingInvoices = Array.isArray(booking.invoices) ? booking.invoices : [];
-      const invoicesTable = bookingInvoices.length
-        ? `
-                        <div class="overflow-x-auto">
-                            <table class="min-w-full text-sm text-gray-600 border border-gray-200 rounded-lg overflow-hidden">
-                                <thead class="bg-gray-50 text-gray-500 uppercase text-xs tracking-wide">
-                                    <tr>
-                                        <th class="px-3 py-2 text-left">Invoice</th>
-                                        <th class="px-3 py-2 text-left">Description</th>
-                                        <th class="px-3 py-2 text-right">Amount</th>
-                                        <th class="px-3 py-2 text-left">Status</th>
-                                        <th class="px-3 py-2 text-left">Issued</th>
-                                        <th class="px-3 py-2 text-left">Due</th>
-                                    </tr>
-                                </thead>
-                                <tbody class="divide-y divide-gray-200">
-                                    ${bookingInvoices.map(invoice => `
-                                        <tr>
-                                            <td class="px-3 py-2 font-medium text-gray-900">${escapeHtml(invoice.id || '—')}</td>
-                                            <td class="px-3 py-2">${escapeHtml(invoice.label || '—')}</td>
-                                            <td class="px-3 py-2 text-right">${formatAed(invoice.amount)}</td>
-                                            <td class="px-3 py-2">
-                                                <span class="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md bg-slate-100 text-slate-700">
-                                                    ${escapeHtml(invoice.status || '—')}
-                                                </span>
-                                            </td>
-                                            <td class="px-3 py-2">${escapeHtml(invoice.issuedDate || '—')}</td>
-                                            <td class="px-3 py-2">${escapeHtml(invoice.dueDate || '—')}</td>
-                                        </tr>
-                                    `).join('')}
-                                </tbody>
-                            </table>
-                        </div>
-                    `
-        : '<p class="text-sm text-gray-500">Инвойсы отсутствуют</p>';
-
-      const bookingIdentifier = escapeHtml(booking.code || `#${booking.id || ''}`);
-
-      const documentButtons = Array.isArray(booking.documents) && booking.documents.length
-        ? booking.documents.map(doc => {
-          const thumb = typeof doc === 'string' ? doc : doc.url;
-          const label = typeof doc === 'string' ? 'Document' : (doc.name || doc.type || 'Document');
-          if (!thumb) {
-            return `<span class="inline-flex items-center px-2 py-1 text-xs rounded-md bg-gray-100 text-gray-600 border border-gray-200">${escapeHtml(label)}</span>`;
-          }
-          return `
-                            <button class="doc-image relative group">
-                                <img src="${thumb}" alt="Document preview" class="w-28 h-20 object-cover rounded-md border border-gray-200">
-                                <span class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white text-xs">${escapeHtml(label)}</span>
-                            </button>
-                        `;
-        }).join('')
-        : '<p class="text-xs text-gray-500">No documents uploaded</p>';
-
-      content = `
-                    <div class="p-6 border-b bg-slate-50/40">
-                        <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-                            <div class="space-y-3">
-                                <div class="flex flex-wrap items-center gap-2 text-xs font-medium text-gray-600">
-                                    <span class="inline-flex items-center px-2.5 py-1 rounded-md bg-white text-gray-700 border border-gray-200">Booking ${bookingIdentifier}</span>
-                                </div>
-                                <h2 class="text-2xl font-semibold text-gray-900">${escapeHtml(booking.carName)}</h2>
-                                <p class="text-sm text-gray-500">${escapeHtml(client.name || booking.clientName)}</p>
-                            </div>
-                            <div class="space-y-3 text-right">
-                                <div>
-                                    <p class="text-xs uppercase tracking-wide text-gray-500">Outstanding</p>
-                                    <p class="text-2xl font-semibold ${dueAmount > 0 ? 'text-amber-600' : 'text-emerald-600'}">${formatAed(dueAmount)}</p>
-                                    <p class="text-xs text-gray-500">Paid ${formatAed(booking.paidAmount)}</p>
-                                </div>
-                                ${pickupMeta ? `<div class="inline-flex max-w-xs flex-wrap items-center justify-end gap-2 rounded-lg px-3 py-2 text-xs font-medium ${pickupMeta.tone}"><span>Pickup ${escapeHtml(pickupMeta.relative || '')}</span><span class="text-[11px] opacity-70">${escapeHtml(pickupMeta.absolute)}</span></div>` : ''}
-                            </div>
-                        </div>
-                        <div class="mt-5 border-t border-slate-200 pt-4 overflow-x-auto">${stageProgressHtml}</div>
-                    </div>
-                    <div class="p-6 space-y-6">
-                        <div class="space-y-6 max-w-5xl mx-auto">
-                            <div class="grid gap-6 lg:grid-cols-3">
-                                <div class="lg:col-span-2 space-y-6">
-                                    <div class="geist-card p-4 border border-gray-200 rounded-xl">
-                                        <h3 class="font-semibold text-gray-800 mb-4">Timeline & logistics</h3>
-                                        <div class="grid gap-4 md:grid-cols-2 text-sm text-gray-600">
-                                            <div>
-                                                <p class="font-semibold text-gray-500">Pickup</p>
-                                                <p class="mt-1 text-gray-900">${formatDateTime(booking.startDate, booking.startTime)}</p>
-                                                ${pickupMeta ? `<p class="text-xs text-gray-500">${escapeHtml(pickupMeta.relative || '')}</p>` : ''}
-                                                <p class="mt-2 flex items-center gap-2">${getIcon('mapPin', 'w-4 h-4 text-gray-400')}${formatLocationLink(booking.pickupLocation)}</p>
-                                                <div class="mt-3 space-y-1 text-xs text-gray-500">
-                                                    <div class="flex items-center justify-between">
-                                                        <span>Mileage</span>
-                                                        <span class="text-gray-900">${pickupMileageValue}</span>
-                                                    </div>
-                                                    <div class="flex items-center justify-between">
-                                                        <span>Fuel</span>
-                                                        <span class="text-gray-900">${pickupFuelValue}</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div>
-                                                <p class="font-semibold text-gray-500">Return</p>
-                                                <p class="mt-1 text-gray-900">${formatDateTime(booking.endDate, booking.endTime)}</p>
-                                                ${returnMeta ? `<p class="text-xs ${returnMeta.tone}">${escapeHtml(returnMeta.relative || '')}</p>` : ''}
-                                                <p class="mt-2 flex items-center gap-2">${getIcon('mapPin', 'w-4 h-4 text-gray-400')}${formatLocationLink(booking.dropoffLocation)}</p>
-                                                <div class="mt-3 space-y-1 text-xs text-gray-500">
-                                                    <div class="flex items-center justify-between">
-                                                        <span>Mileage</span>
-                                                        <span class="text-gray-900">${returnMileageValue}</span>
-                                                    </div>
-                                                    <div class="flex items-center justify-between">
-                                                        <span>Fuel</span>
-                                                        <span class="text-gray-900">${returnFuelValue}</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="mt-5 space-y-3">
-                                            ${operationalTimeline}
-                                        </div>
-                                    </div>
-                                    <div class="geist-card p-4 border border-gray-200 rounded-xl">
-                                        <h3 class="font-semibold text-gray-800 mb-4">Documents</h3>
-                                        <div class="flex flex-wrap gap-3">${documentButtons}</div>
-                                    </div>
-                                </div>
-                                <div class="space-y-6">
-                                    <div class="geist-card p-4 border border-gray-200 rounded-xl">
-                                        <div class="flex items-center justify-between mb-3 gap-3">
-                                            <h3 class="font-semibold text-gray-800">Client</h3>
-                                            ${clientDetailLink}
-                                        </div>
-                                        <div class="space-y-4 text-sm text-gray-600">
-                                            <div class="flex flex-wrap items-start gap-3">
-                                                <div>
-                                                    <p class="text-base font-semibold text-gray-900">${escapeHtml(client.name || booking.clientName)}</p>
-                                                    <p class="text-sm text-gray-500">${escapeHtml(client.email || booking.clientEmail || '—')} · ${escapeHtml(client.phone || booking.clientPhone || '—')}</p>
-                                                    <div class="mt-2 flex flex-wrap items-center gap-2 text-[11px] font-medium">
-                                                        <span class="inline-flex items-center rounded-md bg-slate-100 px-2 py-1 text-slate-600 border border-slate-200">Segment: ${escapeHtml(client.segment || booking.segment || '—')}</span>
-                                                        <span class="inline-flex items-center rounded-md bg-slate-100 px-2 py-1 text-slate-600 border border-slate-200">Channel: ${escapeHtml(booking.channel || '—')}</span>
-                                                        <span class="inline-flex items-center rounded-md bg-slate-100 px-2 py-1 text-slate-600 border border-slate-200">Status: ${escapeHtml(client.status || '—')}</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="flex flex-wrap gap-2 text-xs">
-                                                <a class="geist-button geist-button-secondary text-xs" href="tel:${client.phone || booking.clientPhone || ''}">Call</a>
-                                                <a class="geist-button geist-button-secondary text-xs" href="mailto:${client.email || booking.clientEmail || ''}">Email</a>
-                                                ${client.preferences?.notifications?.includes('whatsapp') ? `<a class="geist-button geist-button-secondary text-xs" href="https://wa.me/${(client.phone || '').replace(/[^0-9]/g, '')}" target="_blank" rel="noopener">WhatsApp</a>` : ''}
-                                            </div>
-                                            <div class="grid gap-2 text-xs">
-                                                <div class="space-y-1">
-                                                    <p class="font-medium text-gray-600">Lifetime value</p>
-                                                    <p class="text-sm text-gray-900">${formatAed(client.lifetimeValue || client.turnover || 0)}</p>
-                                                    <p class="text-xs text-gray-500">Outstanding: ${formatAed(client.outstanding || 0)}</p>
-                                                </div>
-                                            </div>
-                                            <div>
-                                                <p class="text-xs font-medium text-gray-500">Responsible manager</p>
-                                                <p class="text-sm text-gray-900">${escapeHtml(responsibleSalesPerson)}</p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="geist-card p-4 border border-gray-200 rounded-xl">
-                                        <h3 class="font-semibold text-gray-800 mb-3">Payments</h3>
-                                        <div class="space-y-4 text-sm text-gray-600">
-                                            <div class="grid gap-2 sm:grid-cols-3">
-                                                <div class="rounded-lg border border-gray-200 px-3 py-2">
-                                                    <p class="text-xs uppercase tracking-wide text-gray-500">Paid</p>
-                                                    <p class="text-base font-semibold text-gray-900 mt-1">${formatAed(booking.paidAmount)}</p>
-                                                </div>
-                                                <div class="rounded-lg border border-gray-200 px-3 py-2">
-                                                    <p class="text-xs uppercase tracking-wide text-gray-500">Outstanding</p>
-                                                    <p class="text-base font-semibold ${dueAmount > 0 ? 'text-amber-600' : 'text-emerald-600'} mt-1">${formatAed(dueAmount)}</p>
-                                                </div>
-                                                <div class="rounded-lg border border-gray-200 px-3 py-2">
-                                                    <p class="text-xs uppercase tracking-wide text-gray-500">Deposit</p>
-                                                    <p class="text-base font-semibold text-gray-900 mt-1">${formatAed(booking.deposit)}</p>
-                                                    <p class="text-[11px] ${depositClass}">${escapeHtml(depositStatus)}</p>
-                                                </div>
-                                            </div>
-                                            <div class="rounded-lg border border-dashed border-gray-200 bg-gray-50 px-3 py-2">
-                                                <p class="text-xs font-medium text-gray-600">Alerts</p>
-                                                <ul class="mt-2 space-y-1">
-                                                    ${paymentAlerts.join('')}
-                                                </ul>
-                                            </div>
-                                            <div class="pt-3 border-t">
-                                                <h4 class="font-medium text-sm text-gray-700 mb-2">Invoices</h4>
-                                                ${invoicesTable}
-                                            </div>
-                                            <div class="pt-3 border-t">
-                                                <h4 class="font-medium text-sm text-gray-700 mb-2">Generate payment link</h4>
-                                                <div class="space-y-3">
-                                                    <input type="number" value="${Math.max(dueAmount, 0)}" placeholder="Amount" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md stripe-amount-input">
-                                                    <select class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md stripe-reason-select">
-                                                        <option>Rental top-up</option>
-                                                        <option>Extension</option>
-                                                        <option>Additional mileage</option>
-                                                    </select>
-                                                    <button type="button" class="w-full geist-button geist-button-secondary text-sm generate-stripe-link" data-booking-id="${booking.id}">Create Stripe link</button>
-                                                    <div id="stripe-link-result" class="hidden space-y-2">
-                                                        <div class="flex items-center justify-between bg-gray-100 rounded-md px-3 py-2 gap-3">
-                                                            <a id="stripe-link-anchor" href="#" target="_blank" rel="noopener" class="text-blue-600 hover:underline break-all flex-1">—</a>
-                                                            <button type="button" class="copy-stripe-link p-2 text-gray-500 hover:text-black rounded-md" title="Copy link">${getIcon('copy', 'w-4 h-4')}</button>
-                                                        </div>
-                                                        <p id="stripe-copy-feedback" class="text-xs text-emerald-600 hidden">Link copied</p>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="geist-card p-4 border border-gray-200 rounded-xl">
-                                        <h3 class="font-semibold text-gray-800 mb-4">Tasks</h3>
-                                        ${bookingTasksContent}
-                                    </div>
-                                    <div class="geist-card p-4 border border-gray-200 rounded-xl">
-                                        <h3 class="font-semibold text-gray-800 mb-3">History</h3>
-                                        <ul class="space-y-3">
-                                            ${bookingHistoryHtml}
-                                        </ul>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>`;
-
-    } else if (type === 'fleet-table') {
-      const car = MOCK_DATA.cars.find(c => c.id == id);
-      if (!car || !fleetDetailContent) return false;
-      targetContainer = fleetDetailContent;
-
-      const statusTone = {
-        Available: 'bg-emerald-50 text-emerald-700 border border-emerald-100',
-        'In Rent': 'bg-blue-50 text-blue-700 border border-blue-100',
-        Maintenance: 'bg-amber-50 text-amber-700 border border-amber-100'
-      };
-      const badgeClass = statusTone[car.status] || 'bg-gray-100 text-gray-600 border border-gray-200';
-      const service = car.serviceStatus || {};
-      const rawHealth = Math.round((service.health ?? 0) * 100);
-      const healthPercent = Number.isFinite(rawHealth) ? Math.min(Math.max(rawHealth, 0), 100) : 0;
-      const healthClass = healthPercent >= 80 ? 'bg-emerald-500' : healthPercent >= 60 ? 'bg-amber-500' : 'bg-rose-500';
-      const mileageToService = service.mileageToService != null
-        ? `${Number(service.mileageToService).toLocaleString('en-US')} km`
-        : '—';
-      const utilizationPercent = Math.round((car.utilization ?? 0) * 100);
-      const mileageLabel = car.mileage != null
-        ? `${Number(car.mileage).toLocaleString('en-US')} km`
-        : '—';
-      let heroImage = '';
-      if (typeof car.imagePath === 'string') {
-          heroImage = car.imagePath;
-      }
-      const reminders = Array.isArray(car.reminders) ? car.reminders : [];
-      const reminderTone = {
-        critical: 'bg-rose-50 text-rose-700 border border-rose-100',
-        warning: 'bg-amber-50 text-amber-700 border border-amber-100',
-        scheduled: 'bg-slate-50 text-slate-700 border border-slate-100'
-      };
-      const remindersHtml = reminders.length
-        ? reminders.map(reminder => {
-          const tone = reminderTone[reminder.status] || 'bg-gray-100 text-gray-600 border border-gray-200';
-          const label = reminder.type ? reminder.type.replace(/-/g, ' ') : 'Reminder';
-          return `
-                             <li class="flex items-center justify-between gap-3 text-sm">
-                                 <div>
-                                     <p class="font-medium text-gray-900">${escapeHtml(label)}</p>
-                                     <p class="text-xs text-gray-500">Due ${escapeHtml(reminder.dueDate || '—')}</p>
-                                 </div>
-                                 <span class="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md ${tone}">${escapeHtml(reminder.status || 'scheduled')}</span>
-                             </li>
-                         `;
-        }).join('')
-        : '<p class="text-sm text-gray-500">No active reminders</p>';
-
-      const maintenanceHistory = Array.isArray(car.maintenanceHistory) ? [...car.maintenanceHistory] : [];
-      maintenanceHistory.sort((a, b) => {
-        const dateA = new Date(a.date || 0).getTime();
-        const dateB = new Date(b.date || 0).getTime();
-        return dateB - dateA;
-      });
-      const maintenanceHistoryHtml = maintenanceHistory.length
-        ? maintenanceHistory.map(item => `
-                         <li class="flex flex-col gap-1 rounded-md border border-gray-200 px-3 py-2 text-sm">
-                             <div class="flex items-center justify-between text-gray-700">
-                                 <span class="font-medium">${escapeHtml(item.type || 'Maintenance')}</span>
-                                 <span class="text-xs text-gray-500">${escapeHtml(item.date || '—')}</span>
-                             </div>
-                             <div class="flex items-center justify-between text-xs text-gray-500">
-                                 <span>Odometer</span>
-                                 <span>${item.odometer != null ? `${Number(item.odometer).toLocaleString('en-US')} km` : '—'}</span>
-                             </div>
-                             ${item.notes ? `<p class="text-xs text-gray-500">${escapeHtml(item.notes)}</p>` : ''}
-                         </li>
-                     `).join('')
-        : '<p class="text-sm text-gray-500">No maintenance history</p>';
-
-      const documents = Array.isArray(car.documents) ? car.documents : [];
-      const documentStatusTone = {
-        active: 'bg-emerald-50 text-emerald-700 border border-emerald-100',
-        warning: 'bg-amber-50 text-amber-700 border border-amber-100',
-        expired: 'bg-rose-50 text-rose-700 border border-rose-100',
-        'needs-review': 'bg-amber-50 text-amber-700 border border-amber-100'
-      };
-      const documentStatusLabel = {
-        active: 'Active',
-        warning: 'Warning',
-        expired: 'Expired',
-        'needs-review': 'Needs review'
-      };
-      const documentStatusHtml = documents.length
-        ? documents.map(doc => {
-          const tone = documentStatusTone[doc.status] || 'bg-gray-100 text-gray-600 border border-gray-200';
-          const statusLabel = documentStatusLabel[doc.status] || (doc.status ? doc.status : 'Status');
-          return `
-                             <li class="flex items-center justify-between gap-3 rounded-md border border-gray-200 px-3 py-2 text-sm">
-                                 <div>
-                                     <p class="font-medium text-gray-900">${escapeHtml(doc.name || doc.type || 'Document')}</p>
-                                     <p class="text-xs text-gray-500">${doc.expiry ? `Expires ${escapeHtml(doc.expiry)}` : 'No expiry date'}</p>
-                                 </div>
-                                 <span class="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md ${tone}">${escapeHtml(statusLabel)}</span>
-                             </li>
-                         `;
-        }).join('')
-        : '<p class="text-sm text-gray-500">No documents uploaded</p>';
-
-      const documentGallery = Array.isArray(car.documentGallery) ? car.documentGallery : [];
-      const documentGalleryHtml = documentGallery.length
-        ? documentGallery.map(url => `
-                         <img src="${escapeHtml(url)}" class="rounded-md cursor-pointer doc-image w-full h-36 object-cover" alt="Vehicle document">
-                     `).join('')
-        : '';
-
-      const inspections = Array.isArray(car.inspections) ? car.inspections : [];
-      const inspectionsHtml = inspections.length
-        ? inspections.map(insp => `
-                         <li class="rounded-md border border-gray-200 p-3 text-sm">
-                             <div class="flex items-center justify-between text-gray-700">
-                                 <span class="font-medium">${escapeHtml(insp.date || '—')}</span>
-                                 <span class="text-xs text-gray-500">${escapeHtml(insp.driver || '—')}</span>
-                             </div>
-                             ${insp.notes ? `<p class="mt-2 text-xs text-gray-500">${escapeHtml(insp.notes)}</p>` : ''}
-                             ${Array.isArray(insp.photos) && insp.photos.length ? `
-                                 <div class="mt-3 grid grid-cols-3 gap-2">
-                                     ${insp.photos.map(photo => `<img src="${escapeHtml(photo)}" class="h-16 w-full rounded object-cover doc-image" alt="Inspection photo">`).join('')}
-                                 </div>
-                             ` : ''}
-                         </li>
-                     `).join('')
-        : '<p class="text-sm text-gray-500">No inspections recorded</p>';
-
-      const relevantBookings = (MOCK_DATA.bookings || []).filter(booking => Number(booking.carId) === Number(car.id));
-      const parseBookingDate = (date, time) => {
-        if (!date) return null;
-        const safeTime = time && time.length === 5 ? `${time}:00` : (time || '00:00:00');
-        const parsed = new Date(`${date}T${safeTime}`);
-        return Number.isNaN(parsed.getTime()) ? null : parsed;
-      };
-      const formatBookingDate = (dateObj) => {
-        if (!dateObj) return '—';
-        return dateObj.toLocaleString('en-GB', {
-          day: '2-digit',
-          month: 'short',
-          hour: '2-digit',
-          minute: '2-digit'
-        });
-      };
-      const now = new Date();
-      const upcomingBookings = relevantBookings
-        .map(booking => ({ booking, start: parseBookingDate(booking.startDate, booking.startTime) }))
-        .filter(item => item.start && item.start >= now)
-        .sort((a, b) => (a.start?.getTime() || 0) - (b.start?.getTime() || 0));
-      const nextBooking = upcomingBookings.length ? upcomingBookings[0].booking : null;
-      const activeStatuses = ['delivery', 'in-rent', 'settlement', 'return'];
-      const activeBooking = relevantBookings.find(booking => activeStatuses.includes(String(booking.status || '').toLowerCase()));
-      const pastBookings = relevantBookings
-        .map(booking => ({ booking, end: parseBookingDate(booking.endDate, booking.endTime) }))
-        .filter(item => item.end && item.end < now)
-        .sort((a, b) => (b.end?.getTime() || 0) - (a.end?.getTime() || 0));
-      const lastBooking = pastBookings.length ? pastBookings[0].booking : null;
-
-      const buildBookingCard = (label, booking) => {
-        if (!booking) return '';
-        const start = parseBookingDate(booking.startDate, booking.startTime);
-        const end = parseBookingDate(booking.endDate, booking.endTime);
-        const driver = booking.driverId
-          ? MOCK_DATA.drivers.find(d => Number(d.id) === Number(booking.driverId))
-          : null;
-        const driverLabel = driver ? driver.name : 'Unassigned';
-        const statusLabel = (booking.status || '').replace(/-/g, ' ') || '—';
-        return `
-                         <li class="rounded-lg border border-gray-200 p-3">
-                             <div class="flex items-center justify-between text-xs uppercase tracking-wide text-gray-500">
-                                 <span>${escapeHtml(label)}</span>
-                                 <span class="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md bg-slate-100 text-slate-700">${escapeHtml(statusLabel)}</span>
-                             </div>
-                             <div class="mt-2 space-y-1 text-sm text-gray-700">
-                                 <p class="font-medium text-gray-900">${escapeHtml(booking.clientName || 'Client')}</p>
-                                 <p>${formatBookingDate(start)} → ${formatBookingDate(end)}</p>
-                                 <p class="text-xs text-gray-500">Driver: ${escapeHtml(driverLabel || 'Unassigned')}</p>
-                             </div>
-                             <div class="mt-3 flex items-center justify-between text-xs text-blue-600">
-                                 <a class="hover:underline" href="${buildHash(appState.currentRole, 'booking-detail', booking.id)}">Open booking</a>
-                                 <span>#${escapeHtml(String(booking.code || booking.id || ''))}</span>
-                             </div>
-                         </li>
-                     `;
-      };
-
-      const bookingCards = [
-        activeBooking ? buildBookingCard('In progress', activeBooking) : '',
-        nextBooking && (!activeBooking || nextBooking.id !== activeBooking.id) ? buildBookingCard('Next booking', nextBooking) : '',
-        lastBooking ? buildBookingCard('Last booking', lastBooking) : ''
-      ].filter(Boolean).join('');
-
-      const bookingsHtml = bookingCards || '<p class="text-sm text-gray-500">No related bookings yet</p>';
-      const gallerySection = documentGalleryHtml
-        ? `<div class="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">${documentGalleryHtml}</div>`
-        : '';
-
-      content = `
-                    <div class="p-6 border-b bg-white">
-                        <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                            <div>
-                                <h2 class="text-2xl font-semibold text-gray-900">${escapeHtml(car.name)}</h2>
-                                <div class="mt-1 flex flex-wrap items-center gap-3 text-sm text-gray-500">
-                                    <span>${escapeHtml(car.plate || '—')}</span>
-                                    <span>·</span>
-                                    <span>${escapeHtml(String(car.year || '—'))}</span>
-                                    <span>·</span>
-                                    <span>${escapeHtml(car.color || '—')}</span>
-                                </div>
-                            </div>
-                            <div class="flex flex-wrap items-center gap-3">
-                                <span class="inline-flex items-center px-3 py-1 text-xs font-medium rounded-md ${badgeClass}">${escapeHtml(car.status || '—')}</span>
-                                <div class="text-xs text-gray-500">
-                                    <p>Class: ${escapeHtml(car.class || '—')}</p>
-                                    <p>Segment: ${escapeHtml(car.segment || '—')}</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="p-6 space-y-6 bg-white">
-                        <div class="grid gap-6 lg:grid-cols-3">
-                            <div class="geist-card overflow-hidden lg:col-span-2">
-                                <img src="${escapeHtml(heroImage)}" class="h-56 w-full object-cover" alt="${escapeHtml(car.name)}">
-                                <div class="p-5 space-y-5">
-                                    <div class="grid gap-4 sm:grid-cols-2">
-                                        <div class="space-y-3">
-                                            <h3 class="font-semibold text-gray-900">Readiness</h3>
-                                            <div class="flex items-center justify-between text-sm text-gray-700">
-                                                <span>${escapeHtml(service.label || '—')}</span>
-                                                ${service.nextService ? `<span class="text-xs text-gray-500">Next service ${escapeHtml(service.nextService)}</span>` : ''}
-                                            </div>
-                                            <div class="w-full rounded-full bg-gray-200 h-2">
-                                                <div class="h-2 rounded-full ${healthClass}" style="width: ${healthPercent}%"></div>
-                                            </div>
-                                            <div class="flex flex-wrap items-center gap-3 text-xs text-gray-500">
-                                                <span>Technical readiness ${healthPercent}%</span>
-                                                <span>·</span>
-                                                <span>Mileage to service ${escapeHtml(mileageToService)}</span>
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <h3 class="font-semibold text-gray-900">Reminders</h3>
-                                            <ul class="mt-3 space-y-2">
-                                                ${remindersHtml}
-                                            </ul>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="geist-card p-5 space-y-4">
-                                <div>
-                                    <h3 class="font-semibold text-gray-900">Quick actions</h3>
-                                    <div class="mt-3 flex flex-wrap gap-2">
-                                        <button class="geist-button geist-button-secondary text-xs fleet-quick-action" data-action="maintenance" data-car-id="${car.id}">Schedule maintenance</button>
-                                        <button class="geist-button geist-button-secondary text-xs fleet-quick-action" data-action="inspection" data-car-id="${car.id}">Log inspection</button>
-                                        <button class="geist-button geist-button-secondary text-xs fleet-quick-action" data-action="detailing" data-car-id="${car.id}">Plan detailing</button>
-                                        <button class="geist-button geist-button-secondary text-xs fleet-quick-action" data-action="fines" data-car-id="${car.id}">Check fines</button>
-                                    </div>
-                                </div>
-                                <div>
-                                    <h3 class="font-semibold text-gray-900">Vehicle KPIs</h3>
-                                    <dl class="mt-3 grid grid-cols-2 gap-4 text-sm">
-                                        <div>
-                                            <dt class="text-xs uppercase tracking-wide text-gray-500">Utilization</dt>
-                                            <dd class="font-semibold text-gray-900">${utilizationPercent}%</dd>
-                                        </div>
-                                        <div>
-                                            <dt class="text-xs uppercase tracking-wide text-gray-500">Mileage</dt>
-                                            <dd class="font-semibold text-gray-900">${escapeHtml(mileageLabel)}</dd>
-                                        </div>
-                                        <div>
-                                            <dt class="text-xs uppercase tracking-wide text-gray-500">Revenue YTD</dt>
-                                            <dd class="font-semibold text-gray-900">${formatCurrency(car.revenueYTD || 0)}</dd>
-                                        </div>
-                                        <div>
-                                            <dt class="text-xs uppercase tracking-wide text-gray-500">Insurance</dt>
-                                            <dd class="font-semibold text-gray-900">${escapeHtml(car.insuranceExpiry || '—')}</dd>
-                                        </div>
-                                    </dl>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="grid gap-6 lg:grid-cols-2">
-                            <div class="geist-card p-5 space-y-4">
-                                <div>
-                                    <h3 class="font-semibold text-gray-900">Bookings</h3>
-                                    <p class="text-sm text-gray-500">Upcoming and recent activity for this vehicle</p>
-                                </div>
-                                <ul class="space-y-3">
-                                    ${bookingsHtml}
-                                </ul>
-                            </div>
-                            <div class="geist-card p-5 space-y-4">
-                                <div>
-                                    <h3 class="font-semibold text-gray-900">Maintenance & reminders</h3>
-                                    <p class="text-sm text-gray-500">Service log with odometer readings</p>
-                                </div>
-                                <ul class="space-y-3">
-                                    ${maintenanceHistoryHtml}
-                                </ul>
-                            </div>
-                        </div>
-                        <div class="grid gap-6 lg:grid-cols-2">
-                            <div class="geist-card p-5 space-y-4">
-                                <div>
-                                    <h3 class="font-semibold text-gray-900">Documents</h3>
-                                    <p class="text-sm text-gray-500">Expiry control and quick access</p>
-                                </div>
-                                <ul class="space-y-2">
-                                    ${documentStatusHtml}
-                                </ul>
-                                ${gallerySection}
-                            </div>
-                            <div class="geist-card p-5 space-y-4">
-                                <div>
-                                    <h3 class="font-semibold text-gray-900">Inspection history</h3>
-                                    <p class="text-sm text-gray-500">Highlights from recent checks</p>
-                                </div>
-                                <ul class="space-y-3">
-                                    ${inspectionsHtml}
-                                </ul>
-                            </div>
-                        </div>
-                    </div>`;
-    } else if (type === 'clients-table') {
-      const client = MOCK_DATA.clients.find(c => c.id == id);
-      if (!client || !clientDetailContent) return false;
-      targetContainer = clientDetailContent;
-
-      const pipeline = MOCK_DATA.salesPipeline || {};
-      const leads = Array.isArray(pipeline.leads) ? pipeline.leads : [];
-      const lead = leads.find(item => Number(item.clientId) === Number(client.id)) || null;
-      const workspaceDetails = MOCK_DATA.salesWorkspace?.leadDetails || {};
-      const detail = lead ? workspaceDetails[lead.id] || null : null;
-
-      const clientCardHtml = renderClientCard(lead, client, detail);
-      const leadContext = lead
-        ? `<p class="text-xs text-gray-500 mt-1">Active deal: ${lead.id} · ${lead.title}</p>`
-        : '';
-
-      content = `
-                    <div class="p-6 border-b">
-                        <h2 class="text-xl font-semibold">${client.name}</h2>
-                        ${leadContext}
-                    </div>
-                    <div class="p-6 space-y-6">
-                        ${clientCardHtml}
-                    </div>`;
-    }
-
-    if (!content || !targetContainer) return false;
-
-    targetContainer.innerHTML = content;
-    return true;
-  };
-        
   const renderVehicleCell = (car) => {
     const statusClasses = {
       Available: 'bg-emerald-50 text-emerald-700 border border-emerald-100',
@@ -1289,62 +468,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         <p class="text-xs text-gray-500">${car.plate} · ${car.color} · ${car.year}</p>
                         <span class="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md ${badgeClass}">${car.status}</span>
                     </div>
-                </div>
-            `;
-  };
-
-  const renderVehicleDocuments = (car) => {
-    if (!car.documents || !car.documents.length) {
-      return '<span class="text-xs text-gray-400">Documents not uploaded</span>';
-    }
-    const statusClasses = {
-      active: 'bg-emerald-50 text-emerald-700 border border-emerald-100',
-      'needs-review': 'bg-amber-50 text-amber-700 border border-amber-100',
-      warning: 'bg-amber-50 text-amber-700 border border-amber-100',
-      expired: 'bg-rose-50 text-rose-700 border border-rose-100'
-    };
-    return car.documents.map(doc => {
-      const cls = statusClasses[doc.status] || 'bg-gray-100 text-gray-600 border border-gray-200';
-      const expiry = doc.expiry ? `until ${doc.expiry}` : 'no expiry';
-      const attrs = doc.url ? `data-doc-url="${doc.url}"` : '';
-      return `<button type="button" class="doc-badge inline-flex items-center px-2 py-1 mr-2 mb-2 text-xs font-medium rounded-md ${cls}" ${attrs}>${doc.name} · ${expiry}</button>`;
-    }).join('');
-  };
-
-  const renderVehicleService = (car) => {
-    const service = car.serviceStatus || {};
-    const healthPercent = Math.round((service.health || 0) * 100);
-    const healthClass = healthPercent >= 80 ? 'bg-emerald-500' : healthPercent >= 60 ? 'bg-amber-500' : 'bg-rose-500';
-    return `
-                <div class="space-y-2">
-                    <div class="flex items-center justify-between text-sm text-gray-900">
-                        <span>${service.label || '—'}</span>
-                        ${service.nextService ? `<span class="text-xs text-gray-500">Next: ${service.nextService}</span>` : ''}
-                    </div>
-                    <div class="w-full bg-gray-200 rounded-full h-2">
-                        <div class="h-2 rounded-full ${healthClass}" style="width: ${healthPercent}%"></div>
-                    </div>
-                    <p class="text-xs text-gray-500">Technical readiness ${healthPercent}%</p>
-                </div>
-            `;
-  };
-
-  const renderVehicleReminders = (car) => {
-    const reminders = car.reminders || [];
-    if (!reminders.length) {
-      return '<span class="text-xs text-gray-400">No reminders</span>';
-    }
-    const nextReminder = reminders[0];
-    const tone = nextReminder.status === 'critical'
-      ? 'bg-rose-50 text-rose-700 border border-rose-100'
-      : nextReminder.status === 'warning'
-        ? 'bg-amber-50 text-amber-700 border border-amber-100'
-        : 'bg-slate-50 text-slate-700 border border-slate-100';
-    const label = nextReminder.dueDate ? `due ${nextReminder.dueDate}` : 'no date';
-    return `
-                <div class="space-y-1">
-                    <span class="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md ${tone}">Next: ${label}</span>
-                    <p class="text-xs text-gray-500">Active reminders: ${reminders.length}</p>
                 </div>
             `;
   };
@@ -1963,15 +1086,6 @@ document.addEventListener('DOMContentLoaded', () => {
     return `<span class="inline-flex items-center justify-center ${meta.className}" title="${meta.label}">${getIcon(meta.icon, size)}</span>`;
   };
 
-  const escapeHtml = (value) => {
-    return String(value ?? '')
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
-  };
-
   const getTaskLocationDetails = (task) => {
     if (!task?.geo) return null;
     const pickup = task.geo.pickup || '';
@@ -2404,227 +1518,6 @@ document.addEventListener('DOMContentLoaded', () => {
     updateSalesOwnerFilterVisibility(role);
   };
         
-  // --- HASH ROUTING ---
-  const router = () => {
-    console.log('🧭 Запуск роутера...');
-    console.log('🔗 Текущий хэш:', window.location.hash);
-    console.log('👤 Текущая роль в состоянии:', appState.currentRole);
-
-    if (appState.timerInterval) {
-      clearInterval(appState.timerInterval);
-      console.log('🕐 Таймеры очищены');
-    }
-
-    const parsedHash = parseHash(window.location.hash);
-    let { role, page, selector } = parsedHash;
-    console.log('📋 Парсинг хэша:', { role, page, selector });
-    console.log('🔍 Сравнение ролей - хэш:', role, 'состояние:', appState.currentRole);
-
-    const roleConfig = ROLES_CONFIG[role];
-    const layout = roleConfig?.layout || 'desktop';
-    console.log('🏗️ Конфигурация роли:', { layout, roleConfig: !!roleConfig, defaultPage: roleConfig?.defaultPage });
-
-    let normalizedSelector = selector;
-    let needsUpdate = !parsedHash.isCanonical;
-
-    if (!isDefaultSelector(normalizedSelector)) {
-      if (page === 'bookings' || page.endsWith('-table')) {
-        page = getDetailPageId(page);
-        needsUpdate = true;
-      }
-    }
-
-    if (layout === 'desktop' && roleConfig?.nav?.length) {
-      const allowedPages = roleConfig.nav.map(item => item.id);
-      if (!allowedPages.includes(page) && !page.endsWith('-table') && !AUXILIARY_PAGES.includes(page)) {
-        page = roleConfig.defaultPage;
-        normalizedSelector = HASH_DEFAULT_SELECTOR;
-        needsUpdate = true;
-      }
-    } else if (layout === 'mobile') {
-      const defaultPage = roleConfig?.defaultPage || 'driver-tasks';
-      if (page !== defaultPage) {
-        needsUpdate = true;
-      }
-      page = defaultPage;
-    }
-
-    if (page === 'driver-task-detail' && isDefaultSelector(normalizedSelector)) {
-      page = roleConfig?.defaultPage || 'driver-tasks';
-      normalizedSelector = HASH_DEFAULT_SELECTOR;
-      needsUpdate = true;
-    }
-
-    if (needsUpdate) {
-      const updatedHash = buildHash(role, page, normalizedSelector);
-      if (window.location.hash !== updatedHash) {
-        window.location.hash = updatedHash;
-        return;
-      }
-    }
-
-    // Update current state
-    appState.currentRole = role;
-    appState.currentPage = page;
-
-    document.querySelectorAll('.page').forEach(p => p.classList.add('hidden'));
-
-    let pageId = `page-${appState.currentPage}`;
-
-    if (appState.currentPage.endsWith('-table')) {
-      pageId = 'page-table-view';
-      renderTableView(appState.currentPage);
-    } else if (appState.currentPage === 'booking-detail') {
-      if (isDefaultSelector(normalizedSelector) || !renderDetailPanel('bookings', normalizedSelector)) {
-        page = 'bookings';
-        normalizedSelector = HASH_DEFAULT_SELECTOR;
-        needsUpdate = true;
-      }
-    } else if (appState.currentPage === 'fleet-detail') {
-      if (isDefaultSelector(normalizedSelector) || !renderDetailPanel('fleet-table', normalizedSelector)) {
-        page = 'fleet-table';
-        normalizedSelector = HASH_DEFAULT_SELECTOR;
-        needsUpdate = true;
-      }
-    } else if (appState.currentPage === 'client-detail') {
-      if (isDefaultSelector(normalizedSelector) || !renderDetailPanel('clients-table', normalizedSelector)) {
-        page = 'clients-table';
-        normalizedSelector = HASH_DEFAULT_SELECTOR;
-        needsUpdate = true;
-      }
-    } else if (appState.currentPage === 'task-detail') {
-      if (isDefaultSelector(normalizedSelector) || !renderTaskDetailPage(normalizedSelector)) {
-        page = 'tasks';
-        normalizedSelector = HASH_DEFAULT_SELECTOR;
-        needsUpdate = true;
-      }
-    } else if (appState.currentPage === 'driver-task-detail') {
-      pageId = 'page-driver-task-detail';
-      const rendered = renderDriverTaskDetail(normalizedSelector);
-      if (!rendered) {
-        page = 'driver-tasks';
-        normalizedSelector = HASH_DEFAULT_SELECTOR;
-        needsUpdate = true;
-      }
-    } else if (appState.currentPage === 'maintenance-create') {
-      pageId = 'page-maintenance-create';
-      renderMaintenanceForm();
-    } else if (appState.currentPage === 'booking-create') {
-      pageId = 'page-booking-create';
-      renderBookingCreateForm();
-    } else if (appState.currentPage === 'vehicle-create') {
-      pageId = 'page-vehicle-create';
-      renderVehicleCreateForm();
-    } else if (appState.currentPage === 'document-viewer') {
-      pageId = 'page-document-viewer';
-      if (!renderDocumentViewer(normalizedSelector)) {
-        page = roleConfig?.defaultPage || 'dashboard';
-        normalizedSelector = HASH_DEFAULT_SELECTOR;
-        needsUpdate = true;
-      }
-    }
-
-    console.log('🎯 Целевая страница:', pageId);
-
-    const targetPage = document.getElementById(pageId);
-    if (targetPage) {
-      targetPage.classList.remove('hidden');
-      console.log('✅ Страница найдена и показана:', pageId);
-    } else {
-      console.log('❌ Страница не найдена:', pageId);
-      // Fallback to default page for the role
-      const defaultPage = roleConfig?.defaultPage || 'dashboard';
-      const defaultPageEl = document.getElementById(`page-${defaultPage}`);
-      if (defaultPageEl) {
-        defaultPageEl.classList.remove('hidden');
-        appState.currentPage = defaultPage;
-        console.log('🔄 Переход на страницу по умолчанию:', defaultPage);
-      } else {
-        console.error('❌ Страница по умолчанию не найдена:', defaultPage);
-      }
-      // Update URL to correct hash
-      const newHash = buildHash(appState.currentRole, appState.currentPage);
-      if (window.location.hash !== newHash) {
-        window.location.hash = newHash;
-        console.log('🔗 Хэш обновлен:', newHash);
-      }
-    }
-
-    if (layout === 'desktop') {
-      const navItem = roleConfig?.nav?.find(i => i.id === appState.currentPage);
-      const pageTitle = navItem ? navItem.name : '';
-      document.getElementById('page-title').textContent = pageTitle;
-    } else {
-      document.getElementById('page-title').textContent = '';
-    }
-
-    pageActionButton.classList.add('hidden');
-    if (layout === 'desktop') {
-      if(appState.currentPage === 'tasks') {
-        pageActionButton.textContent = 'Add task';
-        pageActionButton.classList.remove('hidden');
-      } else if(appState.currentPage === 'fleet-table') {
-        pageActionButton.textContent = 'Add vehicle';
-        pageActionButton.classList.remove('hidden');
-      }
-    }
-
-    updateActiveLink();
-
-    // Render content for specific pages
-    console.log('🎨 Рендеринг контента для страницы:', appState.currentPage);
-    console.log('🏗️ Layout для роли:', layout);
-
-    try {
-      if(appState.currentPage === 'bookings') {
-        console.log('📋 Рендеринг Kanban доски...');
-        renderKanbanBoard();
-      }
-      if(appState.currentPage === 'dashboard') {
-        console.log('📊 Рендеринг dashboard...');
-        renderDashboard();
-      }
-      if(appState.currentPage === 'analytics') {
-        console.log('📈 Рендеринг analytics...');
-        renderAnalyticsPage();
-        renderSalesPipeline();
-      }
-      if(appState.currentPage === 'driver-tasks') {
-        console.log('🚗 Рендеринг задач водителя...');
-        renderDriverTasks();
-        startTimers();
-      }
-      if(appState.currentPage === 'fleet-calendar') {
-        console.log('📅 Рендеринг календаря автопарка...');
-        renderCalendar();
-      }
-      if(appState.currentPage === 'reports') {
-        console.log('📋 Рендеринг отчетов...');
-        renderReports();
-      }
-      if(appState.currentPage === 'tasks') {
-        console.log('✅ Рендеринг задач...');
-        renderTasksPage();
-      }
-      if(appState.currentPage === 'sales-pipeline') {
-        console.log('💼 Рендеринг sales pipeline...');
-        renderSalesPipeline();
-      }
-
-      if(appState.currentPage !== 'driver-tasks' && appState.driverContext?.tracking?.enabled) {
-        console.log('🚫 Остановка трекинга водителя...');
-        stopDriverTracking();
-      }
-
-      console.log('✅ Роутер завершен успешно для страницы:', appState.currentPage);
-
-    } catch (error) {
-      console.error('❌ Ошибка при рендеринге страницы:', appState.currentPage, error);
-      console.error('❌ Stack trace:', error.stack);
-    }
-  };
-
-  initFleetCalendar(router);
 
   const renderMaintenanceForm = () => {
     if (!maintenanceCreateContent) return false;
@@ -2706,25 +1599,52 @@ document.addEventListener('DOMContentLoaded', () => {
   const renderBookingCreateForm = () => {
     if (!bookingCreateContent) return false;
     const templateBooking = MOCK_DATA.bookings.find(b => b.status === 'new') || MOCK_DATA.bookings[0];
-    const templateClient = templateBooking ? MOCK_DATA.clients.find(client => Number(client.id) === Number(templateBooking.clientId)) : null;
-    const templateCar = templateBooking ? MOCK_DATA.cars.find(car => Number(car.id) === Number(templateBooking.carId)) : null;
+    const parsedHash = parseHash(window.location.hash);
+    const selectorFromHash = parsedHash.selector && parsedHash.selector !== HASH_DEFAULT_SELECTOR ? parsedHash.selector : null;
+    const context = appState.bookingContext || {};
+    const contextDraftId = context.mode === 'edit' ? context.draftBookingId : null;
+    const draftId = contextDraftId ?? selectorFromHash;
+    const normalizedDraftId = draftId != null && draftId !== '' ? String(draftId) : null;
+    const editingBooking = normalizedDraftId
+      ? MOCK_DATA.bookings.find(b => String(b.id) === normalizedDraftId)
+      : null;
+    const isEditMode = Boolean(editingBooking);
+    const baseBooking = editingBooking || templateBooking;
+    const baseClient = baseBooking
+      ? MOCK_DATA.clients.find(client => Number(client.id) === Number(baseBooking.clientId))
+      : null;
+    const baseCar = baseBooking
+      ? MOCK_DATA.cars.find(car => Number(car.id) === Number(baseBooking.carId))
+      : null;
+    const selectedClientId = baseClient ? Number(baseClient.id) : null;
+    const selectedCarId = baseCar ? Number(baseCar.id) : null;
+    const editingBookingIdValue = editingBooking ? String(editingBooking.id) : null;
+
+    if (context.mode === 'edit' && !isEditMode) {
+      context.mode = 'create';
+      context.draftBookingId = null;
+    }
+
     const clientOptions = MOCK_DATA.clients.map(client => `
-                <option value="${client.id}" ${templateClient && Number(templateClient.id) === Number(client.id) ? 'selected' : ''}>
+                <option value="${client.id}" ${selectedClientId !== null && Number(client.id) === selectedClientId ? 'selected' : ''}>
                     ${client.name}
                 </option>
             `).join('');
     const carOptions = MOCK_DATA.cars
-      .filter(car => car.status === 'Available' || (templateCar && Number(templateCar.id) === Number(car.id)))
+      .filter(car => car.status === 'Available' || (selectedCarId !== null && Number(car.id) === selectedCarId))
       .map(car => `
-                    <option value="${car.id}" ${templateCar && Number(templateCar.id) === Number(car.id) ? 'selected' : ''}>
+                    <option value="${car.id}" ${selectedCarId !== null && Number(car.id) === selectedCarId ? 'selected' : ''}>
                         ${car.name}
                     </option>
                 `).join('');
+    const formTitle = isEditMode ? 'Edit booking' : 'New booking';
+    const formSubtitle = isEditMode ? 'Update booking details' : 'Fill in booking details to add a new rental';
+    const submitLabel = isEditMode ? 'Save changes' : 'Create booking';
 
     bookingCreateContent.innerHTML = `
                 <div class="p-6 border-b">
-                    <h2 class="text-xl font-semibold">New booking</h2>
-                    <p class="text-sm text-gray-500 mt-1">Fill in booking details to add a new rental</p>
+                    <h2 class="text-xl font-semibold">${formTitle}</h2>
+                    <p class="text-sm text-gray-500 mt-1">${formSubtitle}</p>
                 </div>
                 <form class="p-6 space-y-6" id="booking-create-form">
                     <div class="grid gap-4 md:grid-cols-2">
@@ -2745,55 +1665,72 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div class="grid grid-cols-2 gap-4 md:col-span-2">
                             <div>
                                 <label class="block text-sm font-medium text-gray-700">Start date</label>
-                                <input type="date" value="${templateBooking?.startDate || ''}" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md" name="start">
+                                <input type="date" value="${baseBooking?.startDate || ''}" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md" name="start">
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700">End date</label>
-                                <input type="date" value="${templateBooking?.endDate || ''}" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md" name="end">
+                                <input type="date" value="${baseBooking?.endDate || ''}" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md" name="end">
                             </div>
                         </div>
                         <div class="grid grid-cols-2 gap-4 md:col-span-2">
                             <div>
                                 <label class="block text-sm font-medium text-gray-700">Start time</label>
-                                <input type="time" value="${templateBooking?.startTime || ''}" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md" name="startTime">
+                                <input type="time" value="${baseBooking?.startTime || ''}" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md" name="startTime">
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700">End time</label>
-                                <input type="time" value="${templateBooking?.endTime || ''}" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md" name="endTime">
+                                <input type="time" value="${baseBooking?.endTime || ''}" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md" name="endTime">
                             </div>
                         </div>
                         <div class="grid grid-cols-2 gap-4 md:col-span-2">
                             <div>
                                 <label class="block text-sm font-medium text-gray-700">Pickup location</label>
-                                <input type="text" value="${templateBooking?.pickupLocation || ''}" placeholder="e.g. SkyLuxse HQ" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md" name="pickup">
+                                <input type="text" value="${baseBooking?.pickupLocation || ''}" placeholder="e.g. SkyLuxse HQ" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md" name="pickup">
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700">Drop-off location</label>
-                                <input type="text" value="${templateBooking?.dropoffLocation || ''}" placeholder="e.g. Palm Jumeirah" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md" name="dropoff">
+                                <input type="text" value="${baseBooking?.dropoffLocation || ''}" placeholder="e.g. Palm Jumeirah" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md" name="dropoff">
                             </div>
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700">Amount (AED)</label>
-                            <input type="number" value="${templateBooking?.totalAmount || ''}" min="0" step="50" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md" name="amount">
+                            <input type="number" value="${baseBooking?.totalAmount || ''}" min="0" step="50" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md" name="amount">
                         </div>
                     </div>
                 </form>
                 <div class="p-6 border-t bg-gray-50 flex justify-end space-x-3">
                     <button type="button" id="booking-create-cancel" class="geist-button geist-button-secondary">Cancel</button>
-                    <button type="submit" form="booking-create-form" class="geist-button geist-button-primary">Create booking</button>
+                    <button type="submit" form="booking-create-form" class="geist-button geist-button-primary">${submitLabel}</button>
                 </div>
             `;
 
     const form = bookingCreateContent.querySelector('#booking-create-form');
     form?.addEventListener('submit', (event) => {
       event.preventDefault();
-      showToast('Booking saved (demo)', 'success');
-      window.location.hash = buildHash(appState.currentRole, 'bookings');
+      const message = isEditMode ? 'Booking updated (demo)' : 'Booking saved (demo)';
+      showToast(message, 'success');
+      if (appState.bookingContext) {
+        appState.bookingContext.mode = 'create';
+        appState.bookingContext.draftBookingId = null;
+      }
+      if (isEditMode && editingBookingIdValue) {
+        window.location.hash = buildHash(appState.currentRole, 'booking-detail', editingBookingIdValue);
+      } else {
+        window.location.hash = buildHash(appState.currentRole, 'bookings');
+      }
     });
 
     const cancelBtn = bookingCreateContent.querySelector('#booking-create-cancel');
     cancelBtn?.addEventListener('click', () => {
-      window.location.hash = buildHash(appState.currentRole, 'bookings');
+      if (appState.bookingContext) {
+        appState.bookingContext.mode = 'create';
+        appState.bookingContext.draftBookingId = null;
+      }
+      if (isEditMode && editingBookingIdValue) {
+        window.location.hash = buildHash(appState.currentRole, 'booking-detail', editingBookingIdValue);
+      } else {
+        window.location.hash = buildHash(appState.currentRole, 'bookings');
+      }
     });
 
     return true;
@@ -2844,6 +1781,22 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
+  const router = createRouter({
+    renderTableView,
+    renderTaskDetailPage,
+    renderDriverTaskDetail,
+    renderMaintenanceForm,
+    renderBookingCreateForm,
+    renderVehicleCreateForm,
+    renderDocumentViewer,
+    renderDriverTasks,
+    renderReports,
+    renderTasksPage,
+    stopDriverTracking
+  });
+
+  initFleetCalendar(router);
+
   const openDocumentPage = (url) => {
     if (!url) return;
     try {
@@ -2861,11 +1814,19 @@ document.addEventListener('DOMContentLoaded', () => {
   if (loginRoleSelect) {
     loginRoleSelect.addEventListener('change', (e) => {
       const preset = ROLE_EMAIL_PRESETS[e.target.value];
-      if (preset && loginEmailInput) {
+      if (preset && loginEmailInput && !appState.loginEmail) {
         loginEmailInput.value = preset;
         console.log('📧 Email предустановлен:', preset);
       }
     });
+  }
+
+  if (loginEmailInput) {
+    loginEmailInput.addEventListener('input', (e) => {
+      appState.loginEmail = e.target.value;
+    });
+    // Установить начальное значение из appState
+    loginEmailInput.value = appState.loginEmail || 'ops@skyluxse.ae';
   }
 
   if (requestOtpBtn) {
@@ -2891,6 +1852,16 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  const handleImportLeads = () => {
+    console.warn('Import leads action is not implemented in the demo build.');
+    showToast('Import leads is not available in the demo version yet', 'info');
+  };
+
+  const openLeadCreationModal = () => {
+    console.warn('Lead creation modal is not implemented in the demo build.');
+    showToast('Lead creation is coming soon', 'info');
+  };
+
   const importLeadsBtn = document.getElementById('import-leads-btn');
   if (importLeadsBtn) {
     importLeadsBtn.addEventListener('click', () => {
@@ -2908,6 +1879,22 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('login-button').addEventListener('click', () => {
     console.log('🔐 Клик по кнопке Sign in обнаружен');
 
+    // Проверка email
+    const email = loginEmailInput?.value?.trim();
+    if (!email) {
+      showToast('Пожалуйста, введите email', 'error');
+      return;
+    }
+
+    // Проверка OTP, если контейнер видим
+    if (otpContainer && !otpContainer.classList.contains('hidden')) {
+      const otp = otpInput?.value?.trim();
+      if (!otp || otp !== '123456') {
+        showToast('Неверный код OTP', 'error');
+        return;
+      }
+    }
+
     const selectedRole = loginRoleSelect?.value || 'operations';
     console.log('👤 Выбранная роль:', selectedRole);
 
@@ -2924,6 +1911,7 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log('📄 Страница по умолчанию:', defaultPage);
 
     appState.currentRole = selectedRole;
+    appState.loginEmail = email;
     console.log('💾 Состояние приложения обновлено, текущая роль:', appState.currentRole);
 
     try {
@@ -2945,9 +1933,14 @@ document.addEventListener('DOMContentLoaded', () => {
       showToast('Ошибка при входе в систему', 'error');
     }
   });
-  document.getElementById('sidebar-nav').addEventListener('click', (e) => {
-    if(window.innerWidth < 768) sidebar.classList.add('-translate-x-full');
-  });
+  const sidebarNav = document.getElementById('sidebar-nav');
+  if (sidebarNav) {
+    sidebarNav.addEventListener('click', () => {
+      if (window.innerWidth < 768) {
+        sidebar.classList.add('-translate-x-full');
+      }
+    });
+  }
         
   document.getElementById('burger-menu').addEventListener('click', () => {
     sidebar.classList.toggle('-translate-x-full');
@@ -3150,6 +2143,237 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   bookingDetailContent?.addEventListener('click', e => {
+    const extendBtn = e.target.closest('.booking-extend-btn');
+    if (extendBtn) {
+      const bookingId = extendBtn.dataset.bookingId || getBookingIdFromElement(extendBtn);
+      const planner = bookingDetailContent.querySelector('.extension-planner');
+      const booking = bookingId ? findBookingById(bookingId) : null;
+      if (!planner || !booking) {
+        showToast('Extension planner is unavailable', 'error');
+        return;
+      }
+      planner.classList.remove('hidden');
+      updateExtensionPlannerView(planner, booking);
+      planner.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+
+    const cancelPlannerBtn = e.target.closest('.extension-planner-cancel');
+    if (cancelPlannerBtn) {
+      const planner = cancelPlannerBtn.closest('.extension-planner');
+      if (planner) planner.classList.add('hidden');
+      return;
+    }
+
+    const confirmExtensionBtn = e.target.closest('.extension-confirm-btn');
+    if (confirmExtensionBtn) {
+      const planner = confirmExtensionBtn.closest('.extension-planner');
+      const bookingId = confirmExtensionBtn.dataset.bookingId || planner?.dataset.bookingId || getBookingIdFromElement(confirmExtensionBtn);
+      const booking = bookingId ? findBookingById(bookingId) : null;
+      if (!planner || !booking) {
+        showToast('Cannot confirm extension right now', 'error');
+        return;
+      }
+      const plannerState = updateExtensionPlannerView(planner, booking);
+      if (!plannerState) {
+        showToast('Fill in extension details first', 'error');
+        return;
+      }
+      const { values, start, end, total, conflict } = plannerState;
+      if (!values.startDate || !values.endDate) {
+        showToast('Specify extension period', 'error');
+        return;
+      }
+      if (!start || !end || end <= start) {
+        showToast('Extension end must be later than start', 'error');
+        return;
+      }
+      if (total <= 0) {
+        showToast('Extension amount should be greater than zero', 'error');
+        return;
+      }
+      if (conflict?.hasBlocking) {
+        showToast('Resolve extension conflicts before confirming', 'error');
+        return;
+      }
+      const extensionIndex = (Array.isArray(booking.extensions) ? booking.extensions.length : 0) + 1;
+      const extensionId = `EXT-${booking.id}-${extensionIndex}`;
+      const invoiceId = `INV-${booking.id}-EXT${extensionIndex}`;
+      const nowIso = new Date().toISOString();
+      const existingInvoices = Array.isArray(booking.invoices) ? booking.invoices : [];
+      const currency = booking.billing?.currency || (existingInvoices.find(inv => inv.currency)?.currency) || 'AED';
+      if (!Array.isArray(booking.extensions)) booking.extensions = [];
+      if (!Array.isArray(booking.history)) booking.history = [];
+      if (!Array.isArray(booking.timeline)) booking.timeline = [];
+      booking.invoices = existingInvoices;
+      const warningFlags = Array.from(new Set(
+        (conflict?.messages || [])
+          .filter(message => message.type === 'warning')
+          .map(message => toSlug(message.text))
+          .filter(Boolean)
+      ));
+      const newExtension = {
+        id: extensionId,
+        label: `Extension #${extensionIndex}`,
+        startDate: values.startDate,
+        startTime: values.startTime,
+        endDate: values.endDate,
+        endTime: values.endTime,
+        status: 'confirmed',
+        createdAt: nowIso,
+        createdBy: 'operations',
+        note: values.notes,
+        pricing: {
+          base: values.baseAmount,
+          addons: values.addonsAmount,
+          fees: values.feesAmount,
+          discounts: values.discountsAmount,
+          currency,
+          total
+        },
+        payments: {
+          paidAmount: 0,
+          outstandingAmount: total,
+          lastPaymentAt: null,
+          depositAdjustment: 0
+        },
+        invoiceId,
+        riskFlags: warningFlags,
+        tasks: [],
+        timeline: [
+          { ts: nowIso, status: 'extension', note: 'Extension confirmed and invoice issued', actor: 'operations' }
+        ],
+        notifications: []
+      };
+      const taskId = getNextTaskId();
+      const extensionTask = {
+        id: taskId,
+        title: `Prepare ${booking.carName} for extension`,
+        type: 'delivery',
+        category: 'logistics',
+        assigneeId: booking.driverId || null,
+        status: 'todo',
+        deadline: `${values.startDate} ${values.startTime}`,
+        bookingId: booking.id,
+        priority: 'Medium',
+        description: `Extension ${extensionId} for ${booking.clientName}`,
+        checklist: [],
+        requiredInputs: []
+      };
+      MOCK_DATA.tasks.push(extensionTask);
+      newExtension.tasks.push({ id: taskId, title: extensionTask.title, status: extensionTask.status });
+      booking.extensions.push(newExtension);
+      booking.history.push({ ts: nowIso.slice(0, 16).replace('T', ' '), event: `Extension ${extensionId} confirmed (${values.startDate} → ${values.endDate})` });
+      booking.timeline.push({ ts: nowIso, status: 'extension', note: `Extension ${extensionId} confirmed`, actor: 'operations' });
+      booking.invoices.push({
+        id: invoiceId,
+        label: `Extension invoice · ${values.startDate} - ${values.endDate}`,
+        amount: total,
+        status: 'Pending',
+        issuedDate: nowIso.slice(0, 10),
+        dueDate: values.startDate,
+        scope: 'extension',
+        currency
+      });
+      if (!Array.isArray(MOCK_DATA.calendarEvents)) MOCK_DATA.calendarEvents = [];
+      MOCK_DATA.calendarEvents.push({
+        id: `CAL-${extensionId}`,
+        carId: booking.carId,
+        type: 'extension',
+        title: `Extension ${booking.code || `#${booking.id}`}`,
+        start: start.toISOString(),
+        end: end.toISOString(),
+        status: 'scheduled',
+        priority: 'medium'
+      });
+      planner.classList.add('hidden');
+      showToast('Extension confirmed', 'success');
+      router();
+      return;
+    }
+
+    const viewInvoiceBtn = e.target.closest('.extension-view-invoice');
+    if (viewInvoiceBtn) {
+      const invoiceId = viewInvoiceBtn.dataset.invoiceId;
+      const bookingId = getBookingIdFromElement(viewInvoiceBtn);
+      const booking = bookingId ? findBookingById(bookingId) : null;
+      if (!booking) {
+        showToast('Booking not found', 'error');
+        return;
+      }
+      const invoice = (booking.invoices || []).find(item => item.id === invoiceId);
+      if (invoice) {
+        showToast(`${invoice.label}: ${invoice.status}`, 'info');
+      } else {
+        showToast('Invoice not found', 'error');
+      }
+      return;
+    }
+
+    const addendumBtn = e.target.closest('.extension-download-addendum');
+    if (addendumBtn) {
+      const docUrl = addendumBtn.dataset.docUrl;
+      if (docUrl) {
+        window.open(docUrl, '_blank');
+        showToast('Opening addendum document', 'info');
+      } else {
+        showToast('Addendum draft is not uploaded yet', 'warning');
+      }
+      return;
+    }
+
+    const cancelExtensionBtn = e.target.closest('.extension-cancel-btn');
+    if (cancelExtensionBtn) {
+      const extensionId = cancelExtensionBtn.dataset.extensionId;
+      const bookingId = getBookingIdFromElement(cancelExtensionBtn);
+      const booking = bookingId ? findBookingById(bookingId) : null;
+      if (!booking || !extensionId) {
+        showToast('Extension not found', 'error');
+        return;
+      }
+      const extension = (booking.extensions || []).find(ext => String(ext.id) === String(extensionId));
+      if (!extension) {
+        showToast('Extension not found', 'error');
+        return;
+      }
+      if (toStatusKey(extension.status) === 'cancelled') {
+        showToast('Extension already cancelled', 'info');
+        return;
+      }
+      const nowIso = new Date().toISOString();
+      extension.status = 'cancelled';
+      extension.payments = extension.payments || {};
+      extension.payments.outstandingAmount = 0;
+      extension.payments.lastPaymentAt = extension.payments.lastPaymentAt || nowIso;
+      extension.timeline = extension.timeline || [];
+      extension.timeline.push({ ts: nowIso, status: 'cancelled', note: 'Extension cancelled via booking detail', actor: 'operations' });
+      booking.history = booking.history || [];
+      booking.history.push({ ts: nowIso.slice(0, 16).replace('T', ' '), event: `Extension ${extensionId} cancelled` });
+      booking.timeline = booking.timeline || [];
+      booking.timeline.push({ ts: nowIso, status: 'extension', note: `Extension ${extensionId} cancelled`, actor: 'operations' });
+      const invoice = (booking.invoices || []).find(item => item.id === extension.invoiceId);
+      if (invoice) {
+        invoice.status = 'Cancelled';
+      }
+      showToast('Extension cancelled', 'info');
+      router();
+      return;
+    }
+
+    const editBtn = e.target.closest('.booking-edit-btn');
+    if (editBtn) {
+      const bookingId = editBtn.dataset.bookingId;
+      if (bookingId) {
+        appState.bookingContext = appState.bookingContext || {};
+        appState.bookingContext.mode = 'edit';
+        appState.bookingContext.draftBookingId = bookingId;
+        window.location.hash = buildHash(appState.currentRole, 'booking-create', bookingId);
+      } else {
+        showToast('Не удалось открыть редактирование букинга', 'error');
+      }
+      return;
+    }
+
     const stripeBtn = e.target.closest('.generate-stripe-link');
     if (stripeBtn) {
       const amountInput = bookingDetailContent.querySelector('.stripe-amount-input');
@@ -3210,6 +2434,10 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
   });
+
+  const plannerEventHandler = (event) => handlePlannerChange(event.target);
+  bookingDetailContent?.addEventListener('input', plannerEventHandler);
+  bookingDetailContent?.addEventListener('change', plannerEventHandler);
 
   pageActionButton.addEventListener('click', () => {
     if(appState.currentPage === 'tasks') {

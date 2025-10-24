@@ -15,7 +15,24 @@ export default [
         global: 'readonly',
         require: 'readonly',
         module: 'readonly',
-        exports: 'readonly'
+        exports: 'readonly',
+        document: 'readonly',
+        window: 'readonly',
+        navigator: 'readonly',
+        localStorage: 'readonly',
+        clearTimeout: 'readonly',
+        setTimeout: 'readonly',
+        clearInterval: 'readonly',
+        setInterval: 'readonly',
+        FileReader: 'readonly',
+        atob: 'readonly',
+        btoa: 'readonly',
+        Chart: 'readonly',
+        Sortable: 'readonly',
+        QRCode: 'readonly',
+        self: 'readonly',
+        caches: 'readonly',
+        fetch: 'readonly'
       }
     },
     rules: {

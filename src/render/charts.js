@@ -1,8 +1,8 @@
-import { MOCK_DATA } from '../data/index.js';
-import { appState } from '../state/appState.js';
-import { buildHash } from '../state/navigation.js';
-import { formatCurrency } from './utils.js';
-import { getIcon } from '../ui/icons.js';
+import { MOCK_DATA } from '/src/data/index.js';
+import { appState } from '/src/state/appState.js';
+import { buildHash } from '/src/state/navigation.js';
+import { formatCurrency } from '/src/render/utils.js';
+import { getIcon } from '/src/ui/icons.js';
 
 let analyticsManagerChart;
 let analyticsSourcesChart;

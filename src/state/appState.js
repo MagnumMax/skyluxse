@@ -1,4 +1,4 @@
-import { MOCK_DATA } from '../data/index.js';
+import { MOCK_DATA } from '/src/data/index.js';
 
 export const OFFLINE_STORAGE_KEY = 'skyluxse-offline-queue';
 
@@ -66,17 +66,19 @@ export const appState = {
   currentRole: 'operations',
   currentPage: '',
   timerInterval: null,
+  loginEmail: '',
   filters: {
     bookings: { type: 'all', driver: 'all', search: '' },
     analytics: { range: '7d', segment: 'all', vehicleClass: 'all', dateFrom: '', dateTo: '' },
     calendar: {
       view: 'week',
       type: 'all',
+      bookingStatus: 'all',
       search: '',
       availableOnly: false,
       attentionOnly: false,
-      group: 'vehicle',
-      layers: ['rental', 'maintenance', 'inspection', 'detailing'],
+      group: 'class',
+      layers: ['rental', 'maintenance', 'repair'],
       mode: 'timeline'
     },
     tasks: { status: 'all', type: 'all', assignee: 'all' },
@@ -106,6 +108,10 @@ export const appState = {
   maintenanceContext: {
     defaultCarId: null,
     defaultType: 'maintenance'
+  },
+  bookingContext: {
+    mode: 'create',
+    draftBookingId: null
   },
   calendarStart: null // will be initialized below
 };

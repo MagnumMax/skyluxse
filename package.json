@@ -4,10 +4,8 @@
   "description": "Современное веб-приложение для управления автопарком с интерактивным интерфейсом.",
   "main": "sw.js",
   "scripts": {
-    "build-css": "npx tailwindcss -i ./src/input.css -o ./dist/output.css",
-    "copy-static": "mkdir -p dist && cp -r public/* dist/ 2>/dev/null || true && cp -r modules/* dist/ 2>/dev/null || true && cp index.html dist/ && cp manifest.json dist/ && cp sw.js dist/",
-    "build": "npm run build-css && npm run copy-static",
-    "dev": "npm run build-css && npm run copy-static && npx tailwindcss -i ./src/input.css -o ./dist/output.css --watch",
+    "build": "echo 'Build complete - no compilation needed'",
+    "dev": "echo 'Development mode - open index.html in browser'",
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx --fix",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -24,10 +22,7 @@
   },
   "homepage": "https://github.com/MagnumMax/skyluxse#readme",
   "devDependencies": {
-    "autoprefixer": "^10.4.21",
     "eslint": "^9.38.0",
-    "postcss": "^8.5.6",
-    "prettier": "^3.6.2",
-    "tailwindcss": "^3.4.18"
+    "prettier": "^3.6.2"
   }
 }

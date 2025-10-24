@@ -1,9 +1,9 @@
-import { MOCK_DATA, CALENDAR_EVENT_TYPES } from '../data/index.js';
-import { appState, getStartOfWeek } from '../state/appState.js';
-import { buildHash } from '../state/navigation.js';
-import { showToast } from '../ui/toast.js';
-import { getIcon } from '../ui/icons.js';
-import { formatCurrency } from './utils.js';
+import { MOCK_DATA, CALENDAR_EVENT_TYPES, BOOKING_STATUS_PHASES, BOOKING_STATUS_STAGE_MAP } from '/src/data/index.js';
+import { appState, getStartOfWeek } from '/src/state/appState.js';
+import { buildHash } from '/src/state/navigation.js';
+import { showToast } from '/src/ui/toast.js';
+import { getIcon } from '/src/ui/icons.js';
+import { formatCurrency } from '/src/render/utils.js';
 
 const VIEW_CONFIG = {
   '3-day': { days: 3, step: 3 },
@@ -55,9 +55,14 @@ const OWNER_LOOKUP = (MOCK_DATA.salesPipeline?.owners || []).reduce((acc, owner)
   unassigned: 'Unassigned'
 });
 
-const DEFAULT_LAYER_ORDER = ['rental', 'maintenance', 'inspection', 'detailing'];
+const DEFAULT_LAYER_ORDER = ['rental', 'maintenance', 'repair'];
 
 const collapsedGroupIds = new Set();
+
+const getBookingLifecyclePhase = (status) => {
+  if (!status) return 'reservation';
+  return BOOKING_STATUS_STAGE_MAP[status] || 'reservation';
+};
 
 const getCarLocation = (car) => car.location || CAR_LOCATION_MAP[car.id] || 'SkyLuxse HQ';
 
@@ -127,31 +132,6 @@ const calculatePeriodUtilization = ({ events, carCount, rangeStart, rangeEndExcl
   return Math.min(1, busyMs / totalCapacity);
 };
 
-const buildDailyUtilization = ({ events, rangeStart, rangeEndExclusive, carCount, types = ['rental'], maxPoints = 28 }) => {
-  const totalDays = Math.max(1, Math.ceil((rangeEndExclusive.getTime() - rangeStart.getTime()) / DAY_IN_MS));
-  const clampDays = Math.min(totalDays, maxPoints);
-  const typeSet = new Set(types);
-  const selectedEvents = events.filter(event => typeSet.has(event.type));
-  return Array.from({ length: clampDays }).map((_, index) => {
-    const dayStart = new Date(rangeStart.getTime() + index * DAY_IN_MS);
-    const dayEnd = new Date(Math.min(rangeEndExclusive.getTime(), dayStart.getTime() + DAY_IN_MS));
-    const capacity = carCount ? carCount * (dayEnd.getTime() - dayStart.getTime()) : 0;
-    const busy = capacity
-      ? selectedEvents.reduce((acc, event) => acc + getEventOverlapMs(event, dayStart, dayEnd), 0)
-      : 0;
-    const utilization = capacity ? Math.min(1, busy / capacity) : 0;
-    return { date: dayStart, utilization };
-  });
-};
-
-const getHeatmapColorClass = (utilization) => {
-  if (utilization >= 0.9) return 'bg-rose-500 text-white';
-  if (utilization >= 0.75) return 'bg-amber-400 text-white';
-  if (utilization >= 0.6) return 'bg-indigo-500 text-white';
-  if (utilization >= 0.4) return 'bg-indigo-200 text-indigo-700';
-  return 'bg-indigo-50 text-indigo-600';
-};
-
 const updateRangeSwitcherState = (activeView) => {
   const buttons = document.querySelectorAll('.calendar-range-btn');
   buttons.forEach((button) => {
@@ -174,22 +154,6 @@ const updateModeToggleState = (activeMode) => {
     button.classList.toggle('text-gray-600', !isActive);
     button.setAttribute('aria-pressed', String(isActive));
   });
-};
-
-const RELATIVE_TIME_FORMATTER = new Intl.RelativeTimeFormat('ru', { numeric: 'auto' });
-
-const formatRelativeTime = (target, base = new Date()) => {
-  const diffMs = target.getTime() - base.getTime();
-  const diffMinutes = Math.round(diffMs / 60000);
-  if (Math.abs(diffMinutes) < 60) {
-    return RELATIVE_TIME_FORMATTER.format(diffMinutes, 'minute');
-  }
-  const diffHours = Math.round(diffMinutes / 60);
-  if (Math.abs(diffHours) < 48) {
-    return RELATIVE_TIME_FORMATTER.format(diffHours, 'hour');
-  }
-  const diffDays = Math.round(diffHours / 24);
-  return RELATIVE_TIME_FORMATTER.format(diffDays, 'day');
 };
 
 const renderMiniMap = ({ cars, events, rangeStart, rangeEndExclusive }) => {
@@ -221,88 +185,6 @@ const renderMiniMap = ({ cars, events, rangeStart, rangeEndExclusive }) => {
   // keep original caption intact; no additional summary required
 };
 
-const renderCalendarHeatmap = ({ events, rangeStart, rangeEndExclusive, carCount }) => {
-  const heatmapGrid = document.getElementById('calendar-heatmap-grid');
-  if (!heatmapGrid) return;
-  const rangeLabel = document.getElementById('calendar-heatmap-range');
-  const daily = buildDailyUtilization({
-    events,
-    rangeStart,
-    rangeEndExclusive,
-    carCount,
-    types: ['rental'],
-    maxPoints: 28
-  });
-  if (rangeLabel) {
-    if (daily.length) {
-      const first = DATE_LABEL_FORMATTER.format(daily[0].date);
-      const last = DATE_LABEL_FORMATTER.format(daily[daily.length - 1].date);
-      rangeLabel.textContent = `${first} — ${last}`;
-    } else {
-      rangeLabel.textContent = '';
-    }
-  }
-  heatmapGrid.innerHTML = daily.map((day) => {
-    const intensity = Math.round(day.utilization * 100);
-    const colorClass = getHeatmapColorClass(day.utilization);
-    return `
-            <div class="flex flex-col items-center gap-1">
-                <span class="text-[10px] text-gray-400">${DATE_LABEL_FORMATTER.format(day.date)}</span>
-                <div class="h-8 w-full rounded-md ${colorClass} flex items-center justify-center text-[11px] font-medium">
-                    ${intensity}%
-                </div>
-            </div>
-        `;
-  }).join('');
-};
-
-const CAR_LOOKUP = new Map(MOCK_DATA.cars.map((car) => [car.id, car]));
-
-const renderLiveFeed = ({ events, now = new Date() }) => {
-  const feedEl = document.getElementById('calendar-live-feed');
-  if (!feedEl) return;
-  const upcoming = events
-    .filter((event) => {
-      const start = new Date(event.start);
-      return !Number.isNaN(start.getTime()) && start >= now;
-    })
-    .sort((a, b) => new Date(a.start) - new Date(b.start))
-    .slice(0, 4);
-  const ongoing = events
-    .filter((event) => {
-      const start = new Date(event.start);
-      const end = new Date(event.end);
-      if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return false;
-      return start <= now && end >= now;
-    })
-    .sort((a, b) => new Date(a.end) - new Date(b.end));
-
-  const highlights = [...ongoing, ...upcoming].slice(0, 4);
-  if (!highlights.length) {
-    feedEl.innerHTML = '<p class="text-xs text-gray-400">Нет активных событий.</p>';
-    return;
-  }
-
-  feedEl.innerHTML = highlights.map((event) => {
-    const car = CAR_LOOKUP.get(event.carId);
-    const typeMeta = CALENDAR_EVENT_TYPES[event.type] || { label: 'Событие', color: 'bg-gray-200 text-gray-700' };
-    const start = new Date(event.start);
-    const relativeLabel = formatRelativeTime(start, now);
-    return `
-            <div class="rounded-lg border border-gray-200 bg-white/70 p-3 text-xs text-gray-600">
-                <div class="flex items-center justify-between text-[11px] font-medium text-gray-500">
-                    <span class="inline-flex items-center gap-1">
-                        <span class="inline-flex h-2.5 w-2.5 rounded-full ${extractBgClass(typeMeta?.color || '')}"></span>
-                        ${typeMeta.label || 'Событие'}
-                    </span>
-                    <span class="text-indigo-500">${relativeLabel}</span>
-                </div>
-                <p class="mt-2 text-sm font-semibold text-gray-900">${escapeAttr(event.title || car?.name || 'Без названия')}</p>
-                ${car ? `<p class="text-[11px] text-gray-500">${escapeAttr(car.name)} • ${car.plate}</p>` : ''}
-            </div>
-        `;
-  }).join('');
-};
 
 const renderFleetLoadMatrix = ({ groups, events, rangeStart, rangeEndExclusive }) => {
   const container = document.getElementById('fleet-load-view');
@@ -456,67 +338,6 @@ const closeCalendarDrawer = () => {
   clearEventHighlight();
 };
 
-const buildBookingDrawerContent = (eventData) => {
-  const booking = MOCK_DATA.bookings.find(item => item.id === eventData.bookingId);
-  const car = MOCK_DATA.cars.find(item => item.id === eventData.carId);
-
-  if (!booking) {
-    return '<p class="text-sm text-gray-500">Бронирование недоступно в демо-версии.</p>';
-  }
-
-  const outstanding = Math.max(0, (booking.totalAmount || 0) - (booking.paidAmount || 0));
-  const durationMs = new Date(eventData.end) - new Date(eventData.start);
-  const durationDays = Math.max(1, Math.ceil(durationMs / DAY_IN_MS));
-  const priority = PRIORITY_META[eventData.priority] || PRIORITY_META.medium;
-
-  return `
-        <div class="space-y-5">
-            <div class="rounded-lg border border-gray-200 bg-gray-50/60 p-4 space-y-2">
-                <p class="text-xs uppercase tracking-wide text-gray-500">Клиент</p>
-                <p class="text-sm font-semibold text-gray-900">${booking.clientName}</p>
-                <p class="text-xs text-gray-500">${booking.pickupLocation} → ${booking.dropoffLocation}</p>
-            </div>
-            <div class="rounded-lg border border-gray-200 bg-gray-50/60 p-4 space-y-3">
-                <div class="flex flex-wrap items-center gap-2">
-                    <span class="inline-flex items-center px-2 py-0.5 text-[11px] font-semibold rounded-full ${priority.badge || 'bg-indigo-50 text-indigo-600 border border-indigo-200'}">
-                        <span class="w-2 h-2 rounded-full ${priority.dot}"></span>
-                        ${priority.label}
-                    </span>
-                    <span class="inline-flex items-center px-2 py-0.5 text-[11px] font-medium rounded-full bg-slate-100 text-slate-600 border border-slate-200">
-                        ${booking.type === 'vip' ? 'VIP' : booking.type || 'Стандарт'}
-                    </span>
-                    ${booking.channel ? `<span class="inline-flex items-center px-2 py-0.5 text-[11px] font-medium rounded-full bg-indigo-50 text-indigo-600 border border-indigo-200">${booking.channel}</span>` : ''}
-                </div>
-                <div class="space-y-1">
-                    <p class="text-sm font-semibold text-gray-900">${formatDateTime(eventData.start)} — ${formatDateTime(eventData.end)}</p>
-                    <p class="text-xs text-gray-500">Длительность: ${durationDays} дн.</p>
-                    ${car ? `<p class="text-xs text-gray-500">Авто: ${car.name}, ${car.plate}</p>` : ''}
-                </div>
-            </div>
-            <div class="rounded-lg border border-gray-200 bg-white p-4 space-y-3">
-                <div class="flex items-center justify-between text-sm">
-                    <span class="text-gray-500">Сумма</span>
-                    <span class="font-semibold text-gray-900">${formatCurrency(booking.totalAmount)}</span>
-                </div>
-                <div class="flex items-center justify-between text-sm">
-                    <span class="text-gray-500">Оплачено</span>
-                    <span class="text-gray-700">${formatCurrency(booking.paidAmount)}</span>
-                </div>
-                <div class="flex items-center justify-between text-sm">
-                    <span class="text-gray-500">Остаток</span>
-                    <span class="text-rose-600 font-semibold">${formatCurrency(outstanding)}</span>
-                </div>
-            </div>
-            <div class="grid gap-2 sm:grid-cols-2">
-                <button data-calendar-action="view-booking" class="geist-button geist-button-primary text-sm w-full">Открыть бронь</button>
-                <button data-calendar-action="extend-booking" class="geist-button geist-button-secondary text-sm w-full">Продлить</button>
-                <button data-calendar-action="mark-returned" class="geist-button geist-button-secondary text-sm w-full">Отметить возврат</button>
-                <button data-calendar-action="schedule-maintenance" class="geist-button geist-button-secondary text-sm w-full">Отправить в сервис</button>
-            </div>
-        </div>
-    `;
-};
-
 const buildGenericEventContent = (eventData) => {
   const car = MOCK_DATA.cars.find(item => item.id === eventData.carId);
   return `
@@ -539,6 +360,13 @@ const buildGenericEventContent = (eventData) => {
 };
 
 const openCalendarDrawer = (eventData, { preserveHighlight = false } = {}) => {
+  if (eventData.bookingId) {
+    closeCalendarDrawer();
+    window.location.hash = buildHash(appState.currentRole, 'booking-detail', eventData.bookingId);
+    triggerRouter();
+    return;
+  }
+
   const drawer = ensureDrawerElements();
   if (!drawer) return;
   selectedEventId = eventData.id;
@@ -546,19 +374,8 @@ const openCalendarDrawer = (eventData, { preserveHighlight = false } = {}) => {
 
   const typeMeta = CALENDAR_EVENT_TYPES[eventData.type] || { label: 'Событие' };
   drawer.subtitle.textContent = typeMeta.label || 'Событие';
-
-  if (eventData.bookingId) {
-    const booking = MOCK_DATA.bookings.find(item => item.id === eventData.bookingId);
-    if (booking) {
-      drawer.title.textContent = `${booking.code} • ${booking.clientName}`;
-    } else {
-      drawer.title.textContent = eventData.title || 'Бронирование';
-    }
-    drawer.content.innerHTML = buildBookingDrawerContent(eventData);
-  } else {
-    drawer.title.textContent = eventData.title || typeMeta.label || 'Событие';
-    drawer.content.innerHTML = buildGenericEventContent(eventData);
-  }
+  drawer.title.textContent = eventData.title || typeMeta.label || 'Событие';
+  drawer.content.innerHTML = buildGenericEventContent(eventData);
 
   drawer.container.classList.remove('hidden');
   if (!preserveHighlight) {
@@ -858,8 +675,15 @@ const buildOwnerIndex = (bookings) => {
 };
 
 const buildGrouping = (cars, mode, ownerByCar) => {
+  const compareCars = (a, b) => {
+    const nameA = a.name || '';
+    const nameB = b.name || '';
+    return nameA.localeCompare(nameB, 'ru', { sensitivity: 'base' });
+  };
+  const sortedCars = cars.slice().sort(compareCars);
+
   if (mode === 'vehicle') {
-    return cars.map((car) => ({
+    return sortedCars.map((car) => ({
       id: `vehicle-${car.id}`,
       label: car.name,
       value: String(car.id),
@@ -869,7 +693,7 @@ const buildGrouping = (cars, mode, ownerByCar) => {
   }
 
   const groupsMap = new Map();
-  cars.forEach((car) => {
+  sortedCars.forEach((car) => {
     let key = String(car.id);
     let label = car.name;
 
@@ -885,7 +709,7 @@ const buildGrouping = (cars, mode, ownerByCar) => {
       label = getOwnerName(ownerKey);
     }
 
-    const groupId = `${mode}-${String(key).toLowerCase().replace(/[^a-z0-9\-]+/gi, '-')}`;
+    const groupId = `${mode}-${String(key).toLowerCase().replace(/[^a-z0-9-]+/gi, '-')}`;
     if (!groupsMap.has(groupId)) {
       groupsMap.set(groupId, {
         id: groupId,
@@ -898,7 +722,12 @@ const buildGrouping = (cars, mode, ownerByCar) => {
     groupsMap.get(groupId).cars.push(car);
   });
 
-  return Array.from(groupsMap.values()).sort((a, b) => a.label.localeCompare(b.label, 'ru', { sensitivity: 'base' }));
+  return Array.from(groupsMap.values())
+    .map(group => ({
+      ...group,
+      cars: group.cars.slice().sort(compareCars)
+    }))
+    .sort((a, b) => a.label.localeCompare(b.label, 'ru', { sensitivity: 'base' }));
 };
 
 const collectTasksByCar = (rangeStart, rangeEndExclusive, bookingMap) => {
@@ -1032,6 +861,14 @@ const bindFleetCalendarControls = () => {
     });
   }
 
+  const bookingStatusSelect = document.getElementById('calendar-booking-status-filter');
+  if (bookingStatusSelect) {
+    bookingStatusSelect.addEventListener('change', (event) => {
+      appState.filters.calendar.bookingStatus = event.target.value;
+      renderFleetCalendar();
+    });
+  }
+
   const groupSelect = document.getElementById('calendar-group-select');
   if (groupSelect) {
     groupSelect.addEventListener('change', (event) => {
@@ -1088,6 +925,9 @@ const bindFleetCalendarControls = () => {
       const typeSelectEl = document.getElementById('calendar-type-filter');
       if (typeSelectEl) typeSelectEl.value = 'all';
       appState.filters.calendar.type = 'all';
+      const bookingStatusFilterEl = document.getElementById('calendar-booking-status-filter');
+      if (bookingStatusFilterEl) bookingStatusFilterEl.value = 'all';
+      appState.filters.calendar.bookingStatus = 'all';
       if (classFilter) classFilter.value = '';
       if (statusFilter) statusFilter.value = '';
       appState.filters.calendar.availableOnly = false;
@@ -1176,6 +1016,7 @@ export const renderFleetCalendar = () => {
   const viewMode = appState.filters.calendar.view || 'week';
   const calendarMode = appState.filters.calendar.mode || 'timeline';
   const typeFilterValue = appState.filters.calendar.type || 'all';
+  const bookingStatusFilterValue = appState.filters.calendar.bookingStatus || 'all';
   const searchValue = appState.filters.calendar.search?.toLowerCase() || '';
   const groupMode = appState.filters.calendar.group || 'vehicle';
   const storedLayers = appState.filters.calendar.layers;
@@ -1206,6 +1047,8 @@ export const renderFleetCalendar = () => {
   if (viewSelect) viewSelect.value = viewMode;
   const typeSelect = document.getElementById('calendar-type-filter');
   if (typeSelect) typeSelect.value = typeFilterValue;
+  const bookingStatusSelect = document.getElementById('calendar-booking-status-filter');
+  if (bookingStatusSelect) bookingStatusSelect.value = bookingStatusFilterValue;
   updateRangeSwitcherState(viewMode);
   updateModeToggleState(calendarMode);
   const searchInput = document.getElementById('calendar-search');
@@ -1245,7 +1088,8 @@ export const renderFleetCalendar = () => {
     bookingCode: booking.code,
     start: `${booking.startDate}T${booking.startTime || '09:00'}`,
     end: `${booking.endDate}T${booking.endTime || '18:00'}`,
-    priority: booking.priority || 'medium'
+    priority: booking.priority || 'medium',
+    lifecycleStatus: getBookingLifecyclePhase(booking.status)
   }));
 
   const additionalEvents = MOCK_DATA.calendarEvents.map(event => ({
@@ -1257,7 +1101,8 @@ export const renderFleetCalendar = () => {
     title: event.title,
     start: event.start,
     end: event.end,
-    priority: event.priority || 'low'
+    priority: event.priority || 'low',
+    lifecycleStatus: null
   }));
 
   const baseEvents = [...bookingEvents, ...additionalEvents];
@@ -1279,6 +1124,9 @@ export const renderFleetCalendar = () => {
   let combinedEvents = rangeEvents.filter(event => displayCarIds.has(event.carId));
   if (typeFilterValue !== 'all') {
     combinedEvents = combinedEvents.filter(event => event.type === typeFilterValue);
+  }
+  if (bookingStatusFilterValue !== 'all') {
+    combinedEvents = combinedEvents.filter(event => event.bookingId && event.lifecycleStatus === bookingStatusFilterValue);
   }
   if (layersDisabled) {
     combinedEvents = [];
@@ -1323,27 +1171,16 @@ export const renderFleetCalendar = () => {
     `;
 
   const rowsHtml = groups.map(group => {
-    const groupEvents = group.cars.flatMap(car => eventsByCar[car.id] || []);
-    const groupRentals = groupEvents.filter(event => event.type === 'rental');
-    const groupBusyCount = new Set(groupRentals.map(event => event.carId)).size;
-    const groupTasksCount = group.cars.reduce((acc, car) => acc + (tasksByCar.get(car.id)?.length || 0), 0);
-    const groupAttention = group.cars.filter(car => attentionCarIds.has(car.id)).length;
     const collapsed = group.collapsible && collapsedGroupIds.has(group.id);
     const chevron = getIcon('chevronRight', 'w-4 h-4');
     const groupHeader = group.collapsible
       ? `
                 <div class="grid border border-t-0 border-gray-200 bg-slate-50" style="${columnsStyle}">
-                    <div class="px-3 py-2 flex items-center justify-between gap-4 border-r border-gray-200">
+                    <div class="px-3 py-2 flex items-center border-r border-gray-200">
                         <button type="button" class="calendar-group-toggle inline-flex items-center gap-2 text-sm font-semibold text-gray-700" data-calendar-group-toggle="${group.id}">
                             <span class="inline-block transition-transform duration-150" style="transform: rotate(${collapsed ? 0 : 90}deg);">${chevron}</span>
                             ${group.label}
                         </button>
-                        <div class="flex items-center gap-4 text-[11px] text-gray-500">
-                            <span>${group.cars.length} vehicles</span>
-                            <span>${groupBusyCount} busy</span>
-                            <span>${groupTasksCount} tasks</span>
-                            <span>${groupAttention} attention</span>
-                        </div>
                     </div>
                     ${dates.map(() => '<div class="h-10 border-l border-gray-100 bg-slate-50"></div>').join('')}
                 </div>
@@ -1373,6 +1210,11 @@ export const renderFleetCalendar = () => {
         const endLabel = event.end ? formatDateTimeShort(eventEnd) : '';
         const primaryLabel = escapeAttr(event.bookingCode || event.title || meta.label || 'Событие');
         const secondaryLabel = event.bookingCode ? escapeAttr(event.title || '') : '';
+        const lifecycleStatus = event.lifecycleStatus;
+        const lifecycleMeta = lifecycleStatus ? BOOKING_STATUS_PHASES[lifecycleStatus] : null;
+        const lifecycleBadge = lifecycleMeta
+          ? `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${lifecycleMeta.badge}">${lifecycleMeta.label}</span>`
+          : '';
 
         return `
                     <div class="absolute calendar-event ${meta.color} border ${meta.border} ${priorityMeta.ring} text-xs font-medium px-2 py-1 rounded-md pointer-events-auto"
@@ -1385,12 +1227,13 @@ export const renderFleetCalendar = () => {
                             <span>${endLabel}</span>
                         </div>
                         <div class="flex items-center gap-2">
+                            ${lifecycleBadge}
                             <span class="inline-flex items-center gap-1 truncate">
                                 <span class="w-2 h-2 rounded-full ${priorityMeta.dot}"></span>
                                 <span class="truncate">${primaryLabel}</span>
                             </span>
                         </div>
-                        ${secondaryLabel ? `<p class=\"text-[10px] text-gray-600 truncate\">${secondaryLabel}</p>` : ''}
+                        ${secondaryLabel ? `<p class="text-[10px] text-gray-600 truncate">${secondaryLabel}</p>` : ''}
                     </div>
                 `;
       }).join('');
@@ -1412,7 +1255,7 @@ export const renderFleetCalendar = () => {
       const taskBadges = carTasks.length
         ? `<div class="flex flex-wrap gap-1 mt-2">${carTasks.slice(0, 3).map((task) => {
           const priorityMeta = TASK_PRIORITY_META[task.priority] || TASK_PRIORITY_META.medium;
-          return `<span class=\"inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] ${priorityMeta}\">${DATE_LABEL_FORMATTER.format(task.deadline)} • ${task.title}</span>`;
+          return `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] ${priorityMeta}">${DATE_LABEL_FORMATTER.format(task.deadline)} • ${task.title}</span>`;
         }).join('')}</div>`
         : '';
 
@@ -1441,7 +1284,7 @@ export const renderFleetCalendar = () => {
                         </div>
                         <div class="flex flex-wrap gap-1">
                             <button class="calendar-vehicle-action inline-flex items-center gap-1 rounded-md border border-gray-200 bg-white px-2 py-1 text-[11px] font-medium text-gray-600 hover:border-indigo-200 hover:text-indigo-600 transition" data-car-id="${car.id}" data-vehicle-action="create-booking">+ Бронь</button>
-                            <button class="calendar-vehicle-action inline-flex items-center gap-1 rounded-md border border-gray-200 bg-white px-2 py-1 text-[11px] font-medium text-gray-600 hover:border-indigo-200 hover:text-indigo-600 transition" data-car-id="${car.id}" data-vehicle-action="schedule-maintenance">Сервис</button>
+                            ${appState.currentRole === 'sales' ? '' : `<button class="calendar-vehicle-action inline-flex items-center gap-1 rounded-md border border-gray-200 bg-white px-2 py-1 text-[11px] font-medium text-gray-600 hover:border-indigo-200 hover:text-indigo-600 transition" data-car-id="${car.id}" data-vehicle-action="schedule-maintenance">Сервис</button>`}
                         </div>
                         ${taskBadges}
                     </div>
