@@ -63,6 +63,156 @@
             backdrop-filter: blur(4px);
         }
 
+        /* Login layout */
+        #page-login {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: clamp(2rem, 5vw, 4.5rem) clamp(1rem, 4vw, 3rem);
+            background: radial-gradient(circle at top, rgba(94, 106, 210, 0.18), rgba(243, 244, 255, 0.8) 45%, rgba(245, 247, 255, 0.95));
+        }
+
+        #page-login.hidden {
+            display: none;
+        }
+
+        .login-grid {
+            width: 100%;
+            max-width: 960px;
+            display: grid;
+            gap: clamp(1.5rem, 3vw, 3rem);
+        }
+
+        .login-panel,
+        .login-hero {
+            border-radius: calc(var(--radius) * 1.25);
+        }
+
+        .login-panel {
+            padding: clamp(1.5rem, 4vw, 3rem);
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .login-panel h1 {
+            font-size: clamp(1.6rem, 4vw, 2.1rem);
+            line-height: 1.2;
+        }
+
+        .login-hero {
+            padding: clamp(1.75rem, 4vw, 3.25rem);
+            background: radial-gradient(circle at 25% 20%, rgba(124, 144, 255, 0.4), transparent 45%) rgba(18, 21, 43, 0.95);
+            box-shadow: 0 24px 48px -28px rgba(11, 13, 36, 0.85), 0 20px 45px -30px rgba(18, 21, 43, 0.6);
+            color: #f9f9ff;
+            border: none;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+        }
+
+        .login-hero::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(circle at bottom right, rgba(94, 106, 210, 0.55), transparent 55%);
+            opacity: 0.85;
+            pointer-events: none;
+        }
+
+        .login-hero > * {
+            position: relative;
+            z-index: 1;
+        }
+
+        .login-hero h2 {
+            font-size: clamp(1.8rem, 4vw, 2.4rem);
+            font-weight: 600;
+        }
+
+        .login-hero p {
+            color: rgba(250, 250, 255, 0.85);
+            line-height: 1.6;
+        }
+
+        .login-hero ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            display: grid;
+            gap: 0.85rem;
+        }
+
+        .login-hero li {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+        }
+
+        .login-hero li::before {
+            content: '';
+            width: 0.5rem;
+            height: 0.5rem;
+            margin-top: 0.45rem;
+            border-radius: 9999px;
+            background: rgba(255, 255, 255, 0.95);
+            box-shadow: 0 0 0 5px rgba(255, 255, 255, 0.15);
+            flex-shrink: 0;
+        }
+
+        .login-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            font-size: 0.7rem;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            padding: 0.4rem 0.9rem;
+            border-radius: 9999px;
+            background: rgba(255, 255, 255, 0.12);
+            color: rgba(255, 255, 255, 0.85);
+        }
+
+        .login-subcopy {
+            color: rgba(55, 65, 81, 0.75);
+            line-height: 1.6;
+        }
+
+        @media (min-width: 768px) {
+            .login-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                align-items: stretch;
+            }
+
+            .login-hero {
+                order: 1;
+            }
+
+            .login-panel {
+                order: 2;
+            }
+        }
+
+        @media (max-width: 767px) {
+            #page-login {
+                padding: 1.75rem 1rem 2.5rem;
+                align-items: flex-start;
+            }
+
+            .login-hero {
+                display: none;
+            }
+
+            .login-panel {
+                order: 1;
+                padding: 1.5rem;
+                gap: 1.25rem;
+            }
+        }
+
         #sidebar {
             background-color: rgba(255, 255, 255, 0.9);
             backdrop-filter: blur(18px);
@@ -190,9 +340,49 @@
             border-color: rgba(124, 144, 255, 0.25);
         }
 
-        #driver-toggle-offline,
-        #driver-toggle-tracking {
-            border-color: rgba(124, 144, 255, 0.3) !important;
+        .driver-task-card {
+            border-width: 1px;
+            border-style: solid;
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        .driver-task-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 15px 35px -25px rgba(15, 23, 42, 0.45);
+        }
+
+        .driver-task-card-delivery {
+            border-color: rgba(16, 185, 129, 0.4);
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.08), rgba(16, 185, 129, 0.02));
+        }
+
+        .driver-task-card-return {
+            border-color: rgba(249, 115, 22, 0.4);
+            background: linear-gradient(135deg, rgba(249, 115, 22, 0.08), rgba(249, 115, 22, 0.02));
+        }
+
+        .driver-task-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            padding: 0.1rem 0.5rem;
+            border-radius: 999px;
+            font-size: 0.65rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            background: rgba(148, 163, 184, 0.2);
+            color: #334155;
+        }
+
+        .driver-task-tag-delivery {
+            background: rgba(16, 185, 129, 0.15);
+            color: #047857;
+        }
+
+        .driver-task-tag-return {
+            background: rgba(249, 115, 22, 0.15);
+            color: #9a3412;
         }
 
         #sales-kanban-board > div {
@@ -343,37 +533,54 @@
 <body class="antialiased">
 
     <!-- Page: Login -->
-    <div id="page-login" class="flex items-center justify-center h-screen bg-gray-50">
-        <div class="w-full max-w-md p-10 space-y-6 geist-card">
-            <div>
-                <h1 class="text-2xl font-bold">SkyLuxse ERP</h1>
-            </div>
-            <div class="space-y-4">
-                <div>
-                    <label for="login-role" class="block text-sm font-medium text-gray-700">Role</label>
-                    <select id="login-role" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:ring-black focus:border-black">
-                        <option value="operations">Fleet manager</option>
-                        <option value="sales">Sales manager</option>
-                        <option value="ceo">Executive team</option>
-                        <option value="driver">Driver</option>
-                    </select>
+    <div id="page-login" class="bg-gray-50">
+        <div class="login-grid">
+            <section class="login-panel geist-card">
+                <div class="space-y-2">
+                    <p class="text-xs font-semibold tracking-[0.3em] uppercase text-gray-400">SkyLuxse ERP</p>
+                    <h1 class="font-semibold">Добро пожаловать</h1>
+                    <p class="text-sm login-subcopy">Выберите роль и подтвердите вход, чтобы продолжить работу с автопарком.</p>
                 </div>
-                <div>
-                    <label for="email" class="block text-sm font-medium text-gray-700">Email/Phone</label>
-                    <input type="email" id="email" value="ops@skyluxse.ae" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:ring-black focus:border-black">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700">One-time code</label>
-                    <div class="mt-1 space-y-2">
-                        <div id="otp-container" class="hidden space-y-1">
-                            <input type="text" id="otp" placeholder="123456" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-black focus:border-black">
-                            <p class="text-xs text-gray-400">MFA support will appear after integration.</p>
+
+                <div class="space-y-4 flex-1 w-full">
+                    <div>
+                        <label for="login-role" class="block text-sm font-medium text-gray-700">Role</label>
+                        <select id="login-role" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:ring-black focus:border-black">
+                            <option value="operations">Fleet manager</option>
+                            <option value="sales">Sales manager</option>
+                            <option value="ceo">Executive team</option>
+                            <option value="driver">Driver</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="email" class="block text-sm font-medium text-gray-700">Email/Phone</label>
+                        <input type="email" id="email" value="ops@skyluxse.ae" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:ring-black focus:border-black">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">One-time code</label>
+                        <div class="mt-1 space-y-2">
+                            <div id="otp-container" class="hidden space-y-1">
+                                <input type="text" id="otp" placeholder="123456" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-black focus:border-black">
+                                <p class="text-xs text-gray-400">MFA support will appear after integration.</p>
+                            </div>
+                            <button id="request-otp" class="w-full geist-button geist-button-secondary text-xs" type="button">Send code</button>
                         </div>
-                        <button id="request-otp" class="w-full geist-button geist-button-secondary text-xs" type="button">Send code</button>
                     </div>
                 </div>
-            </div>
-            <button id="login-button" class="w-full geist-button geist-button-primary">Sign in</button>
+
+                <button id="login-button" class="w-full geist-button geist-button-primary">Sign in</button>
+            </section>
+
+            <section class="login-hero">
+                <span class="login-badge">SkyLuxse platform</span>
+                <h2>ОС для премиального автопарка</h2>
+                <p>SkyLuxse держит бронирования, SLA и водителей в одном окне.</p>
+                <ul>
+                    <li>Единый учет заявок, авто и клиентов.</li>
+                    <li>Автосигналы по платежам и доставкам.</li>
+                    <li>Онлайн-отчеты по загрузке и марже.</li>
+                </ul>
+            </section>
         </div>
     </div>
 
@@ -857,53 +1064,34 @@
                         </div>
                     </section>
 
-                     <!-- Mobile Pages Wrapper -->
-                    <div id="mobile-view" class="hidden h-full">
-                        <!-- Page: Mobile Driver Tasks -->
-                        <section id="page-driver-tasks" class="page h-full">
-                            <div class="space-y-4 max-w-lg mx-auto">
-                               <div class="geist-card p-4 space-y-3">
-                                   <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                                       <div>
-                                           <p class="text-xs uppercase text-gray-400">Driver selection</p>
-                                           <h2 class="text-xl font-semibold text-gray-900">Mobile shift</h2>
-                                       </div>
-                                       <select id="driver-selector" class="px-3 py-2 border border-gray-300 rounded-md text-sm"></select>
-                                   </div>
-                                   <div id="driver-status-banner"></div>
-                                   <div id="driver-location-card" class="border border-dashed border-gray-300 rounded-lg p-3 text-xs text-gray-600 space-y-2">
-                                       <div class="flex items-center justify-between">
-                                           <span class="font-medium text-gray-700">GPS tracking</span>
-                                           <button id="driver-toggle-tracking" class="geist-button geist-button-secondary text-xs">Enable GPS</button>
-                                       </div>
-                                       <p>Coordinates: <span id="driver-current-coords" class="font-mono text-gray-800">—</span></p>
-                                       <p>Last update: <span id="driver-location-updated" class="text-gray-500">—</span></p>
-                                   </div>
-                               </div>
-                               <button id="driver-toggle-offline" class="w-full geist-button geist-button-secondary text-sm">Toggle offline mode</button>
-                               <h2 class="text-2xl font-bold text-center">Today’s tasks</h2>
-                               <div id="driver-tasks-list" class="space-y-4">
-                                   <!-- Driver task cards will be rendered here -->
-                               </div>
-                            </div>
-                        </section>
-
-                        <!-- Page: Mobile Driver Task Detail -->
-                        <section id="page-driver-task-detail" class="page hidden h-full">
-                            <div class="max-w-lg mx-auto">
-                                <button class="back-to-tasks mb-4 text-gray-600 flex items-center">
-                                    <!-- Back icon will be injected -->
-                                    <span class="ml-2">Back to tasks</span>
-                                </button>
-                                <div id="driver-task-detail-content" class="geist-card p-6 space-y-6">
-                                   <!-- Task details will be rendered here -->
-                                </div>
-                            </div>
-                        </section>
-                    </div>
-
                 </div>
             </main>
+        </div>
+
+        <!-- Mobile Pages Wrapper (shown for driver layout) -->
+        <div id="mobile-view" class="hidden h-full overflow-y-auto p-6 bg-gradient-to-b from-white to-slate-50">
+            <!-- Page: Mobile Driver Tasks -->
+            <section id="page-driver-tasks" class="page h-full">
+                <div class="space-y-4 max-w-lg mx-auto">
+                    <h2 class="text-2xl font-bold text-center">Today’s tasks</h2>
+                    <div id="driver-tasks-list" class="space-y-4">
+                        <!-- Driver task cards will be rendered here -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- Page: Mobile Driver Task Detail -->
+            <section id="page-driver-task-detail" class="page hidden h-full">
+                <div class="max-w-lg mx-auto">
+                    <button class="back-to-tasks mb-4 text-gray-600 flex items-center">
+                        <!-- Back icon will be injected -->
+                        <span class="ml-2">Back to tasks</span>
+                    </button>
+                    <div id="driver-task-detail-content" class="geist-card p-6 space-y-6">
+                        <!-- Task details will be rendered here -->
+                    </div>
+                </div>
+            </section>
         </div>
 
     </div>

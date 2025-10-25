@@ -738,6 +738,41 @@ document.addEventListener('DOMContentLoaded', () => {
     driverControlsBound = true;
   };
 
+  const DRIVER_TASK_TYPE_META = {
+    delivery: {
+      label: 'Deliver to client',
+      tagLabel: 'Deliver',
+      cardClass: 'driver-task-card-delivery',
+      tagClass: 'driver-task-tag driver-task-tag-delivery'
+    },
+    settlement: {
+      label: 'Vehicle return',
+      tagLabel: 'Return',
+      cardClass: 'driver-task-card-return',
+      tagClass: 'driver-task-tag driver-task-tag-return'
+    },
+    preparation: {
+      label: 'Prepare vehicle',
+      tagLabel: 'Prep',
+      cardClass: '',
+      tagClass: 'driver-task-tag'
+    },
+    default: {
+      label: 'Task',
+      tagLabel: 'Task',
+      cardClass: '',
+      tagClass: 'driver-task-tag'
+    }
+  };
+
+  const PARTIAL_PAYMENT_REASONS = [
+    'Client promised transfer later',
+    'Approved by operations manager',
+    'Cash limit / no POS available',
+    'Client paid via bank transfer',
+    'Other'
+  ];
+
   const renderDriverTasks = () => {
     const listEl = document.getElementById('driver-tasks-list');
     if (!listEl) return;
@@ -752,6 +787,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const tasks = MOCK_DATA.bookings.filter(b => b.driverId === driverId && ['delivery', 'preparation', 'settlement'].includes(b.status))
       .sort((a,b) => a.startTime.localeCompare(b.startTime));
+    const carsById = new Map(MOCK_DATA.cars.map(car => [Number(car.id), car]));
 
     const bannerEl = document.getElementById('driver-status-banner');
     if (bannerEl) {
@@ -791,23 +827,38 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     listEl.innerHTML = tasks.map(task => {
-      const labels = {
-        preparation: 'Prepare vehicle',
-        delivery: 'Deliver to client',
-        settlement: 'Vehicle return'
-      };
-      const label = labels[task.status] || 'Task';
+      const typeMeta = DRIVER_TASK_TYPE_META[task.status] || DRIVER_TASK_TYPE_META.default;
+      const cardClasses = ['geist-card', 'driver-task-card', typeMeta.cardClass, 'p-4', 'cursor-pointer']
+        .filter(Boolean)
+        .join(' ');
+      const typeBadge = `<span class="${typeMeta.tagClass}">${typeMeta.tagLabel}</span>`;
       const targetTime = new Date(`${task.startDate}T${task.startTime}:00`).getTime();
       const timerHtml = `<div class="card-timer text-xs text-amber-600 flex items-center mt-2" data-target-time="${targetTime}"></div>`;
-      const route = task.pickupLocation ? `<p class="text-xs text-gray-500 mt-1">${task.pickupLocation}${task.dropoffLocation ? ' → ' + task.dropoffLocation : ''}</p>` : '';
+      const carData = carsById.get(Number(task.carId)) || MOCK_DATA.cars.find(car => car.name === task.carName);
+      const carName = carData?.name || task.carName || '';
+      const carInfoParts = [];
+      if (carName) carInfoParts.push(carName);
+      if (carData?.year) carInfoParts.push(String(carData.year));
+      if (carData?.plate) carInfoParts.push(carData.plate);
+      const carInfoText = carInfoParts.join(' · ') || carName;
+      const clientInfo = task.clientName ? `<p class="text-xs text-gray-500">${task.clientName}</p>` : '';
+      const locationLabel = (() => {
+        if (task.status === 'delivery') return task.dropoffLocation || task.pickupLocation || '';
+        if (task.status === 'settlement') return task.pickupLocation || task.dropoffLocation || '';
+        return task.dropoffLocation || task.pickupLocation || '';
+      })();
+      const locationHtml = locationLabel ? `<p class="text-xs text-gray-500 mt-1">${locationLabel}</p>` : '';
       return `
-                <div class="geist-card p-4 cursor-pointer" data-task-id="${task.id}">
-                    <div class="flex justify-between items-start">
+                <div class="${cardClasses}" data-task-id="${task.id}">
+                    <div class="flex justify-between items-start gap-3">
                         <div>
-                             <p class="font-semibold text-sm text-gray-900">${label}</p>
-                             <p class="text-xs text-gray-500">${task.carName}</p>
-                            <p class="text-xs text-gray-500">Client: ${task.clientName}</p>
-                             ${route}
+                             <div class="flex items-center gap-2 mb-1">
+                                ${typeBadge}
+                                <p class="font-semibold text-sm text-gray-900">${typeMeta.label}</p>
+                             </div>
+                             <p class="text-xs text-gray-500">${carInfoText}</p>
+                             ${clientInfo}
+                             ${locationHtml}
                         </div>
                         <div class="text-right text-xs text-gray-500">
                              <p>${task.startDate}</p>
@@ -827,45 +878,83 @@ document.addEventListener('DOMContentLoaded', () => {
     if(!task || !contentEl) return false;
             
     const client = MOCK_DATA.clients.find(c => c.name === task.clientName) || {};
-    const dueAmount = (task.totalAmount || 0) - (task.paidAmount || 0);
-    const taskLabels = {
-      preparation: 'Vehicle preparation',
-      delivery: 'Client delivery',
-      settlement: 'Vehicle return'
+    const typeMeta = DRIVER_TASK_TYPE_META[task.status] || DRIVER_TASK_TYPE_META.default;
+    const typeBadge = `<span class="${typeMeta.tagClass}">${typeMeta.tagLabel}</span>`;
+    const carData = MOCK_DATA.cars.find(car => Number(car.id) === Number(task.carId))
+      || MOCK_DATA.cars.find(car => car.name === task.carName);
+    const carDescriptorParts = [carData?.name || task.carName || null, carData?.year || null]
+      .filter(Boolean);
+    const carDescriptor = carDescriptorParts.join(' ');
+    const vehicleInfo = carDescriptor
+      ? `${carDescriptor}${carData?.plate ? `, ${carData.plate}` : ''}`
+      : (carData?.plate || task.carName || 'Vehicle details');
+    const clientPhone = client.phone || task.clientPhone || '';
+    const clientDocumentsHtml = (client.documents && client.documents.length)
+      ? client.documents.map(doc => `<a href="#" class="px-3 py-1 rounded-md bg-slate-100 text-slate-700 client-doc-link" data-url="${doc.url}">${doc.name}</a>`).join('')
+      : '<span class="text-xs text-gray-400">No documents attached</span>';
+    const routeLocation = task.dropoffLocation || task.pickupLocation || 'Location TBD';
+    const totalAmount = task.totalAmount || 0;
+    const paidAmount = task.paidAmount || 0;
+    const outstandingAmount = Math.max(totalAmount - paidAmount, 0);
+    const isVehicleReturnTask = task.status === 'settlement';
+    const formatMileageValue = (value) => {
+      if (value === null || value === undefined || value === '') return '—';
+      const numericValue = Number(value);
+      if (!Number.isNaN(numericValue)) {
+        return `${numericValue.toLocaleString()} km`;
+      }
+      return `${value}`;
     };
-    const taskTitle = taskLabels[task.status] || 'Driver task';
-    const connectionBadge = appState.offline.enabled
-      ? '<span class="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md bg-amber-50 text-amber-700 border border-amber-100">Offline</span>'
-      : '<span class="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md bg-emerald-50 text-emerald-700 border border-emerald-100">Online</span>';
+    const deliveryReadingsInfo = isVehicleReturnTask ? `
+                        <div class="rounded-lg border border-slate-100 bg-slate-50 p-3 text-xs text-gray-600">
+                            <p class="font-semibold text-gray-700 mb-1">At delivery</p>
+                            <div class="flex flex-wrap gap-4 text-sm text-gray-600">
+                                <span>Odometer: <span class="font-semibold text-gray-900">${formatMileageValue(task.pickupMileage)}</span></span>
+                                <span>Fuel level: <span class="font-semibold text-gray-900">${task.pickupFuel || '—'}</span></span>
+                            </div>
+                        </div>` : '';
+    const documentCheckHtml = !isVehicleReturnTask ? `
+                        <label class="flex items-center"><input id="doc-check" type="checkbox" class="h-4 w-4 rounded border-gray-300"> <span class="ml-2 text-sm text-gray-600">Documents verified</span></label>` : '';
 
     contentEl.innerHTML = `
-                <h2 class="text-2xl font-bold">${taskTitle}: ${task.carName}</h2>
+                <div class="space-y-2">
+                    <div class="flex items-center gap-2">
+                        ${typeBadge}
+                        <h2 class="text-2xl font-bold">${typeMeta.label}</h2>
+                    </div>
+                    <p class="text-sm text-gray-500">${vehicleInfo}</p>
+                </div>
                 <div class="space-y-6">
-                    <div class="flex items-center justify-between">
+                    <div class="geist-card p-4 space-y-4">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm text-gray-700">${client.name || '—'}</p>
+                                ${clientPhone ? `<p class="text-xs text-gray-500 mt-1">${clientPhone}</p>` : ''}
+                            </div>
+                            ${clientPhone ? `<a href="tel:${clientPhone}" class="p-3 bg-gray-100 rounded-full">${getIcon('phone')}</a>` : ''}
+                        </div>
                         <div>
-                            <h3 class="font-semibold text-gray-500">Client</h3>
-                            <p class="text-sm text-gray-700 mt-1">${client.name || '—'}</p>
+                            <h4 class="font-semibold text-sm text-gray-700">Client documents</h4>
+                            <div class="flex flex-wrap gap-2 mt-3 text-sm">
+                                ${clientDocumentsHtml}
+                            </div>
                         </div>
-                        <div class="flex items-center gap-2">
-                            ${connectionBadge}
-                            ${client.phone ? `<a href="tel:${client.phone}" class="p-3 bg-gray-100 rounded-full">${getIcon('phone')}</a>` : ''}
-                        </div>
+                        ${documentCheckHtml}
                     </div>
                     <div class="geist-card p-4">
-                        <div class="flex items-center justify-between">
-                            <h3 class="font-semibold text-sm text-gray-700">Route and navigation</h3>
-                            <a href="https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(task.dropoffLocation || 'Dubai Marina')}" target="_blank" class="geist-button geist-button-secondary text-xs flex items-center gap-2">
-                                ${getIcon('navigation', 'w-4 h-4')}Navigator
+                        <div class="flex items-center gap-3">
+                            <p class="text-sm text-gray-700 flex-1">${routeLocation}</p>
+                            <a href="https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(task.dropoffLocation || task.pickupLocation || 'Dubai Marina')}" target="_blank" class="p-3 rounded-xl bg-slate-100 text-slate-600">
+                                ${getIcon('navigation', 'w-4 h-4')}
                             </a>
                         </div>
-                        <p class="text-xs text-gray-500 mt-3">${task.pickupLocation || 'SkyLuxse HQ'} → ${task.dropoffLocation || 'Client address'}</p>
                     </div>
                     <div class="geist-card p-4 space-y-4">
                         <div class="flex items-center justify-between">
                             <h3 class="font-semibold text-sm text-gray-700">Readings and condition</h3>
-                            <span class="text-xs text-gray-400">Complete before return</span>
                         </div>
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+                        ${deliveryReadingsInfo}
+                        <div class="grid grid-cols-2 gap-3 text-sm">
                             <div>
                                 <label class="block text-xs font-medium text-gray-500 mb-1">Odometer (km)</label>
                                 <input type="number" id="driver-odometer" class="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="e.g. 25450">
@@ -874,42 +963,37 @@ document.addEventListener('DOMContentLoaded', () => {
                                 <label class="block text-xs font-medium text-gray-500 mb-1">Fuel level</label>
                                 <select id="driver-fuel" class="w-full px-3 py-2 border border-gray-300 rounded-md">
                                     <option value="">Select</option>
-                                    <option value="full">Full</option>
-                                    <option value="3/4">3/4</option>
-                                    <option value="1/2">1/2</option>
-                                    <option value="1/4">1/4</option>
+                                    ${['8/8','7/8','6/8','5/8','4/8','3/8','2/8','1/8','0/8'].map(level => `<option value="${level}">${level}</option>`).join('')}
                                 </select>
                             </div>
-                            <div>
-                                <label class="block text-xs font-medium text-gray-500 mb-1">Cash collected (AED)</label>
-                                <input type="number" id="driver-cash" class="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="0">
+                        </div>
+                    </div>
+                    <div id="driver-payment-card" class="geist-card p-4 space-y-4" data-due-amount="${outstandingAmount}">
+                        <div class="flex items-center justify-between">
+                            <h3 class="font-semibold text-sm text-gray-700">Payment collection</h3>
+                            <div class="text-right text-xs text-gray-500">
+                                <p>Outstanding</p>
+                                <p class="text-sm font-semibold ${outstandingAmount > 0 ? 'text-amber-600' : 'text-emerald-600'}">${formatCurrency(outstandingAmount)}</p>
                             </div>
                         </div>
+                        <p class="text-xs text-gray-500">Total ${formatCurrency(totalAmount)} · Paid ${formatCurrency(paidAmount)}</p>
+                        ${outstandingAmount > 0 ? `
+                        <div class="space-y-3">
+                            <div>
+                                <label class="block text-xs font-medium text-gray-500 mb-1">Collect now (AED)</label>
+                                <input type="number" step="0.01" id="driver-collect-amount" class="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="e.g. ${outstandingAmount}">
+                            </div>
+                            <p class="text-sm text-gray-600">Remaining: <span id="driver-collect-remaining" class="font-semibold">${formatCurrency(outstandingAmount)}</span></p>
+                            <div id="driver-collect-reason-wrap" class="space-y-1 hidden">
+                                <label class="block text-xs font-medium text-gray-500">Reason for partial collection</label>
+                                <select id="driver-collect-reason" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm">
+                                    <option value="">Select reason</option>
+                                    ${PARTIAL_PAYMENT_REASONS.map(reason => `<option value="${reason}">${reason}</option>`).join('')}
+                                </select>
+                            </div>
+                        </div>` : `<p class="text-sm text-emerald-600">No outstanding balance for this booking</p>`}
                     </div>
-                    <div class="geist-card p-4">
-                        <h3 class="font-semibold text-sm text-gray-700">Client documents</h3>
-                        <div class="flex flex-wrap gap-2 mt-3 text-sm">
-                           ${(client.documents && client.documents.length) ? client.documents.map(doc => `<a href="#" class="px-3 py-1 rounded-md bg-slate-100 text-slate-700 client-doc-link" data-url="${doc.url}">${doc.name}</a>`).join('') : '<span class="text-xs text-gray-400">No documents attached</span>'}
-                        </div>
-                    </div>
-                    <div class="geist-card p-4 space-y-3 text-sm">
-                        <div class="flex items-center justify-between">
-                            <h3 class="font-semibold text-sm text-gray-700">Additional services</h3>
-                            <span class="text-xs text-gray-400">Select delivered services</span>
-                        </div>
-                        <label class="flex items-center gap-2">
-                            <input type="checkbox" class="driver-service" data-code="detailing" data-amount="200">
-                            Detailing before delivery (+200 AED)
-                        </label>
-                        <label class="flex items-center gap-2">
-                            <input type="checkbox" class="driver-service" data-code="fuel" data-amount="150">
-                            Refueling (+150 AED)
-                        </label>
-                        <label class="flex items-center gap-2">
-                            <input type="checkbox" class="driver-service" data-code="toll" data-amount="50">
-                            Salik / toll payment (+50 AED)
-                        </label>
-                    </div>
+                    ${task.status === 'settlement' ? `
                     <div class="geist-card p-4 space-y-3">
                         <div class="flex items-center justify-between">
                             <h3 class="font-semibold text-sm text-gray-700">Fine check</h3>
@@ -918,56 +1002,20 @@ document.addEventListener('DOMContentLoaded', () => {
                             </button>
                         </div>
                         <div id="fines-result" class="text-xs text-gray-500">No fine data.</div>
-                    </div>
-                    <div class="geist-card p-4">
-                        <h4 class="font-medium mb-2 text-sm">Payment</h4>
-                        <div class="space-y-3">
-                            <input type="number" id="payment-amount" value="${dueAmount}" placeholder="Amount" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md">
-                            <button id="generate-qr-btn" class="w-full geist-button geist-button-secondary text-sm">Generate payment QR code</button>
-                            <div id="qrcode-container" class="flex justify-center p-4 bg-gray-50 rounded-md hidden"></div>
-                        </div>
-                    </div>
+                    </div>` : ''}
                     <div class="space-y-4">
                         <h3 class="font-semibold text-gray-500">Attach photos</h3>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Contract photo</label>
-                            <input type="file" accept="image/*" id="contract-photo" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md">
-                            <div id="contract-preview" class="mt-2 hidden">
-                                <img id="contract-img" class="max-w-full h-32 object-cover rounded-md">
-                            </div>
-                        </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Vehicle photos (up to 4)</label>
                             <input type="file" accept="image/*" multiple id="car-photos" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md">
                             <div id="car-previews" class="grid grid-cols-2 gap-2 mt-2"></div>
                         </div>
                     </div>
-                    <div>
-                        <label class="flex items-center"><input id="doc-check" type="checkbox" class="h-4 w-4 rounded border-gray-300"> <span class="ml-2 text-sm text-gray-600">Documents verified</span></label>
-                    </div>
                     <button id="complete-task-btn" data-booking-id="${task.id}" disabled class="w-full geist-button geist-button-primary mt-4">Complete task</button>
                 </div>
             `;
 
     // Event listeners for photo attachments
-    const contractInput = document.getElementById('contract-photo');
-    const contractPreview = document.getElementById('contract-preview');
-    const contractImg = document.getElementById('contract-img');
-
-    if (contractInput) {
-      contractInput.addEventListener('change', function(e) {
-        const file = e.target.files[0];
-        if (file) {
-          const reader = new FileReader();
-          reader.onload = function(e) {
-            contractImg.src = e.target.result;
-            contractPreview.classList.remove('hidden');
-          };
-          reader.readAsDataURL(file);
-        }
-      });
-    }
-
     const carInput = document.getElementById('car-photos');
     const carPreviews = document.getElementById('car-previews');
 
@@ -988,6 +1036,46 @@ document.addEventListener('DOMContentLoaded', () => {
           reader.readAsDataURL(file);
         });
       });
+    }
+
+    const updateCompleteBtnState = () => {
+      const odometerValue = document.getElementById('driver-odometer')?.value?.trim();
+      const fuelValue = document.getElementById('driver-fuel')?.value;
+      const docVerified = document.getElementById('doc-check')?.checked;
+      const completeBtn = document.getElementById('complete-task-btn');
+      if (completeBtn) {
+        completeBtn.disabled = !(docVerified && odometerValue && fuelValue);
+      }
+    };
+
+    document.getElementById('doc-check')?.addEventListener('change', updateCompleteBtnState);
+    document.getElementById('driver-odometer')?.addEventListener('input', updateCompleteBtnState);
+    document.getElementById('driver-fuel')?.addEventListener('change', updateCompleteBtnState);
+    updateCompleteBtnState();
+
+    const paymentCard = document.getElementById('driver-payment-card');
+    const collectionInput = document.getElementById('driver-collect-amount');
+    const remainingLabel = document.getElementById('driver-collect-remaining');
+    const reasonWrap = document.getElementById('driver-collect-reason-wrap');
+    const reasonSelect = document.getElementById('driver-collect-reason');
+    if (paymentCard && collectionInput && remainingLabel) {
+      const dueAmount = parseFloat(paymentCard.dataset.dueAmount || '0') || 0;
+      const handleCollectionChange = () => {
+        let value = parseFloat(collectionInput.value);
+        if (Number.isNaN(value) || value < 0) value = 0;
+        if (value > dueAmount) value = dueAmount;
+        collectionInput.value = value ? value : '';
+        const remaining = Math.max(dueAmount - value, 0);
+        remainingLabel.textContent = formatCurrency(remaining);
+        if (reasonWrap) {
+          reasonWrap.classList.toggle('hidden', remaining === 0);
+          if (remaining === 0 && reasonSelect) {
+            reasonSelect.value = '';
+          }
+        }
+      };
+      collectionInput.addEventListener('input', handleCollectionChange);
+      handleCollectionChange();
     }
     return true;
   };
@@ -2105,13 +2193,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (completeBtn) completeBtn.disabled = !formValid;
       }
     }
-    if (e.target.id === 'generate-qr-btn') {
-      const qrContainer = document.getElementById('qrcode-container');
-      const amount = document.getElementById('payment-amount').value;
-      qrContainer.innerHTML = '';
-      new QRCode(qrContainer, `https://stripe.com/pay/mock_link_for_${amount}`);
-      qrContainer.classList.remove('hidden');
-    }
     if (e.target.id === 'complete-task-btn') {
       const bookingId = e.target.dataset.bookingId;
       const odometerValue = driverTaskDetailContent?.querySelector('#driver-odometer')?.value.trim();
@@ -2120,18 +2201,23 @@ document.addEventListener('DOMContentLoaded', () => {
         showToast('Fill in mileage and fuel level before completing', 'error');
         return;
       }
-      const cashValue = parseFloat(driverTaskDetailContent?.querySelector('#driver-cash')?.value || '0') || 0;
-      const services = Array.from(driverTaskDetailContent?.querySelectorAll('.driver-service:checked') || []).map(input => ({
-        code: input.dataset.code,
-        amount: parseFloat(input.dataset.amount || '0') || 0
-      }));
+      const paymentCard = document.getElementById('driver-payment-card');
+      const dueAmount = parseFloat(paymentCard?.dataset.dueAmount || '0') || 0;
+      const collectedAmount = parseFloat(document.getElementById('driver-collect-amount')?.value || '0') || 0;
+      const outstandingAfterCollect = Math.max(dueAmount - collectedAmount, 0);
+      const collectionReason = document.getElementById('driver-collect-reason')?.value || '';
+      if (dueAmount > 0 && outstandingAfterCollect > 0 && !collectionReason) {
+        showToast('Select reason for not collecting the full amount', 'error');
+        return;
+      }
       const finesText = driverTaskDetailContent?.querySelector('#fines-result')?.textContent.trim();
       const payload = {
         odometer: odometerValue,
         fuelLevel,
-        cashValue,
-        services,
-        fines: finesText
+        fines: finesText,
+        collectedAmount,
+        outstandingAfterCollect,
+        collectionReason
       };
 
       if (appState.offline.enabled) {
@@ -2143,10 +2229,19 @@ document.addEventListener('DOMContentLoaded', () => {
           booking.status = 'settlement';
           booking.mileage = odometerValue;
           booking.fuelLevel = fuelLevel;
-          booking.cashCollected = cashValue;
-          booking.addonServices = services;
+          if (collectedAmount > 0) {
+            booking.paidAmount = Math.min((booking.paidAmount || 0) + collectedAmount, booking.totalAmount || ((booking.paidAmount || 0) + collectedAmount));
+          }
+          booking.outstandingDriverNote = outstandingAfterCollect > 0 ? collectionReason : '';
           booking.history = booking.history || [];
-          booking.history.push({ ts: new Date().toISOString().slice(0, 16).replace('T', ' '), event: 'Driver completed task, data updated' });
+          const historyNoteParts = ['Driver completed task'];
+          if (collectedAmount > 0) {
+            historyNoteParts.push(`Collected ${formatCurrency(collectedAmount)}`);
+          }
+          if (outstandingAfterCollect > 0) {
+            historyNoteParts.push(`Outstanding ${formatCurrency(outstandingAfterCollect)} (${collectionReason || 'reason n/a'})`);
+          }
+          booking.history.push({ ts: new Date().toISOString().slice(0, 16).replace('T', ' '), event: historyNoteParts.join('. ') });
         }
         const relatedTask = MOCK_DATA.tasks.find(t => String(t.bookingId) === String(bookingId));
         if (relatedTask) {

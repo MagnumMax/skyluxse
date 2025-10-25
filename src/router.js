@@ -104,10 +104,12 @@ export const createRouter = (handlers) => {
       }
     } else if (layout === 'mobile') {
       const defaultPage = roleConfig?.defaultPage || 'driver-tasks';
-      if (page !== defaultPage) {
+      const allowedPages = [defaultPage, 'driver-task-detail'];
+      if (!allowedPages.includes(page)) {
+        page = defaultPage;
+        normalizedSelector = HASH_DEFAULT_SELECTOR;
         needsUpdate = true;
       }
-      page = defaultPage;
     }
 
     if (page === 'driver-task-detail' && isDefaultSelector(normalizedSelector)) {
