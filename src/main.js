@@ -452,6 +452,87 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   };
+  const defaultFleetImage = '/images/mercedes-g-class.jpg';
+
+  const getCarImageSrc = (car) => car?.imagePath || car?.imageUrl || defaultFleetImage;
+
+  const formatShortDate = (value, withYear = false) => {
+    if (!value) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    return date.toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: 'short',
+      ...(withYear ? { year: 'numeric' } : {})
+    });
+  };
+
+  const getExpiryMeta = (dateStr) => {
+    if (!dateStr) {
+      return {
+        label: 'No data',
+        badge: 'bg-gray-100 text-gray-500 border border-gray-200',
+        daysText: '—',
+        displayDate: '—',
+        accent: 'text-gray-400'
+      };
+    }
+    const date = new Date(dateStr);
+    if (Number.isNaN(date.getTime())) {
+      return {
+        label: 'No data',
+        badge: 'bg-gray-100 text-gray-500 border border-gray-200',
+        daysText: '—',
+        displayDate: escapeHtml(dateStr),
+        accent: 'text-gray-400'
+      };
+    }
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const diffDays = Math.round((date.getTime() - today.getTime()) / 86400000);
+    if (diffDays < 0) {
+      return {
+        label: 'Expired',
+        badge: 'bg-rose-50 text-rose-700 border border-rose-100',
+        daysText: `${Math.abs(diffDays)}d overdue`,
+        displayDate: formatShortDate(dateStr, true),
+        accent: 'text-rose-600'
+      };
+    }
+    if (diffDays <= 30) {
+      return {
+        label: 'Expiring soon',
+        badge: 'bg-amber-50 text-amber-700 border border-amber-100',
+        daysText: `${diffDays}d left`,
+        displayDate: formatShortDate(dateStr, true),
+        accent: 'text-amber-600'
+      };
+    }
+    return {
+      label: 'Valid',
+      badge: 'bg-emerald-50 text-emerald-700 border border-emerald-100',
+      daysText: `${diffDays}d left`,
+      displayDate: formatShortDate(dateStr, true),
+      accent: 'text-emerald-600'
+    };
+  };
+
+  const renderExpiryRow = (label, dateStr) => {
+    const meta = getExpiryMeta(dateStr);
+    return `
+      <div class="flex items-center justify-between gap-3 text-xs">
+        <div>
+          <p class="text-[0.65rem] uppercase tracking-wide text-gray-500">${label}</p>
+          <p class="font-semibold text-gray-900">${meta.displayDate || '—'}</p>
+        </div>
+        <div class="text-right">
+          <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[0.65rem] font-semibold ${meta.badge}">${meta.label}</span>
+          <p class="text-[0.65rem] ${meta.accent || 'text-gray-400'}">${meta.daysText}</p>
+        </div>
+      </div>
+    `;
+  };
+
   const renderVehicleCell = (car) => {
     const statusClasses = {
       Available: 'bg-emerald-50 text-emerald-700 border border-emerald-100',
@@ -459,16 +540,40 @@ document.addEventListener('DOMContentLoaded', () => {
       Maintenance: 'bg-amber-50 text-amber-700 border border-amber-100'
     };
     const badgeClass = statusClasses[car.status] || 'bg-gray-100 text-gray-600 border border-gray-200';
+    const tags = [car.class, car.segment, car.color].filter(Boolean).map((tag) => `<span class="px-2 py-0.5 text-[0.65rem] rounded-full bg-gray-100 text-gray-600">${escapeHtml(tag)}</span>`).join('');
+    const imageSrc = escapeHtml(getCarImageSrc(car));
     return `
-                <div class="flex items-center gap-3">
-                    <img src="${car.imagePath}" alt="${car.name}" class="w-14 h-10 object-cover rounded-md">
-                    <div>
-                        <p class="font-semibold text-sm text-gray-900">${car.name}</p>
-                        <p class="text-xs text-gray-500">${car.plate} · ${car.color} · ${car.year}</p>
-                        <span class="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md ${badgeClass}">${car.status}</span>
-                    </div>
-                </div>
-            `;
+      <div class="flex items-start gap-4">
+        <div class="relative w-20 h-14 rounded-lg overflow-hidden border border-gray-200 bg-gray-50 flex-shrink-0">
+          <img src="${imageSrc}" alt="${escapeHtml(car.name)}" class="w-full h-full object-cover">
+          <span class="absolute -bottom-2 left-1/2 -translate-x-1/2 text-[0.65rem] font-semibold bg-white px-2 py-0.5 rounded-full shadow border border-gray-100">${escapeHtml(car.plate || '—')}</span>
+        </div>
+        <div class="space-y-2">
+          <div class="flex flex-wrap items-center gap-2">
+            <a href="${buildHash(appState.currentRole, getDetailPageId('fleet-table'), car.id)}" class="font-semibold text-sm text-indigo-600 hover:text-indigo-800">${escapeHtml(car.name)}</a>
+            <span class="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full ${badgeClass}">${escapeHtml(car.status || '—')}</span>
+          </div>
+          <div class="flex flex-wrap gap-1 text-xs text-gray-500">${tags || '<span class="text-gray-400">No tags</span>'}</div>
+        </div>
+      </div>
+    `;
+  };
+
+  const renderVehicleYearCell = (car) => `
+      <div class="text-sm font-semibold text-gray-900">${car.year || '—'}</div>
+    `;
+
+  const renderFleetComplianceCell = (car) => {
+    const insuranceDoc = Array.isArray(car.documents) ? car.documents.find((doc) => doc.type === 'insurance') : null;
+    const mulkiyaDoc = Array.isArray(car.documents) ? car.documents.find((doc) => doc.type === 'mulkiya') : null;
+    const insuranceExpiry = insuranceDoc?.expiry || car.insuranceExpiry;
+    const mulkiyaExpiry = mulkiyaDoc?.expiry || car.mulkiyaExpiry;
+    return `
+      <div class="space-y-3">
+        ${renderExpiryRow('Insurance', insuranceExpiry)}
+        ${renderExpiryRow('Mulkiya', mulkiyaExpiry)}
+      </div>
+    `;
   };
 
   const renderClientInfo = (client) => {
@@ -528,10 +633,17 @@ document.addEventListener('DOMContentLoaded', () => {
     let rows = [];
 
     if (dataType === 'fleet-table') {
-      tableTitleEl.textContent = 'Fleet';
-      rows = MOCK_DATA.cars;
+      tableTitleEl.textContent = 'Fleet directory';
+      const statusPriority = { 'In Rent': 0, Maintenance: 1, Available: 2 };
+      rows = [...(MOCK_DATA.cars || [])].sort((a, b) => {
+        const priorityDiff = (statusPriority[a.status] ?? 99) - (statusPriority[b.status] ?? 99);
+        if (priorityDiff !== 0) return priorityDiff;
+        return String(a.name || '').localeCompare(b.name || '');
+      });
       columns = [
-        { label: 'Vehicle', render: renderVehicleCell }
+        { label: 'Vehicle', render: renderVehicleCell },
+        { label: 'Year', render: renderVehicleYearCell },
+        { label: 'Compliance', render: renderFleetComplianceCell }
       ];
       if (tableSearchWrapper) tableSearchWrapper.classList.add('hidden');
     } else if (dataType === 'clients-table') {
@@ -592,16 +704,17 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    tableHeadEl.innerHTML = `${columns.map(col => `<th class="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider text-left">${col.label}</th>`).join('')}<th class="px-6 py-3"></th>`;
+    const includeActionColumn = dataType !== 'fleet-table';
+    tableHeadEl.innerHTML = `${columns.map(col => `<th class="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider text-left">${col.label}</th>`).join('')}${includeActionColumn ? '<th class="px-6 py-3"></th>' : ''}`;
 
     const detailPage = dataType.endsWith('-table') ? getDetailPageId(dataType) : dataType;
 
     tableBodyEl.innerHTML = rows.map(row => `
                 <tr class="hover:bg-gray-50">
                     ${columns.map(col => `<td class="px-6 py-4 align-top text-sm text-gray-700">${col.render(row)}</td>`).join('')}
-                    <td class="px-6 py-4 text-right text-sm font-medium">
+                    ${includeActionColumn ? `<td class="px-6 py-4 text-right text-sm font-medium">
                         <a href="${buildHash(appState.currentRole, detailPage, row.id)}" class="text-indigo-600 hover:text-indigo-900">View details</a>
-                    </td>
+                    </td>` : ''}
                 </tr>
             `).join('');
 
@@ -991,7 +1104,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                     ${PARTIAL_PAYMENT_REASONS.map(reason => `<option value="${reason}">${reason}</option>`).join('')}
                                 </select>
                             </div>
-                        </div>` : `<p class="text-sm text-emerald-600">No outstanding balance for this booking</p>`}
+                        </div>` : '<p class="text-sm text-emerald-600">No outstanding balance for this booking</p>'}
                     </div>
                     ${task.status === 'settlement' ? `
                     <div class="geist-card p-4 space-y-3">
