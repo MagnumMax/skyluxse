@@ -2350,7 +2350,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
-  const router = createRouter({
+  const baseRouter = createRouter({
     renderTableView,
     renderTaskDetailPage,
     renderDriverTaskDetail,
@@ -2363,6 +2363,11 @@ document.addEventListener('DOMContentLoaded', () => {
     renderTasksPage,
     stopDriverTracking
   });
+
+  const router = () => {
+    baseRouter();
+    updateActiveLink();
+  };
 
   initFleetCalendar(router);
 
