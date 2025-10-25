@@ -205,44 +205,44 @@ export const renderKanbanBoard = () => {
   board.innerHTML = Object.entries(KANBAN_STATUS_META).map(([statusKey, meta]) => {
     const bookings = groupedBookings[statusKey] || [];
     return `
-        <div class="flex-shrink-0 w-72 bg-gray-50 rounded-lg border border-gray-200 flex flex-col">
-            <div class="p-4 border-b bg-white rounded-t-lg flex items-center justify-between">
-                <h3 class="font-semibold text-sm">${meta.label}</h3>
-                <span class="text-xs text-gray-400">${bookings.length}</span>
+        <div class="flex-shrink-0 w-72 rounded-2xl border border-border bg-card shadow-card flex flex-col">
+            <div class="flex items-center justify-between border-b border-border px-4 py-3">
+                <h3 class="text-sm font-semibold text-foreground">${meta.label}</h3>
+                <span class="text-xs text-muted-foreground">${bookings.length}</span>
             </div>
-            <div class="p-3 space-y-2 flex-1 overflow-y-auto kanban-column" data-status="${statusKey}">
+            <div class="p-3 space-y-3 flex-1 overflow-y-auto kanban-column" data-status="${statusKey}">
                 ${bookings
     .map(booking => {
-      const priorityMeta = BOOKING_PRIORITIES[booking.priority] || { badge: 'bg-gray-100 text-gray-600', border: 'border-gray-200' };
+      const priorityMeta = BOOKING_PRIORITIES[booking.priority] || { badge: 'sl-badge sl-badge-neutral', cardAccent: 'border-l-4 border-border' };
       const typeMeta = BOOKING_TYPES[booking.type];
       const driver = booking.driverId ? driverMap.get(booking.driverId) : null;
       const timerHtml = ['new', 'preparation', 'delivery'].includes(booking.status) && booking.targetTime
-        ? `<div class="card-timer text-xs text-red-600 flex items-center" data-target-time="${booking.targetTime}"></div>`
+        ? `<div class="card-timer text-xs text-destructive flex items-center" data-target-time="${booking.targetTime}"></div>`
         : '';
       const ratingMeta = getSalesRatingMeta(booking.salesService?.rating);
       const carName = getBookingCarName(booking);
       const clientName = getBookingClientName(booking);
       return `
-                        <div class="geist-card p-4 space-y-3 cursor-pointer kanban-card border-l-4 ${priorityMeta.border}" data-booking-id="${booking.id}">
+                        <div class="sl-card p-4 space-y-3 cursor-pointer kanban-card ${priorityMeta.cardAccent}" data-booking-id="${booking.id}">
                             <div class="flex items-center justify-between">
-                                <span class="px-2 py-1 rounded-full text-xs font-semibold ${priorityMeta.badge}">${priorityMeta.label || 'Priority'}</span>
-                                <span class="text-xs text-gray-500">${typeMeta ? typeMeta.label : ''}</span>
+                                <span class="${priorityMeta.badge}">${priorityMeta.label || 'Priority'}</span>
+                                <span class="text-xs text-muted-foreground">${typeMeta ? typeMeta.label : ''}</span>
                             </div>
                             <div>
-                                <p class="font-semibold text-sm text-gray-900">${carName}</p>
-                                <p class="text-xs text-gray-500">${clientName}</p>
+                                <p class="font-semibold text-sm text-foreground">${carName}</p>
+                                <p class="text-xs text-muted-foreground">${clientName}</p>
                             </div>
-                            <div class="flex items-center justify-between text-xs text-gray-500">
+                            <div class="flex items-center justify-between text-xs text-muted-foreground">
                                 <span>${booking.startDate} → ${booking.endDate}</span>
                                 <span>${driver ? driver.name.split(' ')[0] : 'No driver'}</span>
                             </div>
                             <div class="flex items-center justify-between text-[11px]">
-                                <span class="text-gray-500 font-medium">Service score</span>
+                                <span class="text-muted-foreground font-medium">Service score</span>
                                 <span class="${ratingMeta.chipClass}">${ratingMeta.label}</span>
                             </div>
                             ${timerHtml}
                         </div>`;
-    }).join('') || '<div class="text-xs text-gray-400 text-center py-2">No bookings</div>'}
+    }).join('') || '<div class="text-xs text-muted-foreground text-center py-2">No bookings</div>'}
             </div>
         </div>
     `;

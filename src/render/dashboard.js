@@ -3,6 +3,7 @@ import { appState } from '/src/state/appState.js';
 import { getIcon } from '/src/ui/icons.js';
 import { formatPercent } from '/src/render/utils.js';
 import { buildHash } from '/src/state/navigation.js';
+import { getChartPalette, getThemeColor, getThemeColorWithAlpha } from '/src/ui/theme.js';
 
 let dashboardRevenueChart;
 let dashboardDriverChart;
@@ -20,16 +21,16 @@ export const renderDashboard = () => {
   ];
 
   kpiGrid.innerHTML = cards.map(card => `
-                <div class="geist-card p-5 flex flex-col justify-between h-full">
+                <div class="sl-card p-5 flex flex-col justify-between h-full">
                     <div class="flex items-center justify-between">
-                        <span class="text-sm font-medium text-gray-500">${card.label}</span>
-                        <span class="text-gray-400">${getIcon(card.icon, 'w-5 h-5')}</span>
+                        <span class="text-sm font-medium text-muted-foreground">${card.label}</span>
+                        <span class="text-muted-foreground">${getIcon(card.icon, 'w-5 h-5')}</span>
                     </div>
-                    <div class="mt-4">
-                        <p class="text-3xl font-semibold">${card.value}</p>
-                        ${card.helper ? `<p class="text-xs text-gray-400 mt-1">${card.helper}</p>` : ''}
+                    <div class="mt-4 space-y-1">
+                        <p class="text-3xl font-semibold text-foreground">${card.value}</p>
+                        ${card.helper ? `<p class="text-xs text-muted-foreground">${card.helper}</p>` : ''}
                     </div>
-                    ${card.trend ? `<p class="text-xs mt-3 ${card.trend.startsWith('+') ? 'text-emerald-600' : 'text-rose-600'}">${card.trend}</p>` : ''}
+                    ${card.trend ? `<p class="text-xs mt-3 ${card.trend.startsWith('+') ? 'text-emerald-600' : 'text-destructive'}">${card.trend}</p>` : ''}
                 </div>
             `).join('');
 
@@ -53,20 +54,20 @@ export const renderDashboard = () => {
 
     const formatBookingLabel = booking => `#${booking.id} · ${booking.carName}`;
     const slaCards = [
-      { key: 'overdue', label: 'Overdue', description: 'Requires immediate action', border: 'border-rose-200', bg: 'bg-rose-50', text: 'text-rose-600' },
-      { key: 'atRisk', label: 'SLA Risk', description: 'Plan a check in the next few hours', border: 'border-amber-200', bg: 'bg-amber-50', text: 'text-amber-600' },
-      { key: 'onTrack', label: 'On Track', description: 'Milestones are on schedule', border: 'border-emerald-200', bg: 'bg-emerald-50', text: 'text-emerald-600' }
+      { key: 'overdue', label: 'Overdue', description: 'Requires immediate action', surface: 'border border-destructive/30 bg-destructive/10', accent: 'text-destructive' },
+      { key: 'atRisk', label: 'SLA Risk', description: 'Plan a check in the next few hours', surface: 'border border-amber-200 bg-amber-50/70', accent: 'text-amber-600' },
+      { key: 'onTrack', label: 'On Track', description: 'Milestones are on schedule', surface: 'border border-emerald-200 bg-emerald-50/70', accent: 'text-emerald-600' }
     ];
 
     slaContainer.innerHTML = slaCards.map(card => {
       const items = buckets[card.key] || [];
       const sample = items.slice(0, 2).map(b => `<li>${formatBookingLabel(b)}</li>`).join('');
       return `
-                        <div class="rounded-lg border ${card.border} ${card.bg} p-4 h-full">
-                            <span class="text-sm font-medium ${card.text}">${card.label}</span>
-                            <p class="text-2xl font-semibold mt-2 text-gray-900">${items.length}</p>
-                            <p class="text-xs text-gray-600 mt-1">${card.description}</p>
-                            ${sample ? `<ul class="mt-3 space-y-1 text-xs text-gray-700">${sample}</ul>` : '<p class="mt-3 text-xs text-gray-400">No bookings in this group</p>'}
+                        <div class="rounded-lg p-4 h-full ${card.surface}">
+                            <span class="text-sm font-semibold ${card.accent}">${card.label}</span>
+                            <p class="mt-2 text-2xl font-semibold text-foreground">${items.length}</p>
+                            <p class="mt-1 text-xs text-muted-foreground">${card.description}</p>
+                            ${sample ? `<ul class="mt-3 space-y-1 text-xs text-muted-foreground">${sample}</ul>` : '<p class="mt-3 text-xs text-muted-foreground">No bookings in this group</p>'}
                         </div>
                     `;
     }).join('');
@@ -90,6 +91,7 @@ export const renderDashboard = () => {
 };
 
 const renderDashboardCharts = () => {
+  const palette = getChartPalette();
   const revenueCtx = document.getElementById('dashboard-revenue-chart')?.getContext('2d');
   if (revenueCtx) {
     const series = MOCK_DATA.analytics.revenueDaily;
@@ -107,8 +109,8 @@ const renderDashboardCharts = () => {
           {
             label: 'Revenue',
             data: revenueValues,
-            borderColor: '#111827',
-            backgroundColor: 'rgba(17,24,39,0.08)',
+            borderColor: palette.strong,
+            backgroundColor: getThemeColorWithAlpha('gray-900', 0.08, 'rgba(17,24,39,0.08)'),
             tension: 0.4,
             fill: true,
             yAxisID: 'y'
@@ -116,8 +118,8 @@ const renderDashboardCharts = () => {
           {
             label: 'Expenses',
             data: expenseValues,
-            borderColor: '#94a3b8',
-            backgroundColor: 'rgba(148,163,184,0.12)',
+            borderColor: getThemeColor('slate-500', '#94a3b8'),
+            backgroundColor: getThemeColorWithAlpha('slate-500', 0.12, 'rgba(148,163,184,0.12)'),
             tension: 0.4,
             fill: true,
             yAxisID: 'y'
@@ -125,8 +127,8 @@ const renderDashboardCharts = () => {
           {
             label: 'Bookings',
             data: bookingsValues,
-            borderColor: '#6366f1',
-            backgroundColor: 'rgba(99,102,241,0.1)',
+            borderColor: palette.primaryLine,
+            backgroundColor: getThemeColorWithAlpha('indigo-500', 0.1, 'rgba(99,102,241,0.1)'),
             tension: 0.4,
             fill: false,
             yAxisID: 'y1'
@@ -175,14 +177,14 @@ const renderDashboardCharts = () => {
           {
             label: 'Task completion',
             data: completionRates,
-            borderColor: '#6366f1',
-            backgroundColor: 'rgba(99,102,241,0.25)'
+            borderColor: palette.primaryLine,
+            backgroundColor: getThemeColorWithAlpha('indigo-500', 0.25, 'rgba(99,102,241,0.25)')
           },
           {
             label: 'Client rating',
             data: npsScores,
-            borderColor: '#10b981',
-            backgroundColor: 'rgba(16,185,129,0.2)'
+            borderColor: palette.success,
+            backgroundColor: getThemeColorWithAlpha('emerald-500', 0.2, 'rgba(16,185,129,0.2)')
           }
         ]
       },

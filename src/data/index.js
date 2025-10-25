@@ -759,27 +759,27 @@ export const MOCK_DATA = {
 };
 
 export const BOOKING_PRIORITIES = {
-  high: { label: 'High', badge: 'bg-rose-100 text-rose-700', border: 'border-rose-200', icon: 'alertTriangle' },
-  medium: { label: 'Medium', badge: 'bg-amber-100 text-amber-700', border: 'border-amber-200', icon: 'activity' },
-  low: { label: 'Low', badge: 'bg-emerald-100 text-emerald-700', border: 'border-emerald-200', icon: 'check' }
+  high: { label: 'High', badge: 'sl-badge sl-badge-danger', cardAccent: 'border-l-4 border-rose-200', icon: 'alertTriangle' },
+  medium: { label: 'Medium', badge: 'sl-badge sl-badge-warning', cardAccent: 'border-l-4 border-amber-200', icon: 'activity' },
+  low: { label: 'Low', badge: 'sl-badge sl-badge-success', cardAccent: 'border-l-4 border-emerald-200', icon: 'check' }
 };
 
 export const BOOKING_TYPES = {
-  vip: { label: 'VIP', badge: 'bg-indigo-100 text-indigo-700', description: 'Personal rental with driver and premium services' },
-  short: { label: 'Short-term', badge: 'bg-slate-100 text-slate-700', description: 'Rental up to 48 hours' },
-  corporate: { label: 'Corporate', badge: 'bg-sky-100 text-sky-700', description: 'B2B events and long-term contracts' }
+  vip: { label: 'VIP', badge: 'sl-badge sl-badge-primary', description: 'Personal rental with driver and premium services' },
+  short: { label: 'Short-term', badge: 'sl-badge sl-badge-neutral', description: 'Rental up to 48 hours' },
+  corporate: { label: 'Corporate', badge: 'sl-badge sl-badge-info', description: 'B2B events and long-term contracts' }
 };
 
 export const CALENDAR_EVENT_TYPES = {
-  rental: { label: 'Rental', color: 'bg-blue-100 text-blue-700', border: 'border-blue-200' },
-  maintenance: { label: 'Maintenance', color: 'bg-amber-100 text-amber-700', border: 'border-amber-200' },
-  repair: { label: 'Repair', color: 'bg-rose-100 text-rose-700', border: 'border-rose-200' }
+  rental: { label: 'Rental', color: 'calendar-event-surface-rental', border: 'calendar-event-border-rental' },
+  maintenance: { label: 'Maintenance', color: 'calendar-event-surface-maintenance', border: 'calendar-event-border-maintenance' },
+  repair: { label: 'Repair', color: 'calendar-event-surface-repair', border: 'calendar-event-border-repair' }
 };
 
 export const BOOKING_STATUS_PHASES = {
-  reservation: { label: 'Reservation', badge: 'bg-gray-100 text-gray-700 border border-gray-200' },
-  booking: { label: 'Booking', badge: 'bg-amber-100 text-amber-700 border border-amber-200' },
-  rental: { label: 'Rental', badge: 'bg-emerald-100 text-emerald-700 border border-emerald-200' }
+  reservation: { label: 'Reservation', badge: 'sl-pill sl-pill-compact sl-pill-neutral' },
+  booking: { label: 'Booking', badge: 'sl-pill sl-pill-compact sl-pill-warning' },
+  rental: { label: 'Rental', badge: 'sl-pill sl-pill-compact sl-pill-success' }
 };
 
 export const BOOKING_STATUS_STAGE_MAP = {

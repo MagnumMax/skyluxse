@@ -202,16 +202,16 @@ export const renderBookingDetail = (id) => {
   const pickupMeta = (() => {
     if (!pickupDateTime) return null;
     const diffMs = pickupDateTime.getTime() - now.getTime();
-    let tone = 'bg-slate-100 text-slate-700 border border-slate-200';
+    let toneClass = 'sl-pill sl-pill-compact sl-pill-neutral';
     if (diffMs < 0) {
-      tone = 'bg-rose-50 text-rose-700 border border-rose-100';
+      toneClass = 'sl-pill sl-pill-compact sl-pill-danger';
     } else if (diffMs <= 2 * 3600000) {
-      tone = 'bg-amber-50 text-amber-700 border border-amber-100';
+      toneClass = 'sl-pill sl-pill-compact sl-pill-warning';
     } else if (diffMs <= 12 * 3600000) {
-      tone = 'bg-sky-50 text-sky-700 border border-sky-100';
+      toneClass = 'sl-pill sl-pill-compact sl-pill-info';
     }
     return {
-      tone,
+      toneClass,
       relative: formatRelativeTime(pickupDateTime),
       absolute: formatDateLabel(pickupDateTime)
     };
@@ -220,14 +220,18 @@ export const renderBookingDetail = (id) => {
   const returnMeta = (() => {
     if (!returnDateTime) return null;
     const diffMs = returnDateTime.getTime() - now.getTime();
-    let tone = 'text-gray-500';
+    let textClass = 'text-muted-foreground';
+    let chipClass = 'sl-pill sl-pill-compact sl-pill-neutral';
     if (diffMs < 0) {
-      tone = 'text-rose-600';
+      textClass = 'text-destructive';
+      chipClass = 'sl-pill sl-pill-compact sl-pill-danger';
     } else if (diffMs <= 6 * 3600000) {
-      tone = 'text-amber-600';
+      textClass = 'text-amber-600';
+      chipClass = 'sl-pill sl-pill-compact sl-pill-warning';
     }
     return {
-      tone,
+      toneClass: chipClass,
+      textClass,
       relative: formatRelativeTime(returnDateTime),
       absolute: formatDateLabel(returnDateTime)
     };
@@ -734,14 +738,14 @@ export const renderBookingDetail = (id) => {
 
 
   const content = `
-                    <div class="p-6 border-b bg-slate-50/40" data-booking-id="${bookingIdAttr}">
+                    <div class="p-6 border-b border-border bg-card/60" data-booking-id="${bookingIdAttr}">
                         <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
                             <div class="space-y-3">
-                                <div class="flex flex-wrap items-center gap-2 text-xs font-medium text-gray-600">
-                                    <span class="inline-flex items-center px-2.5 py-1 rounded-md bg-white text-gray-700 border border-gray-200">Booking ${bookingIdentifier}</span>
+                                <div class="flex flex-wrap items-center gap-2 text-xs font-medium text-muted-foreground">
+                                    <span class="inline-flex items-center rounded-md border border-border bg-card px-2.5 py-1 text-muted-foreground">Booking ${bookingIdentifier}</span>
                                 </div>
-                                <h2 class="text-2xl font-semibold text-gray-900">${escapeHtml(booking.carName)}</h2>
-                                <p class="text-sm text-gray-500">${escapeHtml(client.name || booking.clientName)}</p>
+                                <h2 class="text-2xl font-semibold text-foreground">${escapeHtml(booking.carName)}</h2>
+                                <p class="text-sm text-muted-foreground">${escapeHtml(client.name || booking.clientName)}</p>
                             </div>
                             <div class="space-y-3 text-right">
                                 <div class="flex flex-wrap justify-end gap-2">
@@ -751,11 +755,11 @@ export const renderBookingDetail = (id) => {
                                     </button>
                                 </div>
                                 <div>
-                                    <p class="text-xs uppercase tracking-wide text-gray-500">Outstanding</p>
+                                    <p class="text-xs uppercase tracking-wide text-muted-foreground">Outstanding</p>
                                     <p class="text-2xl font-semibold ${dueAmount > 0 ? 'text-amber-600' : 'text-emerald-600'}">${formatCurrency(dueAmount)}</p>
-                                    <p class="text-xs text-gray-500">Paid ${formatCurrency(booking.paidAmount)}</p>
+                                    <p class="text-xs text-muted-foreground">Paid ${formatCurrency(booking.paidAmount)}</p>
                                 </div>
-                                ${pickupMeta ? `<div class="inline-flex max-w-xs flex-wrap items-center justify-end gap-2 rounded-lg px-3 py-2 text-xs font-medium ${pickupMeta.tone}"><span>Pickup ${escapeHtml(pickupMeta.relative || '')}</span><span class="text-[11px] opacity-70">${escapeHtml(pickupMeta.absolute)}</span></div>` : ''}
+                                ${pickupMeta ? `<div class="inline-flex max-w-xs flex-wrap items-center justify-end gap-2 ${pickupMeta.toneClass}"><span>Pickup ${escapeHtml(pickupMeta.relative || '')}</span><span class="text-[11px] opacity-70">${escapeHtml(pickupMeta.absolute)}</span></div>` : ''}
                             </div>
                         </div>
                     </div>
@@ -763,38 +767,38 @@ export const renderBookingDetail = (id) => {
                         <div class="max-w-6xl mx-auto">
                             <div class="grid gap-6 xl:grid-cols-12">
                                 <div class="xl:col-span-7">
-                                    <div class="geist-card p-4 border border-gray-200 rounded-xl h-full">
-                                        <h3 class="font-semibold text-gray-800 mb-4">Timeline & logistics</h3>
-                                        <div class="grid gap-4 md:grid-cols-2 text-sm text-gray-600">
+                                    <div class="sl-card p-4 border border-border rounded-xl h-full">
+                                        <h3 class="mb-4 text-lg font-semibold text-foreground">Timeline & logistics</h3>
+                                        <div class="grid gap-4 md:grid-cols-2 text-sm text-muted-foreground">
                                             <div>
-                                                <p class="font-semibold text-gray-500">Pickup</p>
-                                                <p class="mt-1 text-gray-900">${formatDateTime(booking.startDate, booking.startTime)}</p>
-                                                ${pickupMeta ? `<p class="text-xs text-gray-500">${escapeHtml(pickupMeta.relative || '')}</p>` : ''}
-                                                <p class="mt-2 flex items-center gap-2">${getIcon('mapPin', 'w-4 h-4 text-gray-400')}${formatLocationLink(booking.pickupLocation)}</p>
-                                                <div class="mt-3 space-y-1 text-xs text-gray-500">
+                                                <p class="font-semibold text-muted-foreground">Pickup</p>
+                                                <p class="mt-1 text-foreground">${formatDateTime(booking.startDate, booking.startTime)}</p>
+                                                ${pickupMeta ? `<p class="text-xs text-muted-foreground">${escapeHtml(pickupMeta.relative || '')}</p>` : ''}
+                                                <p class="mt-2 flex items-center gap-2">${getIcon('mapPin', 'w-4 h-4 text-muted-foreground')}${formatLocationLink(booking.pickupLocation)}</p>
+                                                <div class="mt-3 space-y-1 text-xs text-muted-foreground">
                                                     <div class="flex items-center justify-between">
                                                         <span>Mileage</span>
-                                                        <span class="text-gray-900">${pickupMileageValue}</span>
+                                                        <span class="text-foreground">${pickupMileageValue}</span>
                                                     </div>
                                                     <div class="flex items-center justify-between">
                                                         <span>Fuel</span>
-                                                        <span class="text-gray-900">${pickupFuelValue}</span>
+                                                        <span class="text-foreground">${pickupFuelValue}</span>
                                                     </div>
                                                 </div>
                                             </div>
                                             <div>
-                                                <p class="font-semibold text-gray-500">Return</p>
-                                                <p class="mt-1 text-gray-900">${formatDateTime(booking.endDate, booking.endTime)}</p>
-                                                ${returnMeta ? `<p class="text-xs ${returnMeta.tone}">${escapeHtml(returnMeta.relative || '')}</p>` : ''}
-                                                <p class="mt-2 flex items-center gap-2">${getIcon('mapPin', 'w-4 h-4 text-gray-400')}${formatLocationLink(booking.dropoffLocation)}</p>
-                                                <div class="mt-3 space-y-1 text-xs text-gray-500">
+                                                <p class="font-semibold text-muted-foreground">Return</p>
+                                                <p class="mt-1 text-foreground">${formatDateTime(booking.endDate, booking.endTime)}</p>
+                                                ${returnMeta ? `<div class="${returnMeta.toneClass} text-xs">${escapeHtml(returnMeta.relative || '')}</div>` : ''}
+                                                <p class="mt-2 flex items-center gap-2">${getIcon('mapPin', 'w-4 h-4 text-muted-foreground')}${formatLocationLink(booking.dropoffLocation)}</p>
+                                                <div class="mt-3 space-y-1 text-xs text-muted-foreground">
                                                     <div class="flex items-center justify-between">
                                                         <span>Mileage</span>
-                                                        <span class="text-gray-900">${returnMileageValue}</span>
+                                                        <span class="text-foreground">${returnMileageValue}</span>
                                                     </div>
                                                     <div class="flex items-center justify-between">
                                                         <span>Fuel</span>
-                                                        <span class="text-gray-900">${returnFuelValue}</span>
+                                                        <span class="text-foreground">${returnFuelValue}</span>
                                                     </div>
                                                 </div>
                                             </div>
@@ -806,20 +810,20 @@ export const renderBookingDetail = (id) => {
                                     </div>
                                 </div>
                                 <div class="xl:col-span-5">
-                                    <div class="geist-card p-4 border border-gray-200 rounded-xl h-full">
-                                        <div class="flex items-center justify-between mb-3 gap-3">
-                                            <h3 class="font-semibold text-gray-800">Client</h3>
+                                    <div class="sl-card p-4 border border-border rounded-xl h-full">
+                                        <div class="mb-3 flex items-center justify-between gap-3">
+                                            <h3 class="text-lg font-semibold text-foreground">Client</h3>
                                             ${clientDetailLink}
                                         </div>
-                                        <div class="space-y-4 text-sm text-gray-600">
+                                        <div class="space-y-4 text-sm text-muted-foreground">
                                             <div class="flex flex-wrap items-start gap-3">
                                                 <div>
-                                                    <p class="text-base font-semibold text-gray-900">${escapeHtml(client.name || booking.clientName)}</p>
-                                                    <p class="text-sm text-gray-500">${escapeHtml(client.email || booking.clientEmail || '—')} · ${escapeHtml(client.phone || booking.clientPhone || '—')}</p>
+                                                    <p class="text-base font-semibold text-foreground">${escapeHtml(client.name || booking.clientName)}</p>
+                                                    <p class="text-sm text-muted-foreground">${escapeHtml(client.email || booking.clientEmail || '—')} · ${escapeHtml(client.phone || booking.clientPhone || '—')}</p>
                                                     <div class="mt-2 flex flex-wrap items-center gap-2 text-[11px] font-medium">
-                                                        <span class="inline-flex items-center rounded-md bg-slate-100 px-2 py-1 text-slate-600 border border-slate-200">Segment: ${escapeHtml(client.segment || booking.segment || '—')}</span>
-                                                        <span class="inline-flex items-center rounded-md bg-slate-100 px-2 py-1 text-slate-600 border border-slate-200">Channel: ${escapeHtml(booking.channel || '—')}</span>
-                                                        <span class="inline-flex items-center rounded-md bg-slate-100 px-2 py-1 text-slate-600 border border-slate-200">Status: ${escapeHtml(client.status || '—')}</span>
+                                                        <span class="sl-pill sl-pill-compact sl-pill-neutral">Segment: ${escapeHtml(client.segment || booking.segment || '—')}</span>
+                                                        <span class="sl-pill sl-pill-compact sl-pill-neutral">Channel: ${escapeHtml(booking.channel || '—')}</span>
+                                                        <span class="sl-pill sl-pill-compact sl-pill-info">Status: ${escapeHtml(client.status || '—')}</span>
                                                     </div>
                                                 </div>
                                             </div>
@@ -830,14 +834,14 @@ export const renderBookingDetail = (id) => {
                                             </div>
                                             <div class="grid gap-2 text-xs">
                                                 <div class="space-y-1">
-                                                    <p class="font-medium text-gray-600">Lifetime value</p>
-                                                    <p class="text-sm text-gray-900">${formatCurrency(client.lifetimeValue || client.turnover || 0)}</p>
-                                                    <p class="text-xs text-gray-500">Outstanding: ${formatCurrency(client.outstanding || 0)}</p>
+                                                    <p class="font-medium text-muted-foreground">Lifetime value</p>
+                                                    <p class="text-sm text-foreground">${formatCurrency(client.lifetimeValue || client.turnover || 0)}</p>
+                                                    <p class="text-xs text-muted-foreground">Outstanding: ${formatCurrency(client.outstanding || 0)}</p>
                                                 </div>
                                             </div>
                                             <div>
-                                                <p class="text-xs font-medium text-gray-500">Responsible manager</p>
-                                                <p class="text-sm text-gray-900">${escapeHtml(responsibleSalesPerson)}</p>
+                                                <p class="text-xs font-medium text-muted-foreground">Responsible manager</p>
+                                                <p class="text-sm text-foreground">${escapeHtml(responsibleSalesPerson)}</p>
                                             </div>
                                         </div>
                                     </div>

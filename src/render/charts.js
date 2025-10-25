@@ -3,6 +3,7 @@ import { appState } from '/src/state/appState.js';
 import { buildHash } from '/src/state/navigation.js';
 import { formatCurrency } from '/src/render/utils.js';
 import { getIcon } from '/src/ui/icons.js';
+import { getChartPalette } from '/src/ui/theme.js';
 
 let analyticsManagerChart;
 let analyticsSourcesChart;
@@ -230,6 +231,7 @@ const bindAnalyticsFilters = () => {
 export const renderAnalyticsPage = () => {
   const managerCtx = document.getElementById('analytics-manager-chart')?.getContext('2d');
   if (!managerCtx) return;
+  const chartPalette = getChartPalette();
 
   bindAnalyticsFilters();
 
@@ -279,15 +281,15 @@ export const renderAnalyticsPage = () => {
     type: 'bar',
     data: {
       labels: resolvedLabels,
-      datasets: [
-        {
-          label: 'Expected revenue',
-          data: resolvedValues,
-          backgroundColor: '#111827',
-          borderRadius: 6,
-          maxBarThickness: 48
-        }
-      ]
+        datasets: [
+          {
+            label: 'Expected revenue',
+            data: resolvedValues,
+            backgroundColor: chartPalette.primary,
+            borderRadius: 6,
+            maxBarThickness: 48
+          }
+        ]
     },
     options: {
       responsive: true,
@@ -324,7 +326,13 @@ export const renderAnalyticsPage = () => {
         labels: sourceLabels,
         datasets: [{
           data: sourceValues,
-          backgroundColor: ['#111827', '#6366f1', '#0ea5e9', '#10b981', '#14b8a6']
+          backgroundColor: [
+            chartPalette.primary,
+            chartPalette.info,
+            chartPalette.success,
+            chartPalette.warning,
+            chartPalette.danger
+          ]
         }]
       },
       options: {
@@ -937,6 +945,7 @@ const bindSalesPipelineFilters = () => {
 export const renderSalesPipeline = () => {
   const summaryEl = document.getElementById('sales-pipeline-summary');
   if (!summaryEl) return;
+  const chartPalette = getChartPalette();
 
   bindSalesPipelineFilters();
 
@@ -1057,7 +1066,7 @@ export const renderSalesPipeline = () => {
         datasets: [{
           label: 'Deal value',
           data: values,
-          backgroundColor: '#4c6ef5',
+          backgroundColor: chartPalette.primaryLine,
           borderRadius: 6,
           maxBarThickness: 36
         }]

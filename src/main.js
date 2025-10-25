@@ -474,11 +474,18 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   };
 
+  const EXPIRY_BADGES = {
+    neutral: 'sl-pill sl-pill-compact sl-pill-neutral',
+    warning: 'sl-pill sl-pill-compact sl-pill-warning',
+    danger: 'sl-pill sl-pill-compact sl-pill-danger',
+    success: 'sl-pill sl-pill-compact sl-pill-success'
+  };
+
   const getExpiryMeta = (dateStr) => {
     if (!dateStr) {
       return {
         label: 'No data',
-        badge: 'bg-gray-100 text-gray-500 border border-gray-200',
+        badgeClass: EXPIRY_BADGES.neutral,
         daysText: '—',
         displayDate: '—',
         accent: 'text-gray-400'
@@ -488,7 +495,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (Number.isNaN(date.getTime())) {
       return {
         label: 'No data',
-        badge: 'bg-gray-100 text-gray-500 border border-gray-200',
+        badgeClass: EXPIRY_BADGES.neutral,
         daysText: '—',
         displayDate: escapeHtml(dateStr),
         accent: 'text-gray-400'
@@ -500,7 +507,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (diffDays < 0) {
       return {
         label: 'Expired',
-        badge: 'bg-rose-50 text-rose-700 border border-rose-100',
+        badgeClass: EXPIRY_BADGES.danger,
         daysText: `${Math.abs(diffDays)}d overdue`,
         displayDate: formatShortDate(dateStr, true),
         accent: 'text-rose-600'
@@ -509,7 +516,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (diffDays <= 30) {
       return {
         label: 'Expiring soon',
-        badge: 'bg-amber-50 text-amber-700 border border-amber-100',
+        badgeClass: EXPIRY_BADGES.warning,
         daysText: `${diffDays}d left`,
         displayDate: formatShortDate(dateStr, true),
         accent: 'text-amber-600'
@@ -517,7 +524,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     return {
       label: 'Valid',
-      badge: 'bg-emerald-50 text-emerald-700 border border-emerald-100',
+      badgeClass: EXPIRY_BADGES.success,
       daysText: `${diffDays}d left`,
       displayDate: formatShortDate(dateStr, true),
       accent: 'text-emerald-600'
@@ -533,7 +540,7 @@ document.addEventListener('DOMContentLoaded', () => {
           <p class="font-semibold text-gray-900">${meta.displayDate || '—'}</p>
         </div>
         <div class="text-right">
-          <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[0.65rem] font-semibold ${meta.badge}">${meta.label}</span>
+          <span class="${meta.badgeClass}">${meta.label}</span>
           <p class="text-[0.65rem] ${meta.accent || 'text-gray-400'}">${meta.daysText}</p>
         </div>
       </div>
@@ -542,12 +549,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const renderVehicleCell = (car) => {
     const statusClasses = {
-      Available: 'bg-emerald-50 text-emerald-700 border border-emerald-100',
-      'In Rent': 'bg-blue-50 text-blue-700 border border-blue-100',
-      Maintenance: 'bg-amber-50 text-amber-700 border border-amber-100'
+      Available: 'sl-pill sl-pill-compact sl-pill-success',
+      'In Rent': 'sl-pill sl-pill-compact sl-pill-brand',
+      Maintenance: 'sl-pill sl-pill-compact sl-pill-warning'
     };
-    const badgeClass = statusClasses[car.status] || 'bg-gray-100 text-gray-600 border border-gray-200';
-    const tags = [car.class, car.segment, car.color].filter(Boolean).map((tag) => `<span class="px-2 py-0.5 text-[0.65rem] rounded-full bg-gray-100 text-gray-600">${escapeHtml(tag)}</span>`).join('');
+    const badgeClass = statusClasses[car.status] || 'sl-pill sl-pill-compact sl-pill-neutral';
+    const tags = [car.class, car.segment, car.color]
+      .filter(Boolean)
+      .map((tag) => `<span class="sl-tag sl-tag-neutral">${escapeHtml(tag)}</span>`)
+      .join('');
     const imageSrc = escapeHtml(getCarImageSrc(car));
     return `
       <div class="flex items-start gap-4">
@@ -558,7 +568,7 @@ document.addEventListener('DOMContentLoaded', () => {
         <div class="space-y-2">
           <div class="flex flex-wrap items-center gap-2">
             <a href="${buildHash(appState.currentRole, getDetailPageId('fleet-table'), car.id)}" class="font-semibold text-sm text-indigo-600 hover:text-indigo-800">${escapeHtml(car.name)}</a>
-            <span class="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full ${badgeClass}">${escapeHtml(car.status || '—')}</span>
+            <span class="${badgeClass}">${escapeHtml(car.status || '—')}</span>
           </div>
           <div class="flex flex-wrap gap-1 text-xs text-gray-500">${tags || '<span class="text-gray-400">No tags</span>'}</div>
         </div>
@@ -1606,74 +1616,74 @@ document.addEventListener('DOMContentLoaded', () => {
       .join('');
 
     taskCreateModalCard.innerHTML = `
-                <div class="p-6 border-b">
+                <div class="border-b border-border p-6">
                     <div class="flex items-start justify-between gap-4">
                         <div>
-                            <h2 class="text-xl font-semibold text-gray-900">New task</h2>
-                            <p class="text-sm text-gray-500 mt-1">Create and assign a new operational task</p>
+                            <h2 class="text-xl font-semibold text-foreground">New task</h2>
+                            <p class="mt-1 text-sm text-muted-foreground">Create and assign a new operational task</p>
                         </div>
-                        <button type="button" class="text-gray-400 hover:text-gray-600" id="task-create-close" aria-label="Close">
+                        <button type="button" class="text-muted-foreground hover:text-foreground" id="task-create-close" aria-label="Close">
                             ${getIcon('x', 'w-5 h-5')}
                         </button>
                     </div>
                 </div>
                 <form class="p-6 space-y-5" id="task-create-form">
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Title</label>
-                        <input type="text" name="title" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100" placeholder="Deliver G-Wagen #1052" required>
+                        <label class="mb-1 block text-sm font-medium text-foreground">Title</label>
+                        <input type="text" name="title" class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" placeholder="Deliver G-Wagen #1052" required>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Task type</label>
-                        <select name="type" id="task-create-type" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100">
+                        <label class="mb-1 block text-sm font-medium text-foreground">Task type</label>
+                        <select name="type" id="task-create-type" class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                             ${typeOptionsHtml}
                         </select>
                     </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="grid gap-4 md:grid-cols-2">
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Priority</label>
-                            <select name="priority" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100">
+                            <label class="mb-1 block text-sm font-medium text-foreground">Priority</label>
+                            <select name="priority" class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                                 ${priorities.map(priority => `<option value="${priority}">${priority}</option>`).join('')}
                             </select>
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Assignee</label>
-                            <select name="assignee" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100">
+                            <label class="mb-1 block text-sm font-medium text-foreground">Assignee</label>
+                            <select name="assignee" class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                                 <option value="">Unassigned</option>
                                 ${driversOptions}
                             </select>
                         </div>
                     </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="grid gap-4 md:grid-cols-2">
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Deadline</label>
-                            <input type="datetime-local" name="deadline" value="${defaultDeadline}" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100" required>
+                            <label class="mb-1 block text-sm font-medium text-foreground">Deadline</label>
+                            <input type="datetime-local" name="deadline" value="${defaultDeadline}" class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" required>
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Related booking (optional)</label>
+                            <label class="mb-1 block text-sm font-medium text-foreground">Related booking (optional)</label>
                             <div class="space-y-2">
-                                <input type="search" id="task-booking-search" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100" placeholder="Search by booking, client or vehicle">
-                                <select name="booking" id="task-booking-select" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100">
+                                <input type="search" id="task-booking-search" class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" placeholder="Search by booking, client or vehicle">
+                                <select name="booking" id="task-booking-select" class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                                     <option value="">Not linked</option>
                                 </select>
                             </div>
                         </div>
                     </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="grid gap-4 md:grid-cols-2">
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Pickup / origin</label>
-                            <input type="text" name="pickup" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100" placeholder="SkyLuxse HQ">
+                            <label class="mb-1 block text-sm font-medium text-foreground">Pickup / origin</label>
+                            <input type="text" name="pickup" class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" placeholder="SkyLuxse HQ">
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Drop-off / destination</label>
-                            <input type="text" name="dropoff" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100" placeholder="Atlantis The Palm">
+                            <label class="mb-1 block text-sm font-medium text-foreground">Drop-off / destination</label>
+                            <input type="text" name="dropoff" class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" placeholder="Atlantis The Palm">
                         </div>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                        <textarea name="description" rows="3" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100" placeholder="Add special instructions or context"></textarea>
+                        <label class="mb-1 block text-sm font-medium text-foreground">Description</label>
+                        <textarea name="description" rows="3" class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" placeholder="Add special instructions or context"></textarea>
                     </div>
                 </form>
-                <div class="p-6 border-t bg-gray-50 flex justify-end gap-3">
+                <div class="flex justify-end gap-3 border-t border-border bg-muted/40 p-6">
                     <button type="button" class="geist-button geist-button-secondary" id="task-create-cancel">Cancel</button>
                     <button type="submit" form="task-create-form" class="geist-button geist-button-primary">Save task</button>
                 </div>
@@ -2102,41 +2112,41 @@ document.addEventListener('DOMContentLoaded', () => {
     }).join('');
 
     maintenanceCreateContent.innerHTML = `
-                <div class="p-6 border-b">
-                    <h2 class="text-xl font-semibold">Schedule maintenance</h2>
-                    <p class="text-sm text-gray-500 mt-1">Create a maintenance slot for a vehicle</p>
+                <div class="border-b border-border p-6">
+                    <h2 class="text-xl font-semibold text-foreground">Schedule maintenance</h2>
+                    <p class="mt-1 text-sm text-muted-foreground">Create a maintenance slot for a vehicle</p>
                 </div>
                 <div class="p-6 space-y-4">
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Vehicle</label>
-                        <select class="w-full px-3 py-2 border border-gray-300 rounded-md" id="maintenance-car">
+                        <label class="mb-1 block text-sm font-medium text-foreground">Vehicle</label>
+                        <select class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" id="maintenance-car">
                             ${carOptions}
                         </select>
                     </div>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div class="grid gap-4 sm:grid-cols-2">
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Start</label>
-                            <input type="datetime-local" id="maintenance-start" value="${defaultStart}" class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                            <label class="mb-1 block text-sm font-medium text-foreground">Start</label>
+                            <input type="datetime-local" id="maintenance-start" value="${defaultStart}" class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">End</label>
-                            <input type="datetime-local" id="maintenance-end" value="${defaultEnd}" class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                            <label class="mb-1 block text-sm font-medium text-foreground">End</label>
+                            <input type="datetime-local" id="maintenance-end" value="${defaultEnd}" class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                         </div>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Work type</label>
-                        <select id="maintenance-type" class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                        <label class="mb-1 block text-sm font-medium text-foreground">Work type</label>
+                        <select id="maintenance-type" class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                             <option value="maintenance"${defaultType === 'maintenance' ? ' selected' : ''}>Scheduled maintenance</option>
                             <option value="inspection"${defaultType === 'inspection' ? ' selected' : ''}>Inspection</option>
                             <option value="detailing"${defaultType === 'detailing' ? ' selected' : ''}>Detailing</option>
                         </select>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Comment</label>
-                        <textarea id="maintenance-notes" rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="Add notes for mechanic or driver"></textarea>
+                        <label class="mb-1 block text-sm font-medium text-foreground">Comment</label>
+                        <textarea id="maintenance-notes" rows="3" class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" placeholder="Add notes for mechanic or driver"></textarea>
                     </div>
                 </div>
-                <div class="p-4 border-t bg-gray-50 flex justify-end gap-2">
+                <div class="flex justify-end gap-2 border-t border-border bg-muted/40 p-4">
                     <button type="button" id="maintenance-cancel-btn" class="geist-button geist-button-secondary">Cancel</button>
                     <button type="button" id="maintenance-save-btn" class="geist-button geist-button-primary">Save</button>
                 </div>
@@ -2211,63 +2221,63 @@ document.addEventListener('DOMContentLoaded', () => {
     const submitLabel = isEditMode ? 'Save changes' : 'Create booking';
 
     bookingCreateContent.innerHTML = `
-                <div class="p-6 border-b">
-                    <h2 class="text-xl font-semibold">${formTitle}</h2>
-                    <p class="text-sm text-gray-500 mt-1">${formSubtitle}</p>
+                <div class="border-b border-border p-6">
+                    <h2 class="text-xl font-semibold text-foreground">${formTitle}</h2>
+                    <p class="mt-1 text-sm text-muted-foreground">${formSubtitle}</p>
                 </div>
                 <form class="p-6 space-y-6" id="booking-create-form">
                     <div class="grid gap-4 md:grid-cols-2">
                         <div>
-                            <label class="block text-sm font-medium text-gray-700">Client</label>
-                            <select class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md" name="client">
+                            <label class="block text-sm font-medium text-foreground">Client</label>
+                            <select class="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" name="client">
                                 <option value="">Select client</option>
                                 ${clientOptions}
                             </select>
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700">Vehicle</label>
-                            <select class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md" name="vehicle">
+                            <label class="block text-sm font-medium text-foreground">Vehicle</label>
+                            <select class="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" name="vehicle">
                                 <option value="">Select vehicle</option>
                                 ${carOptions}
                             </select>
                         </div>
-                        <div class="grid grid-cols-2 gap-4 md:col-span-2">
+                        <div class="grid gap-4 md:col-span-2 md:grid-cols-2">
                             <div>
-                                <label class="block text-sm font-medium text-gray-700">Start date</label>
-                                <input type="date" value="${baseBooking?.startDate || ''}" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md" name="start">
+                                <label class="block text-sm font-medium text-foreground">Start date</label>
+                                <input type="date" value="${baseBooking?.startDate || ''}" class="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" name="start">
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700">End date</label>
-                                <input type="date" value="${baseBooking?.endDate || ''}" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md" name="end">
-                            </div>
-                        </div>
-                        <div class="grid grid-cols-2 gap-4 md:col-span-2">
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700">Start time</label>
-                                <input type="time" value="${baseBooking?.startTime || ''}" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md" name="startTime">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700">End time</label>
-                                <input type="time" value="${baseBooking?.endTime || ''}" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md" name="endTime">
+                                <label class="block text-sm font-medium text-foreground">End date</label>
+                                <input type="date" value="${baseBooking?.endDate || ''}" class="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" name="end">
                             </div>
                         </div>
-                        <div class="grid grid-cols-2 gap-4 md:col-span-2">
+                        <div class="grid gap-4 md:col-span-2 md:grid-cols-2">
                             <div>
-                                <label class="block text-sm font-medium text-gray-700">Pickup location</label>
-                                <input type="text" value="${baseBooking?.pickupLocation || ''}" placeholder="e.g. SkyLuxse HQ" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md" name="pickup">
+                                <label class="block text-sm font-medium text-foreground">Start time</label>
+                                <input type="time" value="${baseBooking?.startTime || ''}" class="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" name="startTime">
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700">Drop-off location</label>
-                                <input type="text" value="${baseBooking?.dropoffLocation || ''}" placeholder="e.g. Palm Jumeirah" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md" name="dropoff">
+                                <label class="block text-sm font-medium text-foreground">End time</label>
+                                <input type="time" value="${baseBooking?.endTime || ''}" class="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" name="endTime">
+                            </div>
+                        </div>
+                        <div class="grid gap-4 md:col-span-2 md:grid-cols-2">
+                            <div>
+                                <label class="block text-sm font-medium text-foreground">Pickup location</label>
+                                <input type="text" value="${baseBooking?.pickupLocation || ''}" placeholder="e.g. SkyLuxse HQ" class="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" name="pickup">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-foreground">Drop-off location</label>
+                                <input type="text" value="${baseBooking?.dropoffLocation || ''}" placeholder="e.g. Palm Jumeirah" class="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" name="dropoff">
                             </div>
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700">Amount (AED)</label>
-                            <input type="number" value="${baseBooking?.totalAmount || ''}" min="0" step="50" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md" name="amount">
+                            <label class="block text-sm font-medium text-foreground">Amount (AED)</label>
+                            <input type="number" value="${baseBooking?.totalAmount || ''}" min="0" step="50" class="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" name="amount">
                         </div>
                     </div>
                 </form>
-                <div class="p-6 border-t bg-gray-50 flex justify-end space-x-3">
+                <div class="flex justify-end space-x-3 border-t border-border bg-muted/40 p-6">
                     <button type="button" id="booking-create-cancel" class="geist-button geist-button-secondary">Cancel</button>
                     <button type="submit" form="booking-create-form" class="geist-button geist-button-primary">${submitLabel}</button>
                 </div>
@@ -2308,16 +2318,16 @@ document.addEventListener('DOMContentLoaded', () => {
   const renderVehicleCreateForm = () => {
     if (!vehicleCreateContent) return false;
     vehicleCreateContent.innerHTML = `
-                <div class="p-6 border-b">
-                    <h2 class="text-xl font-semibold">Add vehicle</h2>
-                    <p class="text-sm text-gray-500 mt-1">Register a new car in the fleet</p>
+                <div class="border-b border-border p-6">
+                    <h2 class="text-xl font-semibold text-foreground">Add vehicle</h2>
+                    <p class="mt-1 text-sm text-muted-foreground">Register a new car in the fleet</p>
                 </div>
                 <form class="p-6 space-y-4" id="vehicle-create-form">
-                    <input type="text" placeholder="Name" class="w-full px-3 py-2 border border-gray-300 rounded-md" name="name" required>
-                    <input type="text" placeholder="Plate number" class="w-full px-3 py-2 border border-gray-300 rounded-md" name="plate" required>
-                    <input type="text" placeholder="Color" class="w-full px-3 py-2 border border-gray-300 rounded-md" name="color">
+                    <input type="text" placeholder="Name" class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" name="name" required>
+                    <input type="text" placeholder="Plate number" class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" name="plate" required>
+                    <input type="text" placeholder="Color" class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" name="color">
                 </form>
-                <div class="p-6 border-t bg-gray-50 flex justify-end space-x-3">
+                <div class="flex justify-end space-x-3 border-t border-border bg-muted/40 p-6">
                     <button type="button" id="vehicle-create-cancel" class="geist-button geist-button-secondary">Cancel</button>
                     <button type="submit" form="vehicle-create-form" class="geist-button geist-button-primary">Save</button>
                 </div>

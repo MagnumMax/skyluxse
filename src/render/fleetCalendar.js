@@ -20,9 +20,9 @@ const CAR_STATUS_META = {
 };
 
 const PRIORITY_META = {
-  high: { label: 'Высокий приоритет', dot: 'bg-rose-500', ring: 'ring-2 ring-rose-200', badge: 'bg-rose-50 text-rose-600 border border-rose-200' },
-  medium: { label: 'Средний приоритет', dot: 'bg-amber-400', ring: 'ring-1 ring-amber-200', badge: 'bg-amber-50 text-amber-600 border border-amber-200' },
-  low: { label: 'Низкий приоритет', dot: 'bg-emerald-400', ring: 'ring-1 ring-emerald-200', badge: 'bg-emerald-50 text-emerald-600 border border-emerald-200' }
+  high: { label: 'Высокий приоритет', dot: 'bg-destructive', ring: 'ring-2 ring-destructive/30', badge: 'sl-pill sl-pill-compact sl-pill-danger' },
+  medium: { label: 'Средний приоритет', dot: 'bg-amber-500', ring: 'ring-1 ring-amber-200', badge: 'sl-pill sl-pill-compact sl-pill-warning' },
+  low: { label: 'Низкий приоритет', dot: 'bg-emerald-500', ring: 'ring-1 ring-emerald-200', badge: 'sl-pill sl-pill-compact sl-pill-success' }
 };
 
 const DATE_TIME_FORMATTER = new Intl.DateTimeFormat('ru-RU', {
@@ -76,9 +76,9 @@ const parseDateTimeLoose = (value) => {
 const getOwnerName = (ownerId) => OWNER_LOOKUP[ownerId] || ownerId || 'Unassigned';
 
 const TASK_PRIORITY_META = {
-  high: 'bg-rose-50 text-rose-700 border border-rose-200',
-  medium: 'bg-amber-50 text-amber-700 border border-amber-200',
-  low: 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+  high: 'sl-pill sl-pill-compact sl-pill-danger',
+  medium: 'sl-pill sl-pill-compact sl-pill-warning',
+  low: 'sl-pill sl-pill-compact sl-pill-success'
 };
 
 const extractBgClass = (colorString = '') => {
@@ -174,25 +174,17 @@ const calculatePeriodUtilization = ({ events, carCount, rangeStart, rangeEndExcl
 };
 
 const updateRangeSwitcherState = (activeView) => {
-  const buttons = document.querySelectorAll('.calendar-range-btn');
-  buttons.forEach((button) => {
+  document.querySelectorAll('.calendar-range-btn').forEach((button) => {
     const isActive = button.dataset.calendarRange === activeView;
-    button.classList.toggle('bg-indigo-600', isActive);
-    button.classList.toggle('text-white', isActive);
-    button.classList.toggle('shadow-sm', isActive);
-    button.classList.toggle('text-gray-600', !isActive);
+    button.classList.toggle('is-active', isActive);
     button.setAttribute('aria-pressed', String(isActive));
   });
 };
 
 const updateModeToggleState = (activeMode) => {
-  const buttons = document.querySelectorAll('.calendar-mode-btn');
-  buttons.forEach((button) => {
+  document.querySelectorAll('.calendar-mode-btn').forEach((button) => {
     const isActive = button.dataset.calendarMode === activeMode;
-    button.classList.toggle('bg-indigo-600', isActive);
-    button.classList.toggle('text-white', isActive);
-    button.classList.toggle('shadow-sm', isActive);
-    button.classList.toggle('text-gray-600', !isActive);
+    button.classList.toggle('is-active', isActive);
     button.setAttribute('aria-pressed', String(isActive));
   });
 };
@@ -256,17 +248,17 @@ const renderFleetLoadMatrix = ({ groups, events, rangeStart, rangeEndExclusive }
 
   const rowsHtml = rows.map((row) => {
     const percent = Math.round(row.utilization * 100);
-    const tone = percent >= 85 ? 'bg-rose-400' : percent >= 70 ? 'bg-amber-400' : 'bg-indigo-500';
+    const tone = percent >= 85 ? 'bg-destructive' : percent >= 70 ? 'bg-amber-500' : 'bg-primary';
     return `
-            <div class="space-y-3 rounded-lg border border-gray-200 bg-white/70 p-4">
-                <div class="flex items-center justify-between text-sm font-semibold text-gray-900">
+            <div class="space-y-3 rounded-xl border border-border bg-card p-4 shadow-sm">
+                <div class="flex items-center justify-between text-sm font-semibold text-foreground">
                     <span>${escapeAttr(row.label)}</span>
                     <span>${percent}%</span>
                 </div>
-                <div class="h-2 w-full rounded-full bg-indigo-100 overflow-hidden">
+                <div class="h-2 w-full overflow-hidden rounded-full bg-primary/10">
                     <div class="h-full ${tone}" style="width: ${percent}%"></div>
                 </div>
-                <div class="grid grid-cols-3 gap-2 text-[11px] text-gray-500">
+                <div class="grid grid-cols-3 gap-2 text-[11px] text-muted-foreground">
                     <span class="inline-flex items-center gap-1">${getIcon('car', 'w-3.5 h-3.5')} ${row.vehicles}</span>
                     <span class="inline-flex items-center gap-1">${getIcon('clipboardCheck', 'w-3.5 h-3.5')} ${row.rentals}</span>
                     <span class="inline-flex items-center gap-1">${getIcon('wrench', 'w-3.5 h-3.5')} ${row.maintenance}</span>
@@ -283,7 +275,7 @@ const renderFleetLoadMatrix = ({ groups, events, rangeStart, rangeEndExclusive }
                 </div>
                 <div class="space-y-3">${rowsHtml}</div>
             </div>`
-    : '<div class="p-5 text-xs text-gray-500">Нет данных для отображения.</div>';
+    : '<div class="p-5 text-xs text-muted-foreground">Нет данных для отображения.</div>';
 
   const exportButton = container.querySelector('#fleet-load-export');
   if (exportButton) {
@@ -383,12 +375,12 @@ const buildGenericEventContent = (eventData) => {
   const car = MOCK_DATA.cars.find(item => item.id === eventData.carId);
   return `
         <div class="space-y-4">
-            <div class="rounded-lg border border-gray-200 bg-gray-50/60 p-4 space-y-2">
-                <p class="text-xs uppercase tracking-wide text-gray-500">Интервал</p>
+            <div class="rounded-lg border border-border bg-gray-50/60 p-4 space-y-2">
+                <p class="text-xs uppercase tracking-wide text-muted-foreground">Интервал</p>
                 <p class="text-sm font-semibold text-gray-900">${formatDateTime(eventData.start)} — ${formatDateTime(eventData.end)}</p>
-                <p class="text-xs text-gray-500">${car ? `Авто: ${car.name}, ${car.plate}` : 'Без привязки к авто'}</p>
+                <p class="text-xs text-muted-foreground">${car ? `Авто: ${car.name}, ${car.plate}` : 'Без привязки к авто'}</p>
             </div>
-            <div class="rounded-lg border border-gray-200 bg-white p-4 space-y-3 text-sm text-gray-600">
+            <div class="rounded-lg border border-border bg-card p-4 space-y-3 text-sm text-muted-foreground">
                 <p>Тип события: <span class="font-medium text-gray-900">${CALENDAR_EVENT_TYPES[eventData.type]?.label || eventData.type}</span></p>
                 ${eventData.title ? `<p>Описание: <span class="font-medium text-gray-900">${eventData.title}</span></p>` : ''}
             </div>
@@ -519,36 +511,36 @@ const renderCalendarSummary = ({
   const windowEnd = new Date(rangeEndExclusive.getTime() - DAY_IN_MS);
 
   summaryEl.innerHTML = `
-        <div class="rounded-xl border border-gray-200 bg-white p-4 space-y-1">
-            <p class="text-xs uppercase tracking-wide text-gray-500">Scope utilization</p>
+        <div class="rounded-xl border border-border bg-card p-4 space-y-1">
+            <p class="text-xs uppercase tracking-wide text-muted-foreground">Scope utilization</p>
             <div class="flex items-baseline gap-2">
                 <span class="text-2xl font-semibold text-gray-900">${occupancyRate}%</span>
-                <span class="text-xs text-gray-500">${occupiedCars.size}/${scopeCars.length} vehicles busy</span>
+                <span class="text-xs text-muted-foreground">${occupiedCars.size}/${scopeCars.length} vehicles busy</span>
             </div>
             <p class="text-xs text-emerald-600">Target ≥ 90%</p>
         </div>
-        <div class="rounded-xl border border-gray-200 bg-white p-4 space-y-1">
-            <p class="text-xs uppercase tracking-wide text-gray-500">Revenue pipeline</p>
+        <div class="rounded-xl border border-border bg-card p-4 space-y-1">
+            <p class="text-xs uppercase tracking-wide text-muted-foreground">Revenue pipeline</p>
             <div class="flex items-baseline gap-2">
                 <span class="text-2xl font-semibold text-gray-900">${formatCurrency(bookingRevenue)}</span>
             </div>
-            <p class="text-xs text-gray-500">Across visible bookings</p>
+            <p class="text-xs text-muted-foreground">Across visible bookings</p>
         </div>
-        <div class="rounded-xl border border-gray-200 bg-white p-4 space-y-1">
-            <p class="text-xs uppercase tracking-wide text-gray-500">Risks & conflicts</p>
+        <div class="rounded-xl border border-border bg-card p-4 space-y-1">
+            <p class="text-xs uppercase tracking-wide text-muted-foreground">Risks & conflicts</p>
             <div class="flex items-baseline gap-2">
                 <span class="text-2xl font-semibold text-gray-900">${conflictCars}</span>
-                <span class="text-xs text-gray-500">conflicts • ${attentionCars} attention cars</span>
+                <span class="text-xs text-muted-foreground">conflicts • ${attentionCars} attention cars</span>
             </div>
-            <p class="text-xs text-gray-500">${maintenanceCars.size} vehicles in maintenance flow</p>
+            <p class="text-xs text-muted-foreground">${maintenanceCars.size} vehicles in maintenance flow</p>
         </div>
-        <div class="rounded-xl border border-gray-200 bg-white p-4 space-y-1">
-            <p class="text-xs uppercase tracking-wide text-gray-500">Upcoming handoffs</p>
+        <div class="rounded-xl border border-border bg-card p-4 space-y-1">
+            <p class="text-xs uppercase tracking-wide text-muted-foreground">Upcoming handoffs</p>
             <div class="flex items-baseline gap-2">
                 <span class="text-2xl font-semibold text-gray-900">${upcomingDeliveries.length}</span>
-                <span class="text-xs text-gray-500">deliveries • ${tasksDue} driver tasks</span>
+                <span class="text-xs text-muted-foreground">deliveries • ${tasksDue} driver tasks</span>
             </div>
-            <p class="text-xs text-gray-500">${DATE_FORMATTER.format(rangeStart)} – ${DATE_FORMATTER.format(windowEnd)}</p>
+            <p class="text-xs text-muted-foreground">${DATE_FORMATTER.format(rangeStart)} – ${DATE_FORMATTER.format(windowEnd)}</p>
         </div>
     `;
 };
@@ -582,7 +574,7 @@ const renderCalendarAlerts = (bookingEvents, cars, rangeStart, tasksByCar) => {
                 <span class="mt-1 h-1.5 w-1.5 rounded-full bg-indigo-500"></span>
                 <div>
                     <p class="text-sm font-semibold text-gray-900">${event.bookingCode || 'Бронь'} • возврат ${formatDateTime(event.end)}</p>
-                    <p class="text-xs text-gray-500">${event.title || ''}${car ? ` • ${car.name}` : ''}</p>
+                    <p class="text-xs text-muted-foreground">${event.title || ''}${car ? ` • ${car.name}` : ''}</p>
                 </div>
             </div>
         `);
@@ -595,7 +587,7 @@ const renderCalendarAlerts = (bookingEvents, cars, rangeStart, tasksByCar) => {
                 <span class="mt-1 h-1.5 w-1.5 rounded-full bg-amber-500"></span>
                 <div>
                     <p class="text-sm font-semibold text-gray-900">${task.title}</p>
-                    <p class="text-xs text-gray-500">${car ? car.name : 'Car TBD'} • до ${formatDateTime(task.deadline)}</p>
+                    <p class="text-xs text-muted-foreground">${car ? car.name : 'Car TBD'} • до ${formatDateTime(task.deadline)}</p>
                 </div>
             </div>
         `);
@@ -607,7 +599,7 @@ const renderCalendarAlerts = (bookingEvents, cars, rangeStart, tasksByCar) => {
                 <span class="mt-1 h-1.5 w-1.5 rounded-full bg-rose-500"></span>
                 <div>
                     <p class="text-sm font-semibold text-gray-900">${car.name} • ${car.plate}</p>
-                    <p class="text-xs text-gray-500">${car.serviceStatus?.label || 'Нужна проверка'}${car.serviceStatus?.nextService ? ` • сервис до ${formatDateOnly(car.serviceStatus.nextService)}` : ''}</p>
+                    <p class="text-xs text-muted-foreground">${car.serviceStatus?.label || 'Нужна проверка'}${car.serviceStatus?.nextService ? ` • сервис до ${formatDateOnly(car.serviceStatus.nextService)}` : ''}</p>
                 </div>
             </div>
         `);
@@ -793,7 +785,7 @@ const renderCalendarLegend = (activeLayers) => {
     .map((type) => {
       const meta = CALENDAR_EVENT_TYPES[type];
       const bgClass = extractBgClass(meta.color);
-      const borderClass = meta.border || 'border-gray-200';
+      const borderClass = meta.border || 'border-border';
       const isActive = showAllInactive ? false : activeSet.has(type);
       return `
                 <div class="flex items-center justify-between gap-3">
@@ -1192,7 +1184,7 @@ export const renderFleetCalendar = () => {
 
   const monthHeaderCells = monthSegments.length
     ? monthSegments.map(segment => `
-                <div class="px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-gray-500 border-l border-gray-200 bg-gray-50/60"
+                <div class="px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground border-l border-border bg-gray-50/60"
                      style="grid-column: span ${segment.length} / span ${segment.length};">
                     ${segment.label}
                 </div>
@@ -1203,15 +1195,15 @@ export const renderFleetCalendar = () => {
     const label = `${dayNames[date.getDay()]} ${date.getDate()}`;
     const dateStr = formatDateKey(date);
     const isToday = dateStr === todayKey;
-    const highlightClass = isToday ? 'calendar-day-header-today text-indigo-700' : 'text-gray-500';
+    const highlightClass = isToday ? 'calendar-day-header-today text-indigo-700' : 'text-muted-foreground';
     return `<div class="calendar-day-header px-3 py-2 text-xs font-semibold uppercase tracking-wide ${highlightClass}" data-date="${dateStr}">
                 ${label}
             </div>`;
   }).join('');
 
   const monthHeaderHtml = `
-        <div class="grid border border-b-0 border-gray-200 bg-white" style="${columnsStyle}">
-            <div class="px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-gray-500 border-r border-gray-200 bg-white">
+        <div class="grid border border-b-0 border-border bg-card" style="${columnsStyle}">
+            <div class="px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground border-r border-border bg-card">
                 Период
             </div>
             ${monthHeaderCells}
@@ -1219,8 +1211,8 @@ export const renderFleetCalendar = () => {
     `;
 
   const dayHeaderHtml = `
-        <div class="grid border border-gray-200 border-t-0 bg-white" style="${columnsStyle}">
-            <div class="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-600 border-r border-gray-200 flex items-center gap-2 bg-white">
+        <div class="grid border border-border border-t-0 bg-card" style="${columnsStyle}">
+            <div class="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground border-r border-border flex items-center gap-2 bg-card">
                 ${getIcon('car', 'w-4 h-4')}
                 Vehicle
             </div>
@@ -1229,7 +1221,7 @@ export const renderFleetCalendar = () => {
     `;
 
   const headerHtml = `
-        <div class="sticky top-0 z-10 space-y-[1px] bg-white">
+        <div class="sticky top-0 z-10 space-y-[1px] bg-card">
             ${monthHeaderHtml}
             ${dayHeaderHtml}
         </div>
@@ -1240,8 +1232,8 @@ export const renderFleetCalendar = () => {
     const chevron = getIcon('chevronRight', 'w-4 h-4');
     const groupHeader = group.collapsible
       ? `
-                <div class="grid border border-t-0 border-gray-200 bg-slate-50" style="${columnsStyle}">
-                    <div class="px-3 py-2 flex items-center border-r border-gray-200">
+                <div class="grid border border-t-0 border-border bg-slate-50" style="${columnsStyle}">
+                    <div class="px-3 py-2 flex items-center border-r border-border">
                         <button type="button" class="calendar-group-toggle inline-flex items-center gap-2 text-sm font-semibold text-gray-700" data-calendar-group-toggle="${group.id}">
                             <span class="inline-block transition-transform duration-150" style="transform: rotate(${collapsed ? 0 : 90}deg);">${chevron}</span>
                             ${group.label}
@@ -1269,7 +1261,7 @@ export const renderFleetCalendar = () => {
         const leftPercent = Math.max(0, Math.min(100, ((visibleStart - startDate) / totalRangeMs) * 100));
         const widthPercent = Math.max(2, Math.min(100 - leftPercent, (durationMs / totalRangeMs) * 100));
 
-        const meta = CALENDAR_EVENT_TYPES[event.type] || { color: 'bg-gray-100 text-gray-700', border: 'border-gray-200', label: event.type };
+        const meta = CALENDAR_EVENT_TYPES[event.type] || { color: 'calendar-event-surface-neutral', border: 'calendar-event-border-neutral', label: event.type };
         const priorityMeta = PRIORITY_META[event.priority] || PRIORITY_META.medium;
         const startLabel = event.start ? formatDateTimeShort(eventStart) : '';
         const endLabel = event.end ? formatDateTimeShort(eventEnd) : '';
@@ -1278,7 +1270,7 @@ export const renderFleetCalendar = () => {
         const lifecycleStatus = event.lifecycleStatus;
         const lifecycleMeta = lifecycleStatus ? BOOKING_STATUS_PHASES[lifecycleStatus] : null;
         const lifecycleBadge = lifecycleMeta
-          ? `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${lifecycleMeta.badge}">${lifecycleMeta.label}</span>`
+          ? `<span class="${lifecycleMeta.badge} text-[10px] font-semibold">${lifecycleMeta.label}</span>`
           : '';
         const disableRentalInteraction = appState.currentRole === 'operations' && event.type === 'rental';
         const pointerClass = disableRentalInteraction ? 'pointer-events-none' : 'pointer-events-auto';
@@ -1290,7 +1282,7 @@ export const renderFleetCalendar = () => {
                          data-booking-id="${event.bookingId || ''}"
                          data-calendar-event-id="${event.calendarEventId || ''}"
                          style="left: calc(${leftPercent}% + 4px); width: calc(${widthPercent}% - 8px); top: 6px; height: calc(100% - 12px);">
-                        <div class="flex justify-between items-center gap-2 text-[10px] text-gray-600 mb-1">
+                        <div class="mb-1 flex items-center justify-between gap-2 text-[10px] text-muted-foreground">
                             <span>${startLabel}</span>
                             <span>${endLabel}</span>
                         </div>
@@ -1301,7 +1293,7 @@ export const renderFleetCalendar = () => {
                                 <span class="truncate">${primaryLabel}</span>
                             </span>
                         </div>
-                        ${secondaryLabel ? `<p class="text-[10px] text-gray-600 truncate">${secondaryLabel}</p>` : ''}
+                        ${secondaryLabel ? `<p class="text-[10px] text-muted-foreground truncate">${secondaryLabel}</p>` : ''}
                     </div>
                 `;
       }).join('');
@@ -1337,8 +1329,8 @@ export const renderFleetCalendar = () => {
       const rowStyle = `${columnsStyle}${attentionCarIds.has(car.id) ? ' box-shadow: inset 4px 0 0 rgba(244, 114, 182, 0.25);' : ''}`;
 
       return `
-                <div class="grid border border-t-0 border-gray-200 bg-white relative" style="${rowStyle}">
-                    <div class="px-3 py-3 flex flex-col gap-2 border-r border-gray-200" title="${escapeAttr(tooltipText)}">
+                <div class="grid border border-t-0 border-border bg-card relative" style="${rowStyle}">
+                    <div class="px-3 py-3 flex flex-col gap-2 border-r border-border" title="${escapeAttr(tooltipText)}">
                         <div class="flex items-center gap-3">
                             <div class="relative">
                                 <img src="${car.imagePath}" alt="${car.name}" class="w-12 h-8 object-cover rounded-md">
@@ -1348,12 +1340,12 @@ export const renderFleetCalendar = () => {
                                 <button type="button" class="calendar-vehicle-action text-sm font-semibold text-indigo-600 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300 truncate" data-car-id="${car.id}" data-vehicle-action="view-car">
                                     ${escapeAttr(car.name)}
                                 </button>
-                                <p class="text-xs text-gray-500">${escapeAttr(car.plate)}</p>
+                                <p class="text-xs text-muted-foreground">${escapeAttr(car.plate)}</p>
                             </div>
                         </div>
                         <div class="flex flex-wrap gap-1">
-                            ${appState.currentRole === 'operations' ? '' : `<button class="calendar-vehicle-action inline-flex items-center gap-1 rounded-md border border-gray-200 bg-white px-2 py-1 text-[11px] font-medium text-gray-600 hover:border-indigo-200 hover:text-indigo-600 transition" data-car-id="${car.id}" data-vehicle-action="create-booking">+ Бронь</button>`}
-                            ${appState.currentRole === 'sales' ? '' : `<button class="calendar-vehicle-action inline-flex items-center gap-1 rounded-md border border-gray-200 bg-white px-2 py-1 text-[11px] font-medium text-gray-600 hover:border-indigo-200 hover:text-indigo-600 transition" data-car-id="${car.id}" data-vehicle-action="schedule-maintenance">Сервис</button>`}
+                            ${appState.currentRole === 'operations' ? '' : `<button class="calendar-vehicle-action inline-flex items-center gap-1 rounded-md border border-border bg-card px-2 py-1 text-[11px] font-medium text-muted-foreground hover:border-indigo-200 hover:text-indigo-600 transition" data-car-id="${car.id}" data-vehicle-action="create-booking">+ Бронь</button>`}
+                            ${appState.currentRole === 'sales' ? '' : `<button class="calendar-vehicle-action inline-flex items-center gap-1 rounded-md border border-border bg-card px-2 py-1 text-[11px] font-medium text-muted-foreground hover:border-indigo-200 hover:text-indigo-600 transition" data-car-id="${car.id}" data-vehicle-action="schedule-maintenance">Сервис</button>`}
                         </div>
                         ${taskBadges}
                     </div>

@@ -7,8 +7,69 @@
     <meta name="theme-color" content="#111827">
     <link rel="manifest" href="manifest.json?v=2">
     
+    <script>
+      window.tailwind = window.tailwind || {};
+      window.tailwind.config = {
+        theme: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif']
+          },
+          extend: {
+            colors: {
+              border: 'hsl(var(--border))',
+              input: 'hsl(var(--input))',
+              ring: 'hsl(var(--ring))',
+              background: 'hsl(var(--background))',
+              foreground: 'hsl(var(--foreground))',
+              primary: {
+                DEFAULT: 'hsl(var(--primary))',
+                foreground: 'hsl(var(--primary-foreground))'
+              },
+              secondary: {
+                DEFAULT: 'hsl(var(--secondary))',
+                foreground: 'hsl(var(--secondary-foreground))'
+              },
+              destructive: {
+                DEFAULT: 'hsl(var(--destructive))',
+                foreground: 'hsl(var(--destructive-foreground))'
+              },
+              muted: {
+                DEFAULT: 'hsl(var(--muted))',
+                foreground: 'hsl(var(--muted-foreground))'
+              },
+              accent: {
+                DEFAULT: 'hsl(var(--accent))',
+                foreground: 'hsl(var(--accent-foreground))'
+              },
+              popover: {
+                DEFAULT: 'hsl(var(--popover))',
+                foreground: 'hsl(var(--popover-foreground))'
+              },
+              card: {
+                DEFAULT: 'hsl(var(--card))',
+                foreground: 'hsl(var(--card-foreground))'
+              }
+            },
+            borderRadius: {
+              lg: 'var(--radius)',
+              md: 'calc(var(--radius) - 2px)',
+              sm: 'calc(var(--radius) - 4px)'
+            },
+            boxShadow: {
+              card: '0 1px 2px rgba(15,23,42,0.08)',
+              button: '0 1px 2px rgba(15,23,42,0.12)',
+              dropdown: '0 15px 35px rgba(15,23,42,0.15)'
+            }
+          }
+        }
+      };
+    </script>
+
     <!-- Tailwind CSS via CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- SkyLuxse design system -->
+    <link rel="stylesheet" href="./public/design-system.css">
     
     <!-- Google Fonts: Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -23,570 +84,39 @@
 
     <!-- QR Code Generator via CDN -->
     <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js" defer></script>
-
-    <style>
-        /* Linear light inspired design system */
-        :root {
-            --background: 220 33% 98%;
-            --foreground: 225 29% 15%;
-            --card: 0 0% 100%;
-            --card-foreground: 225 29% 15%;
-            --popover: 0 0% 100%;
-            --popover-foreground: 225 29% 15%;
-            --primary: 249 63% 61%; /* #5E6AD2 */
-            --primary-foreground: 0 0% 100%;
-            --secondary: 230 40% 95%;
-            --secondary-foreground: 228 31% 30%;
-            --muted: 220 35% 96%;
-            --muted-foreground: 225 16% 46%;
-            --accent: 252 100% 97%;
-            --accent-foreground: 248 62% 45%;
-            --destructive: 0 84% 65%;
-            --destructive-foreground: 0 0% 100%;
-            --border: 220 30% 90%;
-            --input: 220 30% 90%;
-            --ring: 249 63% 61%;
-            --radius: 0.65rem;
-        }
-
-        body {
-            font-family: 'Inter', sans-serif;
-            background: linear-gradient(180deg, #f6f8fc 0%, #f2f4ff 60%, #eef1ff 100%);
-            color: hsl(var(--foreground));
-        }
-
-        .geist-card {
-            background-color: hsl(var(--card));
-            border: 1px solid hsl(var(--border));
-            border-radius: var(--radius);
-            box-shadow: 0 24px 48px -32px rgba(94, 106, 210, 0.35), 0 12px 24px -24px rgba(34, 40, 90, 0.25);
-            backdrop-filter: blur(4px);
-        }
-
-        /* Login layout */
-        #page-login {
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: clamp(2rem, 5vw, 4.5rem) clamp(1rem, 4vw, 3rem);
-            background: radial-gradient(circle at top, rgba(94, 106, 210, 0.18), rgba(243, 244, 255, 0.8) 45%, rgba(245, 247, 255, 0.95));
-        }
-
-        #page-login.hidden {
-            display: none;
-        }
-
-        .login-grid {
-            width: 100%;
-            max-width: 960px;
-            display: grid;
-            gap: clamp(1.5rem, 3vw, 3rem);
-        }
-
-        .login-panel,
-        .login-hero {
-            border-radius: calc(var(--radius) * 1.25);
-        }
-
-        .login-panel {
-            padding: clamp(1.5rem, 4vw, 3rem);
-            display: flex;
-            flex-direction: column;
-            gap: 1.5rem;
-        }
-
-        .login-panel h1 {
-            font-size: clamp(1.6rem, 4vw, 2.1rem);
-            line-height: 1.2;
-        }
-
-        .login-hero {
-            padding: clamp(1.75rem, 4vw, 3.25rem);
-            background: radial-gradient(circle at 25% 20%, rgba(124, 144, 255, 0.4), transparent 45%) rgba(18, 21, 43, 0.95);
-            box-shadow: 0 24px 48px -28px rgba(11, 13, 36, 0.85), 0 20px 45px -30px rgba(18, 21, 43, 0.6);
-            color: #f9f9ff;
-            border: none;
-            position: relative;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-            gap: 1.25rem;
-        }
-
-        .login-hero::after {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background: radial-gradient(circle at bottom right, rgba(94, 106, 210, 0.55), transparent 55%);
-            opacity: 0.85;
-            pointer-events: none;
-        }
-
-        .login-hero > * {
-            position: relative;
-            z-index: 1;
-        }
-
-        .login-hero h2 {
-            font-size: clamp(1.8rem, 4vw, 2.4rem);
-            font-weight: 600;
-        }
-
-        .login-hero p {
-            color: rgba(250, 250, 255, 0.85);
-            line-height: 1.6;
-        }
-
-        .login-hero ul {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-            display: grid;
-            gap: 0.85rem;
-        }
-
-        .login-hero li {
-            display: flex;
-            align-items: flex-start;
-            gap: 0.75rem;
-        }
-
-        .login-hero li::before {
-            content: '';
-            width: 0.5rem;
-            height: 0.5rem;
-            margin-top: 0.45rem;
-            border-radius: 9999px;
-            background: rgba(255, 255, 255, 0.95);
-            box-shadow: 0 0 0 5px rgba(255, 255, 255, 0.15);
-            flex-shrink: 0;
-        }
-
-        .login-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.25rem;
-            font-size: 0.7rem;
-            letter-spacing: 0.06em;
-            text-transform: uppercase;
-            padding: 0.4rem 0.9rem;
-            border-radius: 9999px;
-            background: rgba(255, 255, 255, 0.12);
-            color: rgba(255, 255, 255, 0.85);
-        }
-
-        .login-subcopy {
-            color: rgba(55, 65, 81, 0.75);
-            line-height: 1.6;
-        }
-
-        @media (min-width: 768px) {
-            .login-grid {
-                grid-template-columns: repeat(2, minmax(0, 1fr));
-                align-items: stretch;
-            }
-
-            .login-hero {
-                order: 1;
-            }
-
-            .login-panel {
-                order: 2;
-            }
-        }
-
-        @media (max-width: 767px) {
-            #page-login {
-                padding: 1.75rem 1rem 2.5rem;
-                align-items: flex-start;
-            }
-
-            .login-hero {
-                display: none;
-            }
-
-            .login-panel {
-                order: 1;
-                padding: 1.5rem;
-                gap: 1.25rem;
-            }
-        }
-
-        #sidebar {
-            background-color: rgba(255, 255, 255, 0.9);
-            backdrop-filter: blur(18px);
-            border-right: 1px solid hsl(var(--border));
-        }
-
-        #sidebar-collapse {
-            transition: color 0.2s ease;
-        }
-
-        #sidebar-collapse:hover {
-            color: rgba(42, 47, 78, 0.95);
-        }
-
-        @media (min-width: 768px) {
-            #sidebar.sidebar-collapsed {
-                width: 4.5rem;
-            }
-
-            #sidebar.sidebar-collapsed .sidebar-title,
-            #sidebar.sidebar-collapsed #sidebar-profile,
-            #sidebar.sidebar-collapsed .nav-link span {
-                display: none;
-            }
-
-            #sidebar.sidebar-collapsed nav {
-                padding-left: 1rem;
-                padding-right: 1rem;
-            }
-
-            #sidebar.sidebar-collapsed .nav-link {
-                justify-content: center;
-                gap: 0;
-            }
-        }
-
-        #sidebar-nav .nav-link {
-            color: rgba(35, 41, 64, 0.85);
-            border: 1px solid transparent;
-            background: transparent;
-            transition: all 0.2s ease;
-        }
-
-        #sidebar-nav .nav-link:hover {
-            border-color: rgba(124, 144, 255, 0.25);
-            background: linear-gradient(135deg, rgba(124, 144, 255, 0.12), rgba(94, 106, 210, 0.08));
-            color: rgba(42, 47, 78, 0.95);
-        }
-
-        #sidebar-nav .nav-link-active {
-            border-color: rgba(124, 144, 255, 0.45);
-            background: linear-gradient(135deg, rgba(99, 110, 227, 0.18), rgba(139, 148, 255, 0.12));
-            box-shadow: inset 0 0 0 1px rgba(94, 106, 210, 0.35);
-            color: #293057;
-        }
-
-        #sidebar-nav .nav-link-active span {
-            font-weight: 600;
-            color: #1f2543;
-        }
-
-        header {
-            background-color: rgba(255, 255, 255, 0.85);
-            backdrop-filter: blur(16px);
-        }
-
-        .modern-content {
-            background: radial-gradient(circle at top, rgba(124, 144, 255, 0.08) 0%, rgba(255,255,255,0.85) 45%, rgba(241,244,255,0.9) 100%);
-        }
-
-        .modern-content .page:not(.hidden) {
-            animation: fadeIn 0.25s ease;
-        }
-
-        select,
-        input[type="text"],
-        input[type="email"],
-        input[type="password"],
-        input[type="number"],
-        input[type="datetime-local"],
-        input[type="date"],
-        input[type="time"],
-        textarea {
-            border-radius: var(--radius) !important;
-            border-color: hsl(var(--border)) !important;
-            background-color: rgba(255, 255, 255, 0.95) !important;
-            transition: box-shadow 0.2s ease, border-color 0.2s ease;
-        }
-
-        select:focus,
-        input:focus,
-        textarea:focus {
-            outline: none;
-            border-color: rgba(124, 144, 255, 0.6) !important;
-            box-shadow: 0 0 0 3px rgba(124, 144, 255, 0.18);
-        }
-
-        table thead {
-            background: linear-gradient(180deg, rgba(244, 246, 255, 0.92) 0%, rgba(232, 236, 255, 0.92) 100%);
-            color: rgba(46, 52, 78, 0.7);
-        }
-
-        table tbody tr:nth-child(even) {
-            background-color: rgba(246, 248, 255, 0.6);
-        }
-
-        ::-webkit-scrollbar {
-            width: 10px;
-            height: 10px;
-        }
-
-        ::-webkit-scrollbar-track {
-            background: rgba(233, 237, 255, 0.6);
-            border-radius: 9999px;
-        }
-
-        ::-webkit-scrollbar-thumb {
-            background: rgba(124, 144, 255, 0.45);
-            border-radius: 9999px;
-            border: 2px solid rgba(233, 237, 255, 0.8);
-        }
-
-        #driver-location-card {
-            background: linear-gradient(135deg, rgba(124, 144, 255, 0.14), rgba(94, 106, 210, 0.08));
-            border-color: rgba(124, 144, 255, 0.25);
-        }
-
-        .driver-task-card {
-            border-width: 1px;
-            border-style: solid;
-            transition: transform 0.15s ease, box-shadow 0.15s ease;
-        }
-
-        .driver-task-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 15px 35px -25px rgba(15, 23, 42, 0.45);
-        }
-
-        .driver-task-card-delivery {
-            border-color: rgba(16, 185, 129, 0.4);
-            background: linear-gradient(135deg, rgba(16, 185, 129, 0.08), rgba(16, 185, 129, 0.02));
-        }
-
-        .driver-task-card-return {
-            border-color: rgba(249, 115, 22, 0.4);
-            background: linear-gradient(135deg, rgba(249, 115, 22, 0.08), rgba(249, 115, 22, 0.02));
-        }
-
-        .driver-task-tag {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.3rem;
-            padding: 0.1rem 0.5rem;
-            border-radius: 999px;
-            font-size: 0.65rem;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.04em;
-            background: rgba(148, 163, 184, 0.2);
-            color: #334155;
-        }
-
-        .driver-task-tag-delivery {
-            background: rgba(16, 185, 129, 0.15);
-            color: #047857;
-        }
-
-        .driver-task-tag-return {
-            background: rgba(249, 115, 22, 0.15);
-            color: #9a3412;
-        }
-
-        #sales-kanban-board > div {
-            background: linear-gradient(180deg, rgba(245, 247, 255, 0.85) 0%, rgba(233, 236, 255, 0.85) 100%);
-            border-color: rgba(124, 144, 255, 0.25);
-        }
-
-        #sales-kanban-board .geist-card {
-            background: rgba(255, 255, 255, 0.92);
-            box-shadow: 0 14px 32px -24px rgba(94, 106, 210, 0.5);
-        }
-
-        #page-title {
-            color: #1f2340;
-            font-weight: 600;
-            letter-spacing: -0.01em;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(6px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .geist-button {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: var(--radius);
-            font-weight: 500;
-            padding: 0.5rem 1rem;
-            transition: all 0.2s ease;
-            border: 1px solid transparent;
-        }
-        .geist-button:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-
-        .geist-button-primary {
-            background: linear-gradient(135deg, #636ee3 0%, #7f5cff 100%);
-            color: hsl(var(--primary-foreground));
-            box-shadow: 0 10px 20px -12px rgba(99, 110, 227, 0.65);
-        }
-        .geist-button-primary:hover:not(:disabled) {
-            transform: translateY(-1px);
-            box-shadow: 0 16px 32px -18px rgba(99, 110, 227, 0.75);
-        }
-        .geist-button-secondary {
-            background-color: hsl(var(--secondary));
-            color: hsl(var(--secondary-foreground));
-            border: 1px solid hsl(var(--border));
-        }
-        .geist-button-secondary:hover:not(:disabled) {
-            background-color: hsl(var(--accent));
-            color: hsl(var(--accent-foreground));
-        }
-
-        .kanban-card.sortable-ghost {
-            background: hsl(var(--accent));
-            border: 2px dashed hsl(var(--border));
-            opacity: 0.5;
-        }
-
-        /* Hide scrollbar but allow scrolling */
-        .no-scrollbar::-webkit-scrollbar {
-            display: none;
-        }
-        .no-scrollbar {
-            -ms-overflow-style: none;
-            scrollbar-width: none;
-        }
-
-        .modal-overlay {
-            transition: opacity 0.2s ease-in-out;
-        }
-        .modal-content {
-            transition: transform 0.2s ease-in-out;
-        }
-        
-        /* Calendar specific styles */
-        .calendar-booking {
-            min-width: 60px;
-            min-height: 100%;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            text-align: center;
-            border-radius: 4px;
-            box-shadow: 0 10px 20px -18px rgba(94, 106, 210, 0.45);
-            color: #1f2543;
-            font-weight: 500;
-            font-size: 0.7rem;
-        }
-
-        .calendar-booking:hover {
-            opacity: 0.95;
-            transform: translateY(-1px);
-            box-shadow: 0 14px 24px -18px rgba(94, 106, 210, 0.55);
-        }
-        
-        .calendar-row {
-            position: relative;
-            min-height: 50px;
-        }
-
-        .calendar-day-header {
-            background-color: #f8fafc;
-            color: #475569;
-            border-left: 1px solid rgba(226, 232, 240, 0.9);
-            border-bottom: 1px solid rgba(203, 213, 225, 0.9);
-        }
-
-        .calendar-day-header-today {
-            background-color: #eef2ff;
-            color: #3730a3;
-            border-color: rgba(129, 140, 248, 0.65);
-        }
-
-        .calendar-day-cell {
-            position: relative;
-            background-color: #fbfbff;
-            border-left: 1px solid rgba(226, 232, 240, 0.9);
-            overflow: hidden;
-            min-height: 72px;
-        }
-
-        .calendar-day-cell::before {
-            content: none;
-        }
-
-        .calendar-day-cell-today {
-            background-color: #eef2ff;
-            border-left-color: rgba(129, 140, 248, 0.35);
-        }
-
-        .calendar-day-cell-today::before {
-            content: none;
-        }
-
-        .calendar-event {
-            position: relative;
-            z-index: 1;
-        }
-        
-        /* Responsive improvements */
-        @media (max-width: 768px) {
-            .calendar-booking {
-                min-width: 60px;
-                font-size: 0.65rem;
-                padding: 2px;
-            }
-            
-            .calendar-row {
-                min-height: 50px;
-            }
-            
-            /* Adjust grid for smaller screens */
-            #page-fleet-calendar .grid-cols-10 {
-                grid-template-columns: repeat(8, minmax(0, 1fr));
-            }
-            
-            #page-fleet-calendar .col-span-2 {
-                grid-column: span 1 / span 1;
-            }
-            
-            #page-fleet-calendar .col-span-8 {
-                grid-column: span 7 / span 7;
-            }
-        }
-    </style>
 </head>
-<body class="antialiased">
+<body class="bg-background text-foreground antialiased">
 
     <!-- Page: Login -->
-    <div id="page-login" class="bg-gray-50">
-        <div class="login-grid">
-            <section class="login-panel geist-card">
+    <div id="page-login" class="min-h-screen bg-gradient-to-b from-background via-background/95 to-muted flex items-center justify-center px-4 py-12">
+        <div class="grid w-full max-w-5xl gap-8 lg:grid-cols-2">
+            <section class="rounded-2xl border border-border bg-white p-8 shadow-card space-y-6">
                 <div class="space-y-2">
-                    <p class="text-xs font-semibold tracking-[0.3em] uppercase text-gray-400">SkyLuxse ERP</p>
-                    <h1 class="font-semibold">Добро пожаловать</h1>
-                    <p class="text-sm login-subcopy">Выберите роль и подтвердите вход, чтобы продолжить работу с автопарком.</p>
+                    <p class="text-xs font-semibold tracking-[0.3em] uppercase text-muted-foreground">SkyLuxse ERP</p>
+                    <h1 class="text-2xl font-semibold">Добро пожаловать</h1>
+                    <p class="text-sm text-muted-foreground">Выберите роль и подтвердите вход, чтобы продолжить работу с автопарком.</p>
                 </div>
 
-                <div class="space-y-4 flex-1 w-full">
-                    <div>
-                        <label for="login-role" class="block text-sm font-medium text-gray-700">Role</label>
-                        <select id="login-role" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:ring-black focus:border-black">
+                <div class="space-y-4">
+                    <div class="space-y-1.5">
+                        <label for="login-role" class="text-sm font-medium text-foreground">Role</label>
+                        <select id="login-role" class="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                             <option value="operations">Fleet manager</option>
                             <option value="sales">Sales manager</option>
                             <option value="ceo">Executive team</option>
                             <option value="driver">Driver</option>
                         </select>
                     </div>
-                    <div>
-                        <label for="email" class="block text-sm font-medium text-gray-700">Email/Phone</label>
-                        <input type="email" id="email" value="fleet@skyluxse.ae" class="w-full px-3 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:ring-black focus:border-black">
+                    <div class="space-y-1.5">
+                        <label for="email" class="text-sm font-medium text-foreground">Email/Phone</label>
+                        <input type="email" id="email" value="fleet@skyluxse.ae" class="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                     </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700">One-time code</label>
-                        <div class="mt-1 space-y-2">
+                    <div class="space-y-2">
+                        <label class="text-sm font-medium text-foreground">One-time code</label>
+                        <div class="space-y-2">
                             <div id="otp-container" class="hidden space-y-1">
-                                <input type="text" id="otp" placeholder="123456" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-black focus:border-black">
-                                <p class="text-xs text-gray-400">MFA support will appear after integration.</p>
+                                <input type="text" id="otp" placeholder="123456" class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                                <p class="text-xs text-muted-foreground">MFA support will appear after integration.</p>
                             </div>
                             <button id="request-otp" class="w-full geist-button geist-button-secondary text-xs" type="button">Send code</button>
                         </div>
@@ -596,15 +126,27 @@
                 <button id="login-button" class="w-full geist-button geist-button-primary">Sign in</button>
             </section>
 
-            <section class="login-hero">
-                <span class="login-badge">Внутренний доступ SkyLuxse</span>
-                <h2>Корпоративная ОС автопарка</h2>
-                <p>Платформа для сотрудников: бронирования, SLA и водители собраны в одном рабочем окне.</p>
-                <ul>
-                    <li>Корпоративный вход: заявки, авто и клиенты в одном учете.</li>
-                    <li>Автосигналы по платежам, доставкам и возвратам.</li>
-                    <li>Онлайн-отчеты по загрузке, марже и SLA.</li>
+            <section class="login-hero relative overflow-hidden rounded-2xl border border-border text-slate-100 p-8 shadow-2xl space-y-6">
+                <div class="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs uppercase tracking-wide text-white/80">Внутренний доступ SkyLuxse</div>
+                <div class="space-y-2">
+                    <h2 class="text-3xl font-semibold text-white">Корпоративная ОС автопарка</h2>
+                    <p class="text-sm text-white/80">Платформа для сотрудников: бронирования, SLA и водители собраны в одном рабочем окне.</p>
+                </div>
+                <ul class="space-y-3 text-sm text-white/80">
+                    <li class="flex items-start gap-2">
+                        <span class="mt-1 h-2 w-2 rounded-full bg-primary/80"></span>
+                        <span>Корпоративный вход: заявки, авто и клиенты в одном учете.</span>
+                    </li>
+                    <li class="flex items-start gap-2">
+                        <span class="mt-1 h-2 w-2 rounded-full bg-primary/80"></span>
+                        <span>Автосигналы по платежам, доставкам и возвратам.</span>
+                    </li>
+                    <li class="flex items-start gap-2">
+                        <span class="mt-1 h-2 w-2 rounded-full bg-primary/80"></span>
+                        <span>Онлайн-отчеты по загрузке, марже и SLA.</span>
+                    </li>
                 </ul>
+                <div class="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent"></div>
             </section>
         </div>
     </div>
@@ -627,17 +169,17 @@
             <!-- Content Area -->
             <main id="main-content" class="flex-1 flex flex-col overflow-hidden">
                 <!-- Component: Header -->
-                <header class="flex items-center justify-between p-4 bg-white border-b border-gray-200 flex-shrink-0 gap-4">
+                <header class="flex items-center justify-between gap-4 border-b border-border bg-background px-4 py-3 flex-shrink-0">
                     <div class="flex items-center gap-3">
                         <button id="burger-menu" class="p-2 md:hidden">
                             <!-- Burger icon will be injected -->
                         </button>
-                        <h2 id="page-title" class="text-xl font-semibold"></h2>
+                        <h2 id="page-title" class="text-xl font-semibold text-foreground"></h2>
                     </div>
                     <div class="flex items-center gap-3">
-                        <div id="sales-owner-filter-wrapper" class="hidden flex items-center gap-2 text-sm">
-                            <label for="sales-owner-filter" class="text-gray-500 whitespace-nowrap">Sales manager</label>
-                            <select id="sales-owner-filter" class="px-3 py-2 border border-gray-300 rounded-md">
+                        <div id="sales-owner-filter-wrapper" class="hidden flex items-center gap-2 text-sm text-muted-foreground">
+                            <label for="sales-owner-filter" class="whitespace-nowrap">Sales manager</label>
+                            <select id="sales-owner-filter" class="rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                                 <option value="all">All managers</option>
                             </select>
                         </div>
@@ -646,7 +188,7 @@
                 </header>
 
                 <!-- Page content will be rendered here -->
-                <div id="content-area" class="flex-1 overflow-y-auto p-6 modern-content">
+                <div id="content-area" class="app-page flex-1 overflow-y-auto bg-background p-6">
 
                     <!-- Page: Dashboard -->
                     <section id="page-dashboard" class="page hidden">
@@ -829,52 +371,52 @@
                     <!-- Page: Fleet Calendar -->
                     <section id="page-fleet-calendar" class="page hidden">
                         <div class="space-y-4">
-                            <div class="geist-card p-5 space-y-4">
+                            <div class="sl-card p-5 space-y-4">
                                 <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                                     <div>
-                                        <h2 class="text-2xl font-bold text-gray-900">Fleet Calendar</h2>
-                                        <p id="calendar-range-label" class="text-gray-600 mt-1"></p>
+                                        <h2 class="text-2xl font-bold text-foreground">Fleet Calendar</h2>
+                                        <p id="calendar-range-label" class="mt-1 text-sm text-muted-foreground"></p>
                                     </div>
                                     <div class="w-full max-w-md">
-                                        <label for="calendar-search" class="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wide">Быстрый поиск</label>
+                                        <label for="calendar-search" class="mb-1 block text-xs font-medium text-muted-foreground uppercase tracking-wide">Быстрый поиск</label>
                                         <input id="calendar-search" type="search" placeholder="Поиск по номеру авто, клиенту или брони"
-                                            class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400">
+                                            class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                                     </div>
                                 </div>
-                                <div id="calendar-toolbar" class="flex flex-wrap items-center gap-2 relative">
-                                    <div class="inline-flex items-center rounded-lg border border-gray-200 bg-white p-0.5 text-xs shadow-sm">
-                                        <button id="calendar-prev" class="geist-button geist-button-ghost h-9 px-3 text-xs">Prev</button>
+                                <div id="calendar-toolbar" class="relative flex flex-wrap items-center gap-2">
+                                    <div class="inline-flex items-center rounded-lg border border-border bg-card p-0.5 text-xs shadow-sm">
+                                        <button id="calendar-prev" class="geist-button geist-button-tertiary h-9 px-3 text-xs">Prev</button>
                                         <button id="calendar-today" class="geist-button geist-button-secondary h-9 px-3 text-xs">Today</button>
-                                        <button id="calendar-next" class="geist-button geist-button-ghost h-9 px-3 text-xs">Next</button>
+                                        <button id="calendar-next" class="geist-button geist-button-tertiary h-9 px-3 text-xs">Next</button>
                                     </div>
-                                    <div id="calendar-range-switcher" class="inline-flex items-center rounded-lg border border-gray-200 bg-white p-0.5 text-xs shadow-sm">
-                                        <button type="button" data-calendar-range="3-day" class="calendar-range-btn px-3 py-1.5 rounded-md text-xs font-medium text-gray-600">3D</button>
-                                        <button type="button" data-calendar-range="week" class="calendar-range-btn px-3 py-1.5 rounded-md text-xs font-medium text-gray-600">Week</button>
-                                        <button type="button" data-calendar-range="two-week" class="calendar-range-btn px-3 py-1.5 rounded-md text-xs font-medium text-gray-600">2W</button>
-                                        <button type="button" data-calendar-range="month" class="calendar-range-btn px-3 py-1.5 rounded-md text-xs font-medium text-gray-600">Month</button>
-                                        <button type="button" data-calendar-range="quarter" class="calendar-range-btn px-3 py-1.5 rounded-md text-xs font-medium text-gray-600">Quarter</button>
+                                    <div id="calendar-range-switcher" class="inline-flex items-center rounded-lg border border-border bg-card p-0.5 text-xs shadow-sm">
+                                        <button type="button" data-calendar-range="3-day" class="calendar-range-btn rounded-md px-3 py-1.5 text-xs font-medium text-muted-foreground">3D</button>
+                                        <button type="button" data-calendar-range="week" class="calendar-range-btn rounded-md px-3 py-1.5 text-xs font-medium text-muted-foreground">Week</button>
+                                        <button type="button" data-calendar-range="two-week" class="calendar-range-btn rounded-md px-3 py-1.5 text-xs font-medium text-muted-foreground">2W</button>
+                                        <button type="button" data-calendar-range="month" class="calendar-range-btn rounded-md px-3 py-1.5 text-xs font-medium text-muted-foreground">Month</button>
+                                        <button type="button" data-calendar-range="quarter" class="calendar-range-btn rounded-md px-3 py-1.5 text-xs font-medium text-muted-foreground">Quarter</button>
                                     </div>
-                                    <select id="calendar-view-select" class="hidden px-3 py-2 border border-gray-300 rounded-md text-sm">
+                                    <select id="calendar-view-select" class="hidden rounded-md border border-input bg-background px-3 py-2 text-sm">
                                         <option value="3-day">3 days</option>
                                         <option value="week">1 week</option>
                                         <option value="two-week">2 weeks</option>
                                         <option value="month">1 month</option>
                                         <option value="quarter">Quarter</option>
                                     </select>
-                                    <select id="calendar-group-select" class="px-3 py-2 border border-gray-300 rounded-md text-sm">
+                                    <select id="calendar-group-select" class="rounded-md border border-input bg-background px-3 py-2 text-sm">
                                         <option value="vehicle">Group by vehicle</option>
                                         <option value="class" selected>Group by class</option>
                                         <option value="location">Group by location</option>
                                         <option value="owner">Group by owner</option>
                                     </select>
-                                    <div id="calendar-mode-toggle" class="inline-flex items-center rounded-lg border border-gray-200 bg-white p-0.5 text-xs shadow-sm">
-                                        <button type="button" data-calendar-mode="timeline" class="calendar-mode-btn px-3 py-1.5 rounded-md text-xs font-medium text-gray-600">Timeline</button>
-                                        <button type="button" data-calendar-mode="fleet" class="calendar-mode-btn px-3 py-1.5 rounded-md text-xs font-medium text-gray-600">Fleet load</button>
+                                    <div id="calendar-mode-toggle" class="inline-flex items-center rounded-lg border border-border bg-card p-0.5 text-xs shadow-sm">
+                                        <button type="button" data-calendar-mode="timeline" class="calendar-mode-btn rounded-md px-3 py-1.5 text-xs font-medium text-muted-foreground">Timeline</button>
+                                        <button type="button" data-calendar-mode="fleet" class="calendar-mode-btn rounded-md px-3 py-1.5 text-xs font-medium text-muted-foreground">Fleet load</button>
                                     </div>
-                                    <button id="fleet-calendar-filter-toggle" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">Filters</button>
+                                    <button id="fleet-calendar-filter-toggle" class="rounded-md border border-border bg-card px-4 py-2 text-sm font-medium text-foreground hover:bg-muted">Filters</button>
                                 </div>
                                 <div class="space-y-4">
-                                    <div id="fleet-calendar-filter-panel" class="hidden rounded-xl border border-gray-200 bg-white p-4">
+                                    <div id="fleet-calendar-filter-panel" class="hidden rounded-xl border border-border bg-card p-4">
                                         <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                                             <div>
                                                 <label class="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wide">Events</label>
