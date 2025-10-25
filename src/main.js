@@ -305,20 +305,13 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       return input.value || '';
     };
-    const baseAmount = Number.parseFloat(getField('baseAmount')) || 0;
-    const addonsAmount = Number.parseFloat(getField('addonsAmount')) || 0;
-    const feesAmount = Number.parseFloat(getField('feesAmount')) || 0;
-    const discountsAmount = Number.parseFloat(getField('discountsAmount')) || 0;
+    const rentalAmount = Number.parseFloat(getField('rentalAmount')) || 0;
     return {
       startDate: getField('startDate'),
       startTime: getField('startTime') || '00:00',
       endDate: getField('endDate'),
       endTime: getField('endTime') || '00:00',
-      baseAmount,
-      addonsAmount,
-      feesAmount,
-      discountsAmount,
-      maintenanceSlot: Boolean(getField('maintenanceSlot')),
+      rentalAmount,
       notes: getField('notes')
     };
   };
@@ -329,7 +322,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!values) return null;
     const start = parseDateTimeLocal(values.startDate, values.startTime);
     const end = parseDateTimeLocal(values.endDate, values.endTime);
-    const totalRaw = values.baseAmount + values.addonsAmount + values.feesAmount - values.discountsAmount;
+    const totalRaw = values.rentalAmount;
     const total = totalRaw > 0 ? totalRaw : 0;
     const totalEl = planner.querySelector('[data-role="extension-total"]');
     if (totalEl) totalEl.textContent = formatCurrency(total);
@@ -340,7 +333,7 @@ document.addEventListener('DOMContentLoaded', () => {
       endPreview.textContent = end ? formatDateLabel(end) : '—';
     }
     const conflictEl = planner.querySelector('.extension-conflict-alert');
-    const conflict = detectExtensionConflicts(booking, start, end, { maintenanceSlot: values.maintenanceSlot });
+    const conflict = detectExtensionConflicts(booking, start, end);
     if (conflictEl) {
       if (conflict.messages.length) {
         conflictEl.innerHTML = `<ul class="list-disc pl-4 space-y-1">${conflict.messages.map(item => `<li>${escapeHtml(item.text)}</li>`).join('')}</ul>`;
@@ -2770,6 +2763,45 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
+    const ratingSubmitBtn = e.target.closest('.sales-rating-submit');
+    if (ratingSubmitBtn) {
+      if (appState.currentRole !== 'ceo') {
+        showToast('Only CEO can share this rating', 'error');
+        return;
+      }
+      const bookingId = ratingSubmitBtn.dataset.bookingId || getBookingIdFromElement(ratingSubmitBtn);
+      const booking = bookingId ? findBookingById(bookingId) : null;
+      if (!booking) {
+        showToast('Booking not found', 'error');
+        return;
+      }
+      const controlsContainer = ratingSubmitBtn.closest('[data-booking-id]');
+      const ratingInput = controlsContainer?.querySelector('.sales-rating-input');
+      const commentInput = controlsContainer?.querySelector('.sales-rating-comment');
+      const rawValue = Number(ratingInput?.value);
+      if (!Number.isFinite(rawValue)) {
+        showToast('Select score between 1 and 10', 'error');
+        return;
+      }
+      const normalizedRating = Math.min(10, Math.max(1, Math.round(rawValue)));
+      const feedback = (commentInput?.value || '').trim();
+      booking.salesService = booking.salesService || {};
+      booking.salesService.rating = normalizedRating;
+      booking.salesService.feedback = feedback;
+      booking.salesService.ratedBy = appState.currentRole;
+      booking.salesService.ratedAt = new Date().toISOString();
+      booking.history = booking.history || [];
+      booking.history.push({
+        ts: new Date().toISOString().slice(0, 16).replace('T', ' '),
+        event: `Sales service rated ${normalizedRating}/10 by CEO`
+      });
+      showToast('Sales team notified about the rating', 'success');
+      router();
+      renderKanbanBoard();
+      renderAnalyticsPage();
+      return;
+    }
+
     const confirmExtensionBtn = e.target.closest('.extension-confirm-btn');
     if (confirmExtensionBtn) {
       const planner = confirmExtensionBtn.closest('.extension-planner');
@@ -2829,10 +2861,10 @@ document.addEventListener('DOMContentLoaded', () => {
         createdBy: 'operations',
         note: values.notes,
         pricing: {
-          base: values.baseAmount,
-          addons: values.addonsAmount,
-          fees: values.feesAmount,
-          discounts: values.discountsAmount,
+          base: values.rentalAmount,
+          addons: 0,
+          fees: 0,
+          discounts: 0,
           currency,
           total
         },
@@ -3043,7 +3075,22 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   const plannerEventHandler = (event) => handlePlannerChange(event.target);
-  bookingDetailContent?.addEventListener('input', plannerEventHandler);
+  const bookingDetailInputHandler = (event) => {
+    const target = event.target;
+    if (!target || typeof target.closest !== 'function') {
+      return;
+    }
+    handlePlannerChange(target);
+    if (target.classList?.contains('sales-rating-input')) {
+      const wrapper = target.closest('[data-booking-id]');
+      const preview = wrapper?.querySelector('[data-role="sales-rating-value"]');
+      if (preview) {
+        const numericValue = Math.min(10, Math.max(1, Math.round(Number(target.value) || 0)));
+        preview.textContent = `${numericValue}/10`;
+      }
+    }
+  };
+  bookingDetailContent?.addEventListener('input', bookingDetailInputHandler);
   bookingDetailContent?.addEventListener('change', plannerEventHandler);
 
   if (pageActionButton) {

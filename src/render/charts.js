@@ -159,6 +159,33 @@ const getBookingSourcesBreakdown = (bookings) => {
     .sort((a, b) => b.share - a.share);
 };
 
+const getSalesRatingStats = (bookings) => {
+  if (!bookings.length) {
+    return { average: null, count: 0, coverage: 0, lastUpdated: null };
+  }
+  const ratedEntries = bookings
+    .map(booking => {
+      const rating = Number(booking.salesService?.rating);
+      const ratedAt = booking.salesService?.ratedAt ? new Date(booking.salesService.ratedAt) : null;
+      return { rating, ratedAt };
+    })
+    .filter(entry => Number.isFinite(entry.rating) && entry.rating > 0);
+  if (!ratedEntries.length) {
+    return { average: null, count: 0, coverage: 0, lastUpdated: null };
+  }
+  const summed = ratedEntries.reduce((sum, entry) => sum + entry.rating, 0);
+  const lastUpdated = ratedEntries
+    .map(entry => entry.ratedAt)
+    .filter(date => date instanceof Date && !Number.isNaN(date.getTime()))
+    .sort((a, b) => b.getTime() - a.getTime())[0] || null;
+  return {
+    average: summed / ratedEntries.length,
+    count: ratedEntries.length,
+    coverage: ratedEntries.length / bookings.length,
+    lastUpdated
+  };
+};
+
 const bindAnalyticsFilters = () => {
   if (analyticsFiltersBound) return;
   const rangeSelect = document.getElementById('analytics-range');
@@ -221,6 +248,25 @@ export const renderAnalyticsPage = () => {
 
   const rangeBounds = resolveAnalyticsRange(range, dateFrom, dateTo);
   const bookings = getFilteredBookings(rangeBounds, segment, vehicleClass);
+  const ratingStats = getSalesRatingStats(bookings);
+  const ratingValueEl = document.getElementById('analytics-average-rating');
+  if (ratingValueEl) {
+    ratingValueEl.textContent = ratingStats.count
+      ? `${ratingStats.average.toFixed(1)}/10`
+      : '—';
+  }
+  const ratingCaptionEl = document.getElementById('analytics-rating-caption');
+  if (ratingCaptionEl) {
+    ratingCaptionEl.textContent = ratingStats.count
+      ? `${ratingStats.count} rated bookings (${Math.round(ratingStats.coverage * 100)}% coverage)`
+      : 'No ratings in the selected range yet';
+  }
+  const ratingUpdatedEl = document.getElementById('analytics-rating-updated');
+  if (ratingUpdatedEl) {
+    ratingUpdatedEl.textContent = ratingStats.lastUpdated
+      ? `Last update ${dateTimeFormatter.format(ratingStats.lastUpdated)}`
+      : 'Waiting for first score';
+  }
   const managerData = getManagerRevenueBreakdown(bookings);
   const managerLabels = managerData.map(item => item.ownerName);
   const managerValues = managerData.map(item => item.revenue);

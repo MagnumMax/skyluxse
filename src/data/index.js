@@ -952,7 +952,9 @@ export const ROLES_CONFIG = {
     nav: [
       { id: 'dashboard', name: 'Dashboard', icon: 'layoutDashboard' },
       { id: 'reports', name: 'Reports', icon: 'fileText' },
-      { id: 'analytics', name: 'Analytics', icon: 'chart' }
+      { id: 'analytics', name: 'Analytics', icon: 'chart' },
+      { id: 'bookings', name: 'Bookings', icon: 'kanban' },
+      { id: 'fleet-calendar', name: 'Fleet Calendar', icon: 'calendar' }
     ],
     permissions: {
       canAssignDrivers: false,

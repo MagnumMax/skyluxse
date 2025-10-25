@@ -24,6 +24,12 @@ export const bookings = [
     channel: 'Kommo',
     ownerId: 'anna',
     segment: 'Resident',
+    salesService: {
+      rating: 9,
+      feedback: 'Handled VIP extension proactively, client praised speed.',
+      ratedBy: 'ceo',
+      ratedAt: '2025-10-12T18:45:00Z'
+    },
     pickupLocation: 'SkyLuxse HQ',
     dropoffLocation: 'Burj Khalifa Residences',
     targetTime: Date.parse('2025-10-13T08:30:00Z'),
@@ -106,6 +112,12 @@ export const bookings = [
     channel: 'Website',
     ownerId: 'max',
     segment: 'Tourist',
+    salesService: {
+      rating: 6,
+      feedback: 'Need clearer updates before pickup, otherwise ok.',
+      ratedBy: 'ceo',
+      ratedAt: '2025-10-11T20:10:00Z'
+    },
     pickupLocation: 'Dubai Marina Mall',
     dropoffLocation: 'Dubai Marina Mall',
     targetTime: Date.parse('2025-10-13T10:30:00Z'),
@@ -150,6 +162,12 @@ export const bookings = [
     channel: 'Instagram Ads',
     ownerId: 'sara',
     segment: 'Business Traveller',
+    salesService: {
+      rating: 4,
+      feedback: 'Client escalated twice about route confirmation delays.',
+      ratedBy: 'ceo',
+      ratedAt: '2025-10-15T11:05:00Z'
+    },
     pickupLocation: 'Dubai International Airport',
     dropoffLocation: 'SkyLuxse HQ',
     targetTime: Date.parse('2025-10-14T07:30:00Z'),

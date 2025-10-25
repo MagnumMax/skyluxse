@@ -1,5 +1,5 @@
 import { MOCK_DATA, CALENDAR_EVENT_TYPES, BOOKING_STATUS_PHASES, BOOKING_STATUS_STAGE_MAP, getClientById } from '/src/data/index.js';
-import { appState, getStartOfWeek } from '/src/state/appState.js';
+import { appState } from '/src/state/appState.js';
 import { buildHash } from '/src/state/navigation.js';
 import { showToast } from '/src/ui/toast.js';
 import { getIcon } from '/src/ui/icons.js';
@@ -110,6 +110,47 @@ const triggerRouter = () => {
 const getViewConfig = (mode) => VIEW_CONFIG[mode] || VIEW_CONFIG.week;
 
 const DAY_IN_MS = 86400000;
+const MONTH_LABELS = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
+
+const formatDateKey = (date) => {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return '';
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const parseDateKey = (key) => {
+  if (!key) return new Date();
+  const [year, month, day] = key.split('-').map(Number);
+  return new Date(
+    Number.isFinite(year) ? year : 1970,
+    Number.isFinite(month) ? month - 1 : 0,
+    Number.isFinite(day) ? day : 1
+  );
+};
+
+const getCalendarTodayKey = () => appState.calendarTodayOverride || formatDateKey(new Date());
+const getCalendarTodayDate = () => parseDateKey(getCalendarTodayKey());
+
+const buildMonthSegments = (dates) => {
+  if (!Array.isArray(dates) || !dates.length) return [];
+  return dates.reduce((segments, date) => {
+    const key = `${date.getFullYear()}-${date.getMonth()}`;
+    if (segments.length && segments[segments.length - 1].key === key) {
+      segments[segments.length - 1].length += 1;
+      return segments;
+    }
+    segments.push({
+      key,
+      length: 1,
+      label: `${MONTH_LABELS[date.getMonth()]} ${date.getFullYear()}`
+    });
+    return segments;
+  }, []);
+};
+
+const formatPercent = (value) => (Number.isFinite(value) ? value.toFixed(4) : '0');
 
 const getEventOverlapMs = (event, rangeStart, rangeEndExclusive) => {
   const start = new Date(event.start);
@@ -385,33 +426,16 @@ const openCalendarDrawer = (eventData, { preserveHighlight = false } = {}) => {
   }
 };
 
-const calculateStartForToday = () => {
-  const view = appState.filters.calendar.view || 'week';
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  if (view === '3-day') {
-    return today.toISOString().slice(0, 10);
-  }
-  if (view === 'month') {
-    const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-    return firstOfMonth.toISOString().slice(0, 10);
-  }
-  if (view === 'quarter') {
-    const quarterIndex = Math.floor(today.getMonth() / 3);
-    const firstOfQuarter = new Date(today.getFullYear(), quarterIndex * 3, 1);
-    return firstOfQuarter.toISOString().slice(0, 10);
-  }
-  return getStartOfWeek();
-};
+const calculateStartForToday = () => getCalendarTodayKey();
 
 const shiftFleetCalendarStart = (direction) => {
   const viewCfg = getViewConfig(appState.filters.calendar.view);
   const step = viewCfg.step || 7;
   const base = appState.calendarStart
-    ? new Date(`${appState.calendarStart}T00:00:00`)
-    : new Date();
+    ? parseDateKey(appState.calendarStart)
+    : getCalendarTodayDate();
   base.setDate(base.getDate() + direction * step);
-  appState.calendarStart = base.toISOString().slice(0, 10);
+  appState.calendarStart = formatDateKey(base);
   renderFleetCalendar();
 };
 
@@ -1034,7 +1058,7 @@ export const renderFleetCalendar = () => {
     appState.calendarStart = calculateStartForToday();
   }
 
-  const startDate = new Date(`${appState.calendarStart}T00:00:00`);
+  const startDate = parseDateKey(appState.calendarStart);
   const endDate = new Date(startDate);
   endDate.setDate(endDate.getDate() + viewCfg.days - 1);
   const rangeEndExclusive = new Date(endDate);
@@ -1044,7 +1068,13 @@ export const renderFleetCalendar = () => {
   const totalRangeMs = viewCfg.days * DAY_IN_MS;
   const firstColWidth = 260;
   const columnsStyle = `grid-template-columns: ${firstColWidth}px repeat(${viewCfg.days}, minmax(110px, 1fr));`;
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayKey = getCalendarTodayKey();
+  const todayIndex = dates.findIndex(date => formatDateKey(date) === todayKey);
+  const dayWidthPercent = (DAY_IN_MS / totalRangeMs) * 100;
+  const todayLeftPercent = todayIndex >= 0
+    ? ((dates[todayIndex] - startDate) / totalRangeMs) * 100
+    : null;
+  const monthSegments = buildMonthSegments(dates);
 
   const viewSelect = document.getElementById('calendar-view-select');
   if (viewSelect) viewSelect.value = viewMode;
@@ -1158,22 +1188,50 @@ export const renderFleetCalendar = () => {
     }
   });
 
-  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const dayNames = ['ВС', 'ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ'];
+
+  const monthHeaderCells = monthSegments.length
+    ? monthSegments.map(segment => `
+                <div class="px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-gray-500 border-l border-gray-200 bg-gray-50/60"
+                     style="grid-column: span ${segment.length} / span ${segment.length};">
+                    ${segment.label}
+                </div>
+            `).join('')
+    : dates.map(() => '<div class="px-3 py-1 text-[11px] text-gray-400 border-l border-gray-100 bg-gray-50/60">—</div>').join('');
 
   const headerCells = dates.map(date => {
     const label = `${dayNames[date.getDay()]} ${date.getDate()}`;
-    const dateStr = date.toISOString().slice(0, 10);
-    const highlight = dateStr === todayStr ? 'text-indigo-600 font-semibold' : 'text-gray-500';
-    return `<div class="px-3 py-2 text-xs font-medium uppercase tracking-wide ${highlight}">${label}</div>`;
+    const dateStr = formatDateKey(date);
+    const isToday = dateStr === todayKey;
+    const highlightClass = isToday ? 'calendar-day-header-today text-indigo-700' : 'text-gray-500';
+    return `<div class="calendar-day-header px-3 py-2 text-xs font-semibold uppercase tracking-wide ${highlightClass}" data-date="${dateStr}">
+                ${label}
+            </div>`;
   }).join('');
 
-  const headerHtml = `
-        <div class="grid border border-gray-200 bg-white sticky top-0 z-10" style="${columnsStyle}">
-            <div class="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-600 border-r border-gray-200 flex items-center gap-2">
+  const monthHeaderHtml = `
+        <div class="grid border border-b-0 border-gray-200 bg-white" style="${columnsStyle}">
+            <div class="px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-gray-500 border-r border-gray-200 bg-white">
+                Период
+            </div>
+            ${monthHeaderCells}
+        </div>
+    `;
+
+  const dayHeaderHtml = `
+        <div class="grid border border-gray-200 border-t-0 bg-white" style="${columnsStyle}">
+            <div class="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-600 border-r border-gray-200 flex items-center gap-2 bg-white">
                 ${getIcon('car', 'w-4 h-4')}
                 Vehicle
             </div>
             ${headerCells}
+        </div>
+    `;
+
+  const headerHtml = `
+        <div class="sticky top-0 z-10 space-y-[1px] bg-white">
+            ${monthHeaderHtml}
+            ${dayHeaderHtml}
         </div>
     `;
 
@@ -1270,9 +1328,10 @@ export const renderFleetCalendar = () => {
         : '';
 
       const dateCells = dates.map(date => {
-        const dateStr = date.toISOString().slice(0, 10);
-        const highlight = dateStr === todayStr ? 'bg-indigo-50/80' : 'bg-gray-50';
-        return `<div class="h-16 border-l border-gray-100 ${highlight}"></div>`;
+        const dateStr = formatDateKey(date);
+        const isToday = dateStr === todayKey;
+        const highlight = isToday ? 'calendar-day-cell-today' : '';
+        return `<div class="calendar-day-cell ${highlight}" data-date="${dateStr}"></div>`;
       }).join('');
 
       const rowStyle = `${columnsStyle}${attentionCarIds.has(car.id) ? ' box-shadow: inset 4px 0 0 rgba(244, 114, 182, 0.25);' : ''}`;

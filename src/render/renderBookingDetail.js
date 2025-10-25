@@ -1,8 +1,9 @@
-import { MOCK_DATA, getClientById } from '/src/data/index.js';
+import { MOCK_DATA, getClientById, ROLES_CONFIG } from '/src/data/index.js';
 import { appState } from '/src/state/appState.js';
 import { buildHash } from '/src/state/navigation.js';
 import { formatCurrency, formatDateTime, formatRelativeTime, formatDateLabel } from '/src/render/formatters.js';
 import { getIcon } from '/src/ui/icons.js';
+import { getSalesRatingMeta } from '/src/render/utils.js';
 
 const escapeHtml = (value) => {
   return String(value ?? '')
@@ -82,6 +83,40 @@ export const renderBookingDetail = (id) => {
     const parsed = new Date(`${normalized.length === 16 ? `${normalized}:00` : normalized}`);
     return Number.isNaN(parsed.getTime()) ? null : parsed;
   };
+
+  const salesService = booking.salesService || {};
+  const ratingMeta = getSalesRatingMeta(salesService.rating);
+  const ratingCommentRaw = (salesService.feedback || '').trim();
+  const ratingComment = ratingCommentRaw || 'No comment shared yet.';
+  const ratingUpdatedDate = salesService.ratedAt ? parseLooseDateTime(salesService.ratedAt) : null;
+  const ratingUpdatedLabel = ratingUpdatedDate ? formatDateLabel(ratingUpdatedDate) : '—';
+  const ratedByRoleId = salesService.ratedBy || '';
+  const ratedByLabel = ratedByRoleId
+    ? (ROLES_CONFIG[ratedByRoleId]?.label || ratedByRoleId)
+    : 'CEO';
+  const isCeo = appState.currentRole === 'ceo';
+  const ratingInputDefault = Math.min(10, Math.max(1, ratingMeta.value || 8));
+  const ratingLiveLabel = ratingMeta.value ? `${ratingMeta.value}/10` : `${ratingInputDefault}/10`;
+  const ratingUpdatedCopy = ratingUpdatedLabel !== '—'
+    ? `Updated ${ratingUpdatedLabel}`
+    : 'Awaiting first score';
+  const ratingOwnerCopy = ratingUpdatedLabel !== '—' && ratedByLabel
+    ? `by ${ratedByLabel}`
+    : '';
+  const salesRatingControls = isCeo
+    ? `
+            <div class="mt-4 space-y-3" data-booking-id="${bookingIdAttr}">
+                <label class="block text-xs font-medium text-gray-500 uppercase tracking-wide">Adjust score</label>
+                <input type="range" min="1" max="10" value="${ratingInputDefault}" class="sales-rating-input w-full accent-indigo-600" aria-label="Sales service rating">
+                <div class="flex items-center justify-between text-xs text-gray-500">
+                    <span>Selected score</span>
+                    <span class="text-sm font-semibold text-gray-900" data-role="sales-rating-value">${ratingLiveLabel}</span>
+                </div>
+                <textarea class="sales-rating-comment w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-200" rows="3" placeholder="Short note for sales">${escapeHtml(ratingCommentRaw)}</textarea>
+                <button type="button" class="geist-button geist-button-primary text-sm sales-rating-submit" data-booking-id="${bookingIdAttr}">Share with sales</button>
+            </div>
+        `
+    : '';
 
   const now = new Date();
   const pickupDateTime = parseDateTime(booking.startDate, booking.startTime);
@@ -163,26 +198,6 @@ export const renderBookingDetail = (id) => {
     closureState = bookingStatus === 'completed' ? 'done' : 'in-progress';
     closureCaption = bookingStatus === 'completed' ? 'Closed' : 'Awaiting return checks';
   }
-
-  const stageProgress = [
-    { id: 'documents', label: 'Documents', state: documentsState, caption: documentsCaption },
-    { id: 'payment', label: 'Payment', state: paymentState, caption: paymentCaption },
-    { id: 'preparation', label: 'Preparation', state: preparationState, caption: preparationCaption },
-    { id: 'handover', label: 'Handover', state: handoverState, caption: handoverCaption },
-    { id: 'closure', label: 'Closure', state: closureState, caption: closureCaption }
-  ];
-
-  const currentStage = stageProgress.find(stage => stage.state !== 'done') || stageProgress[stageProgress.length - 1];
-
-  const stageProgressHtml = currentStage
-    ? `
-                        <div class="inline-flex flex-col md:flex-row md:items-center gap-1 md:gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs">
-                            <span class="font-semibold text-slate-700 uppercase tracking-wide">Current stage:</span>
-                            <span class="font-medium text-slate-900">${escapeHtml(currentStage.label)}</span>
-                            ${currentStage.caption ? `<span class="text-slate-500">· ${escapeHtml(currentStage.caption)}</span>` : ''}
-                        </div>
-                    `
-    : '';
 
   const pickupMeta = (() => {
     if (!pickupDateTime) return null;
@@ -378,11 +393,7 @@ export const renderBookingDetail = (id) => {
                             ${extensionStats.lastActiveEnd ? `<p class="text-xs text-gray-500">Coverage extended until ${escapeHtml(formatDateLabel(extensionStats.lastActiveEnd))}</p>` : ''}
                         </div>
                     `
-    : `
-                        <div class="rounded-lg border border-dashed border-indigo-200 bg-indigo-50/40 px-3 py-3 text-sm text-indigo-700">
-                            Extensions let you append extra rental days without touching the original invoice. Use the planner below to propose a new period.
-                        </div>
-                    `;
+    : '';
 
   const formatInputDate = (date) => {
     if (!date || Number.isNaN(date.getTime())) return '';
@@ -428,14 +439,10 @@ export const renderBookingDetail = (id) => {
   const baseDurationDays = baseDurationMs ? Math.max(Math.ceil(baseDurationMs / 86400000), 1) : 1;
   const averageDailyRate = baseDurationDays ? (booking.billing?.base || booking.totalAmount || 0) / baseDurationDays : (booking.billing?.base || 0);
   const defaultBaseAmount = Math.round(averageDailyRate || booking.billing?.base || 0);
+  const plannerDefaultAmount = Number.isFinite(Number(defaultBaseAmount)) ? Number(defaultBaseAmount) : 0;
   const lastExtension = sortedExtensions.length ? sortedExtensions[sortedExtensions.length - 1] : null;
-  const defaultAddonsAmount = Number(lastExtension?.pricing?.addons ?? booking.billing?.addons ?? 0) || 0;
-  const defaultFeesAmount = Number(lastExtension?.pricing?.fees ?? 0) || 0;
-
-  const plannerBaseAmount = Number.isFinite(Number(defaultBaseAmount)) ? Number(defaultBaseAmount) : 0;
-  const plannerAddonsAmount = Number.isFinite(Number(defaultAddonsAmount)) ? Number(defaultAddonsAmount) : 0;
-  const plannerFeesAmount = Number.isFinite(Number(defaultFeesAmount)) ? Number(defaultFeesAmount) : 0;
-  const plannerTotalAmount = plannerBaseAmount + plannerAddonsAmount + plannerFeesAmount;
+  const lastExtensionTotal = Number(lastExtension?.pricing?.total ?? lastExtension?.pricing?.amount ?? 0) || 0;
+  const plannerRentalAmount = lastExtensionTotal > 0 ? Math.round(lastExtensionTotal) : plannerDefaultAmount;
 
   const extensionPlannerHtml = `
                         <div class="extension-planner hidden rounded-xl border border-dashed border-indigo-200 bg-indigo-50/40 p-4" data-booking-id="${bookingIdAttr}">
@@ -466,44 +473,26 @@ export const renderBookingDetail = (id) => {
                                     <input type="time" class="extension-input w-full rounded-md border border-gray-300 px-3 py-2 text-sm" data-extension-field="endTime" value="${escapeHtml(plannerDefaults.endTime)}">
                                 </label>
                             </div>
-                            <div class="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                            <div class="mt-4">
                                 <label class="space-y-1 text-xs font-medium text-gray-600">
-                                    <span>Base amount</span>
-                                    <input type="number" min="0" step="1" class="extension-input w-full rounded-md border border-gray-300 px-3 py-2 text-sm" data-extension-field="baseAmount" value="${escapeHtml(String(plannerBaseAmount || ''))}">
-                                </label>
-                                <label class="space-y-1 text-xs font-medium text-gray-600">
-                                    <span>Add-ons</span>
-                                    <input type="number" min="0" step="1" class="extension-input w-full rounded-md border border-gray-300 px-3 py-2 text-sm" data-extension-field="addonsAmount" value="${escapeHtml(String(plannerAddonsAmount || ''))}">
-                                </label>
-                                <label class="space-y-1 text-xs font-medium text-gray-600">
-                                    <span>Fees</span>
-                                    <input type="number" min="0" step="1" class="extension-input w-full rounded-md border border-gray-300 px-3 py-2 text-sm" data-extension-field="feesAmount" value="${escapeHtml(String(plannerFeesAmount || ''))}">
-                                </label>
-                                <label class="space-y-1 text-xs font-medium text-gray-600">
-                                    <span>Discounts</span>
-                                    <input type="number" min="0" step="1" class="extension-input w-full rounded-md border border-gray-300 px-3 py-2 text-sm" data-extension-field="discountsAmount" value="0">
+                                    <span>Rental amount</span>
+                                    <input type="number" min="0" step="1" class="extension-input w-full rounded-md border border-gray-300 px-3 py-2 text-sm" data-extension-field="rentalAmount" value="${escapeHtml(String(plannerRentalAmount || ''))}">
                                 </label>
                             </div>
                             <div class="mt-3 rounded-lg border border-indigo-100 bg-white px-3 py-3 text-sm text-gray-700">
                                 <div class="grid gap-3 sm:grid-cols-3">
                                     <div>
                                         <p class="text-xs font-medium text-gray-500">Total</p>
-                                        <p class="text-sm font-semibold text-gray-900" data-role="extension-total">${formatCurrency(plannerTotalAmount)}</p>
+                                        <p class="text-sm font-semibold text-gray-900" data-role="extension-total">${formatCurrency(plannerRentalAmount)}</p>
                                     </div>
                                     <div>
                                         <p class="text-xs font-medium text-gray-500">Outstanding</p>
-                                        <p class="text-sm font-semibold text-amber-600" data-role="extension-outstanding">${formatCurrency(plannerTotalAmount)}</p>
+                                        <p class="text-sm font-semibold text-amber-600" data-role="extension-outstanding">${formatCurrency(plannerRentalAmount)}</p>
                                     </div>
                                     <div>
                                         <p class="text-xs font-medium text-gray-500">New end date</p>
                                         <p class="text-sm font-semibold text-gray-900" data-role="extension-end-preview">${plannerDefaults.endDate ? escapeHtml(`${plannerDefaults.endDate} ${plannerDefaults.endTime}`.trim()) : '—'}</p>
                                     </div>
-                                </div>
-                                <div class="mt-3 flex items-center gap-2 text-xs">
-                                    <label class="inline-flex items-center gap-2 text-gray-600">
-                                        <input type="checkbox" class="extension-input h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" data-extension-field="maintenanceSlot">
-                                        <span>Insert maintenance buffer if gap detected</span>
-                                    </label>
                                 </div>
                             </div>
                             <div class="mt-4 space-y-3">
@@ -513,8 +502,7 @@ export const renderBookingDetail = (id) => {
                                 </label>
                                 <div class="extension-conflict-alert hidden rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700" data-role="conflict"></div>
                             </div>
-                            <div class="mt-4 flex flex-wrap justify-between gap-3">
-                                <p class="text-xs text-gray-500">Extension will create a separate invoice; base booking totals stay unchanged.</p>
+                            <div class="mt-4 flex flex-wrap justify-end gap-3">
                                 <div class="flex flex-wrap gap-2">
                                     <button type="button" class="geist-button geist-button-secondary text-sm extension-planner-cancel">Cancel</button>
                                     <button type="button" class="geist-button geist-button-primary text-sm extension-confirm-btn" data-booking-id="${bookingIdAttr}">Confirm extension</button>
@@ -615,23 +603,23 @@ export const renderBookingDetail = (id) => {
                     `;
 
   const extensionSectionHtml = `
-                                    <div class="geist-card p-4 border border-gray-200 rounded-xl">
-                                        <div class="flex flex-wrap items-center justify-between gap-3">
-                                            <div>
-                                                <h3 class="font-semibold text-gray-800">Extensions</h3>
-                                                <p class="text-xs text-gray-500">Manage add-on rental periods without altering the base booking.</p>
+                                        <div class="mt-6 border-t border-gray-100 pt-5 space-y-4">
+                                            <div class="flex flex-wrap items-center justify-between gap-3">
+                                                <div>
+                                                    <h3 class="font-semibold text-gray-800">Extensions</h3>
+                                                    <p class="text-xs text-gray-500">Manage add-on rental periods without altering the base booking.</p>
+                                                </div>
+                                                <button type="button" class="geist-button geist-button-primary text-sm inline-flex items-center gap-2 booking-extend-btn" data-booking-id="${bookingIdAttr}">
+                                                    ${getIcon('calendar', 'w-4 h-4')}
+                                                    <span>Extend booking</span>
+                                                </button>
                                             </div>
-                                            <button type="button" class="geist-button geist-button-primary text-sm inline-flex items-center gap-2 booking-extend-btn" data-booking-id="${bookingIdAttr}">
-                                                ${getIcon('calendar', 'w-4 h-4')}
-                                                <span>Extend booking</span>
-                                            </button>
+                                            <div class="space-y-4">
+                                                ${extensionSummaryHtml}
+                                                ${extensionPlannerHtml}
+                                                ${extensionListHtml}
+                                            </div>
                                         </div>
-                                        <div class="mt-4 space-y-4">
-                                            ${extensionSummaryHtml}
-                                            ${extensionPlannerHtml}
-                                            ${extensionListHtml}
-                                        </div>
-                                    </div>
                                 `;
 
   const depositStatus = booking.deposit ? 'Not captured' : '—';
@@ -745,22 +733,6 @@ export const renderBookingDetail = (id) => {
   const returnFuelValue = formatFuelValue(booking.returnFuel ?? booking.fuelLevel ?? booking.fuelLevelAtReturn);
 
 
-  const documentButtons = Array.isArray(booking.documents) && booking.documents.length
-    ? booking.documents.map(doc => {
-      const thumb = typeof doc === 'string' ? doc : doc.url;
-      const label = typeof doc === 'string' ? 'Document' : (doc.name || doc.type || 'Document');
-      if (!thumb) {
-        return `<span class="inline-flex items-center px-2 py-1 text-xs rounded-md bg-gray-100 text-gray-600 border border-gray-200">${escapeHtml(label)}</span>`;
-      }
-      return `
-                            <button class="doc-image relative group">
-                                <img src="${thumb}" alt="Document preview" class="w-28 h-20 object-cover rounded-md border border-gray-200">
-                                <span class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white text-xs">${escapeHtml(label)}</span>
-                            </button>
-                        `;
-    }).join('')
-    : '<p class="text-xs text-gray-500">No documents uploaded</p>';
-
   const content = `
                     <div class="p-6 border-b bg-slate-50/40" data-booking-id="${bookingIdAttr}">
                         <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
@@ -773,10 +745,6 @@ export const renderBookingDetail = (id) => {
                             </div>
                             <div class="space-y-3 text-right">
                                 <div class="flex flex-wrap justify-end gap-2">
-                                    <button type="button" class="geist-button geist-button-primary text-sm inline-flex items-center gap-2 booking-extend-btn" data-booking-id="${bookingIdAttr}">
-                                        ${getIcon('calendar', 'w-4 h-4')}
-                                        <span>Extend booking</span>
-                                    </button>
                                     <button type="button" class="geist-button geist-button-secondary text-sm inline-flex items-center gap-2 booking-edit-btn" data-booking-id="${bookingIdAttr}">
                                         ${getIcon('edit', 'w-4 h-4')}
                                         <span>Редактировать букинг</span>
@@ -790,13 +758,12 @@ export const renderBookingDetail = (id) => {
                                 ${pickupMeta ? `<div class="inline-flex max-w-xs flex-wrap items-center justify-end gap-2 rounded-lg px-3 py-2 text-xs font-medium ${pickupMeta.tone}"><span>Pickup ${escapeHtml(pickupMeta.relative || '')}</span><span class="text-[11px] opacity-70">${escapeHtml(pickupMeta.absolute)}</span></div>` : ''}
                             </div>
                         </div>
-                        <div class="mt-5 border-t border-slate-200 pt-4 overflow-x-auto">${stageProgressHtml}</div>
                     </div>
-                    <div class="p-6 space-y-6">
-                        <div class="space-y-6 max-w-5xl mx-auto">
-                            <div class="grid gap-6 lg:grid-cols-3">
-                                <div class="lg:col-span-2 space-y-6">
-                                    <div class="geist-card p-4 border border-gray-200 rounded-xl">
+                    <div class="p-6">
+                        <div class="max-w-6xl mx-auto">
+                            <div class="grid gap-6 xl:grid-cols-12">
+                                <div class="xl:col-span-7">
+                                    <div class="geist-card p-4 border border-gray-200 rounded-xl h-full">
                                         <h3 class="font-semibold text-gray-800 mb-4">Timeline & logistics</h3>
                                         <div class="grid gap-4 md:grid-cols-2 text-sm text-gray-600">
                                             <div>
@@ -835,15 +802,11 @@ export const renderBookingDetail = (id) => {
                                         <div class="mt-5 space-y-3">
                                             ${operationalTimeline}
                                         </div>
-                                    </div>
-                                    ${extensionSectionHtml}
-                                    <div class="geist-card p-4 border border-gray-200 rounded-xl">
-                                        <h3 class="font-semibold text-gray-800 mb-4">Documents</h3>
-                                        <div class="flex flex-wrap gap-3">${documentButtons}</div>
+                                        ${extensionSectionHtml}
                                     </div>
                                 </div>
-                                <div class="space-y-6">
-                                    <div class="geist-card p-4 border border-gray-200 rounded-xl">
+                                <div class="xl:col-span-5">
+                                    <div class="geist-card p-4 border border-gray-200 rounded-xl h-full">
                                         <div class="flex items-center justify-between mb-3 gap-3">
                                             <h3 class="font-semibold text-gray-800">Client</h3>
                                             ${clientDetailLink}
@@ -878,52 +841,79 @@ export const renderBookingDetail = (id) => {
                                             </div>
                                         </div>
                                     </div>
+                                </div>
+                                <div class="xl:col-span-12">
                                     <div class="geist-card p-4 border border-gray-200 rounded-xl">
                                         <h3 class="font-semibold text-gray-800 mb-3">Payments</h3>
-                                        <div class="space-y-4 text-sm text-gray-600">
-                                            <div class="grid gap-2 sm:grid-cols-3">
-                                                <div class="rounded-lg border border-gray-200 px-3 py-2">
-                                                    <p class="text-xs uppercase tracking-wide text-gray-500">Paid</p>
-                                                    <p class="text-base font-semibold text-gray-900 mt-1">${formatCurrency(booking.paidAmount)}</p>
+                                        <div class="flex flex-col gap-6 lg:flex-row lg:items-start">
+                                            <div class="flex-1 space-y-4 text-sm text-gray-600">
+                                                <div class="grid gap-3 md:grid-cols-3">
+                                                    <div class="rounded-lg border border-gray-200 px-3 py-2">
+                                                        <p class="text-xs uppercase tracking-wide text-gray-500">Paid</p>
+                                                        <p class="text-base font-semibold text-gray-900 mt-1">${formatCurrency(booking.paidAmount)}</p>
+                                                    </div>
+                                                    <div class="rounded-lg border border-gray-200 px-3 py-2">
+                                                        <p class="text-xs uppercase tracking-wide text-gray-500">Outstanding</p>
+                                                        <p class="text-base font-semibold ${dueAmount > 0 ? 'text-amber-600' : 'text-emerald-600'} mt-1">${formatCurrency(dueAmount)}</p>
+                                                    </div>
+                                                    <div class="rounded-lg border border-gray-200 px-3 py-2">
+                                                        <p class="text-xs uppercase tracking-wide text-gray-500">Deposit</p>
+                                                        <p class="text-base font-semibold text-gray-900 mt-1">${formatCurrency(booking.deposit)}</p>
+                                                        <p class="text-[11px] ${depositClass}">${escapeHtml(depositStatus)}</p>
+                                                    </div>
                                                 </div>
-                                                <div class="rounded-lg border border-gray-200 px-3 py-2">
-                                                    <p class="text-xs uppercase tracking-wide text-gray-500">Outstanding</p>
-                                                    <p class="text-base font-semibold ${dueAmount > 0 ? 'text-amber-600' : 'text-emerald-600'} mt-1">${formatCurrency(dueAmount)}</p>
-                                                </div>
-                                                <div class="rounded-lg border border-gray-200 px-3 py-2">
-                                                    <p class="text-xs uppercase tracking-wide text-gray-500">Deposit</p>
-                                                    <p class="text-base font-semibold text-gray-900 mt-1">${formatCurrency(booking.deposit)}</p>
-                                                    <p class="text-[11px] ${depositClass}">${escapeHtml(depositStatus)}</p>
+                                                <div class="rounded-lg border border-dashed border-gray-200 bg-gray-50 px-3 py-2">
+                                                    <p class="text-xs font-medium text-gray-600">Alerts</p>
+                                                    <ul class="mt-2 space-y-1">
+                                                        ${paymentAlerts.join('')}
+                                                    </ul>
                                                 </div>
                                             </div>
-                                            <div class="rounded-lg border border-dashed border-gray-200 bg-gray-50 px-3 py-2">
-                                                <p class="text-xs font-medium text-gray-600">Alerts</p>
-                                                <ul class="mt-2 space-y-1">
-                                                    ${paymentAlerts.join('')}
-                                                </ul>
-                                            </div>
-                                            <div class="pt-3 border-t">
-                                                <h4 class="font-medium text-sm text-gray-700 mb-2">Generate payment link</h4>
-                                                <div class="space-y-3">
-                                                    <input type="number" value="${Math.max(dueAmount, 0)}" placeholder="Amount" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md stripe-amount-input">
-                                                    <input type="text" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md stripe-reason-select" placeholder="Payment type">
-                                                    <button type="button" class="w-full geist-button geist-button-secondary text-sm generate-stripe-link" data-booking-id="${booking.id}">Create payment</button>
-                                                    <div id="stripe-link-result" class="hidden space-y-2">
-                                                        <div class="flex items-center justify-between bg-gray-100 rounded-md px-3 py-2 gap-3">
-                                                            <a id="stripe-link-anchor" href="#" target="_blank" rel="noopener" class="text-blue-600 hover:underline break-all flex-1">—</a>
-                                                            <button type="button" class="copy-stripe-link p-2 text-gray-500 hover:text-black rounded-md" title="Copy link">${getIcon('copy', 'w-4 h-4')}</button>
+                                            <div class="lg:w-80">
+                                                <div class="h-full rounded-lg border border-gray-200 bg-white p-4">
+                                                    <h4 class="font-medium text-sm text-gray-700 mb-3">Generate payment link</h4>
+                                                    <div class="space-y-3">
+                                                        <input type="number" value="${Math.max(dueAmount, 0)}" placeholder="Amount" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md stripe-amount-input">
+                                                        <input type="text" class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md stripe-reason-select" placeholder="Payment type">
+                                                        <button type="button" class="w-full geist-button geist-button-secondary text-sm generate-stripe-link" data-booking-id="${booking.id}">Create payment</button>
+                                                        <div id="stripe-link-result" class="hidden space-y-2">
+                                                            <div class="flex items-center justify-between bg-gray-100 rounded-md px-3 py-2 gap-3">
+                                                                <a id="stripe-link-anchor" href="#" target="_blank" rel="noopener" class="text-blue-600 hover:underline break-all flex-1">—</a>
+                                                                <button type="button" class="copy-stripe-link p-2 text-gray-500 hover:text-black rounded-md" title="Copy link">${getIcon('copy', 'w-4 h-4')}</button>
+                                                            </div>
+                                                            <p id="stripe-copy-feedback" class="text-xs text-emerald-600 hidden">Link copied</p>
                                                         </div>
-                                                        <p id="stripe-copy-feedback" class="text-xs text-emerald-600 hidden">Link copied</p>
                                                     </div>
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
+                                </div>
+                                <div class="xl:col-span-12">
                                     <div class="geist-card p-4 border border-gray-200 rounded-xl">
                                         <h3 class="font-semibold text-gray-800 mb-3">History</h3>
                                         <ul class="space-y-3">
                                             ${bookingHistoryHtml}
                                         </ul>
+                                    </div>
+                                </div>
+                                <div class="xl:col-span-12">
+                                    <div class="geist-card p-4 border border-gray-200 rounded-xl" data-booking-id="${bookingIdAttr}">
+                                        <div class="flex items-start justify-between gap-3">
+                                            <div>
+                                                <h3 class="font-semibold text-gray-800">Sales service</h3>
+                                                <p class="text-sm ${ratingMeta.toneClass}">${escapeHtml(ratingMeta.helper)}</p>
+                                            </div>
+                                            <span class="${ratingMeta.chipClass}">${ratingMeta.label}</span>
+                                        </div>
+                                        <div class="mt-4 rounded-lg border border-dashed border-gray-200 bg-gray-50/70 p-3">
+                                            <p class="text-sm text-gray-700">${escapeHtml(ratingComment)}</p>
+                                        </div>
+                                        <div class="mt-3 flex flex-wrap items-center gap-3 text-xs text-gray-500">
+                                            <span>${escapeHtml(ratingUpdatedCopy)}</span>
+                                            ${ratingOwnerCopy ? `<span>${escapeHtml(ratingOwnerCopy)}</span>` : ''}
+                                        </div>
+                                        ${salesRatingControls}
                                     </div>
                                 </div>
                             </div>

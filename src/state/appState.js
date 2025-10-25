@@ -113,10 +113,11 @@ export const appState = {
     mode: 'create',
     draftBookingId: null
   },
-  calendarStart: null // will be initialized below
+  calendarStart: null, // will be initialized below
+  calendarTodayOverride: '2025-10-25'
 };
 
-appState.calendarStart = getStartOfWeek();
+appState.calendarStart = appState.calendarTodayOverride;
 
 const salesPipeline = MOCK_DATA.salesPipeline;
 if (

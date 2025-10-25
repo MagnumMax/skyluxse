@@ -10,6 +10,7 @@ import {
 } from '/src/data/index.js';
 import { showToast } from '/src/ui/toast.js';
 import { startTimers } from '/src/render/timers.js';
+import { getSalesRatingMeta } from '/src/render/utils.js';
 
 let kanbanFiltersBound = false;
 
@@ -218,6 +219,7 @@ export const renderKanbanBoard = () => {
       const timerHtml = ['new', 'preparation', 'delivery'].includes(booking.status) && booking.targetTime
         ? `<div class="card-timer text-xs text-red-600 flex items-center" data-target-time="${booking.targetTime}"></div>`
         : '';
+      const ratingMeta = getSalesRatingMeta(booking.salesService?.rating);
       const carName = getBookingCarName(booking);
       const clientName = getBookingClientName(booking);
       return `
@@ -233,6 +235,10 @@ export const renderKanbanBoard = () => {
                             <div class="flex items-center justify-between text-xs text-gray-500">
                                 <span>${booking.startDate} → ${booking.endDate}</span>
                                 <span>${driver ? driver.name.split(' ')[0] : 'No driver'}</span>
+                            </div>
+                            <div class="flex items-center justify-between text-[11px]">
+                                <span class="text-gray-500 font-medium">Service score</span>
+                                <span class="${ratingMeta.chipClass}">${ratingMeta.label}</span>
                             </div>
                             ${timerHtml}
                         </div>`;
