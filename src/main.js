@@ -1345,6 +1345,346 @@ document.addEventListener('DOMContentLoaded', () => {
     return items.map(normalizeRequiredInputConfig).filter(Boolean);
   };
 
+  // --- TASK CREATION MODAL HELPERS ---
+  const TASK_CATEGORY_BY_TYPE = {
+    delivery: 'logistics',
+    pickup: 'logistics',
+    maintenance: 'maintenance',
+    documents: 'operations'
+  };
+
+  const formatTaskTypeLabel = (type) => {
+    if (!type) return 'Task';
+    const metaLabel = TASK_TYPES[type]?.label;
+    if (metaLabel) return metaLabel;
+    return type
+      .toString()
+      .replace(/[_-]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .replace(/\b\w/g, char => char.toUpperCase());
+  };
+
+  const collectTaskTypeOptions = () => {
+    const typeSet = new Set(Object.keys(TASK_TYPES));
+    MOCK_DATA.tasks.forEach(task => {
+      if (task?.type) {
+        typeSet.add(task.type);
+      }
+    });
+    return Array.from(typeSet).sort((a, b) => formatTaskTypeLabel(a).localeCompare(formatTaskTypeLabel(b)));
+  };
+
+  const formatDatetimeLocalValue = (value) => {
+    const date = value instanceof Date ? value : new Date(value);
+    if (!(date instanceof Date) || Number.isNaN(date.getTime())) return '';
+    const pad = (num) => String(num).padStart(2, '0');
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  };
+
+  const toDeadlineString = (inputValue) => {
+    if (!inputValue) return '';
+    const [datePart, timePart] = inputValue.split('T');
+    if (!datePart || !timePart) return '';
+    return `${datePart} ${timePart.slice(0, 5)}`;
+  };
+
+  const cloneChecklistForType = (type) => {
+    const meta = TASK_TYPES[type];
+    if (!meta?.checklist?.length) return [];
+    const stamp = Date.now().toString(36);
+    return meta.checklist.map((item, index) => ({
+      id: `chk-${stamp}-${index}`,
+      label: item.label,
+      required: Boolean(item.required),
+      completed: false
+    }));
+  };
+
+  const cloneRequiredInputsForType = (type) => {
+    const meta = TASK_TYPES[type];
+    if (!meta?.required?.length) return [];
+    return meta.required.map(config => ({ ...config }));
+  };
+
+  const buildBookingOptionLabel = (booking) => {
+    if (!booking) return '';
+    const code = booking.code || `#${booking.id}`;
+    const car = booking.carName || booking.vehicleName || booking.carModel || 'Vehicle';
+    const client = booking.clientName || booking.client?.name || 'Client';
+    const windowLabel = `${code} · ${car} · ${client}`;
+    return windowLabel;
+  };
+
+  const getBookingOptionSource = () => {
+    if (!Array.isArray(MOCK_DATA.bookings)) return [];
+    return MOCK_DATA.bookings.map(booking => {
+      const label = buildBookingOptionLabel(booking);
+      const searchable = [
+        booking.id,
+        booking.code,
+        booking.clientName,
+        booking.client?.name,
+        booking.carName,
+        booking.vehicleName,
+        booking.carModel
+      ]
+        .filter(Boolean)
+        .map(value => value.toString().toLowerCase())
+        .join(' ');
+      return { id: booking.id, label, searchable };
+    });
+  };
+
+  let taskCreateModal = null;
+  let taskCreateModalCard = null;
+  let taskModalKeydownBound = false;
+
+  const ensureTaskCreateModal = () => {
+    if (!taskCreateModal) {
+      taskCreateModal = document.createElement('div');
+      taskCreateModal.id = 'task-create-modal';
+      taskCreateModal.className = 'fixed inset-0 z-50 hidden';
+      taskCreateModal.setAttribute('role', 'dialog');
+      taskCreateModal.setAttribute('aria-modal', 'true');
+      taskCreateModal.innerHTML = `
+                <div class="modal-overlay absolute inset-0 bg-slate-900/40 backdrop-blur-sm z-0" data-task-modal-dismiss></div>
+                <div class="modal-content relative z-10 flex min-h-full items-start justify-center p-4">
+                    <div class="pointer-events-auto relative z-10 w-full max-w-2xl rounded-2xl bg-white shadow-2xl" id="task-create-modal-card"></div>
+                </div>
+            `;
+      document.body.appendChild(taskCreateModal);
+      taskCreateModalCard = taskCreateModal.querySelector('#task-create-modal-card');
+      const overlay = taskCreateModal.querySelector('[data-task-modal-dismiss]');
+      overlay?.addEventListener('click', () => {
+        closeTaskCreateModal();
+      });
+    }
+
+    if (!taskModalKeydownBound) {
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && taskCreateModal && !taskCreateModal.classList.contains('hidden')) {
+          closeTaskCreateModal();
+        }
+      });
+      taskModalKeydownBound = true;
+    }
+
+    return taskCreateModal;
+  };
+
+  const closeTaskCreateModal = () => {
+    if (!taskCreateModal) return;
+    taskCreateModal.classList.add('hidden');
+    taskCreateModal.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('overflow-hidden');
+  };
+
+  const handleTaskCreateSubmit = (formEl) => {
+    const formData = new FormData(formEl);
+    const title = (formData.get('title') || '').toString().trim();
+    if (!title) {
+      showToast('Add task title', 'error');
+      formEl.querySelector('[name="title"]')?.focus();
+      return;
+    }
+
+    const typeValue = (formData.get('type') || '').toString().trim() || 'delivery';
+    const status = 'todo';
+
+    const priorityValue = (formData.get('priority') || 'Medium').toString();
+    const normalizedPriorityKey = normalizePriorityValue(priorityValue) || 'medium';
+    const priority = normalizedPriorityKey.charAt(0).toUpperCase() + normalizedPriorityKey.slice(1);
+
+    const deadlineInputValue = (formData.get('deadline') || '').toString();
+    const deadline = toDeadlineString(deadlineInputValue);
+    if (!deadline) {
+      showToast('Set a deadline date and time', 'error');
+      formEl.querySelector('[name="deadline"]')?.focus();
+      return;
+    }
+
+    const assigneeRaw = (formData.get('assignee') || '').toString().trim();
+    const assigneeId = assigneeRaw ? Number(assigneeRaw) : null;
+    if (assigneeRaw && Number.isNaN(assigneeId)) {
+      showToast('Select a valid assignee', 'error');
+      return;
+    }
+
+    const bookingRaw = (formData.get('booking') || '').toString().trim();
+    const bookingId = bookingRaw ? Number(bookingRaw) : null;
+    if (bookingRaw && Number.isNaN(bookingId)) {
+      showToast('Booking ID must be a number', 'error');
+      formEl.querySelector('[name="booking"]')?.focus();
+      return;
+    }
+
+    const pickup = (formData.get('pickup') || '').toString().trim();
+    const dropoff = (formData.get('dropoff') || '').toString().trim();
+    const description = (formData.get('description') || '').toString().trim();
+
+    const typeMeta = TASK_TYPES[typeValue] || {};
+    const slaMinutes = typeMeta.slaMinutes || null;
+    const sla = slaMinutes
+      ? { timerMinutes: slaMinutes, startedAt: status === 'inprogress' ? new Date().toISOString() : null }
+      : null;
+
+    const newTask = {
+      id: getNextTaskId(),
+      title,
+      type: typeValue,
+      category: TASK_CATEGORY_BY_TYPE[typeValue] || 'operations',
+      assigneeId,
+      status,
+      deadline,
+      bookingId,
+      priority,
+      description: description || `${formatTaskTypeLabel(typeValue)} task created from operations board`,
+      checklist: cloneChecklistForType(typeValue),
+      requiredInputs: cloneRequiredInputsForType(typeValue),
+      geo: pickup || dropoff ? { pickup, dropoff } : null,
+      sla
+    };
+
+    MOCK_DATA.tasks.unshift(newTask);
+    closeTaskCreateModal();
+    renderTasksPage();
+    showToast('Task created', 'success');
+  };
+
+  const bindTaskCreateModalEvents = () => {
+    if (!taskCreateModal) return;
+    const form = taskCreateModal.querySelector('#task-create-form');
+    const closeBtn = taskCreateModal.querySelector('#task-create-close');
+    const cancelBtn = taskCreateModal.querySelector('#task-create-cancel');
+    closeBtn?.addEventListener('click', () => closeTaskCreateModal());
+    cancelBtn?.addEventListener('click', () => closeTaskCreateModal());
+
+    form?.addEventListener('submit', (event) => {
+      event.preventDefault();
+      handleTaskCreateSubmit(form);
+    });
+
+    form?.querySelector('[name="title"]')?.focus();
+  };
+
+  const openTaskCreateModal = () => {
+    const modal = ensureTaskCreateModal();
+    if (!modal || !taskCreateModalCard) return;
+    const typeOptions = collectTaskTypeOptions();
+    const defaultDeadline = formatDatetimeLocalValue(new Date(Date.now() + 2 * 60 * 60 * 1000));
+    const priorities = ['High', 'Medium', 'Low'];
+    const driversOptions = MOCK_DATA.drivers.map(driver => `<option value="${driver.id}">${driver.name}</option>`).join('');
+    const typeOptionsHtml = (typeOptions.length ? typeOptions : ['delivery'])
+      .map(type => `<option value="${type}">${formatTaskTypeLabel(type)}</option>`)
+      .join('');
+
+    taskCreateModalCard.innerHTML = `
+                <div class="p-6 border-b">
+                    <div class="flex items-start justify-between gap-4">
+                        <div>
+                            <h2 class="text-xl font-semibold text-gray-900">New task</h2>
+                            <p class="text-sm text-gray-500 mt-1">Create and assign a new operational task</p>
+                        </div>
+                        <button type="button" class="text-gray-400 hover:text-gray-600" id="task-create-close" aria-label="Close">
+                            ${getIcon('x', 'w-5 h-5')}
+                        </button>
+                    </div>
+                </div>
+                <form class="p-6 space-y-5" id="task-create-form">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Title</label>
+                        <input type="text" name="title" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100" placeholder="Deliver G-Wagen #1052" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Task type</label>
+                        <select name="type" id="task-create-type" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100">
+                            ${typeOptionsHtml}
+                        </select>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Priority</label>
+                            <select name="priority" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100">
+                                ${priorities.map(priority => `<option value="${priority}">${priority}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Assignee</label>
+                            <select name="assignee" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100">
+                                <option value="">Unassigned</option>
+                                ${driversOptions}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Deadline</label>
+                            <input type="datetime-local" name="deadline" value="${defaultDeadline}" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100" required>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Related booking (optional)</label>
+                            <div class="space-y-2">
+                                <input type="search" id="task-booking-search" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100" placeholder="Search by booking, client or vehicle">
+                                <select name="booking" id="task-booking-select" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100">
+                                    <option value="">Not linked</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Pickup / origin</label>
+                            <input type="text" name="pickup" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100" placeholder="SkyLuxse HQ">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Drop-off / destination</label>
+                            <input type="text" name="dropoff" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100" placeholder="Atlantis The Palm">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                        <textarea name="description" rows="3" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100" placeholder="Add special instructions or context"></textarea>
+                    </div>
+                </form>
+                <div class="p-6 border-t bg-gray-50 flex justify-end gap-3">
+                    <button type="button" class="geist-button geist-button-secondary" id="task-create-cancel">Cancel</button>
+                    <button type="submit" form="task-create-form" class="geist-button geist-button-primary">Save task</button>
+                </div>
+            `;
+
+    const bookingOptionsSource = getBookingOptionSource();
+    const bookingSearchInput = taskCreateModalCard.querySelector('#task-booking-search');
+    const bookingSelect = taskCreateModalCard.querySelector('#task-booking-select');
+    const renderBookingOptions = (query = '') => {
+      if (!bookingSelect) return;
+      const normalized = query.trim().toLowerCase();
+      const filtered = normalized
+        ? bookingOptionsSource.filter(option => option.searchable.includes(normalized))
+        : bookingOptionsSource;
+      if (!filtered.length) {
+        bookingSelect.innerHTML = '<option value="">No matches</option>';
+        bookingSelect.disabled = true;
+        return;
+      }
+      bookingSelect.disabled = false;
+      const optionsHtml = filtered
+        .slice(0, 50)
+        .map(option => `<option value="${option.id}">${escapeHtml(option.label)}</option>`)
+        .join('');
+      bookingSelect.innerHTML = `<option value="">Not linked</option>${optionsHtml}`;
+    };
+    renderBookingOptions();
+    bookingSearchInput?.addEventListener('input', (event) => {
+      renderBookingOptions(event.target.value);
+    });
+
+    modal.classList.remove('hidden');
+    modal.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('overflow-hidden');
+    bindTaskCreateModalEvents();
+  };
+
   const getTaskDeadlineMeta = (task) => {
     if (!task?.deadline) return null;
     const timestamp = new Date(task.deadline.replace(' ', 'T')).getTime();
@@ -2668,14 +3008,16 @@ document.addEventListener('DOMContentLoaded', () => {
   bookingDetailContent?.addEventListener('input', plannerEventHandler);
   bookingDetailContent?.addEventListener('change', plannerEventHandler);
 
-  pageActionButton.addEventListener('click', () => {
-    if(appState.currentPage === 'tasks') {
-      showToast('Task creation flow is not available in this demo build', 'info');
-    } else if (appState.currentPage === 'fleet-table') {
-      window.location.hash = buildHash(appState.currentRole, 'vehicle-create');
-      router();
-    }
-  });
+  if (pageActionButton) {
+    pageActionButton.addEventListener('click', () => {
+      if (appState.currentPage === 'tasks') {
+        openTaskCreateModal();
+      } else if (appState.currentPage === 'fleet-table') {
+        window.location.hash = buildHash(appState.currentRole, 'vehicle-create');
+        router();
+      }
+    });
+  }
         
   window.addEventListener('popstate', router);
   window.addEventListener('hashchange', router);
