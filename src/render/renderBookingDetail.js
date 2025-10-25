@@ -1,4 +1,4 @@
-import { MOCK_DATA } from '/src/data/index.js';
+import { MOCK_DATA, getClientById } from '/src/data/index.js';
 import { appState } from '/src/state/appState.js';
 import { buildHash } from '/src/state/navigation.js';
 import { formatCurrency, formatDateTime, formatRelativeTime, formatDateLabel } from '/src/render/formatters.js';
@@ -17,7 +17,7 @@ export const renderBookingDetail = (id) => {
   const booking = MOCK_DATA.bookings.find(b => b.id == id);
   if (!booking) return false;
 
-  const client = MOCK_DATA.clients.find(c => c.name === booking.clientName) || {};
+  const client = getClientById(booking.clientId) || {};
   const dueAmount = (booking.totalAmount || 0) - (booking.paidAmount || 0);
   const formatLocationLink = (label) => {
     if (!label) {

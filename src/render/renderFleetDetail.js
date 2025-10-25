@@ -1,4 +1,4 @@
-import { MOCK_DATA } from '/src/data/index.js';
+import { MOCK_DATA, getClientById } from '/src/data/index.js';
 import { appState } from '/src/state/appState.js';
 import { buildHash } from '/src/state/navigation.js';
 import { formatCurrency } from '/src/render/formatters.js';
@@ -169,6 +169,8 @@ export const renderFleetDetail = (id) => {
     if (!booking) return '';
     const start = parseBookingDate(booking.startDate, booking.startTime);
     const end = parseBookingDate(booking.endDate, booking.endTime);
+    const client = getClientById(booking.clientId);
+    const clientLabel = client?.name || booking.clientName || 'Client';
     const driver = booking.driverId
       ? MOCK_DATA.drivers.find(d => Number(d.id) === Number(booking.driverId))
       : null;
@@ -181,7 +183,7 @@ export const renderFleetDetail = (id) => {
                                   <span class="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md bg-slate-100 text-slate-700">${escapeHtml(statusLabel)}</span>
                               </div>
                               <div class="mt-2 space-y-1 text-sm text-gray-700">
-                                  <p class="font-medium text-gray-900">${escapeHtml(booking.clientName || 'Client')}</p>
+                                  <p class="font-medium text-gray-900">${escapeHtml(clientLabel)}</p>
                                   <p>${formatBookingDate(start)} → ${formatBookingDate(end)}</p>
                                   <p class="text-xs text-gray-500">Driver: ${escapeHtml(driverLabel || 'Unassigned')}</p>
                               </div>

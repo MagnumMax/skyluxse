@@ -4,12 +4,24 @@ import {
   BOOKING_PRIORITIES,
   BOOKING_TYPES,
   KANBAN_STATUS_META,
-  KANBAN_STATUSES
+  KANBAN_STATUSES,
+  getClientById,
+  getCarById
 } from '/src/data/index.js';
 import { showToast } from '/src/ui/toast.js';
 import { startTimers } from '/src/render/timers.js';
 
 let kanbanFiltersBound = false;
+
+const getBookingClientName = (booking) => {
+  const client = getClientById(booking.clientId);
+  return client?.name || booking.clientName || 'Client';
+};
+
+const getBookingCarName = (booking) => {
+  const car = getCarById(booking.carId);
+  return car?.name || booking.carName || 'Vehicle';
+};
 
 const bindKanbanFilters = () => {
   if (kanbanFiltersBound) return;
@@ -163,11 +175,13 @@ export const renderKanbanBoard = () => {
       const bookingOwner = booking.ownerId || 'unassigned';
       if (bookingOwner !== ownerFilter) return false;
     }
+    const clientName = getBookingClientName(booking);
+    const carName = getBookingCarName(booking);
     if (searchTerm) {
       const haystack = [
         booking.code,
-        booking.clientName,
-        booking.carName,
+        clientName,
+        carName,
         booking.pickupLocation,
         booking.dropoffLocation
       ].filter(Boolean).join(' ').toLowerCase();
@@ -204,6 +218,8 @@ export const renderKanbanBoard = () => {
       const timerHtml = ['new', 'preparation', 'delivery'].includes(booking.status) && booking.targetTime
         ? `<div class="card-timer text-xs text-red-600 flex items-center" data-target-time="${booking.targetTime}"></div>`
         : '';
+      const carName = getBookingCarName(booking);
+      const clientName = getBookingClientName(booking);
       return `
                         <div class="geist-card p-4 space-y-3 cursor-pointer kanban-card border-l-4 ${priorityMeta.border}" data-booking-id="${booking.id}">
                             <div class="flex items-center justify-between">
@@ -211,8 +227,8 @@ export const renderKanbanBoard = () => {
                                 <span class="text-xs text-gray-500">${typeMeta ? typeMeta.label : ''}</span>
                             </div>
                             <div>
-                                <p class="font-semibold text-sm text-gray-900">${booking.carName}</p>
-                                <p class="text-xs text-gray-500">${booking.clientName}</p>
+                                <p class="font-semibold text-sm text-gray-900">${carName}</p>
+                                <p class="text-xs text-gray-500">${clientName}</p>
                             </div>
                             <div class="flex items-center justify-between text-xs text-gray-500">
                                 <span>${booking.startDate} → ${booking.endDate}</span>

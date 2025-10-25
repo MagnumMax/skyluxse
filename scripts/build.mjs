@@ -10,8 +10,7 @@ const distDir = path.join(projectRoot, 'dist');
 
 const rootFiles = [
   'index.html',
-  'manifest.json',
-  'sw.js'
+  'manifest.json'
 ];
 
 /**

@@ -1,4 +1,4 @@
-import { MOCK_DATA, CALENDAR_EVENT_TYPES, BOOKING_STATUS_PHASES, BOOKING_STATUS_STAGE_MAP } from '/src/data/index.js';
+import { MOCK_DATA, CALENDAR_EVENT_TYPES, BOOKING_STATUS_PHASES, BOOKING_STATUS_STAGE_MAP, getClientById } from '/src/data/index.js';
 import { appState, getStartOfWeek } from '/src/state/appState.js';
 import { buildHash } from '/src/state/navigation.js';
 import { showToast } from '/src/ui/toast.js';
@@ -1081,19 +1081,23 @@ export const renderFleetCalendar = () => {
     : MOCK_DATA.bookings.filter(booking => (booking.ownerId || 'unassigned') === ownerFilter);
   const bookingMap = new Map(filteredBookings.map(booking => [booking.id, booking]));
 
-  const bookingEvents = filteredBookings.map(booking => ({
-    id: `booking-${booking.id}`,
-    calendarEventId: null,
-    bookingId: booking.id,
-    carId: booking.carId,
-    type: 'rental',
-    title: booking.clientName,
-    bookingCode: booking.code,
-    start: `${booking.startDate}T${booking.startTime || '09:00'}`,
-    end: `${booking.endDate}T${booking.endTime || '18:00'}`,
-    priority: booking.priority || 'medium',
-    lifecycleStatus: getBookingLifecyclePhase(booking.status)
-  }));
+  const bookingEvents = filteredBookings.map(booking => {
+    const client = getClientById(booking.clientId);
+    const title = client?.name || booking.clientName || `Booking #${booking.id}`;
+    return {
+      id: `booking-${booking.id}`,
+      calendarEventId: null,
+      bookingId: booking.id,
+      carId: booking.carId,
+      type: 'rental',
+      title,
+      bookingCode: booking.code,
+      start: `${booking.startDate}T${booking.startTime || '09:00'}`,
+      end: `${booking.endDate}T${booking.endTime || '18:00'}`,
+      priority: booking.priority || 'medium',
+      lifecycleStatus: getBookingLifecyclePhase(booking.status)
+    };
+  });
 
   const additionalEvents = MOCK_DATA.calendarEvents.map(event => ({
     id: event.id,

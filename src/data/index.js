@@ -3,11 +3,61 @@ import { clients } from './clients.js';
 import { bookings } from './bookings.js';
 import { drivers } from './drivers.js';
 
+const toKey = (value) => (value === undefined || value === null ? null : String(value));
+
+const normalizedCars = cars.map(car => ({ ...car }));
+const normalizedDrivers = drivers.map(driver => ({ ...driver }));
+const normalizedClients = clients.map(client => ({ ...client }));
+
+const carsByIdMap = new Map(normalizedCars.map(car => [toKey(car.id), car]));
+const clientsByIdMap = new Map(normalizedClients.map(client => [toKey(client.id), client]));
+
+const normalizedBookings = bookings.map(booking => {
+  const client = clientsByIdMap.get(toKey(booking.clientId));
+  const car = carsByIdMap.get(toKey(booking.carId));
+  return {
+    ...booking,
+    clientId: client?.id ?? booking.clientId ?? null,
+    clientName: client?.name || booking.clientName,
+    carId: car?.id ?? booking.carId ?? null,
+    carName: car?.name || booking.carName
+  };
+});
+
+const bookingsByClientIdMap = new Map();
+normalizedBookings.forEach(booking => {
+  const key = toKey(booking.clientId);
+  if (!key) return;
+  if (!bookingsByClientIdMap.has(key)) bookingsByClientIdMap.set(key, []);
+  bookingsByClientIdMap.get(key).push(booking);
+});
+
+normalizedClients.forEach(client => {
+  const rentals = (bookingsByClientIdMap.get(toKey(client.id)) || [])
+    .map(booking => ({
+      bookingId: booking.id,
+      status: booking.status,
+      startDate: booking.startDate,
+      endDate: booking.endDate,
+      carId: booking.carId,
+      carName: booking.carName,
+      totalAmount: booking.totalAmount
+    }))
+    .sort((a, b) => {
+      const aDate = new Date(a.startDate || 0).getTime();
+      const bDate = new Date(b.startDate || 0).getTime();
+      return bDate - aDate;
+    });
+  client.rentals = rentals;
+});
+
+const bookingsByIdMap = new Map(normalizedBookings.map(booking => [toKey(booking.id), booking]));
+
 export const MOCK_DATA = {
-  cars,
-  clients,
-  bookings,
-  drivers,
+  cars: normalizedCars,
+  clients: normalizedClients,
+  bookings: normalizedBookings,
+  drivers: normalizedDrivers,
   tasks: [
     {
       id: 1,
@@ -919,4 +969,12 @@ export const ROLES_CONFIG = {
     layout: 'mobile',
     nav: []
   }
+};
+
+export const getCarById = (id) => carsByIdMap.get(toKey(id)) || null;
+export const getClientById = (id) => clientsByIdMap.get(toKey(id)) || null;
+export const getBookingById = (id) => bookingsByIdMap.get(toKey(id)) || null;
+export const getBookingsByClientId = (clientId) => {
+  const list = bookingsByClientIdMap.get(toKey(clientId));
+  return list ? [...list] : [];
 };

@@ -2,7 +2,9 @@ import {
   MOCK_DATA,
   TASK_TYPES,
   ROLE_EMAIL_PRESETS,
-  ROLES_CONFIG
+  ROLES_CONFIG,
+  getClientById,
+  getCarById
 } from '/src/data/index.js';
 import {
   appState,
@@ -32,15 +34,27 @@ import { createRouter } from '/src/router.js';
 document.addEventListener('DOMContentLoaded', () => {
   console.log('🚀 SkyLuxse приложение загружается...');
   console.log('📍 Текущий URL:', window.location.href);
-  console.log('🔍 Поиск service worker...');
+  console.log('ℹ️ Оффлайн режим отключен, работа только через сеть.');
 
-  // Регистрация Service Worker для оффлайн поддержки
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js')
-      .then(() => console.log('✅ Service Worker зарегистрирован'))
-      .catch(err => console.error('❌ Ошибка регистрации SW:', err));
-  } else {
-    console.log('⚠️ Service Worker не поддерживается');
+    navigator.serviceWorker.getRegistrations()
+      .then((registrations) => {
+        if (!registrations.length) {
+          console.log('🧹 Активных service worker не найдено');
+          return;
+        }
+        console.log(`🧹 Удаляем ${registrations.length} service worker(ов)...`);
+        return Promise.all(registrations.map((registration) => registration.unregister()))
+          .then(() => console.log('✅ Service worker удалены'));
+      })
+      .catch((error) => console.error('❌ Не удалось удалить service worker:', error));
+  }
+
+  if ('caches' in window) {
+    caches.keys()
+      .then((cacheNames) => Promise.all(cacheNames.map((cacheName) => caches.delete(cacheName))))
+      .then(() => console.log('🧹 Оффлайн кэши очищены'))
+      .catch((error) => console.error('❌ Ошибка очистки кэшей:', error));
   }
 
   // --- DOM Elements ---
@@ -954,7 +968,9 @@ document.addEventListener('DOMContentLoaded', () => {
       if (carData?.year) carInfoParts.push(String(carData.year));
       if (carData?.plate) carInfoParts.push(carData.plate);
       const carInfoText = carInfoParts.join(' · ') || carName;
-      const clientInfo = task.clientName ? `<p class="text-xs text-gray-500">${task.clientName}</p>` : '';
+      const clientEntity = getClientById(task.clientId);
+      const clientName = clientEntity?.name || task.clientName || '';
+      const clientInfo = clientName ? `<p class="text-xs text-gray-500">${clientName}</p>` : '';
       const locationLabel = (() => {
         if (task.status === 'delivery') return task.dropoffLocation || task.pickupLocation || '';
         if (task.status === 'settlement') return task.pickupLocation || task.dropoffLocation || '';
@@ -990,7 +1006,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const contentEl = driverTaskDetailContent;
     if(!task || !contentEl) return false;
             
-    const client = MOCK_DATA.clients.find(c => c.name === task.clientName) || {};
+    const client = getClientById(task.clientId) || {};
     const typeMeta = DRIVER_TASK_TYPE_META[task.status] || DRIVER_TASK_TYPE_META.default;
     const typeBadge = `<span class="${typeMeta.tagClass}">${typeMeta.tagLabel}</span>`;
     const carData = MOCK_DATA.cars.find(car => Number(car.id) === Number(task.carId))
@@ -1407,27 +1423,44 @@ document.addEventListener('DOMContentLoaded', () => {
     return meta.required.map(config => ({ ...config }));
   };
 
-  const buildBookingOptionLabel = (booking) => {
-    if (!booking) return '';
+  const getBookingDisplayMeta = (booking) => {
+    if (!booking) {
+      return {
+        code: '',
+        carLabel: '',
+        clientLabel: '',
+        fallbackCarLabel: '',
+        fallbackClientLabel: ''
+      };
+    }
     const code = booking.code || `#${booking.id}`;
-    const car = booking.carName || booking.vehicleName || booking.carModel || 'Vehicle';
-    const client = booking.clientName || booking.client?.name || 'Client';
-    const windowLabel = `${code} · ${car} · ${client}`;
-    return windowLabel;
+    const fallbackCarLabel = booking.carName || booking.vehicleName || booking.carModel || 'Vehicle';
+    const car = getCarById(booking.carId);
+    const carLabel = car?.name || fallbackCarLabel;
+    const fallbackClientLabel = booking.clientName || booking.client?.name || 'Client';
+    const client = getClientById(booking.clientId);
+    const clientLabel = client?.name || fallbackClientLabel;
+    return { code, carLabel, clientLabel, fallbackCarLabel, fallbackClientLabel };
+  };
+
+  const buildBookingOptionLabel = (booking) => {
+    const { code, carLabel, clientLabel } = getBookingDisplayMeta(booking);
+    if (!code) return '';
+    return `${code} · ${carLabel} · ${clientLabel}`;
   };
 
   const getBookingOptionSource = () => {
     if (!Array.isArray(MOCK_DATA.bookings)) return [];
     return MOCK_DATA.bookings.map(booking => {
-      const label = buildBookingOptionLabel(booking);
+      const meta = getBookingDisplayMeta(booking);
+      const label = meta.code ? `${meta.code} · ${meta.carLabel} · ${meta.clientLabel}` : '';
       const searchable = [
         booking.id,
         booking.code,
-        booking.clientName,
-        booking.client?.name,
-        booking.carName,
-        booking.vehicleName,
-        booking.carModel
+        meta.clientLabel,
+        meta.fallbackClientLabel,
+        meta.carLabel,
+        meta.fallbackCarLabel
       ]
         .filter(Boolean)
         .map(value => value.toString().toLowerCase())
@@ -1850,6 +1883,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const assignee = MOCK_DATA.drivers.find(d => d.id === task.assigneeId);
     const booking = task.bookingId ? MOCK_DATA.bookings.find(b => b.id === task.bookingId) : null;
+    const relatedBookingCarLabel = booking
+      ? (getCarById(booking.carId)?.name || booking.carName || 'Vehicle')
+      : '';
     const statusLabels = { todo: 'To do', inprogress: 'In progress', done: 'Completed' };
     const statusBadge = statusLabels[task.status] || task.status;
     const typeMeta = TASK_TYPES[task.type] || { label: task.type };
@@ -1948,7 +1984,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     ${booking ? `<div class="border-t pt-4">
                         <p class="font-semibold text-gray-500 mb-2">Related booking</p>
                         <div class="flex flex-col space-y-2">
-                            <span><strong>#${booking.id}</strong> · ${booking.carName}</span>
+                            <span><strong>#${booking.id}</strong> · ${relatedBookingCarLabel}</span>
                             <a class="text-blue-600 hover:underline text-sm" href="${buildHash(appState.currentRole, 'booking-detail', booking.id)}">Open booking details</a>
                         </div>
                     </div>` : ''}
@@ -2815,9 +2851,11 @@ document.addEventListener('DOMContentLoaded', () => {
         notifications: []
       };
       const taskId = getNextTaskId();
+      const carLabel = getCarById(booking.carId)?.name || booking.carName || 'Vehicle';
+      const clientLabel = getClientById(booking.clientId)?.name || booking.clientName || 'Client';
       const extensionTask = {
         id: taskId,
-        title: `Prepare ${booking.carName} for extension`,
+        title: `Prepare ${carLabel} for extension`,
         type: 'delivery',
         category: 'logistics',
         assigneeId: booking.driverId || null,
@@ -2825,7 +2863,7 @@ document.addEventListener('DOMContentLoaded', () => {
         deadline: `${values.startDate} ${values.startTime}`,
         bookingId: booking.id,
         priority: 'Medium',
-        description: `Extension ${extensionId} for ${booking.clientName}`,
+        description: `Extension ${extensionId} for ${clientLabel}`,
         checklist: [],
         requiredInputs: []
       };
