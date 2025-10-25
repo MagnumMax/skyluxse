@@ -880,7 +880,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const PARTIAL_PAYMENT_REASONS = [
     'Client promised transfer later',
-    'Approved by operations manager',
+    'Approved by fleet manager',
     'Cash limit / no POS available',
     'Client paid via bank transfer',
     'Other'
@@ -1539,7 +1539,7 @@ document.addEventListener('DOMContentLoaded', () => {
       deadline,
       bookingId,
       priority,
-      description: description || `${formatTaskTypeLabel(typeValue)} task created from operations board`,
+      description: description || `${formatTaskTypeLabel(typeValue)} task created from fleet board`,
       checklist: cloneChecklistForType(typeValue),
       requiredInputs: cloneRequiredInputsForType(typeValue),
       geo: pickup || dropoff ? { pickup, dropoff } : null,
@@ -2366,7 +2366,7 @@ document.addEventListener('DOMContentLoaded', () => {
       appState.loginEmail = e.target.value;
     });
     // Установить начальное значение из appState
-    loginEmailInput.value = appState.loginEmail || 'ops@skyluxse.ae';
+    loginEmailInput.value = appState.loginEmail || 'fleet@skyluxse.ae';
   }
 
   if (requestOtpBtn) {

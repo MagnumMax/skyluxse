@@ -15,7 +15,7 @@ export const renderDashboard = () => {
   const cards = [
     { icon: 'layoutDashboard', label: 'Fleet Utilization', value: formatPercent(kpis.fleetUtilization, 0), helper: 'Target ≥ 90%', trend: '+4% WoW' },
     { icon: 'clipboardCheck', label: 'SLA Met', value: formatPercent(kpis.slaCompliance, 0), helper: 'Threshold ≥ 85%', trend: '+2% WoW' },
-    { icon: 'users', label: 'Active Bookings', value: kpis.activeBookings.toString(), helper: 'Monitored by operations', trend: '+3 per day' },
+    { icon: 'users', label: 'Active Bookings', value: kpis.activeBookings.toString(), helper: 'Monitored by fleet managers', trend: '+3 per day' },
     { icon: 'activity', label: 'Client NPS', value: `${kpis.clientNps}`, helper: 'Target ≥ 70', trend: '+1 pt' }
   ];
 

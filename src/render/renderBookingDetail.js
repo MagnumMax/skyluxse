@@ -31,12 +31,15 @@ export const renderBookingDetail = (id) => {
     : null;
 
   const clientId = client.id || booking.clientId;
+  const canViewClientCard = appState.currentRole !== 'operations';
   const salesOwnerMap = Object.fromEntries((MOCK_DATA.salesPipeline?.owners || []).map(owner => [owner.id, owner.name]));
   const responsibleSalesPerson = booking.ownerId
     ? (salesOwnerMap[booking.ownerId] || booking.ownerId)
     : 'Unassigned';
   const clientDetailLink = clientId
-    ? `<a href="${buildHash(appState.currentRole, 'client-detail', clientId)}" class="text-sm font-medium text-indigo-600 hover:text-indigo-800">Open client card</a>`
+    ? (canViewClientCard
+      ? `<a href="${buildHash(appState.currentRole, 'client-detail', clientId)}" class="text-sm font-medium text-indigo-600 hover:text-indigo-800">Open client card</a>`
+      : '<span class="text-sm text-gray-400">Client card restricted</span>')
     : '';
 
   const formatMileageValue = (value) => {
@@ -588,7 +591,7 @@ export const renderBookingDetail = (id) => {
                                             ${depositAdjustment ? `<p class="text-[12px] text-indigo-600">Deposit adj. ${formatCurrency(depositAdjustment)}</p>` : ''}
                                         </div>
                                         <div>
-                                            <p class="text-xs font-medium text-gray-500">Operations</p>
+                                            <p class="text-xs font-medium text-gray-500">Fleet</p>
                                             ${tasksBlock || '<p class="text-[12px] text-gray-400">No linked tasks</p>'}
                                             ${riskBlock}
                                         </div>

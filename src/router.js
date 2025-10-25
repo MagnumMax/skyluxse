@@ -83,6 +83,7 @@ export const createRouter = (handlers) => {
 
     const roleConfig = ROLES_CONFIG[role];
     const layout = roleConfig?.layout || 'desktop';
+    const blockedPages = roleConfig?.blockedPages || [];
     console.log('🏗️ Конфигурация роли:', { layout, roleConfig: !!roleConfig, defaultPage: roleConfig?.defaultPage });
 
     let normalizedSelector = selector;
@@ -93,6 +94,12 @@ export const createRouter = (handlers) => {
         page = getDetailPageId(page);
         needsUpdate = true;
       }
+    }
+
+    if (blockedPages.includes(page)) {
+      page = roleConfig?.defaultPage || 'dashboard';
+      normalizedSelector = HASH_DEFAULT_SELECTOR;
+      needsUpdate = true;
     }
 
     if (layout === 'desktop' && roleConfig?.nav?.length) {

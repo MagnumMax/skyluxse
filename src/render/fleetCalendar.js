@@ -51,7 +51,7 @@ const OWNER_LOOKUP = (MOCK_DATA.salesPipeline?.owners || []).reduce((acc, owner)
   acc[owner.id] = owner.name;
   return acc;
 }, {
-  operations: 'Operations Desk',
+  operations: 'Fleet Desk',
   unassigned: 'Unassigned'
 });
 

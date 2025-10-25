@@ -802,7 +802,7 @@ export const KANBAN_STATUS_META = {
   },
   preparation: {
     label: 'Vehicle preparation',
-    group: 'Operations',
+    group: 'Fleet',
     accent: 'bg-violet-100',
     accentBorder: 'border-violet-200',
     allowedTransitions: ['delivery'],
@@ -812,7 +812,7 @@ export const KANBAN_STATUS_META = {
   },
   delivery: {
     label: 'Awaiting delivery',
-    group: 'Operations',
+    group: 'Fleet',
     accent: 'bg-indigo-100',
     accentBorder: 'border-indigo-200',
     allowedTransitions: ['in-rent', 'settlement'],
@@ -843,7 +843,7 @@ export const KANBAN_STATUS_META = {
 };
 
 export const ROLE_EMAIL_PRESETS = {
-  operations: 'ops@skyluxse.ae',
+  operations: 'fleet@skyluxse.ae',
   sales: 'sales@skyluxse.ae',
   ceo: 'ceo@skyluxse.ae',
   driver: 'driver@skyluxse.ae',
@@ -858,7 +858,7 @@ export const ROLES_CONFIG = {
   operations: {
     name: 'Fleet manager',
     label: 'Fleet manager',
-    email: 'ops@skyluxse.ae',
+    email: 'fleet@skyluxse.ae',
     defaultPage: 'fleet-calendar',
     layout: 'desktop',
     nav: [
@@ -866,6 +866,7 @@ export const ROLES_CONFIG = {
       { id: 'tasks', name: 'Tasks', icon: 'clipboardCheck' },
       { id: 'fleet-table', name: 'Fleet', icon: 'car' }
     ],
+    blockedPages: ['clients-table', 'client-detail'],
     permissions: {
       canAssignDrivers: true,
       canManageCalendar: true,
