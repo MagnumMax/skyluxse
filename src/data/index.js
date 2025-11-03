@@ -980,3 +980,51 @@ export const getBookingsByClientId = (clientId) => {
   const list = bookingsByClientIdMap.get(toKey(clientId));
   return list ? [...list] : [];
 };
+
+// Document registry for mapping IDs to URLs
+const documentRegistry = new Map();
+
+// Function to register a document and get its ID
+export const registerDocument = (url) => {
+  if (!url) return null;
+  // Check if already registered
+  for (const [id, existingUrl] of documentRegistry) {
+    if (existingUrl === url) return id;
+  }
+  // Generate new ID
+  const id = `doc-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  documentRegistry.set(id, url);
+  return id;
+};
+
+// Function to get URL by ID
+export const getDocumentUrl = (id) => {
+  return documentRegistry.get(id) || null;
+};
+
+// Initialize document registry with existing documents
+const initializeDocumentRegistry = () => {
+  // Register client documents
+  normalizedClients.forEach(client => {
+    if (client.documents && Array.isArray(client.documents)) {
+      client.documents.forEach(doc => {
+        if (doc.url) {
+          doc.id = registerDocument(doc.url);
+        }
+      });
+    }
+  });
+
+  // Register car documents (if any)
+  normalizedCars.forEach(car => {
+    if (car.documents && Array.isArray(car.documents)) {
+      car.documents.forEach(doc => {
+        if (doc.url) {
+          doc.id = registerDocument(doc.url);
+        }
+      });
+    }
+  });
+};
+
+initializeDocumentRegistry();

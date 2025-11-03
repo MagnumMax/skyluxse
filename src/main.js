@@ -4,7 +4,9 @@ import {
   ROLE_EMAIL_PRESETS,
   ROLES_CONFIG,
   getClientById,
-  getCarById
+  getCarById,
+  registerDocument,
+  getDocumentUrl
 } from '/src/data/index.js';
 import {
   appState,
@@ -104,31 +106,31 @@ document.addEventListener('DOMContentLoaded', () => {
         window.history.back();
       }
     });
-    
-    // --- ГЛОБАЛЬНАЯ ОБРАБОТКА ОШИБОК РЕСУРСОВ ---
-    window.addEventListener('error', (event) => {
-      console.error('🚨 Глобальная ошибка:', {
-        message: event.message,
-        filename: event.filename,
-        lineno: event.lineno,
-        colno: event.colno,
-        error: event.error
-      });
-    
-      // Специальная обработка ошибок ресурсов
-      if (event.filename && event.filename.includes('cdn')) {
-        console.error('🌐 Ошибка загрузки внешнего ресурса:', event.filename);
-      }
-    });
-    
-    // Обработка ошибок промисов
-    window.addEventListener('unhandledrejection', (event) => {
-      console.error('💥 Необработанная ошибка промиса:', event.reason);
-    });
-    
-    console.log('✅ Диагностические логи добавлены');
-    
   });
+  
+  // --- ГЛОБАЛЬНАЯ ОБРАБОТКА ОШИБОК РЕСУРСОВ ---
+  window.addEventListener('error', (event) => {
+    console.error('🚨 Глобальная ошибка:', {
+      message: event.message,
+      filename: event.filename,
+      lineno: event.lineno,
+      colno: event.colno,
+      error: event.error
+    });
+  
+    // Специальная обработка ошибок ресурсов
+    if (event.filename && event.filename.includes('cdn')) {
+      console.error('🌐 Ошибка загрузки внешнего ресурса:', event.filename);
+    }
+  });
+  
+  // Обработка ошибок промисов
+  window.addEventListener('unhandledrejection', (event) => {
+    console.error('💥 Необработанная ошибка промиса:', event.reason);
+  });
+  
+  console.log('✅ Диагностические логи добавлены');
+  
   if (otpInput) {
     otpInput.setAttribute('disabled', 'disabled');
   }
@@ -635,7 +637,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     return client.documents.map(doc => {
       const cls = statusClasses[doc.status] || 'bg-gray-100 text-gray-600 border border-gray-200';
-      const attrs = doc.url ? `data-doc-url="${doc.url}"` : '';
+      const attrs = doc.id ? `data-doc-id="${doc.id}"` : '';
       return `<button type="button" class="doc-badge inline-flex items-center px-2 py-1 mr-2 mb-2 text-xs font-medium rounded-md ${cls}" ${attrs}>${doc.name}</button>`;
     }).join('');
   };
@@ -735,10 +737,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 </tr>
             `).join('');
 
-    tableBodyEl.querySelectorAll('.doc-badge[data-doc-url]').forEach(button => {
+    tableBodyEl.querySelectorAll('.doc-badge[data-doc-id]').forEach(button => {
       button.addEventListener('click', () => {
-        const url = button.dataset.docUrl;
-        if (url) openDocumentPage(url);
+        const docId = button.dataset.docId;
+        if (docId) {
+          window.location.hash = buildHash(appState.currentRole, 'document-viewer', docId);
+          router();
+        }
       });
     });
   };
@@ -1022,7 +1027,7 @@ document.addEventListener('DOMContentLoaded', () => {
       : (carData?.plate || task.carName || 'Vehicle details');
     const clientPhone = client.phone || task.clientPhone || '';
     const clientDocumentsHtml = (client.documents && client.documents.length)
-      ? client.documents.map(doc => `<a href="#" class="px-3 py-1 rounded-md bg-slate-100 text-slate-700 client-doc-link" data-url="${doc.url}">${doc.name}</a>`).join('')
+      ? client.documents.map(doc => `<a href="#" class="px-3 py-1 rounded-md bg-slate-100 text-slate-700 client-doc-link" data-doc-id="${doc.id}">${doc.name}</a>`).join('')
       : '<span class="text-xs text-gray-400">No documents attached</span>';
     const routeLocation = task.dropoffLocation || task.pickupLocation || 'Location TBD';
     const totalAmount = task.totalAmount || 0;
@@ -1446,12 +1451,6 @@ document.addEventListener('DOMContentLoaded', () => {
     return { code, carLabel, clientLabel, fallbackCarLabel, fallbackClientLabel };
   };
 
-  const buildBookingOptionLabel = (booking) => {
-    const { code, carLabel, clientLabel } = getBookingDisplayMeta(booking);
-    if (!code) return '';
-    return `${code} · ${carLabel} · ${clientLabel}`;
-  };
-
   const getBookingOptionSource = () => {
     if (!Array.isArray(MOCK_DATA.bookings)) return [];
     return MOCK_DATA.bookings.map(booking => {
@@ -1517,7 +1516,7 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   const handleTaskCreateSubmit = (formEl) => {
-    const formData = new FormData(formEl);
+    const formData = new window.FormData(formEl);
     const title = (formData.get('title') || '').toString().trim();
     if (!title) {
       showToast('Add task title', 'error');
@@ -2347,12 +2346,13 @@ document.addEventListener('DOMContentLoaded', () => {
     return true;
   };
 
-  const renderDocumentViewer = (encodedSelector) => {
+  const renderDocumentViewer = (documentId) => {
     if (!documentViewerImage) return false;
-    if (!encodedSelector || encodedSelector === HASH_DEFAULT_SELECTOR) return false;
+    if (!documentId || documentId === HASH_DEFAULT_SELECTOR) return false;
     try {
-      const decoded = atob(decodeURIComponent(encodedSelector));
-      documentViewerImage.src = decoded;
+      const url = getDocumentUrl(documentId);
+      if (!url) return false;
+      documentViewerImage.src = url;
       documentViewerImage.alt = 'Document preview';
       return true;
     } catch {
@@ -2384,8 +2384,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const openDocumentPage = (url) => {
     if (!url) return;
     try {
-      const encoded = encodeURIComponent(btoa(url));
-      window.location.hash = buildHash(appState.currentRole, 'document-viewer', encoded);
+      const documentId = registerDocument(url);
+      if (!documentId) {
+        showToast('Cannot register document', 'error');
+        return;
+      }
+      window.location.hash = buildHash(appState.currentRole, 'document-viewer', documentId);
       router();
     } catch {
       showToast('Cannot open document', 'error');
@@ -2651,7 +2655,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const clientDocLink = e.target.closest('.client-doc-link');
     if(clientDocLink) {
       e.preventDefault();
-      openDocumentPage(clientDocLink.dataset.url);
+      const docId = clientDocLink.dataset.docId;
+      if (docId) {
+        window.location.hash = buildHash(appState.currentRole, 'document-viewer', docId);
+        router();
+      }
       return;
     }
             
