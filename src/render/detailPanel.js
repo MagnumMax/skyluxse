@@ -1,27 +1,38 @@
-import { renderBookingDetail } from '/src/render/renderBookingDetail.js';
-import { renderFleetDetail } from '/src/render/renderFleetDetail.js';
-import { renderClientDetail } from '/src/render/renderClientDetail.js';
+import { renderBookingDetail } from './renderBookingDetail.js';
+import { renderFleetDetail } from './renderFleetDetail.js';
+import { renderClientDetail } from './renderClientDetail.js';
 
+/**
+ * Рендерит панель деталей для указанного типа сущности.
+ * @param {('bookings'|'fleet-table'|'clients-table')} type
+ * @param {string|number} id
+ * @returns {boolean}
+ */
 export const renderDetailPanel = (type, id) => {
-  let content = '';
+  /** @type {string} */
+  let contentStr = '';
+  /** @type {HTMLElement|null} */
   let targetContainer = null;
 
   if (type === 'bookings') {
-    content = renderBookingDetail(id);
-    if (!content) return false;
+    const rendered = renderBookingDetail(id);
+    if (!rendered) return false;
+    contentStr = rendered;
     targetContainer = document.getElementById('booking-detail-content');
   } else if (type === 'fleet-table') {
-    content = renderFleetDetail(id);
-    if (!content) return false;
+    const rendered = renderFleetDetail(id);
+    if (!rendered) return false;
+    contentStr = rendered;
     targetContainer = document.getElementById('fleet-detail-content');
   } else if (type === 'clients-table') {
-    content = renderClientDetail(id);
-    if (!content) return false;
+    const rendered = renderClientDetail(id);
+    if (!rendered) return false;
+    contentStr = rendered;
     targetContainer = document.getElementById('client-detail-content');
   }
 
-  if (!content || !targetContainer) return false;
+  if (!contentStr || !targetContainer) return false;
 
-  targetContainer.innerHTML = content;
+  targetContainer.innerHTML = contentStr;
   return true;
 };

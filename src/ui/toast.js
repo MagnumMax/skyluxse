@@ -1,3 +1,7 @@
+/**
+ * @param {string} message
+ * @param {'info'|'success'|'error'} [tone]
+ */
 export const showToast = (message, tone = 'info') => {
   let container = document.getElementById('toast-container');
   if (!container) {

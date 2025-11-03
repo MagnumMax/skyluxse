@@ -1,10 +1,14 @@
-import { MOCK_DATA, getClientById, ROLES_CONFIG } from '/src/data/index.js';
-import { appState } from '/src/state/appState.js';
-import { buildHash } from '/src/state/navigation.js';
-import { formatCurrency, formatDateTime, formatRelativeTime, formatDateLabel } from '/src/render/formatters.js';
-import { getIcon } from '/src/ui/icons.js';
-import { getSalesRatingMeta } from '/src/render/utils.js';
+import { MOCK_DATA, getClientById, ROLES_CONFIG } from '../data/index.js';
+import { appState } from '../state/appState.js';
+import { buildHash } from '../state/navigation.js';
+import { formatCurrency, formatDateTime, formatRelativeTime, formatDateLabel } from './formatters.js';
+import { getIcon } from '../ui/icons.js';
+import { getSalesRatingMeta } from './utils.js';
 
+/**
+ * @param {unknown} value
+ * @returns {string}
+ */
 const escapeHtml = (value) => {
   return String(value ?? '')
     .replace(/&/g, '&amp;')
@@ -14,12 +18,23 @@ const escapeHtml = (value) => {
     .replace(/'/g, '&#39;');
 };
 
+/**
+ * Рендерит карточку деталей букинга
+ * @param {string|number} id
+ * @returns {string|false}
+ */
 export const renderBookingDetail = (id) => {
-  const booking = MOCK_DATA.bookings.find(b => b.id == id);
+  /** @type {any|null} */
+  const booking = (MOCK_DATA.bookings || []).find(b => b.id == id) || null;
   if (!booking) return false;
 
+  /** @type {any} */
   const client = getClientById(booking.clientId) || {};
   const dueAmount = (booking.totalAmount || 0) - (booking.paidAmount || 0);
+  /**
+   * @param {string|undefined|null} label
+   * @returns {string}
+   */
   const formatLocationLink = (label) => {
     if (!label) {
       return '<span class="text-gray-400">—</span>';
@@ -27,12 +42,14 @@ export const renderBookingDetail = (id) => {
     const encoded = encodeURIComponent(label);
     return `<span class="min-w-0 max-w-full"><a href="https://www.google.com/maps/search/?api=1&query=${encoded}" target="_blank" rel="noopener" class="inline-block max-w-full break-words text-blue-600 hover:underline">${label}</a></span>`;
   };
+  /** @type {any|null} */
   const assignedDriver = booking.driverId
     ? MOCK_DATA.drivers.find(d => Number(d.id) === Number(booking.driverId))
     : null;
 
   const clientId = client.id || booking.clientId;
   const canViewClientCard = appState.currentRole !== 'operations';
+  /** @type {Record<string,string>} */
   const salesOwnerMap = Object.fromEntries((MOCK_DATA.salesPipeline?.owners || []).map(owner => [owner.id, owner.name]));
   const responsibleSalesPerson = booking.ownerId
     ? (salesOwnerMap[booking.ownerId] || booking.ownerId)
@@ -43,6 +60,10 @@ export const renderBookingDetail = (id) => {
       : '<span class="text-sm text-gray-400">Client card restricted</span>')
     : '';
 
+  /**
+   * @param {unknown} value
+   * @returns {string}
+   */
   const formatMileageValue = (value) => {
     if (value === 0) return '0 km';
     const numeric = Number(value);
@@ -55,6 +76,10 @@ export const renderBookingDetail = (id) => {
     return '—';
   };
 
+  /**
+   * @param {unknown} value
+   * @returns {string}
+   */
   const formatFuelValue = (value) => {
     if (value === 0) return '0';
     if (value == null) return '—';
@@ -62,6 +87,11 @@ export const renderBookingDetail = (id) => {
     return str.length ? str : '—';
   };
 
+  /**
+   * @param {string|undefined|null} dateStr
+   * @param {string|undefined|null} timeStr
+   * @returns {Date|null}
+   */
   const parseDateTime = (dateStr, timeStr) => {
     if (!dateStr) return null;
     const timeValue = timeStr || '00:00';
@@ -73,6 +103,10 @@ export const renderBookingDetail = (id) => {
     return parsed;
   };
 
+  /**
+   * @param {string|undefined|null} value
+   * @returns {Date|null}
+   */
   const parseLooseDateTime = (value) => {
     if (!value || typeof value !== 'string') return null;
     if (value.includes('T')) {
@@ -121,40 +155,25 @@ export const renderBookingDetail = (id) => {
   const now = new Date();
   const pickupDateTime = parseDateTime(booking.startDate, booking.startTime);
   const returnDateTime = parseDateTime(booking.endDate, booking.endTime);
+  /**
+   * @param {string|undefined|null} status
+   * @returns {string}
+   */
   const normalizeStatus = (status) => (status || '').toLowerCase();
   const bookingIdRaw = String(booking.id ?? '');
   const bookingIdAttr = escapeHtml(bookingIdRaw);
   const bookingIdentifier = escapeHtml(booking.code || (bookingIdRaw ? `#${bookingIdRaw}` : 'Booking'));
 
 
-  const contractDoc = (booking.documents || []).find(doc => doc.type === 'contract');
-  const contractStatus = normalizeStatus(contractDoc?.status);
-  let documentsState = 'pending';
-  let documentsCaption = 'Not uploaded';
-  if (!contractDoc) {
-    documentsState = 'attention';
-    documentsCaption = 'Contract missing';
-  } else if (['signed', 'approved', 'verified'].includes(contractStatus)) {
-    documentsState = 'done';
-    documentsCaption = 'Signed';
-  } else if (['pending-signature', 'in-review', 'pending'].includes(contractStatus)) {
-    documentsState = 'in-progress';
-    documentsCaption = 'Awaiting signature';
-  } else {
-    documentsState = 'attention';
-    documentsCaption = contractDoc.status ? contractDoc.status : 'Check status';
-  }
-
-  let paymentState = 'pending';
-  let paymentCaption = dueAmount > 0 ? `Remaining ${formatCurrency(dueAmount)}` : 'All paid';
-  if (dueAmount <= 0) {
-    paymentState = 'done';
-  } else if ((booking.paidAmount || 0) > 0) {
-    paymentState = 'in-progress';
-  }
+  // Removed unused variables to satisfy linting rules
 
   const bookingStatus = normalizeStatus(booking.status);
+  /** @type {Array<any>} */
   const timelineItems = Array.isArray(booking.timeline) ? booking.timeline : [];
+  /**
+   * @param {string} status
+   * @returns {any|null}
+   */
   const getLatestTimelineEntry = (status) => {
     const entries = timelineItems.filter(item => normalizeStatus(item.status) === status);
     if (!entries.length) return null;
@@ -189,15 +208,7 @@ export const renderBookingDetail = (id) => {
     handoverCaption = 'Handed over to client';
   }
 
-  let closureState = 'pending';
-  let closureCaption = '';
-  if (bookingStatus === 'in-rent') {
-    closureState = 'in-progress';
-    closureCaption = 'Rental in progress';
-  } else if (['settlement', 'completed'].includes(bookingStatus)) {
-    closureState = bookingStatus === 'completed' ? 'done' : 'in-progress';
-    closureCaption = bookingStatus === 'completed' ? 'Closed' : 'Awaiting return checks';
-  }
+  // Removed unused closure state/caption variables (computed but not used)
 
   const pickupMeta = (() => {
     if (!pickupDateTime) return null;
@@ -237,8 +248,14 @@ export const renderBookingDetail = (id) => {
     };
   })();
 
+  /** @type {Array<any>} */
   const extensions = Array.isArray(booking.extensions) ? booking.extensions.slice() : [];
 
+  /**
+   * @param {any} extension
+   * @param {string} edge
+   * @returns {Date|null}
+   */
   const parseExtensionEdge = (extension, edge) => {
     if (!extension || typeof extension !== 'object') return null;
     const period = extension.period || {};
@@ -273,6 +290,7 @@ export const renderBookingDetail = (id) => {
     return aStart.getTime() - bStart.getTime();
   });
 
+  /** @type {Record<string, {label:string, tone:string}>} */
   const extensionStatusMeta = {
     confirmed: { label: 'Confirmed', tone: 'border border-emerald-200 bg-emerald-50 text-emerald-700' },
     invoiced: { label: 'Invoiced', tone: 'border border-indigo-200 bg-indigo-50 text-indigo-700' },
@@ -283,8 +301,21 @@ export const renderBookingDetail = (id) => {
     default: { label: 'Active', tone: 'border border-slate-200 bg-slate-100 text-slate-700' }
   };
 
+  /**
+   * @param {string|undefined|null} status
+   * @returns {{label:string, tone:string}}
+   */
   const getExtensionStatusMeta = (status) => extensionStatusMeta[normalizeStatus(status)] || extensionStatusMeta.default;
 
+  /** @type {{
+   * totalAmount:number,
+   * paidAmount:number,
+   * outstandingAmount:number,
+   * statusCounts: Record<string, number>,
+   * earliestStart: Date|null,
+   * latestEnd: Date|null,
+   * lastActiveEnd: Date|null
+   * }} */
   const extensionStats = sortedExtensions.reduce((acc, extension) => {
     const statusKey = normalizeStatus(extension.status || 'draft');
     acc.statusCounts[statusKey] = (acc.statusCounts[statusKey] || 0) + 1;
@@ -379,11 +410,15 @@ export const renderBookingDetail = (id) => {
                         `
     : '';
 
+  // Ensure we don't pass null into formatDateLabel for upcoming extension start
+  /** @type {Date|null} */
+  const upcomingStart = upcomingExtension ? parseExtensionEdge(upcomingExtension, 'start') : null;
+
   const upcomingBanner = !activeExtension && upcomingExtension
     ? `
                             <div class="flex items-center gap-2 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-700">
                                 ${getIcon('calendar', 'w-4 h-4')}
-                                <span>Next extension starts ${escapeHtml(formatDateLabel(parseExtensionEdge(upcomingExtension, 'start')))}</span>
+                                <span>Next extension starts ${escapeHtml(upcomingStart ? formatDateLabel(upcomingStart) : '—')}</span>
                             </div>
                         `
     : '';
@@ -399,6 +434,10 @@ export const renderBookingDetail = (id) => {
                     `
     : '';
 
+  /**
+   * @param {Date|null} date
+   * @returns {string}
+   */
   const formatInputDate = (date) => {
     if (!date || Number.isNaN(date.getTime())) return '';
     const year = date.getFullYear();
@@ -407,6 +446,10 @@ export const renderBookingDetail = (id) => {
     return `${year}-${month}-${day}`;
   };
 
+  /**
+   * @param {Date|null} date
+   * @returns {string}
+   */
   const formatInputTime = (date) => {
     if (!date || Number.isNaN(date.getTime())) return '';
     const hours = String(date.getHours()).padStart(2, '0');
@@ -633,6 +676,11 @@ export const renderBookingDetail = (id) => {
 
   const historyEntries = Array.isArray(booking.history) ? [...booking.history] : [];
   const historyEvents = new Set(historyEntries.map(entry => entry.event));
+  /**
+   * @param {string} event
+   * @param {string|undefined} tsFallback
+   * @returns {void}
+   */
   const ensureHistoryEntry = (event, tsFallback) => {
     if (!event || historyEvents.has(event)) return;
     historyEntries.push({
@@ -656,6 +704,10 @@ export const renderBookingDetail = (id) => {
     ensureHistoryEntry(`Driver ${assignedDriver.name} assigned`, existingDriverTs || booking.startDate || '—');
   }
 
+  /**
+   * @param {{event:string, ts:string|undefined}} entry
+   * @returns {{event:string, absolute:string, relative:string, tone:string}}
+   */
   const enrichHistoryEntry = (entry) => {
     const ts = parseLooseDateTime(entry.ts);
     const relative = formatRelativeTime(ts);
@@ -692,6 +744,7 @@ export const renderBookingDetail = (id) => {
     : '<li class="text-sm text-gray-500">No history records</li>';
 
 
+  /** @type {Record<string,string>} */
   const timelineStatusLabels = {
     preparation: 'Preparation',
     delivery: 'Delivery',
@@ -699,6 +752,7 @@ export const renderBookingDetail = (id) => {
     default: 'Update'
   };
 
+  /** @type {Record<string,string>} */
   const timelineStatusClasses = {
     preparation: 'border-amber-200 bg-amber-50 text-amber-700',
     delivery: 'border-sky-200 bg-sky-50 text-sky-700',

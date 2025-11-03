@@ -1,0 +1,222 @@
+/* Responsive - Responsive design styles */
+
+        ::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(233, 237, 255, 0.6);
+            border-radius: 9999px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(124, 144, 255, 0.45);
+            border-radius: 9999px;
+            border: 2px solid rgba(233, 237, 255, 0.8);
+        }
+
+        /* Calendar specific styles */
+        .calendar-booking {
+            min-width: 60px;
+            min-height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            border-radius: 4px;
+            box-shadow: 0 10px 20px -18px rgba(94, 106, 210, 0.45);
+            color: #1f2543;
+            font-weight: 500;
+            font-size: 0.7rem;
+        }
+
+        .calendar-booking:hover {
+            opacity: 0.95;
+            transform: translateY(-1px);
+            box-shadow: 0 14px 24px -18px rgba(94, 106, 210, 0.55);
+        }
+
+        .calendar-row {
+            position: relative;
+            min-height: 50px;
+        }
+
+        .calendar-day-header {
+            background-color: #f8fafc;
+            color: #475569;
+            border-left: 1px solid rgba(226, 232, 240, 0.9);
+            border-bottom: 1px solid rgba(203, 213, 225, 0.9);
+        }
+
+        .calendar-day-header-today {
+            background-color: #eef2ff;
+            color: #3730a3;
+            border-color: rgba(129, 140, 248, 0.65);
+        }
+
+        .calendar-day-cell {
+            position: relative;
+            background-color: #fbfbff;
+            border-left: 1px solid rgba(226, 232, 240, 0.9);
+            overflow: hidden;
+            min-height: 72px;
+        }
+
+        .calendar-day-cell::before {
+            content: none;
+        }
+
+        .calendar-day-cell-today {
+            background-color: #eef2ff;
+            border-left-color: rgba(129, 140, 248, 0.35);
+        }
+
+        .calendar-day-cell-today::before {
+            content: none;
+        }
+
+        .calendar-event {
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Mobile Navigation Styles */
+        @media (max-width: 768px) {
+            /* Mobile sidebar styles */
+            #sidebar {
+                position: fixed;
+                top: 0;
+                left: 0;
+                height: 100vh;
+                z-index: 50;
+                width: 280px;
+                max-width: 85vw;
+                transition: transform 0.3s ease-in-out;
+            }
+    
+            #sidebar.-translate-x-full {
+                transform: translateX(-100%);
+            }
+    
+            #sidebar:not(.-translate-x-full) {
+                transform: translateX(0);
+            }
+    
+            /* Mobile Sidebar Overlay Styles */
+            #sidebar-overlay {
+                opacity: 0;
+                visibility: hidden;
+                transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
+            }
+    
+            #sidebar-overlay:not(.hidden) {
+                opacity: 1;
+                visibility: visible;
+            }
+    
+            /* Prevent body scroll when sidebar is open */
+            body.sidebar-open {
+                overflow: hidden;
+            }
+
+            /* Burger menu button */
+            #burger-menu {
+                display: flex !important;
+                align-items: center;
+                justify-content: center;
+                padding: 0.5rem;
+                border-radius: 0.375rem;
+                background: transparent;
+                border: 1px solid rgba(226, 232, 240, 0.8);
+                color: hsl(var(--muted-foreground));
+                transition: all 0.15s ease;
+            }
+
+            #burger-menu:hover {
+                background: hsl(var(--muted));
+                color: hsl(var(--foreground));
+                border-color: hsl(var(--border));
+            }
+
+            /* Hide burger menu on desktop */
+            @media (min-width: 769px) {
+                #burger-menu {
+                    display: none !important;
+                }
+            }
+
+            /* Main content adjustments for mobile */
+            main {
+                margin-left: 0 !important;
+            }
+
+            /* Calendar improvements */
+            .calendar-booking {
+                min-width: 60px;
+                font-size: 0.65rem;
+                padding: 2px;
+            }
+
+            .calendar-row {
+                min-height: 50px;
+            }
+
+            /* Adjust grid for smaller screens */
+            #page-fleet-calendar .grid-cols-10 {
+                grid-template-columns: repeat(8, minmax(0, 1fr));
+            }
+
+            #page-fleet-calendar .col-span-2 {
+                grid-column: span 1 / span 1;
+            }
+
+            #page-fleet-calendar .col-span-8 {
+                grid-column: span 7 / span 7;
+            }
+        }
+
+        .calendar-range-btn,
+        .calendar-mode-btn {
+            border-radius: calc(var(--radius) - 4px);
+            font-weight: 500;
+            color: hsl(var(--muted-foreground));
+            transition: background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        .calendar-range-btn.is-active,
+        .calendar-mode-btn.is-active {
+            background-color: hsl(var(--primary));
+            color: hsl(var(--primary-foreground));
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.18);
+        }
+
+        .calendar-event-surface-rental {
+            background-color: hsl(var(--primary) / 0.12);
+            color: hsl(var(--primary));
+        }
+        .calendar-event-border-rental {
+            border-color: hsl(var(--primary) / 0.35);
+        }
+        .calendar-event-surface-maintenance {
+            background-color: hsl(45 95% 88% / 0.7);
+            color: hsl(28 90% 35%);
+        }
+        .calendar-event-border-maintenance {
+            border-color: hsl(43 94% 77%);
+        }
+        .calendar-event-surface-repair {
+            background-color: hsl(var(--destructive) / 0.12);
+            color: hsl(var(--destructive));
+        }
+        .calendar-event-border-repair {
+            border-color: hsl(var(--destructive) / 0.35);
+        }
+        .calendar-event-surface-neutral {
+            background-color: hsl(var(--muted));
+            color: hsl(var(--foreground));
+        }
+        .calendar-event-border-neutral {
+            border-color: hsl(var(--border));
+        }

@@ -1,4 +1,4 @@
-import { appState } from '/src/state/appState.js';
+import { appState } from '../state/appState.js';
 import {
   MOCK_DATA,
   BOOKING_PRIORITIES,
@@ -7,10 +7,10 @@ import {
   KANBAN_STATUSES,
   getClientById,
   getCarById
-} from '/src/data/index.js';
-import { showToast } from '/src/ui/toast.js';
-import { startTimers } from '/src/render/timers.js';
-import { getSalesRatingMeta } from '/src/render/utils.js';
+} from '../data/index.js';
+import { showToast } from '../ui/toast.js';
+import { startTimers } from './timers.js';
+import { getSalesRatingMeta } from './utils.js';
 
 let kanbanFiltersBound = false;
 
@@ -26,9 +26,9 @@ const getBookingCarName = (booking) => {
 
 const bindKanbanFilters = () => {
   if (kanbanFiltersBound) return;
-  const typeSelect = document.getElementById('kanban-filter-type');
-  const driverSelect = document.getElementById('kanban-filter-driver');
-  const searchInput = document.getElementById('kanban-search');
+  const typeSelect = /** @type {HTMLSelectElement|null} */ (document.getElementById('kanban-filter-type'));
+  const driverSelect = /** @type {HTMLSelectElement|null} */ (document.getElementById('kanban-filter-driver'));
+  const searchInput = /** @type {HTMLInputElement|null} */ (document.getElementById('kanban-search'));
   const resetBtn = document.getElementById('kanban-reset-filters');
   const createBtn = document.getElementById('kanban-create-booking');
   const filters = appState.filters.bookings;
@@ -43,20 +43,23 @@ const bindKanbanFilters = () => {
   }
   if (typeSelect) {
     typeSelect.addEventListener('change', (event) => {
-      appState.filters.bookings.type = event.target.value;
+      const target = /** @type {HTMLSelectElement|null} */ (event.target);
+      if (target) appState.filters.bookings.type = target.value;
       renderKanbanBoard();
     });
   }
   if (driverSelect) {
     driverSelect.addEventListener('change', (event) => {
-      appState.filters.bookings.driver = event.target.value;
+      const target = /** @type {HTMLSelectElement|null} */ (event.target);
+      if (target) appState.filters.bookings.driver = target.value;
       renderKanbanBoard();
     });
   }
   if (searchInput) {
     let searchTimeout = null;
     searchInput.addEventListener('input', (event) => {
-      const value = event.target.value.trim();
+      const target = /** @type {HTMLInputElement|null} */ (event.target);
+      const value = target ? target.value.trim() : '';
       clearTimeout(searchTimeout);
       searchTimeout = setTimeout(() => {
         appState.filters.bookings.search = value;
@@ -108,16 +111,19 @@ const applyKanbanAutomations = (booking, newStatus) => {
   }
 };
 
+/**
+ * @param {{ item: HTMLElement, from: HTMLElement, to: HTMLElement, oldIndex: number }} event
+ */
 const handleKanbanMove = (event) => {
-  const bookingId = parseInt(event.item.dataset.bookingId, 10);
+  const bookingId = parseInt((event.item instanceof HTMLElement && event.item.dataset ? event.item.dataset.bookingId : '0'), 10);
   const booking = MOCK_DATA.bookings.find(b => b.id === bookingId);
   if (!booking) {
     renderKanbanBoard();
     return;
   }
 
-  const originStatus = event.from.dataset.status;
-  const targetStatus = event.to.dataset.status;
+  const originStatus = (event.from instanceof HTMLElement && event.from.dataset ? event.from.dataset.status : undefined);
+  const targetStatus = (event.to instanceof HTMLElement && event.to.dataset ? event.to.dataset.status : undefined);
 
   if (!targetStatus || originStatus === targetStatus) {
     renderKanbanBoard();
@@ -153,9 +159,9 @@ export const renderKanbanBoard = () => {
   const ownerFilter = appState.currentRole === 'sales'
     ? (appState.filters.sales?.owner || 'all')
     : 'all';
-  const typeSelect = document.getElementById('kanban-filter-type');
-  const driverSelect = document.getElementById('kanban-filter-driver');
-  const searchInput = document.getElementById('kanban-search');
+  const typeSelect = /** @type {HTMLSelectElement|null} */ (document.getElementById('kanban-filter-type'));
+  const driverSelect = /** @type {HTMLSelectElement|null} */ (document.getElementById('kanban-filter-driver'));
+  const searchInput = /** @type {HTMLInputElement|null} */ (document.getElementById('kanban-search'));
 
   if (typeSelect) typeSelect.value = filters.type;
   if (driverSelect) driverSelect.value = filters.driver;

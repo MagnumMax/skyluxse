@@ -1,8 +1,12 @@
-import { MOCK_DATA, getClientById } from '/src/data/index.js';
-import { appState } from '/src/state/appState.js';
-import { buildHash } from '/src/state/navigation.js';
-import { formatCurrency } from '/src/render/formatters.js';
+import { MOCK_DATA, getClientById } from '../data/index.js';
+import { appState } from '../state/appState.js';
+import { buildHash } from '../state/navigation.js';
+import { formatCurrency } from './formatters.js';
 
+/**
+ * @param {unknown} value
+ * @returns {string}
+ */
 const escapeHtml = (value) => {
   return String(value ?? '')
     .replace(/&/g, '&amp;')
@@ -12,16 +16,22 @@ const escapeHtml = (value) => {
     .replace(/'/g, '&#39;');
 };
 
+/**
+ * @param {string|number} id
+ * @returns {string|false}
+ */
 export const renderFleetDetail = (id) => {
   const car = MOCK_DATA.cars.find(c => c.id == id);
   if (!car) return false;
 
+  /** @type {Record<string,string>} */
   const statusTone = {
     Available: 'bg-emerald-50 text-emerald-700 border border-emerald-100',
     'In Rent': 'bg-blue-50 text-blue-700 border border-blue-100',
     Maintenance: 'bg-amber-50 text-amber-700 border border-amber-100'
   };
-  const badgeClass = statusTone[car.status] || 'bg-gray-100 text-gray-600 border border-gray-200';
+  const badgeClass = statusTone[String(car.status)] || 'bg-gray-100 text-gray-600 border border-gray-200';
+  /** @type {any} */
   const service = car.serviceStatus || {};
   const rawHealth = Math.round((service.health ?? 0) * 100);
   const healthPercent = Number.isFinite(rawHealth) ? Math.min(Math.max(rawHealth, 0), 100) : 0;
@@ -37,7 +47,9 @@ export const renderFleetDetail = (id) => {
   if (typeof car.imagePath === 'string') {
     heroImage = car.imagePath;
   }
+  /** @type {Array<any>} */
   const reminders = Array.isArray(car.reminders) ? car.reminders : [];
+  /** @type {Record<string,string>} */
   const reminderTone = {
     critical: 'bg-rose-50 text-rose-700 border border-rose-100',
     warning: 'bg-amber-50 text-amber-700 border border-amber-100',
@@ -45,7 +57,7 @@ export const renderFleetDetail = (id) => {
   };
   const remindersHtml = reminders.length
     ? reminders.map(reminder => {
-      const tone = reminderTone[reminder.status] || 'bg-gray-100 text-gray-600 border border-gray-200';
+      const tone = reminderTone[String(reminder.status)] || 'bg-gray-100 text-gray-600 border border-gray-200';
       const label = reminder.type ? reminder.type.replace(/-/g, ' ') : 'Reminder';
       return `
                               <li class="flex items-center justify-between gap-3 text-sm">
@@ -59,6 +71,7 @@ export const renderFleetDetail = (id) => {
     }).join('')
     : '<p class="text-sm text-gray-500">No active reminders</p>';
 
+  /** @type {Array<any>} */
   const maintenanceHistory = Array.isArray(car.maintenanceHistory) ? [...car.maintenanceHistory] : [];
   maintenanceHistory.sort((a, b) => {
     const dateA = new Date(a.date || 0).getTime();
@@ -81,13 +94,16 @@ export const renderFleetDetail = (id) => {
                       `).join('')
     : '<p class="text-sm text-gray-500">No maintenance history</p>';
 
+  /** @type {Array<any>} */
   const documents = Array.isArray(car.documents) ? car.documents : [];
+  /** @type {Record<string,string>} */
   const documentStatusTone = {
     active: 'bg-emerald-50 text-emerald-700 border border-emerald-100',
     warning: 'bg-amber-50 text-amber-700 border border-amber-100',
     expired: 'bg-rose-50 text-rose-700 border border-rose-100',
     'needs-review': 'bg-amber-50 text-amber-700 border border-amber-100'
   };
+  /** @type {Record<string,string>} */
   const documentStatusLabel = {
     active: 'Active',
     warning: 'Warning',
@@ -96,8 +112,8 @@ export const renderFleetDetail = (id) => {
   };
   const documentStatusHtml = documents.length
     ? documents.map(doc => {
-      const tone = documentStatusTone[doc.status] || 'bg-gray-100 text-gray-600 border border-gray-200';
-      const statusLabel = documentStatusLabel[doc.status] || (doc.status ? doc.status : 'Status');
+      const tone = documentStatusTone[String(doc.status)] || 'bg-gray-100 text-gray-600 border border-gray-200';
+      const statusLabel = documentStatusLabel[String(doc.status)] || (doc.status ? String(doc.status) : 'Status');
       return `
                               <li class="flex items-center justify-between gap-3 rounded-md border border-gray-200 px-3 py-2 text-sm">
                                   <div>
@@ -110,6 +126,7 @@ export const renderFleetDetail = (id) => {
     }).join('')
     : '<p class="text-sm text-gray-500">No documents uploaded</p>';
 
+  /** @type {Array<string>} */
   const documentGallery = Array.isArray(car.documentGallery) ? car.documentGallery : [];
   const documentGalleryHtml = documentGallery.length
     ? documentGallery.map(url => `
@@ -117,6 +134,7 @@ export const renderFleetDetail = (id) => {
                       `).join('')
     : '';
 
+  /** @type {Array<any>} */
   const inspections = Array.isArray(car.inspections) ? car.inspections : [];
   const inspectionsHtml = inspections.length
     ? inspections.map(insp => `
@@ -136,12 +154,21 @@ export const renderFleetDetail = (id) => {
     : '<p class="text-sm text-gray-500">No inspections recorded</p>';
 
   const relevantBookings = (MOCK_DATA.bookings || []).filter(booking => Number(booking.carId) === Number(car.id));
+  /**
+   * @param {string|undefined|null} date
+   * @param {string|undefined|null} time
+   * @returns {Date|null}
+   */
   const parseBookingDate = (date, time) => {
     if (!date) return null;
     const safeTime = time && time.length === 5 ? `${time}:00` : (time || '00:00:00');
     const parsed = new Date(`${date}T${safeTime}`);
     return Number.isNaN(parsed.getTime()) ? null : parsed;
   };
+  /**
+   * @param {Date|null} dateObj
+   * @returns {string}
+   */
   const formatBookingDate = (dateObj) => {
     if (!dateObj) return '—';
     return dateObj.toLocaleString('en-GB', {
@@ -165,6 +192,11 @@ export const renderFleetDetail = (id) => {
     .sort((a, b) => (b.end?.getTime() || 0) - (a.end?.getTime() || 0));
   const lastBooking = pastBookings.length ? pastBookings[0].booking : null;
 
+  /**
+   * @param {string} label
+   * @param {any} booking
+   * @returns {string}
+   */
   const buildBookingCard = (label, booking) => {
     if (!booking) return '';
     const start = parseBookingDate(booking.startDate, booking.startTime);

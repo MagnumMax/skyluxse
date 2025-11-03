@@ -1,8 +1,13 @@
-import { ROLES_CONFIG } from '/src/data/index.js';
-import { appState } from '/src/state/appState.js';
+import { ROLES_CONFIG } from '../data/index.js';
+import { appState } from './appState.js';
 
 export const HASH_DEFAULT_SELECTOR = 'main';
 
+/**
+ * @param {string} role
+ * @param {string} page
+ * @param {string} [selector]
+ */
 export const buildHash = (role, page, selector = HASH_DEFAULT_SELECTOR) => {
   const safeRole = ROLES_CONFIG[role] ? role : 'operations';
   const roleConfig = ROLES_CONFIG[safeRole] || {};
@@ -11,6 +16,10 @@ export const buildHash = (role, page, selector = HASH_DEFAULT_SELECTOR) => {
   return `#${safeRole}/${safePage}/${finalSelector}`;
 };
 
+/**
+ * @param {string} hashValue
+ * @returns {{role: string, page: string, selector: string, canonical: string, isCanonical: boolean}}
+ */
 export const parseHash = (hashValue) => {
   const raw = (hashValue || '').replace(/^#/, '');
   const parts = raw.split('/').filter(Boolean);
@@ -29,4 +38,5 @@ export const parseHash = (hashValue) => {
   return { role, page, selector, canonical, isCanonical };
 };
 
+/** @param {string} selector */
 export const isDefaultSelector = (selector) => selector === HASH_DEFAULT_SELECTOR;

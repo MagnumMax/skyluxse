@@ -1,0 +1,16 @@
+/* Reset CSS - Global reset styles */
+
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            border-color: hsl(var(--border));
+        }
+
+        body {
+            font-family: var(--sl-font-sans);
+            background-color: hsl(var(--background));
+            color: hsl(var(--foreground));
+            font-feature-settings: "rlig" 1, "calt" 1;
+            -webkit-font-smoothing: antialiased;
+        }

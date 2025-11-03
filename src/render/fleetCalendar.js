@@ -1,9 +1,9 @@
-import { MOCK_DATA, CALENDAR_EVENT_TYPES, BOOKING_STATUS_PHASES, BOOKING_STATUS_STAGE_MAP, getClientById } from '/src/data/index.js';
-import { appState } from '/src/state/appState.js';
-import { buildHash } from '/src/state/navigation.js';
-import { showToast } from '/src/ui/toast.js';
-import { getIcon } from '/src/ui/icons.js';
-import { formatCurrency } from '/src/render/utils.js';
+import { MOCK_DATA, CALENDAR_EVENT_TYPES, BOOKING_STATUS_PHASES, BOOKING_STATUS_STAGE_MAP, getClientById } from '../data/index.js';
+import { appState } from '../state/appState.js';
+import { buildHash } from '../state/navigation.js';
+import { showToast } from '../ui/toast.js';
+import { getIcon } from '../ui/icons.js';
+import { formatCurrency } from './utils.js';
 
 const VIEW_CONFIG = {
   '3-day': { days: 3, step: 3 },
@@ -149,8 +149,6 @@ const buildMonthSegments = (dates) => {
     return segments;
   }, []);
 };
-
-const formatPercent = (value) => (Number.isFinite(value) ? value.toFixed(4) : '0');
 
 const getEventOverlapMs = (event, rangeStart, rangeEndExclusive) => {
   const start = new Date(event.start);
@@ -1029,9 +1027,14 @@ export const renderFleetCalendar = () => {
   if (!grid) return;
 
   bindFleetCalendarControls();
-
-  const classFilterValue = document.getElementById('fleet-calendar-class-filter')?.value || '';
-  const statusFilterValue = document.getElementById('fleet-calendar-status-filter')?.value || '';
+  const classEl = document.getElementById('fleet-calendar-class-filter');
+  const classFilterValue = (classEl instanceof HTMLSelectElement || classEl instanceof HTMLInputElement || classEl instanceof HTMLTextAreaElement)
+    ? (classEl.value || '')
+    : '';
+  const statusEl = document.getElementById('fleet-calendar-status-filter');
+  const statusFilterValue = (statusEl instanceof HTMLSelectElement || statusEl instanceof HTMLInputElement || statusEl instanceof HTMLTextAreaElement)
+    ? (statusEl.value || '')
+    : '';
   const viewMode = appState.filters.calendar.view || 'week';
   const calendarMode = appState.filters.calendar.mode || 'timeline';
   const typeFilterValue = appState.filters.calendar.type || 'all';
@@ -1061,32 +1064,28 @@ export const renderFleetCalendar = () => {
   const firstColWidth = 260;
   const columnsStyle = `grid-template-columns: ${firstColWidth}px repeat(${viewCfg.days}, minmax(110px, 1fr));`;
   const todayKey = getCalendarTodayKey();
-  const todayIndex = dates.findIndex(date => formatDateKey(date) === todayKey);
-  const dayWidthPercent = (DAY_IN_MS / totalRangeMs) * 100;
-  const todayLeftPercent = todayIndex >= 0
-    ? ((dates[todayIndex] - startDate) / totalRangeMs) * 100
-    : null;
   const monthSegments = buildMonthSegments(dates);
 
   const viewSelect = document.getElementById('calendar-view-select');
-  if (viewSelect) viewSelect.value = viewMode;
+  if (viewSelect && viewSelect instanceof HTMLSelectElement) viewSelect.value = viewMode;
   const typeSelect = document.getElementById('calendar-type-filter');
-  if (typeSelect) typeSelect.value = typeFilterValue;
+  if (typeSelect && typeSelect instanceof HTMLSelectElement) typeSelect.value = typeFilterValue;
   const bookingStatusSelect = document.getElementById('calendar-booking-status-filter');
-  if (bookingStatusSelect) bookingStatusSelect.value = bookingStatusFilterValue;
+  if (bookingStatusSelect && bookingStatusSelect instanceof HTMLSelectElement) bookingStatusSelect.value = bookingStatusFilterValue;
   updateRangeSwitcherState(viewMode);
   updateModeToggleState(calendarMode);
   const searchInput = document.getElementById('calendar-search');
-  if (searchInput && searchInput.value !== appState.filters.calendar.search) {
+  if (searchInput && searchInput instanceof HTMLInputElement && searchInput.value !== (appState.filters.calendar.search || '')) {
     searchInput.value = appState.filters.calendar.search || '';
   }
   const groupSelect = document.getElementById('calendar-group-select');
-  if (groupSelect) groupSelect.value = groupMode;
+  if (groupSelect && groupSelect instanceof HTMLSelectElement) groupSelect.value = groupMode;
   const layerInputs = Array.from(document.querySelectorAll('input[data-calendar-layer]'));
-  layerInputs.forEach((input) => {
-    const layer = input.dataset.calendarLayer;
+  layerInputs.forEach((inputEl) => {
+    if (!(inputEl instanceof HTMLInputElement)) return;
+    const layer = inputEl.dataset.calendarLayer;
     if (!layer) return;
-    input.checked = layersDisabled ? false : activeLayerSet.has(layer);
+    inputEl.checked = layersDisabled ? false : activeLayerSet.has(layer);
   });
 
   let cars = MOCK_DATA.cars.slice();

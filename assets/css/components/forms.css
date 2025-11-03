@@ -1,0 +1,102 @@
+/* Forms - Form component styles */
+
+        .geist-button-tertiary,
+        .sl-button-tertiary {
+            background-color: transparent;
+            color: hsl(var(--foreground));
+            border: 1px solid transparent;
+        }
+        .geist-button-tertiary:hover:not(:disabled),
+        .sl-button-tertiary:hover:not(:disabled) {
+            background-color: hsl(var(--muted));
+            color: hsl(var(--foreground));
+        }
+
+        .geist-button-compact,
+        .sl-button-compact {
+            padding: 0.35rem 0.75rem;
+            border-radius: calc(var(--radius) * 0.85);
+            font-size: 0.75rem;
+        }
+
+        select,
+        input[type="text"],
+        input[type="email"],
+        input[type="password"],
+        input[type="number"],
+        input[type="datetime-local"],
+        input[type="date"],
+        input[type="time"],
+        textarea {
+            width: 100%;
+            border-radius: calc(var(--radius) - 2px) !important;
+            border: 1px solid hsl(var(--input)) !important;
+            background-color: hsl(var(--card)) !important;
+            color: hsl(var(--foreground));
+            padding: 0.5rem 0.75rem;
+            font-size: 0.9rem;
+            transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        select:focus,
+        input:focus,
+        textarea:focus {
+            outline: none;
+            border-color: hsl(var(--ring)) !important;
+            box-shadow: 0 0 0 2px hsl(var(--ring) / 0.2);
+        }
+
+        input::placeholder,
+        textarea::placeholder {
+            color: hsl(var(--muted-foreground));
+        }
+
+        .geist-button,
+        .sl-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.4rem;
+            border-radius: calc(var(--radius) - 2px);
+            font-weight: 500;
+            font-size: 0.9rem;
+            line-height: 1.2;
+            padding: 0.5rem 1rem;
+            transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+            border: 1px solid transparent;
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12);
+        }
+        .geist-button:focus-visible,
+        .sl-button:focus-visible {
+            outline: 2px solid hsl(var(--ring));
+            outline-offset: 2px;
+        }
+        .geist-button:disabled,
+        .sl-button:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        .geist-button-primary,
+        .sl-button-primary {
+            background-color: hsl(var(--primary));
+            color: hsl(var(--primary-foreground));
+        }
+        .geist-button-primary:hover:not(:disabled),
+        .sl-button-primary:hover:not(:disabled) {
+            background-color: hsl(var(--primary) / 0.9);
+        }
+
+        .geist-button-secondary,
+        .sl-button-secondary {
+            background-color: hsl(var(--secondary));
+            color: hsl(var(--secondary-foreground));
+            border-color: hsl(var(--border));
+            box-shadow: none;
+        }
+        .geist-button-secondary:hover:not(:disabled),
+        .sl-button-secondary:hover:not(:disabled) {
+            background-color: hsl(var(--accent));
+            color: hsl(var(--accent-foreground));
+        }

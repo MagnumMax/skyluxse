@@ -1,3 +1,4 @@
+/** @type {Map<string, string>} */
 const iconCache = new Map();
 
 const lucideIcons = {
@@ -44,6 +45,11 @@ const lucideIcons = {
   search: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-3.9-3.9"/></svg>'
 };
 
+/**
+ * @param {keyof typeof lucideIcons} name
+ * @param {string} [classes]
+ * @returns {string}
+ */
 export const getIcon = (name, classes = 'w-5 h-5') => {
   const svg = lucideIcons[name];
   if (!svg) return '';
@@ -55,7 +61,7 @@ export const getIcon = (name, classes = 'w-5 h-5') => {
 
   const tempDiv = document.createElement('div');
   tempDiv.innerHTML = svg.trim();
-  const svgEl = tempDiv.firstChild;
+  const svgEl = tempDiv.firstElementChild;
   if (!svgEl) return '';
 
   classes.split(' ').filter(Boolean).forEach(c => svgEl.classList.add(c));

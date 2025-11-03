@@ -69,7 +69,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
 
     <!-- SkyLuxse design system -->
-    <link rel="stylesheet" href="./public/design-system.css">
+    <link rel="stylesheet" href="./assets/css/main.css">
     
     <!-- Google Fonts: Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -153,12 +153,22 @@
 
     <!-- Main Application Wrapper -->
     <div id="app-container" class="hidden h-screen w-screen overflow-hidden">
+        <!-- Mobile Sidebar Overlay -->
+        <div id="sidebar-overlay" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-30 hidden md:hidden"></div>
+        
         <div id="desktop-shell" class="flex h-full">
             <!-- Component: Sidebar -->
-            <aside id="sidebar" class="bg-white border-r border-gray-200 w-64 flex-shrink-0 flex flex-col transition-transform duration-300 ease-in-out md:translate-x-0 -translate-x-full fixed md:static h-full z-20">
+            <aside id="sidebar" class="bg-white border-r border-gray-200 w-64 flex-shrink-0 flex flex-col transition-transform duration-300 ease-in-out md:translate-x-0 -translate-x-full fixed md:static h-full z-40">
                 <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
                     <h1 class="sidebar-title text-xl font-bold">SkyLuxse</h1>
-                    <button id="sidebar-collapse" type="button" class="ml-2 hidden md:inline-flex p-2 text-gray-400" aria-label="Свернуть панель" aria-expanded="true"></button>
+                    <div class="flex items-center gap-2">
+                        <button id="sidebar-close" type="button" class="md:hidden p-2 text-gray-400 hover:text-gray-600" aria-label="Закрыть панель" title="Закрыть">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </button>
+                        <button id="sidebar-collapse" type="button" class="ml-2 hidden md:inline-flex p-2 text-gray-400" aria-label="Свернуть панель" aria-expanded="true"></button>
+                    </div>
                 </div>
                 <nav id="sidebar-nav" class="flex-grow p-4 space-y-2"></nav>
                 <div id="sidebar-profile" class="p-4 border-t border-gray-200">
@@ -694,21 +704,42 @@
         console.log('🔍 [DEBUG] Base URL:', window.location.origin);
 
         // Проверяем доступность main.js перед загрузкой
-        fetch('public/main.js?v=2')
+        fetch('src/main.js?v=2')
             .then(response => {
-                console.log('🔍 [DEBUG] Статус main.js:', response.status);
+                console.log('🔍 [DEBUG] Статус src/main.js:', response.status);
                 if (!response.ok) {
-                    console.error('❌ [DEBUG] main.js недоступен:', response.status, response.statusText);
+                    console.error('❌ [DEBUG] src/main.js недоступен:', response.status, response.statusText);
+                    // Попробуем альтернативный путь
+                    console.log('🔄 [DEBUG] Пробуем альтернативный путь...');
+                    return fetch('./src/main.js?v=2');
                 } else {
-                    console.log('✅ [DEBUG] main.js доступен');
+                    console.log('✅ [DEBUG] src/main.js доступен');
+                }
+            })
+            .then(response => {
+                if (response && !response.ok) {
+                    console.error('❌ [DEBUG] ./src/main.js также недоступен:', response.status, response.statusText);
                 }
             })
             .catch(error => {
-                console.error('❌ [DEBUG] Ошибка при проверке main.js:', error);
+                console.error('❌ [DEBUG] Ошибка при проверке src/main.js:', error);
             });
+
+        // Отслеживание загрузки модуля
+        window.addEventListener('load', () => {
+            console.log('🔍 [DEBUG] Страница полностью загружена');
+            if (typeof appState === 'undefined') {
+                console.error('❌ [DEBUG] appState не найден - модуль не загружен');
+            } else {
+                console.log('✅ [DEBUG] appState найден - модуль успешно загружен');
+            }
+        });
     </script>
 
-    <script type="module" src="public/main.js?v=2"></script>
+    <script type="module" src="src/main.js?v=2"></script>
+    
+    <!-- Sidebar profile menu component -->
+    <script type="module" src="assets/js/components/sidebar.js?v=2"></script>
 
 </body>
 </html>

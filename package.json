@@ -6,6 +6,8 @@
   "scripts": {
     "build": "node scripts/build.mjs",
     "dev": "echo 'Development mode - open index.html in browser'",
+    "predev": "npm run port:kill",
+    "port:kill": "kill-port ${PORT:-8080}",
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx --fix",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -23,6 +25,7 @@
   "homepage": "https://github.com/MagnumMax/skyluxse#readme",
   "devDependencies": {
     "eslint": "^9.38.0",
+    "kill-port": "^2.0.1",
     "prettier": "^3.6.2"
   }
 }

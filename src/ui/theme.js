@@ -2,6 +2,10 @@ const cssVarCache = new Map();
 
 const getRootElement = () => (typeof document !== 'undefined' ? document.documentElement : null);
 
+/**
+ * @param {string} token
+ * @returns {string}
+ */
 const readCssVariable = (token) => {
   const root = getRootElement();
   if (!root) return '';
@@ -9,13 +13,21 @@ const readCssVariable = (token) => {
   if (cssVarCache.has(normalized)) {
     return cssVarCache.get(normalized);
   }
-  const value = getComputedStyle(root).getPropertyValue(normalized).trim();
+  const style = (typeof globalThis !== 'undefined' && typeof globalThis.getComputedStyle === 'function')
+    ? globalThis.getComputedStyle(root)
+    : null;
+  if (!style) return '';
+  const value = style.getPropertyValue(normalized).trim();
   if (value) {
     cssVarCache.set(normalized, value);
   }
   return value;
 };
 
+/**
+ * @param {string} token
+ * @returns {string}
+ */
 const readColorToken = (token) => readCssVariable(`sl-color-${token}`) || readCssVariable(token);
 
 /**

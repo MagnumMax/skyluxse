@@ -1,5 +1,5 @@
-import { appState } from '/src/state/appState.js';
-import { getIcon } from '/src/ui/icons.js';
+import { appState } from '../state/appState.js';
+import { getIcon } from '../ui/icons.js';
 
 export const startTimers = () => {
   if (appState.timerInterval) clearInterval(appState.timerInterval);
@@ -7,8 +7,10 @@ export const startTimers = () => {
   const updateCountdowns = () => {
     const now = new Date().getTime();
 
-    document.querySelectorAll('.card-timer').forEach(timerEl => {
-      const targetTime = parseInt(timerEl.dataset.targetTime, 10);
+    document.querySelectorAll('.card-timer').forEach((node) => {
+      const timerEl = /** @type {HTMLElement|null} */ (node instanceof HTMLElement ? node : null);
+      if (!timerEl || !timerEl.dataset) return;
+      const targetTime = parseInt(timerEl.dataset.targetTime || '0', 10);
       if (!targetTime) return;
       const diff = targetTime - now;
 
@@ -23,8 +25,10 @@ export const startTimers = () => {
       timerEl.innerHTML = `${getIcon('clock', 'w-3 h-3 inline mr-1')} ${d}d ${h}h ${m}m`;
     });
 
-    document.querySelectorAll('.task-countdown').forEach(timerEl => {
-      const targetTime = parseInt(timerEl.dataset.targetTime, 10);
+    document.querySelectorAll('.task-countdown').forEach((node) => {
+      const timerEl = /** @type {HTMLElement|null} */ (node instanceof HTMLElement ? node : null);
+      if (!timerEl || !timerEl.dataset) return;
+      const targetTime = parseInt(timerEl.dataset.targetTime || '0', 10);
       if (!targetTime || Number.isNaN(targetTime)) return;
 
       const diff = targetTime - now;

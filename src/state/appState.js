@@ -1,6 +1,14 @@
-import { MOCK_DATA } from '/src/data/index.js';
+import { MOCK_DATA } from '../data/index.js';
 
 export const OFFLINE_STORAGE_KEY = 'skyluxse-offline-queue';
+
+/**
+ * @typedef {Object} OfflineAction
+ * @property {string} type
+ * @property {string|number} [bookingId]
+ * @property {any} [payload]
+ * @property {string} [ts]
+ */
 
 export function loadOfflineQueue() {
   try {
@@ -19,14 +27,16 @@ export function persistOfflineQueue() {
   }
 }
 
+/** @param {OfflineAction} action */
 export function enqueueOfflineAction(action) {
   appState.offline.queuedActions.push({ ...action, ts: new Date().toISOString() });
   persistOfflineQueue();
 }
 
+/** @param {OfflineAction} action */
 export function processOfflineAction(action) {
   if (action.type === 'driver-task-complete') {
-    const booking = MOCK_DATA.bookings.find(b => String(b.id) === String(action.bookingId));
+    const booking = MOCK_DATA.bookings.find(/** @param {any} b */ (b) => String(b.id) === String(action.bookingId));
     if (booking) {
       booking.status = 'settlement';
       booking.mileage = action.payload.odometer;
@@ -36,7 +46,7 @@ export function processOfflineAction(action) {
       booking.history = booking.history || [];
       booking.history.push({ ts: new Date().toISOString().slice(0, 16).replace('T', ' '), event: 'Driver data synchronized' });
     }
-    const relatedTask = MOCK_DATA.tasks.find(t => String(t.bookingId) === String(action.bookingId));
+    const relatedTask = MOCK_DATA.tasks.find(/** @param {any} t */ (t) => String(t.bookingId) === String(action.bookingId));
     if (relatedTask) {
       relatedTask.status = 'done';
       relatedTask.completedPayload = action.payload;
@@ -46,6 +56,7 @@ export function processOfflineAction(action) {
 
 export function syncOfflineQueue() {
   if (!appState.offline.queuedActions.length) return;
+  /** @type {OfflineAction[]} */
   const queueCopy = [...appState.offline.queuedActions];
   queueCopy.forEach(processOfflineAction);
   appState.offline.queuedActions = [];
@@ -113,7 +124,7 @@ export const appState = {
     mode: 'create',
     draftBookingId: null
   },
-  calendarStart: null, // will be initialized below
+  calendarStart: '', // will be initialized below
   calendarTodayOverride: '2025-10-25'
 };
 

@@ -7,27 +7,30 @@ import {
   getCarById,
   registerDocument,
   getDocumentUrl
-} from '/src/data/index.js';
+} from './data/index.js';
 import {
   appState,
   enqueueOfflineAction,
   syncOfflineQueue,
   getStartOfWeek
-} from '/src/state/appState.js';
+} from './state/appState.js';
 import {
   HASH_DEFAULT_SELECTOR,
   buildHash,
   parseHash,
   isDefaultSelector
-} from '/src/state/navigation.js';
-import { renderKanbanBoard } from '/src/render/kanban.js';
-import { renderAnalyticsPage, renderSalesPipeline } from '/src/render/charts.js';
-import { startTimers } from '/src/render/timers.js';
-import { formatCurrency, formatDateLabel } from '/src/render/formatters.js';
-import { renderFleetCalendar, initFleetCalendar } from '/src/render/fleetCalendar.js';
-import { showToast } from '/src/ui/toast.js';
-import { getIcon } from '/src/ui/icons.js';
-import { createRouter } from '/src/router.js';
+} from './state/navigation.js';
+import { renderKanbanBoard } from './render/kanban.js';
+import { renderAnalyticsPage, renderSalesPipeline } from './render/charts.js';
+import { startTimers } from './render/timers.js';
+import { formatCurrency, formatDateLabel } from './render/formatters.js';
+import { renderFleetCalendar, initFleetCalendar } from './render/fleetCalendar.js';
+import { showToast } from './ui/toast.js';
+import { getIcon } from './ui/icons.js';
+// Global declarations for browser APIs
+/* global confirm */
+
+import { createRouter } from './router.js';
 
 /**
  * Основная точка входа приложения SkyLuxse
@@ -61,10 +64,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // --- DOM Elements ---
   const sidebar = document.getElementById('sidebar');
-  const mainContent = document.getElementById('main-content');
   const appContainer = document.getElementById('app-container');
-  const desktopShell = document.getElementById('desktop-shell');
-  const mobileViewContainer = document.getElementById('mobile-view');
   const bookingDetailContent = document.getElementById('booking-detail-content');
   const taskDetailContent = document.getElementById('task-detail-content');
   const maintenanceCreateContent = document.getElementById('maintenance-create-content');
@@ -73,9 +73,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const documentViewerImage = document.getElementById('document-viewer-image');
   const driverTaskDetailContent = document.getElementById('driver-task-detail-content');
   const pageBackButtons = document.querySelectorAll('.page-back-button');
-  const desktopPages = Array.from(document.querySelectorAll('#content-area > section.page'));
   const pageActionButton = document.getElementById('page-action-button');
-  const salesOwnerFilterWrapper = document.getElementById('sales-owner-filter-wrapper');
   const salesOwnerFilter = document.getElementById('sales-owner-filter');
   const loginRoleSelect = document.getElementById('login-role');
   const loginEmailInput = document.getElementById('email');
@@ -135,42 +133,8 @@ document.addEventListener('DOMContentLoaded', () => {
     otpInput.setAttribute('disabled', 'disabled');
   }
 
-  const getSalesOwnerOptions = () => (MOCK_DATA.salesPipeline?.owners || []);
 
-  const refreshSalesOwnerFilter = () => {
-    if (!salesOwnerFilter) return;
-    const owners = getSalesOwnerOptions();
-    const currentValue = appState.filters.sales?.owner || 'all';
-    let ownerChanged = false;
-    const optionsHtml = [
-      '<option value="all">All managers</option>',
-      owners.map(owner => `<option value="${owner.id}">${owner.name}</option>`).join('')
-    ].join('');
-    salesOwnerFilter.innerHTML = optionsHtml;
-    if (currentValue !== 'all' && !owners.some(owner => owner.id === currentValue)) {
-      appState.filters.sales.owner = 'all';
-      ownerChanged = true;
-    }
-    const selectElement = /** @type {HTMLSelectElement} */ (salesOwnerFilter);
-    selectElement.value = appState.filters.sales.owner || 'all';
-    selectElement.dataset.bound = 'true';
-    if (ownerChanged) {
-      renderCurrentPageWithSalesFilter();
-    }
-  };
-
-  /**
-   * @param {string} role
-   */
-  const updateSalesOwnerFilterVisibility = (role) => {
-    if (!salesOwnerFilterWrapper) return;
-    if (role === 'sales') {
-      refreshSalesOwnerFilter();
-      salesOwnerFilterWrapper.classList.remove('hidden');
-    } else {
-      salesOwnerFilterWrapper.classList.add('hidden');
-    }
-  };
+  // Removed unused updateSalesOwnerFilterVisibility function
 
   if (salesOwnerFilter && !salesOwnerFilter.dataset.globalHandler) {
     salesOwnerFilter.addEventListener('change', (/** @type {Event} */ event) => {
@@ -305,7 +269,8 @@ document.addEventListener('DOMContentLoaded', () => {
       if (input instanceof window.HTMLInputElement && input.type === 'checkbox') {
         return input.checked;
       }
-      return input.value || '';
+      // For inputs/selects/textareas, read their value safely under TS checkJs
+      return ('value' in input) ? /** @type {HTMLInputElement|HTMLSelectElement|HTMLTextAreaElement} */(input).value || '' : '';
     };
     const rentalAmount = Number.parseFloat(getField('rentalAmount')) || 0;
     return {
@@ -384,78 +349,144 @@ document.addEventListener('DOMContentLoaded', () => {
     return maxId + 1;
   };
 
-  const renderSidebar = () => {
-    const roleConfig = ROLES_CONFIG[/** @type {keyof typeof ROLES_CONFIG} */ (appState.currentRole)];
-    const navEl = document.getElementById('sidebar-nav');
-    const profileEl = document.getElementById('sidebar-profile');
+  const renderSidebarNavigation = () => {
+    console.log('🔍 [DEBUG] renderSidebarNavigation called, currentRole:', appState.currentRole);
+    const sidebarNav = document.getElementById('sidebar-nav');
+    if (!sidebarNav) {
+      console.error('❌ [DEBUG] sidebar-nav element not found');
+      return;
+    }
 
-    if (!roleConfig || roleConfig.layout !== 'desktop') {
-      if (navEl) navEl.innerHTML = '';
-      if (profileEl) profileEl.innerHTML = '';
-      updateSalesOwnerFilterVisibility(appState.currentRole);
+    const roleConfig = ROLES_CONFIG[appState.currentRole];
+    if (!roleConfig) {
+      console.error('❌ [DEBUG] Role config not found for:', appState.currentRole);
+      return;
+    }
+
+    console.log('🔍 [DEBUG] Full role config:', JSON.stringify(roleConfig, null, 2));
+    console.log('🔍 [DEBUG] Checking for pages property:', roleConfig.pages);
+    console.log('🔍 [DEBUG] Checking for nav property:', roleConfig.nav);
+    
+    // ВНИМАНИЕ: Используем nav вместо pages
+    const navPages = roleConfig.nav || roleConfig.pages || [];
+    console.log('🔍 [DEBUG] Navigation pages to render:', navPages);
+    
+    if (!navPages || !Array.isArray(navPages)) {
+      console.error('❌ [DEBUG] Navigation pages is not an array:', navPages);
+      sidebarNav.innerHTML = '<div class="p-4 text-red-600">Navigation configuration error</div>';
       return;
     }
     
-    if (!navEl || !profileEl) return;
-            
-    navEl.innerHTML = roleConfig.nav.map((/** @type {any} */ item) => `
-                <a href="${buildHash(appState.currentRole, item.id)}" class="nav-link flex items-center gap-3 px-3 py-2 rounded-lg text-sm" data-page="${item.id}">
-                    ${getIcon(item.icon, 'w-5 h-5')}
-                    <span class="font-medium">${item.name}</span>
-                </a>
-            `).join('');
+    const navHtml = navPages.map(page => {
+      // Обрабатываем как объект с id, name, icon
+      if (typeof page === 'object' && page.id) {
+        const pageId = page.id;
+        const label = page.name || pageId.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase());
+        const icon = page.icon || 'circle';
+        return `<a href="${buildHash(appState.currentRole, pageId)}" class="nav-link flex items-center gap-3 px-4 py-3 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-colors" data-page="${pageId}">
+          ${getIcon(icon, 'w-5 h-5')}
+          <span>${label}</span>
+        </a>`;
+      } 
+      // Обрабатываем как строку (старый формат)
+      else {
+        const pageId = page;
+        const pageConfig = roleConfig.pageConfigs?.[pageId] || {};
+        const label = pageConfig.label || pageId.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase());
+        const icon = pageConfig.icon || 'circle';
+        return `<a href="${buildHash(appState.currentRole, pageId)}" class="nav-link flex items-center gap-3 px-4 py-3 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-colors" data-page="${pageId}">
+          ${getIcon(icon, 'w-5 h-5')}
+          <span>${label}</span>
+        </a>`;
+      }
+    }).join('');
 
-    const displayName = roleConfig.label || roleConfig.name;
-    profileEl.innerHTML = `
-                <div class="flex items-center space-x-3">
-                    <div class="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center font-semibold text-gray-600 uppercase">
-                        ${displayName.substring(0,1)}
-                    </div>
-                    <div>
-                        <p class="font-semibold text-sm">${displayName}</p>
-                        <p class="text-xs text-gray-500">${roleConfig.email}</p>
-                    </div>
-                    <button id="sidebar-logout" type="button" class="ml-auto p-2 text-gray-500 hover:text-black" title="Log out">
-                        ${getIcon('logOut', 'w-5 h-5')}
-                    </button>
-                </div>
-            `;
-    const logoutBtn = profileEl.querySelector('#sidebar-logout');
-    if (logoutBtn) {
-      logoutBtn.addEventListener('click', () => {
-        if (appContainer) appContainer.classList.add('hidden');
-        const loginPage = document.getElementById('page-login');
-        if (loginPage) loginPage.classList.remove('hidden');
-        window.location.hash = '';
-
-        if (otpContainer) {
-          otpContainer.classList.add('hidden');
-        }
-
-        if (otpInput) {
-          const inputElement = /** @type {HTMLInputElement} */ (otpInput);
-          inputElement.value = '';
-          inputElement.setAttribute('disabled', 'disabled');
-        }
-
-        if (requestOtpBtn) {
-          requestOtpBtn.textContent = 'Send code';
-          requestOtpBtn.disabled = false;
-        }
-
-        window.location.href = '/';
-      });
-    }
-    updateActiveLink();
-    updateSidebarToggleState();
-    updateSalesOwnerFilterVisibility(appState.currentRole);
+    sidebarNav.innerHTML = navHtml;
+    console.log('✅ [DEBUG] Sidebar navigation rendered successfully');
   };
 
+  const renderSidebarProfile = () => {
+    console.log('🔍 [DEBUG] renderSidebarProfile called, currentRole:', appState.currentRole);
+    const sidebarProfile = document.getElementById('sidebar-profile');
+    if (!sidebarProfile) {
+      console.error('❌ [DEBUG] sidebar-profile element not found');
+      return;
+    }
+
+    const roleConfig = ROLES_CONFIG[appState.currentRole];
+    if (!roleConfig) {
+      console.error('❌ [DEBUG] Role config not found for:', appState.currentRole);
+      return;
+    }
+
+    const roleLabel = roleConfig.label || appState.currentRole.replace(/\b\w/g, l => l.toUpperCase());
+    const userName = appState.loginEmail || 'Пользователь';
+    const userRole = roleLabel;
+    
+    const profileHtml = `
+      <div id="profile-menu" class="relative">
+        <button id="profile-trigger" class="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors duration-200">
+          <div id="profile-avatar" class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+            <svg class="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+            </svg>
+          </div>
+          <div class="flex-1 text-left min-w-0">
+            <div id="profile-name" class="text-sm font-medium text-gray-900 truncate">
+              ${userName}
+            </div>
+            <div id="profile-role" class="text-xs text-gray-500 truncate">
+              ${userRole}
+            </div>
+          </div>
+          <svg id="profile-chevron" class="w-4 h-4 text-gray-400 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+          </svg>
+        </button>
+        
+        <!-- Dropdown Menu -->
+        <div id="profile-dropdown" class="hidden absolute bottom-full left-0 right-0 mb-2 bg-white rounded-lg border border-gray-200 shadow-lg py-2 z-50">
+          <div class="px-4 py-2 border-b border-gray-100">
+            <div class="text-sm font-medium text-gray-900" id="dropdown-profile-name">${userName}</div>
+            <div class="text-xs text-gray-500" id="dropdown-profile-email">${appState.loginEmail || 'user@skyluxse.ae'}</div>
+          </div>
+          
+          <button id="profile-settings" class="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors duration-150">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+            </svg>
+            Настройки профиля
+          </button>
+          
+          <button id="logout-button" class="w-full flex items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors duration-150">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+            </svg>
+            Выйти из системы
+          </button>
+        </div>
+      </div>
+    `;
+
+    sidebarProfile.innerHTML = profileHtml;
+    console.log('✅ [DEBUG] Sidebar profile rendered successfully');
+    
+    // Initialize profile menu handlers
+    initProfileMenu();
+  };
+
+  // Removed unused renderSidebar function
+
   const updateActiveLink = () => {
+    console.log('🔍 [DEBUG] updateActiveLink called, currentPage:', appState.currentPage);
     const pageId = appState.currentPage.split('/')[0];
-    document.querySelectorAll('#sidebar-nav a').forEach(a => {
+    const navLinks = document.querySelectorAll('#sidebar-nav a');
+    console.log('🔍 [DEBUG] Found nav links:', navLinks.length);
+    navLinks.forEach(a => {
       if (a.dataset.page === pageId) {
         a.classList.add('nav-link-active');
+        console.log('🔍 [DEBUG] Added active class to:', a.dataset.page);
       } else {
         a.classList.remove('nav-link-active');
       }
@@ -705,7 +736,9 @@ document.addEventListener('DOMContentLoaded', () => {
           if (tableSearchInput.dataset.bound !== 'true') {
             let searchTimeout = null;
             tableSearchInput.addEventListener('input', (event) => {
-              const value = event.target.value;
+              /** @type {HTMLInputElement|null} */
+              const target = /** @type {HTMLInputElement|null} */ (event.target);
+              const value = target ? target.value : '';
               clearTimeout(searchTimeout);
               searchTimeout = setTimeout(() => {
                 appState.filters.clientsTable.search = value;
@@ -763,9 +796,9 @@ document.addEventListener('DOMContentLoaded', () => {
       assigneeSelect.dataset.optionsReady = 'true';
     }
 
-    if (statusSelect) statusSelect.addEventListener('change', e => { appState.filters.tasks.status = e.target.value; renderTasksPage(); });
-    if (typeSelect) typeSelect.addEventListener('change', e => { appState.filters.tasks.type = e.target.value; renderTasksPage(); });
-    if (assigneeSelect) assigneeSelect.addEventListener('change', e => { appState.filters.tasks.assignee = e.target.value; renderTasksPage(); });
+    if (statusSelect) statusSelect.addEventListener('change', e => { const t = /** @type {HTMLSelectElement|null} */(e.target); appState.filters.tasks.status = t ? t.value : 'all'; renderTasksPage(); });
+    if (typeSelect) typeSelect.addEventListener('change', e => { const t = /** @type {HTMLSelectElement|null} */(e.target); appState.filters.tasks.type = t ? t.value : 'all'; renderTasksPage(); });
+    if (assigneeSelect) assigneeSelect.addEventListener('change', e => { const t = /** @type {HTMLSelectElement|null} */(e.target); appState.filters.tasks.assignee = t ? t.value : 'all'; renderTasksPage(); });
     if (resetBtn) resetBtn.addEventListener('click', () => {
       appState.filters.tasks = { status: 'all', type: 'all', assignee: 'all' };
       if (statusSelect) statusSelect.value = 'all';
@@ -845,7 +878,8 @@ document.addEventListener('DOMContentLoaded', () => {
       selector.innerHTML = MOCK_DATA.drivers.map(driver => `<option value="${driver.id}">${driver.name}</option>`).join('');
       selector.value = String(appState.driverContext.activeDriverId || MOCK_DATA.drivers[0]?.id || '');
       selector.addEventListener('change', (event) => {
-        const newId = parseInt(event.target.value, 10);
+        const t = /** @type {HTMLSelectElement|null} */(event.target);
+        const newId = parseInt(t ? t.value : '', 10);
         if (!Number.isNaN(newId)) {
           appState.driverContext.activeDriverId = newId;
           if (appState.driverContext.tracking.enabled) {
@@ -1154,17 +1188,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Event listeners for photo attachments
     const carInput = document.getElementById('car-photos');
-    const carPreviews = document.getElementById('car-previews');
+    const carPreviews = /** @type {HTMLElement|null} */ (document.getElementById('car-previews'));
 
     if (carInput) {
       carInput.addEventListener('change', function(e) {
-        const files = Array.from(e.target.files).slice(0, 4); // Limit to 4
+        const inputEl = /** @type {HTMLInputElement|null} */ (e.target);
+        const fileList = inputEl?.files ? Array.from(inputEl.files) : [];
+        const files = fileList.slice(0, 4); // Limit to 4
+        if (!carPreviews) return;
         carPreviews.innerHTML = '';
-        files.forEach(file => {
+        files.forEach((file) => {
           const reader = new FileReader();
-          reader.onload = function(e) {
+          reader.onload = function(ev) {
+            const fr = /** @type {FileReader|null} */ (ev.target);
+            const result = fr && typeof fr.result === 'string' ? fr.result : '';
+            if (!result) return;
             const img = document.createElement('img');
-            img.src = e.target.result;
+            img.src = result;
             img.className = 'w-full h-32 object-cover rounded-md';
             const div = document.createElement('div');
             div.appendChild(img);
@@ -1176,9 +1216,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const updateCompleteBtnState = () => {
-      const odometerValue = document.getElementById('driver-odometer')?.value?.trim();
-      const fuelValue = document.getElementById('driver-fuel')?.value;
-      const docVerified = document.getElementById('doc-check')?.checked;
+      /** @type {HTMLInputElement|null} */
+      const odometerInput = /** @type {HTMLInputElement|null} */ (document.getElementById('driver-odometer'));
+      /** @type {HTMLSelectElement|null} */
+      const fuelSelect = /** @type {HTMLSelectElement|null} */ (document.getElementById('driver-fuel'));
+      /** @type {HTMLInputElement|null} */
+      const docCheck = /** @type {HTMLInputElement|null} */ (document.getElementById('doc-check'));
+      const odometerValue = odometerInput?.value?.trim();
+      const fuelValue = fuelSelect?.value;
+      const docVerified = !!docCheck?.checked;
       const completeBtn = document.getElementById('complete-task-btn');
       if (completeBtn) {
         completeBtn.disabled = !(docVerified && odometerValue && fuelValue);
@@ -1191,10 +1237,12 @@ document.addEventListener('DOMContentLoaded', () => {
     updateCompleteBtnState();
 
     const paymentCard = document.getElementById('driver-payment-card');
-    const collectionInput = document.getElementById('driver-collect-amount');
+    /** @type {HTMLInputElement|null} */
+    const collectionInput = /** @type {HTMLInputElement|null} */ (document.getElementById('driver-collect-amount'));
     const remainingLabel = document.getElementById('driver-collect-remaining');
     const reasonWrap = document.getElementById('driver-collect-reason-wrap');
-    const reasonSelect = document.getElementById('driver-collect-reason');
+    /** @type {HTMLSelectElement|null} */
+    const reasonSelect = /** @type {HTMLSelectElement|null} */ (document.getElementById('driver-collect-reason'));
     if (paymentCard && collectionInput && remainingLabel) {
       const dueAmount = parseFloat(paymentCard.dataset.dueAmount || '0') || 0;
       const handleCollectionChange = () => {
@@ -1471,6 +1519,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   };
 
+
   let taskCreateModal = null;
   let taskCreateModalCard = null;
   let taskModalKeydownBound = false;
@@ -1711,7 +1760,9 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     renderBookingOptions();
     bookingSearchInput?.addEventListener('input', (event) => {
-      renderBookingOptions(event.target.value);
+      /** @type {HTMLInputElement|null} */
+      const target = /** @type {HTMLInputElement|null} */ (event.target);
+      renderBookingOptions(target ? target.value : '');
     });
 
     modal.classList.remove('hidden');
@@ -1912,7 +1963,16 @@ document.addEventListener('DOMContentLoaded', () => {
                    </span>`
       : '';
     if (!task.requiredDataValues) task.requiredDataValues = {};
-    const requiredInputConfigs = getTaskRequiredInputs(task);
+    /**
+     * @typedef {Object} TaskRequiredInputConfig
+     * @property {string} key
+     * @property {string} label
+     * @property {'text'|'number'|'file'} type
+     * @property {string=} accept
+     * @property {boolean=} multiple
+     */
+    /** @type {TaskRequiredInputConfig[]} */
+    const requiredInputConfigs = getTaskRequiredInputs(task) || [];
     const requiredInputsBlock = requiredInputConfigs.length
       ? `<div>
                         <p class="font-semibold text-gray-500">Required data</p>
@@ -1996,18 +2056,25 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
             `;
 
+    /** @type {Map<string, TaskRequiredInputConfig>} */
     const requiredInputMap = new Map(requiredInputConfigs.map(config => [config.key, config]));
-    taskDetailContent.querySelectorAll('.task-required-input').forEach(input => {
-      const key = input.dataset.requiredKey;
-      const config = requiredInputMap.get(key) || {};
-      const inputType = input.dataset.inputType || config.type || 'text';
-      if (!task.requiredDataValues) task.requiredDataValues = {};
+    taskDetailContent.querySelectorAll('.task-required-input').forEach((el) => {
+      if (!(el instanceof HTMLInputElement)) return;
+      const input = el;
+      const key = input.dataset.requiredKey || '';
+      /** @type {TaskRequiredInputConfig|undefined} */
+      const cfg = requiredInputMap.get(key);
+      const inputType = input.dataset.inputType || (cfg && cfg.type) || 'text';
+      if (!task.requiredDataValues) { /** @type {Record<string, string|string[]>} */ (task.requiredDataValues = {}); }
+      /** @param {Event} event */
       const handler = (event) => {
-        if (!task.requiredDataValues) task.requiredDataValues = {};
+        const target = event.target;
+        if (!(target instanceof HTMLInputElement)) return;
+        if (!task.requiredDataValues) { /** @type {Record<string, string|string[]>} */ (task.requiredDataValues = {}); }
         if (inputType === 'file') {
-          const files = Array.from(event.target.files || []);
+          const files = Array.from(target.files || []);
           task.requiredDataValues[key] = files.map(file => file.name);
-          const infoEl = event.target.closest('label')?.querySelector('.task-required-input-info');
+          const infoEl = target.closest('label')?.querySelector('.task-required-input-info');
           if (infoEl) {
             if (files.length) {
               infoEl.textContent = `Загружено: ${files.map(file => file.name).join(', ')}`;
@@ -2018,13 +2085,13 @@ document.addEventListener('DOMContentLoaded', () => {
             }
           }
           if (files.length) {
-            event.target.classList.remove('border-rose-400', 'ring-1', 'ring-rose-100', 'focus:ring-rose-200', 'focus:border-rose-400');
+            target.classList.remove('border-rose-400', 'ring-1', 'ring-rose-100', 'focus:ring-rose-200', 'focus:border-rose-400');
           }
         } else {
-          const currentValue = event.target.value;
+          const currentValue = target.value || '';
           task.requiredDataValues[key] = currentValue;
           if (currentValue.trim()) {
-            event.target.classList.remove('border-rose-400', 'ring-1', 'ring-rose-100', 'focus:ring-rose-200', 'focus:border-rose-400');
+            target.classList.remove('border-rose-400', 'ring-1', 'ring-rose-100', 'focus:ring-rose-200', 'focus:border-rose-400');
           }
         }
       };
@@ -2037,7 +2104,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (requiredInputConfigs.length) {
           if (!task.requiredDataValues) task.requiredDataValues = {};
           let hasMissing = false;
-          requiredInputConfigs.forEach(config => {
+          requiredInputConfigs.forEach(/** @param {TaskRequiredInputConfig} config */ (config) => {
             const storedValue = task.requiredDataValues[config.key];
             const isFilled = config.type === 'file'
               ? Array.isArray(storedValue) && storedValue.length > 0
@@ -2078,23 +2145,7 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   // --- LAYOUT MANAGER ---
-  const updateLayoutForRole = (role) => {
-    const roleConfig = ROLES_CONFIG[role] || {};
-    const layout = roleConfig.layout || 'desktop';
-    const isDesktop = layout === 'desktop';
-    const isMobile = layout === 'mobile';
-
-    desktopShell.classList.toggle('hidden', !isDesktop);
-    sidebar.classList.toggle('hidden', !isDesktop);
-    mainContent.classList.toggle('hidden', !isDesktop);
-    mobileViewContainer.classList.toggle('hidden', !isMobile);
-
-    if (!isDesktop) {
-      desktopPages.forEach(page => page.classList.add('hidden'));
-    }
-
-    updateSalesOwnerFilterVisibility(role);
-  };
+  // Removed unused updateLayoutForRole function
         
 
   const renderMaintenanceForm = () => {
@@ -2375,6 +2426,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   const router = () => {
+    console.log('🔍 [DEBUG] Router called, currentPage:', appState.currentPage);
     baseRouter();
     updateActiveLink();
   };
@@ -2401,7 +2453,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (loginRoleSelect) {
     loginRoleSelect.addEventListener('change', (e) => {
-      const preset = ROLE_EMAIL_PRESETS[e.target.value];
+      const t = /** @type {HTMLSelectElement|null} */(e.target);
+      const preset = ROLE_EMAIL_PRESETS[t ? t.value : 'operations'];
       if (preset && loginEmailInput && !appState.loginEmail) {
         loginEmailInput.value = preset;
         console.log('📧 Email предустановлен:', preset);
@@ -2411,7 +2464,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (loginEmailInput) {
     loginEmailInput.addEventListener('input', (e) => {
-      appState.loginEmail = e.target.value;
+      const t = /** @type {HTMLInputElement|null} */(e.target);
+      appState.loginEmail = t ? t.value : '';
     });
     // Установить начальное значение из appState
     loginEmailInput.value = appState.loginEmail || 'fleet@skyluxse.ae';
@@ -2495,6 +2549,13 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
+    // Проверим наличие навигации в конфигурации роли
+    console.log('🔍 [DEBUG] Checking role navigation config:', {
+      nav: roleConfig.nav,
+      pages: roleConfig.pages,
+      pageConfigs: roleConfig.pageConfigs
+    });
+
     const defaultPage = roleConfig?.defaultPage || 'dashboard';
     console.log('📄 Страница по умолчанию:', defaultPage);
 
@@ -2513,25 +2574,296 @@ document.addEventListener('DOMContentLoaded', () => {
       window.location.hash = targetHash;
       console.log('✅ Хэш обновлен');
 
-      initApp();
-      console.log('🚀 initApp() вызвана');
+      // initApp() removed as unused
+
+      // Render sidebar navigation after login
+      console.log('🔍 [DEBUG] Rendering sidebar navigation after login');
+      renderSidebarNavigation();
+      renderSidebarProfile();
+      initMobileMenuButton();
 
     } catch (error) {
       console.error('❌ Ошибка при аутентификации:', error);
+      console.error('❌ Stack trace:', error.stack);
       showToast('Ошибка при входе в систему', 'error');
     }
   });
+
+  const initMobileMenuButton = () => {
+    const burgerMenuBtn = document.getElementById('burger-menu');
+    if (burgerMenuBtn && !burgerMenuBtn.dataset.initialized) {
+      burgerMenuBtn.innerHTML = getIcon('menu', 'w-6 h-6');
+      burgerMenuBtn.dataset.initialized = 'true';
+      console.log('✅ [DEBUG] Burger menu button initialized');
+    }
+  };
+
+  // Handle profile menu interactions
+  const initProfileMenu = () => {
+    console.log('🔍 [DEBUG] Initializing profile menu handlers...');
+    
+    const profileTrigger = document.getElementById('profile-trigger');
+    const profileDropdown = document.getElementById('profile-dropdown');
+    const logoutButton = document.getElementById('logout-button');
+    const profileSettings = document.getElementById('profile-settings');
+
+    if (profileTrigger) {
+      profileTrigger.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleProfileMenu();
+      });
+    }
+
+    if (logoutButton) {
+      logoutButton.addEventListener('click', (e) => {
+        e.preventDefault();
+        handleLogout();
+      });
+    }
+
+    if (profileSettings) {
+      profileSettings.addEventListener('click', (e) => {
+        e.preventDefault();
+        closeProfileMenu();
+        console.log('Profile settings clicked');
+        // In a real app, this would open settings modal
+      });
+    }
+
+    // Close menu when clicking outside
+    document.addEventListener('click', (e) => {
+      if (profileDropdown && !profileDropdown.classList.contains('hidden') &&
+          !profileDropdown.contains(e.target) && !profileTrigger?.contains(e.target)) {
+        closeProfileMenu();
+      }
+    });
+
+    // Close menu on escape key
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && profileDropdown && !profileDropdown.classList.contains('hidden')) {
+        closeProfileMenu();
+        profileTrigger?.focus();
+      }
+    });
+
+    console.log('✅ [DEBUG] Profile menu handlers initialized');
+  };
+
+  let profileMenuOpen = false;
+
+  const toggleProfileMenu = () => {
+    const profileDropdown = document.getElementById('profile-dropdown');
+    const profileTrigger = document.getElementById('profile-trigger');
+    
+    if (!profileDropdown || !profileTrigger) return;
+
+    if (profileMenuOpen) {
+      closeProfileMenu();
+    } else {
+      openProfileMenu();
+    }
+  };
+
+  const openProfileMenu = () => {
+    const profileDropdown = document.getElementById('profile-dropdown');
+    const profileTrigger = document.getElementById('profile-trigger');
+    
+    if (!profileDropdown || !profileTrigger) return;
+
+    profileDropdown.classList.remove('hidden');
+    profileTrigger.setAttribute('aria-expanded', 'true');
+    profileMenuOpen = true;
+
+    // Focus first menu item for accessibility
+    const firstMenuItem = profileDropdown.querySelector('button');
+    if (firstMenuItem) {
+      setTimeout(() => firstMenuItem.focus(), 100);
+    }
+  };
+
+  const closeProfileMenu = () => {
+    const profileDropdown = document.getElementById('profile-dropdown');
+    const profileTrigger = document.getElementById('profile-trigger');
+    const profileChevron = document.getElementById('profile-chevron');
+    
+    if (!profileDropdown || !profileTrigger) return;
+
+    profileDropdown.classList.add('hidden');
+    profileTrigger.setAttribute('aria-expanded', 'false');
+    if (profileChevron) {
+      profileChevron.style.transform = 'rotate(0deg)';
+    }
+    profileMenuOpen = false;
+  };
+
+  const handleLogout = () => {
+    // Show confirmation dialog
+    const confirmed = confirm('Вы уверены, что хотите выйти из системы?');
+    
+    if (confirmed) {
+      performLogout();
+    }
+  };
+
+  const performLogout = async () => {
+    try {
+      // Show loading state
+      showLogoutLoading();
+
+      // Clear user data from localStorage
+      localStorage.removeItem('skyluxse_user');
+      localStorage.removeItem('skyluxse_session');
+      localStorage.removeItem('skyluxse_auth_token');
+
+      // Clear any other application-specific data
+      const keysToRemove = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('skyluxse_')) {
+          keysToRemove.push(key);
+        }
+      }
+      keysToRemove.forEach(key => localStorage.removeItem(key));
+
+      // Show success message
+      showLogoutSuccess();
+
+      // Redirect to login page after a short delay
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
+
+    } catch (error) {
+      console.error('Error during logout:', error);
+      showLogoutError();
+    }
+  };
+
+  const showLogoutLoading = () => {
+    const logoutButton = document.getElementById('logout-button');
+    if (logoutButton) {
+      logoutButton.innerHTML = `
+        <svg class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+        </svg>
+        Выход...
+      `;
+      logoutButton.disabled = true;
+    }
+  };
+
+  const showLogoutSuccess = () => {
+    const logoutButton = document.getElementById('logout-button');
+    if (logoutButton) {
+      logoutButton.innerHTML = `
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+        </svg>
+        Выполнено
+      `;
+      logoutButton.classList.add('text-green-600');
+    }
+  };
+
+  const showLogoutError = () => {
+    const logoutButton = document.getElementById('logout-button');
+    if (logoutButton) {
+      logoutButton.innerHTML = `
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+        Ошибка
+      `;
+      logoutButton.disabled = false;
+      
+      // Reset after delay
+      setTimeout(() => {
+        resetLogoutButton();
+      }, 2000);
+    }
+  };
+
+  const resetLogoutButton = () => {
+    const logoutButton = document.getElementById('logout-button');
+    if (logoutButton) {
+      logoutButton.innerHTML = `
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+        </svg>
+        Выйти из системы
+      `;
+      logoutButton.disabled = false;
+      logoutButton.classList.remove('text-green-600');
+    }
+  };
+
   const sidebarNav = document.getElementById('sidebar-nav');
   if (sidebarNav) {
     sidebarNav.addEventListener('click', () => {
       if (window.innerWidth < 768) {
         sidebar.classList.add('-translate-x-full');
+        // Скрыть overlay при клике на навигацию
+        const overlay = document.getElementById('sidebar-overlay');
+        if (overlay) {
+          overlay.classList.add('hidden');
+        }
       }
     });
   }
-        
-  document.getElementById('burger-menu').addEventListener('click', () => {
-    sidebar.classList.toggle('-translate-x-full');
+
+  // Универсальная функция для закрытия мобильного сайдбара
+  const closeMobileSidebar = () => {
+    sidebar.classList.add('-translate-x-full');
+    const overlay = document.getElementById('sidebar-overlay');
+    if (overlay) {
+      overlay.classList.add('hidden');
+    }
+    // Убираем класс для предотвращения скролла
+    document.body.classList.remove('sidebar-open');
+  };
+
+  // Обработчики событий для мобильного сайдбара
+  const burgerMenuBtn = document.getElementById('burger-menu');
+  if (burgerMenuBtn) {
+    burgerMenuBtn.addEventListener('click', () => {
+      const overlay = document.getElementById('sidebar-overlay');
+      const isVisible = !sidebar.classList.contains('-translate-x-full');
+      
+      if (isVisible) {
+        // Сайдбар открыт - закрываем
+        closeMobileSidebar();
+      } else {
+        // Сайдбар закрыт - открываем
+        sidebar.classList.remove('-translate-x-full');
+        if (overlay) {
+          overlay.classList.remove('hidden');
+        }
+        // Добавляем класс для предотвращения скролла body
+        document.body.classList.add('sidebar-open');
+      }
+    });
+  }
+
+  // Закрытие сайдбара при клике на overlay
+  const overlay = document.getElementById('sidebar-overlay');
+  if (overlay) {
+    overlay.addEventListener('click', closeMobileSidebar);
+  }
+
+  // Обработчик кнопки закрытия в сайдбаре
+  const sidebarCloseBtn = document.getElementById('sidebar-close');
+  if (sidebarCloseBtn) {
+    sidebarCloseBtn.addEventListener('click', closeMobileSidebar);
+  }
+
+  // Закрытие сайдбара при изменении размера окна (переход на десктоп)
+  window.addEventListener('resize', () => {
+    if (window.innerWidth >= 768) {
+      const overlay = document.getElementById('sidebar-overlay');
+      if (overlay) {
+        overlay.classList.add('hidden');
+      }
+    }
   });
 
   if (sidebarCollapseBtn) {
@@ -2671,7 +3003,8 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    const finesBtn = e.target.closest('.check-fines-btn');
+    const targetEl = /** @type {HTMLElement|null} */ (e.target instanceof HTMLElement ? e.target : null);
+    const finesBtn = targetEl?.closest('.check-fines-btn');
     if (finesBtn) {
       const resultEl = finesBtn.closest('.geist-card')?.querySelector('#fines-result') || document.getElementById('fines-result');
       if (resultEl) {
@@ -2686,11 +3019,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Event delegation for dynamically added elements inside panels/modals
-    if (e.target.id === 'doc-check') {
+    if (targetEl && targetEl.id === 'doc-check') {
       const formValid = !!document.getElementById('driver-odometer')?.value && !!document.getElementById('driver-fuel')?.value;
-      document.getElementById('complete-task-btn').disabled = !e.target.checked || !formValid;
+      const completeBtn = /** @type {HTMLButtonElement|null} */ (document.getElementById('complete-task-btn'));
+      const docInput = /** @type {HTMLInputElement} */ (targetEl);
+      if (completeBtn) completeBtn.disabled = !docInput.checked || !formValid;
     }
-    if (['driver-odometer', 'driver-fuel'].includes(e.target.id)) {
+    if (targetEl && ['driver-odometer', 'driver-fuel'].includes(targetEl.id)) {
       const docChecked = document.getElementById('doc-check')?.checked;
       const formValid = !!document.getElementById('driver-odometer')?.value && !!document.getElementById('driver-fuel')?.value;
       if (docChecked) {
@@ -2698,8 +3033,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (completeBtn) completeBtn.disabled = !formValid;
       }
     }
-    if (e.target.id === 'complete-task-btn') {
-      const bookingId = e.target.dataset.bookingId;
+    if (targetEl && targetEl.id === 'complete-task-btn') {
+      const btn = /** @type {HTMLButtonElement} */ (targetEl);
+      const bookingId = btn.dataset.bookingId;
       const odometerValue = driverTaskDetailContent?.querySelector('#driver-odometer')?.value.trim();
       const fuelLevel = driverTaskDetailContent?.querySelector('#driver-fuel')?.value;
       if (!odometerValue || !fuelLevel) {
@@ -3130,50 +3466,5 @@ document.addEventListener('DOMContentLoaded', () => {
   window.addEventListener('popstate', router);
   window.addEventListener('hashchange', router);
 
-  // --- APP INITIALIZATION ---
-  const initApp = () => {
-    console.log('🔧 Инициализация приложения...');
-    console.log('👤 Текущая роль пользователя:', appState.currentRole);
-    console.log('🔗 Текущий хэш:', window.location.hash);
-
-    try {
-      const burgerMenu = document.querySelector('#burger-menu');
-      if (burgerMenu) {
-        burgerMenu.innerHTML = getIcon('menu');
-        console.log('✅ Меню бургер инициализировано');
-      }
-
-      const backBtn = document.querySelector('.back-to-tasks');
-      if (backBtn && !backBtn.innerHTML.includes('svg')) {
-        backBtn.insertAdjacentHTML('afterbegin', getIcon('chevronLeft'));
-        console.log('✅ Кнопка назад инициализирована');
-      }
-
-      console.log('🏗️ Обновление layout для роли:', appState.currentRole);
-      updateLayoutForRole(appState.currentRole);
-      console.log('✅ Layout обновлен');
-
-      console.log('📱 Рендеринг sidebar...');
-      renderSidebar();
-      console.log('✅ Sidebar отрендерен');
-
-      // Handle initial URL - redirect root to default role/page
-      if (window.location.hash === '' || window.location.hash === '#') {
-        const defaultPage = ROLES_CONFIG[appState.currentRole]?.defaultPage || 'dashboard';
-        const targetHash = buildHash(appState.currentRole, defaultPage);
-        console.log('🔀 Перенаправление на страницу по умолчанию:', defaultPage, 'хэш:', targetHash);
-        window.location.hash = targetHash;
-        return; // Выходим, чтобы роутер не запускался дважды
-      }
-
-      console.log('🧭 Запуск роутера...');
-      router();
-      console.log('✅ Роутер запущен');
-
-    } catch (error) {
-      console.error('❌ Ошибка при инициализации приложения:', error);
-      console.error('❌ Stack trace:', error.stack);
-    }
-  };
         
 });

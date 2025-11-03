@@ -1,12 +1,14 @@
-import { MOCK_DATA } from '/src/data/index.js';
-import { appState } from '/src/state/appState.js';
-import { getIcon } from '/src/ui/icons.js';
-import { formatPercent } from '/src/render/utils.js';
-import { buildHash } from '/src/state/navigation.js';
-import { getChartPalette, getThemeColor, getThemeColorWithAlpha } from '/src/ui/theme.js';
+import { MOCK_DATA } from '../data/index.js';
+import { appState } from '../state/appState.js';
+import { getIcon } from '../ui/icons.js';
+import { formatPercent } from './utils.js';
+import { buildHash } from '../state/navigation.js';
+import { getChartPalette, getThemeColor, getThemeColorWithAlpha } from '../ui/theme.js';
 
-let dashboardRevenueChart;
-let dashboardDriverChart;
+/** @type {any|null} */
+let dashboardRevenueChart = null;
+/** @type {any|null} */
+let dashboardDriverChart = null;
 
 export const renderDashboard = () => {
   const kpiGrid = document.getElementById('dashboard-kpi-grid');
@@ -80,6 +82,7 @@ export const renderDashboard = () => {
 
   const driverView = document.getElementById('dashboard-driver-view');
   if (driverView) {
+    /** @type {(event: MouseEvent) => void} */
     driverView.onclick = (event) => {
       event.preventDefault();
       window.location.hash = buildHash(appState.currentRole, 'analytics');
@@ -92,8 +95,10 @@ export const renderDashboard = () => {
 
 const renderDashboardCharts = () => {
   const palette = getChartPalette();
-  const revenueCtx = document.getElementById('dashboard-revenue-chart')?.getContext('2d');
+  const revenueCanvas = /** @type {HTMLCanvasElement|null} */ (document.getElementById('dashboard-revenue-chart'));
+  const revenueCtx = revenueCanvas ? revenueCanvas.getContext('2d') : null;
   if (revenueCtx) {
+    /** @type {Array<any>} */
     const series = MOCK_DATA.analytics.revenueDaily;
     const labels = series.map(item => item.date.slice(-5));
     const revenueValues = series.map(item => item.revenue);
@@ -143,14 +148,18 @@ const renderDashboardCharts = () => {
           y: {
             position: 'left',
             ticks: {
-              callback: value => `AED ${Math.round(value / 1000)}k`
+              /** @param {number|string} value */
+              callback: (value) => `AED ${Math.round(Number(value) / 1000)}k`
             },
             grid: { color: 'rgba(15,23,42,0.05)' }
           },
           y1: {
             position: 'right',
             grid: { drawOnChartArea: false },
-            ticks: { callback: value => value }
+            ticks: {
+              /** @param {number|string} value */
+              callback: (value) => value
+            }
           },
           x: { grid: { display: false } }
         }
@@ -158,8 +167,10 @@ const renderDashboardCharts = () => {
     });
   }
 
-  const driverCtx = document.getElementById('dashboard-driver-chart')?.getContext('2d');
+  const driverCanvas = /** @type {HTMLCanvasElement|null} */ (document.getElementById('dashboard-driver-chart'));
+  const driverCtx = driverCanvas ? driverCanvas.getContext('2d') : null;
   if (driverCtx) {
+    /** @type {Array<any>} */
     const performance = MOCK_DATA.analytics.driverPerformance;
     const driverLabels = performance.map(item => {
       const driver = MOCK_DATA.drivers.find(d => d.id === item.driverId);

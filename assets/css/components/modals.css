@@ -1,0 +1,8 @@
+/* Modals - Modal component styles */
+
+        .modal-overlay {
+            transition: opacity 0.2s ease-in-out;
+        }
+        .modal-content {
+            transition: transform 0.2s ease-in-out;
+        }

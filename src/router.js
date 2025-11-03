@@ -2,15 +2,15 @@
  * @fileoverview Модуль для управления роутингом в SPA
  */
 
-import { ROLES_CONFIG } from '/src/data/index.js';
-import { appState } from '/src/state/appState.js';
-import { buildHash, parseHash, isDefaultSelector, HASH_DEFAULT_SELECTOR } from '/src/state/navigation.js';
-import { renderKanbanBoard } from '/src/render/kanban.js';
-import { renderDashboard } from '/src/render/dashboard.js';
-import { renderAnalyticsPage, renderSalesPipeline } from '/src/render/charts.js';
-import { startTimers } from '/src/render/timers.js';
-import { renderFleetCalendar } from '/src/render/fleetCalendar.js';
-import { renderDetailPanel } from '/src/render/detailPanel.js';
+import { ROLES_CONFIG } from './data/index.js';
+import { appState } from './state/appState.js';
+import { buildHash, parseHash, isDefaultSelector, HASH_DEFAULT_SELECTOR } from './state/navigation.js';
+import { renderKanbanBoard } from './render/kanban.js';
+import { renderDashboard } from './render/dashboard.js';
+import { renderAnalyticsPage, renderSalesPipeline } from './render/charts.js';
+import { startTimers } from './render/timers.js';
+import { renderFleetCalendar } from './render/fleetCalendar.js';
+import { renderDetailPanel } from './render/detailPanel.js';
 
 const AUXILIARY_PAGES = [
   'booking-detail',

@@ -1,17 +1,25 @@
-import { MOCK_DATA } from '/src/data/index.js';
-import { appState } from '/src/state/appState.js';
-import { buildHash } from '/src/state/navigation.js';
-import { formatCurrency } from '/src/render/utils.js';
-import { getIcon } from '/src/ui/icons.js';
-import { getChartPalette } from '/src/ui/theme.js';
+import { MOCK_DATA } from '../data/index.js';
+import { appState } from '../state/appState.js';
+import { buildHash } from '../state/navigation.js';
+import { formatCurrency } from './utils.js';
+import { getIcon } from '../ui/icons.js';
+import { getChartPalette } from '../ui/theme.js';
 
-let analyticsManagerChart;
-let analyticsSourcesChart;
-let salesStageChart;
+/** @type {any|null} */
+let analyticsManagerChart = null;
+/** @type {any|null} */
+let analyticsSourcesChart = null;
+/** @type {any|null} */
+let salesStageChart = null;
 
 let analyticsFiltersBound = false;
 let salesFiltersBound = false;
 
+/**
+ * @param {string} value
+ * @param {boolean} [endOfDay=false]
+ * @returns {Date|null}
+ */
 const parseDateInput = (value, endOfDay = false) => {
   if (!value) return null;
   const date = new Date(value);
@@ -24,6 +32,10 @@ const parseDateInput = (value, endOfDay = false) => {
   return date;
 };
 
+/**
+ * @param {any} booking
+ * @returns {Date|null}
+ */
 const getBookingDate = (booking) => {
   if (!booking) return null;
   if (booking.startDate) {
@@ -34,6 +46,12 @@ const getBookingDate = (booking) => {
   return null;
 };
 
+/**
+ * @param {string} range
+ * @param {string} dateFrom
+ * @param {string} dateTo
+ * @returns {{start: Date, end: Date}}
+ */
 const resolveAnalyticsRange = (range, dateFrom, dateTo) => {
   const today = new Date();
   today.setHours(23, 59, 59, 999);
@@ -66,6 +84,12 @@ const resolveAnalyticsRange = (range, dateFrom, dateTo) => {
   return { start, end };
 };
 
+/**
+ * @param {Date|null} date
+ * @param {Date|null} start
+ * @param {Date|null} end
+ * @returns {boolean}
+ */
 const isDateWithinRange = (date, start, end) => {
   if (!date) return false;
   if (start && date < start) return false;
@@ -73,16 +97,23 @@ const isDateWithinRange = (date, start, end) => {
   return true;
 };
 
+/**
+ * @param {{start: Date, end: Date}} rangeBounds
+ * @param {string} segment
+ * @param {string} vehicleClass
+ * @returns {any[]}
+ */
 const getFilteredBookings = (rangeBounds, segment, vehicleClass) => {
   const bookings = MOCK_DATA.bookings || [];
   const carsById = new Map((MOCK_DATA.cars || []).map(car => [car.id, car]));
   const normalizedSegment = segment?.toLowerCase();
   const pipeline = MOCK_DATA.salesPipeline || {};
+  /** @type {any[]} */
   const leads = pipeline.leads || [];
   const ownerFilter = appState.currentRole === 'sales'
     ? (appState.filters.sales?.owner || 'all')
     : 'all';
-  return bookings.filter(booking => {
+  return bookings.filter((/** @type {any} */ booking) => {
     const startDate = getBookingDate(booking);
     if (!isDateWithinRange(startDate, rangeBounds.start, rangeBounds.end)) return false;
 
@@ -105,13 +136,18 @@ const getFilteredBookings = (rangeBounds, segment, vehicleClass) => {
   });
 };
 
+/**
+ * @param {any} booking
+ * @param {any[]} leads
+ * @returns {string|null}
+ */
 const resolveBookingOwnerId = (booking, leads) => {
   if (!booking) return null;
   if (booking.ownerId) return booking.ownerId;
   if (!Array.isArray(leads) || !leads.length) return null;
-  const clientLeads = leads.filter(lead => Number(lead.clientId) === Number(booking.clientId));
+  const clientLeads = leads.filter((/** @type {any} */ lead) => Number(lead.clientId) === Number(booking.clientId));
   if (!clientLeads.length) return null;
-  clientLeads.sort((a, b) => {
+  clientLeads.sort((/** @type {any} */ a, /** @type {any} */ b) => {
     const first = new Date(a.closedAt || a.expectedCloseDate || a.createdAt || 0).getTime();
     const second = new Date(b.closedAt || b.expectedCloseDate || b.createdAt || 0).getTime();
     return second - first;
@@ -119,14 +155,19 @@ const resolveBookingOwnerId = (booking, leads) => {
   return clientLeads[0].ownerId || null;
 };
 
+/**
+ * @param {any[]} bookings
+ * @returns {Array<{ownerId: string, ownerName: string, revenue: number}>}
+ */
 const getManagerRevenueBreakdown = (bookings) => {
   const pipeline = MOCK_DATA.salesPipeline || {};
+  /** @type {Array<{id: string, name: string}>} */
   const owners = pipeline.owners || [];
   const leads = pipeline.leads || [];
-  const ownerNameById = new Map(owners.map(owner => [owner.id, owner.name]));
+  const ownerNameById = new Map(owners.map((/** @type {{id:string, name:string}} */ owner) => [owner.id, owner.name]));
   const totals = new Map();
 
-  bookings.forEach(booking => {
+  bookings.forEach((/** @type {any} */ booking) => {
     const ownerId = resolveBookingOwnerId(booking, leads) || 'unassigned';
     const current = totals.get(ownerId) || 0;
     totals.set(ownerId, current + (Number(booking.totalAmount) || 0));
@@ -142,10 +183,14 @@ const getManagerRevenueBreakdown = (bookings) => {
     .sort((a, b) => b.revenue - a.revenue);
 };
 
+/**
+ * @param {any[]} bookings
+ * @returns {Array<{source: string, share: number}>}
+ */
 const getBookingSourcesBreakdown = (bookings) => {
   if (!bookings.length) return [];
   const counts = new Map();
-  bookings.forEach(booking => {
+  bookings.forEach((/** @type {any} */ booking) => {
     const rawSource = (booking.channel || 'Other').trim();
     const key = rawSource ? rawSource : 'Other';
     counts.set(key, (counts.get(key) || 0) + 1);
@@ -160,25 +205,30 @@ const getBookingSourcesBreakdown = (bookings) => {
     .sort((a, b) => b.share - a.share);
 };
 
+/**
+ * @param {any[]} bookings
+ * @returns {{ average: number|null, count: number, coverage: number, lastUpdated: Date|null }}
+ */
 const getSalesRatingStats = (bookings) => {
   if (!bookings.length) {
     return { average: null, count: 0, coverage: 0, lastUpdated: null };
   }
+  /** @type {Array<{rating: number, ratedAt: Date|null}>} */
   const ratedEntries = bookings
-    .map(booking => {
+    .map((/** @type {any} */ booking) => {
       const rating = Number(booking.salesService?.rating);
       const ratedAt = booking.salesService?.ratedAt ? new Date(booking.salesService.ratedAt) : null;
       return { rating, ratedAt };
     })
-    .filter(entry => Number.isFinite(entry.rating) && entry.rating > 0);
+    .filter((/** @type {{rating: number}} */ entry) => Number.isFinite(entry.rating) && entry.rating > 0);
   if (!ratedEntries.length) {
     return { average: null, count: 0, coverage: 0, lastUpdated: null };
   }
-  const summed = ratedEntries.reduce((sum, entry) => sum + entry.rating, 0);
+  const summed = ratedEntries.reduce((/** @type {number} */ sum, /** @type {{rating:number}} */ entry) => sum + entry.rating, 0);
   const lastUpdated = ratedEntries
-    .map(entry => entry.ratedAt)
-    .filter(date => date instanceof Date && !Number.isNaN(date.getTime()))
-    .sort((a, b) => b.getTime() - a.getTime())[0] || null;
+    .map((/** @type {{ratedAt: Date|null}} */ entry) => entry.ratedAt)
+    .filter((/** @type {Date|null} */ date) => date instanceof Date && !Number.isNaN(date.getTime()))
+    .sort((/** @type {Date} */ a, /** @type {Date} */ b) => b.getTime() - a.getTime())[0] || null;
   return {
     average: summed / ratedEntries.length,
     count: ratedEntries.length,
@@ -189,39 +239,44 @@ const getSalesRatingStats = (bookings) => {
 
 const bindAnalyticsFilters = () => {
   if (analyticsFiltersBound) return;
-  const rangeSelect = document.getElementById('analytics-range');
-  const segmentSelect = document.getElementById('analytics-segment');
-  const classSelect = document.getElementById('analytics-class');
-  const dateFromInput = document.getElementById('analytics-date-from');
-  const dateToInput = document.getElementById('analytics-date-to');
+  const rangeSelect = /** @type {HTMLSelectElement|null} */ (document.getElementById('analytics-range'));
+  const segmentSelect = /** @type {HTMLSelectElement|null} */ (document.getElementById('analytics-segment'));
+  const classSelect = /** @type {HTMLSelectElement|null} */ (document.getElementById('analytics-class'));
+  const dateFromInput = /** @type {HTMLInputElement|null} */ (document.getElementById('analytics-date-from'));
+  const dateToInput = /** @type {HTMLInputElement|null} */ (document.getElementById('analytics-date-to'));
 
   if (rangeSelect) {
     rangeSelect.addEventListener('change', (event) => {
-      appState.filters.analytics.range = event.target.value;
+      const target = /** @type {HTMLSelectElement|null} */ (event.target);
+      if (target) appState.filters.analytics.range = target.value;
       renderAnalyticsPage();
     });
   }
   if (segmentSelect) {
     segmentSelect.addEventListener('change', (event) => {
-      appState.filters.analytics.segment = event.target.value;
+      const target = /** @type {HTMLSelectElement|null} */ (event.target);
+      if (target) appState.filters.analytics.segment = target.value;
       renderAnalyticsPage();
     });
   }
   if (classSelect) {
     classSelect.addEventListener('change', (event) => {
-      appState.filters.analytics.vehicleClass = event.target.value;
+      const target = /** @type {HTMLSelectElement|null} */ (event.target);
+      if (target) appState.filters.analytics.vehicleClass = target.value;
       renderAnalyticsPage();
     });
   }
   if (dateFromInput) {
     dateFromInput.addEventListener('change', (event) => {
-      appState.filters.analytics.dateFrom = event.target.value;
+      const target = /** @type {HTMLInputElement|null} */ (event.target);
+      if (target) appState.filters.analytics.dateFrom = target.value;
       renderAnalyticsPage();
     });
   }
   if (dateToInput) {
     dateToInput.addEventListener('change', (event) => {
-      appState.filters.analytics.dateTo = event.target.value;
+      const target = /** @type {HTMLInputElement|null} */ (event.target);
+      if (target) appState.filters.analytics.dateTo = target.value;
       renderAnalyticsPage();
     });
   }
@@ -229,18 +284,19 @@ const bindAnalyticsFilters = () => {
 };
 
 export const renderAnalyticsPage = () => {
-  const managerCtx = document.getElementById('analytics-manager-chart')?.getContext('2d');
+  const managerCanvas = /** @type {HTMLCanvasElement|null} */ (document.getElementById('analytics-manager-chart'));
+  const managerCtx = managerCanvas ? managerCanvas.getContext('2d') : null;
   if (!managerCtx) return;
   const chartPalette = getChartPalette();
 
   bindAnalyticsFilters();
 
   const { range, segment, vehicleClass, dateFrom, dateTo } = appState.filters.analytics;
-  const rangeSelect = document.getElementById('analytics-range');
-  const segmentSelect = document.getElementById('analytics-segment');
-  const classSelect = document.getElementById('analytics-class');
-  const dateFromInput = document.getElementById('analytics-date-from');
-  const dateToInput = document.getElementById('analytics-date-to');
+  const rangeSelect = /** @type {HTMLSelectElement|null} */ (document.getElementById('analytics-range'));
+  const segmentSelect = /** @type {HTMLSelectElement|null} */ (document.getElementById('analytics-segment'));
+  const classSelect = /** @type {HTMLSelectElement|null} */ (document.getElementById('analytics-class'));
+  const dateFromInput = /** @type {HTMLInputElement|null} */ (document.getElementById('analytics-date-from'));
+  const dateToInput = /** @type {HTMLInputElement|null} */ (document.getElementById('analytics-date-to'));
 
   if (rangeSelect) rangeSelect.value = range;
   if (segmentSelect) segmentSelect.value = segment;
@@ -281,15 +337,15 @@ export const renderAnalyticsPage = () => {
     type: 'bar',
     data: {
       labels: resolvedLabels,
-        datasets: [
-          {
-            label: 'Expected revenue',
-            data: resolvedValues,
-            backgroundColor: chartPalette.primary,
-            borderRadius: 6,
-            maxBarThickness: 48
-          }
-        ]
+      datasets: [
+        {
+          label: 'Expected revenue',
+          data: resolvedValues,
+          backgroundColor: chartPalette.primary,
+          borderRadius: 6,
+          maxBarThickness: 48
+        }
+      ]
     },
     options: {
       responsive: true,
@@ -298,7 +354,8 @@ export const renderAnalyticsPage = () => {
         legend: { display: false },
         tooltip: {
           callbacks: {
-            label: (context) => formatCurrency(context.parsed.y || 0)
+            /** @type {(context: any) => string} */
+            label: (context) => formatCurrency(context.parsed?.y || 0)
           }
         }
       },
@@ -306,7 +363,8 @@ export const renderAnalyticsPage = () => {
         y: {
           beginAtZero: true,
           ticks: {
-            callback: value => formatCurrency(value)
+            /** @type {(value: number|string) => string} */
+            callback: (value) => formatCurrency(Number(value))
           }
         },
         x: { grid: { display: false } }
@@ -314,7 +372,8 @@ export const renderAnalyticsPage = () => {
     }
   });
 
-  const sourcesCtx = document.getElementById('analytics-sources-chart')?.getContext('2d');
+  const sourcesCanvas = /** @type {HTMLCanvasElement|null} */ (document.getElementById('analytics-sources-chart'));
+  const sourcesCtx = sourcesCanvas ? sourcesCanvas.getContext('2d') : null;
   if (sourcesCtx) {
     const sourcesData = getBookingSourcesBreakdown(bookings);
     const sourceLabels = sourcesData.length ? sourcesData.map(item => item.source) : ['No data'];
@@ -342,6 +401,7 @@ export const renderAnalyticsPage = () => {
           legend: { position: 'bottom' },
           tooltip: {
             callbacks: {
+              /** @type {(context: any) => string} */
               label: (context) => `${context.label}: ${context.parsed}%`
             }
           }
@@ -369,9 +429,12 @@ const getFilteredLeads = () => {
   });
 };
 
+/** @type {Intl.DateTimeFormat} */
 const dateFormatter = new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short' });
+/** @type {Intl.DateTimeFormat} */
 const dateTimeFormatter = new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
 
+/** @type {Record<string, string>} */
 const DOCUMENT_STATUS_CLASS = {
   verified: 'bg-emerald-100 text-emerald-700',
   signed: 'bg-emerald-100 text-emerald-700',
@@ -380,6 +443,7 @@ const DOCUMENT_STATUS_CLASS = {
   missing: 'bg-rose-100 text-rose-700'
 };
 
+/** @type {Record<string, string>} */
 const DOCUMENT_STATUS_LABEL = {
   verified: 'Verified',
   signed: 'Signed',
@@ -388,6 +452,7 @@ const DOCUMENT_STATUS_LABEL = {
   missing: 'Missing'
 };
 
+/** @type {Record<string, string>} */
 const TASK_STATUS_CLASS = {
   done: 'bg-emerald-100 text-emerald-700',
   'in-progress': 'bg-indigo-100 text-indigo-700',
@@ -395,6 +460,7 @@ const TASK_STATUS_CLASS = {
   upcoming: 'bg-slate-100 text-slate-600'
 };
 
+/** @type {Record<string, {icon:string, class:string, label:string}>} */
 const TIMELINE_META = {
   system: { icon: 'activity', class: 'bg-slate-100 text-slate-600', label: 'System' },
   call: { icon: 'phone', class: 'bg-indigo-100 text-indigo-700', label: 'Call' },
@@ -410,12 +476,20 @@ const TIMELINE_META = {
   settlement: { icon: 'creditCard', class: 'bg-indigo-100 text-indigo-700', label: 'Settlement' }
 };
 
+/**
+ * @param {number} count
+ * @returns {string}
+ */
 const formatRequestCount = (count) => {
   if (!count) return 'No active requests';
   const noun = count === 1 ? 'request' : 'requests';
   return `${count} ${noun}`;
 };
 
+/**
+ * @param {Date|string|number|null|undefined} value
+ * @returns {string}
+ */
 const formatDateShort = (value) => {
   if (!value) return '—';
   const date = value instanceof Date ? value : new Date(value);
@@ -423,6 +497,10 @@ const formatDateShort = (value) => {
   return dateFormatter.format(date);
 };
 
+/**
+ * @param {Date|string|number|null|undefined} value
+ * @returns {number|null}
+ */
 const calculateAge = (value) => {
   if (!value) return null;
   const date = value instanceof Date ? value : new Date(value);
@@ -436,6 +514,10 @@ const calculateAge = (value) => {
   return age;
 };
 
+/**
+ * @param {Date|string|number|null|undefined} value
+ * @returns {string}
+ */
 const formatDateTimeValue = (value) => {
   if (!value) return '—';
   const date = value instanceof Date ? value : new Date(value);
@@ -443,12 +525,20 @@ const formatDateTimeValue = (value) => {
   return dateTimeFormatter.format(date);
 };
 
+/**
+ * @param {number|string|null|undefined} value
+ * @returns {string|number}
+ */
 const formatPercentValue = (value) => {
   if (typeof value !== 'number') return value || '—';
   if (value <= 1) return `${Math.round(value * 100)}%`;
   return `${Math.round(value)}%`;
 };
 
+/**
+ * @param {string|number|null|undefined} leadId
+ * @returns {any|null}
+ */
 const getLeadDetail = (leadId) => {
   if (!leadId) return null;
   const workspace = MOCK_DATA.salesWorkspace || {};
@@ -456,6 +546,11 @@ const getLeadDetail = (leadId) => {
   return details[leadId] || null;
 };
 
+/**
+ * @param {any} lead
+ * @param {any} detail
+ * @returns {any|null}
+ */
 const getClientForLead = (lead, detail) => {
   const clientId = (lead && lead.clientId) || (detail && detail.clientId);
   if (!clientId) return null;
@@ -898,15 +993,20 @@ const selectLead = (leadId) => {
 };
 
 const attachLeadSelectionHandlers = () => {
-  document.querySelectorAll('[data-select-lead]').forEach(element => {
-    element.addEventListener('click', () => selectLead(element.dataset.selectLead));
+  document.querySelectorAll('[data-select-lead]').forEach((element) => {
+    const el = /** @type {HTMLElement|null} */ (element instanceof HTMLElement ? element : null);
+    if (!el) return;
+    el.addEventListener('click', () => {
+      const leadId = el.dataset ? el.dataset.selectLead : undefined;
+      selectLead(leadId);
+    });
   });
 };
 
 const bindSalesPipelineFilters = () => {
   if (salesFiltersBound) return;
-  const ownerSelect = document.getElementById('sales-owner-filter');
-  const sourceSelect = document.getElementById('sales-source-filter');
+  const ownerSelect = /** @type {HTMLSelectElement|null} */ (document.getElementById('sales-owner-filter'));
+  const sourceSelect = /** @type {HTMLSelectElement|null} */ (document.getElementById('sales-source-filter'));
   const pipeline = MOCK_DATA.salesPipeline || {};
   const owners = pipeline.owners || [];
 
@@ -929,15 +1029,21 @@ const bindSalesPipelineFilters = () => {
 
   if (ownerSelect && ownerSelect.dataset.globalHandler !== 'true') {
     ownerSelect.addEventListener('change', (event) => {
-      appState.filters.sales.owner = event.target.value;
+      const target = /** @type {HTMLSelectElement|null} */ (event.target);
+      if (target) appState.filters.sales.owner = target.value;
       renderSalesPipeline();
     });
+    ownerSelect.dataset.globalHandler = 'true';
   }
 
-  sourceSelect?.addEventListener('change', (event) => {
-    appState.filters.sales.source = event.target.value;
-    renderSalesPipeline();
-  });
+  if (sourceSelect && sourceSelect.dataset.globalHandler !== 'true') {
+    sourceSelect.addEventListener('change', (event) => {
+      const target = /** @type {HTMLSelectElement|null} */ (event.target);
+      if (target) appState.filters.sales.source = target.value;
+      renderSalesPipeline();
+    });
+    sourceSelect.dataset.globalHandler = 'true';
+  }
 
   salesFiltersBound = true;
 };
@@ -1015,13 +1121,13 @@ export const renderSalesPipeline = () => {
         </div>
     `).join('');
 
-  const ownerSelect = document.getElementById('sales-owner-filter');
+  const ownerSelect = /** @type {HTMLSelectElement|null} */ (document.getElementById('sales-owner-filter'));
   if (ownerSelect) {
     ownerSelect.value = ownerSelect.querySelector(`option[value="${appState.filters.sales.owner}"]`)
       ? appState.filters.sales.owner
       : 'all';
   }
-  const sourceSelect = document.getElementById('sales-source-filter');
+  const sourceSelect = /** @type {HTMLSelectElement|null} */ (document.getElementById('sales-source-filter'));
   if (sourceSelect) {
     sourceSelect.value = sourceSelect.querySelector(`option[value="${appState.filters.sales.source}"]`)
       ? appState.filters.sales.source
@@ -1052,7 +1158,8 @@ export const renderSalesPipeline = () => {
     if (conversionLabel) conversionLabel.textContent = `Win rate ${(winRate || 0)}%`;
   }
 
-  const stageChartCtx = document.getElementById('sales-stage-chart')?.getContext('2d');
+  const stageCanvas = /** @type {HTMLCanvasElement|null} */ (document.getElementById('sales-stage-chart'));
+  const stageChartCtx = stageCanvas ? stageCanvas.getContext('2d') : null;
   if (stageChartCtx) {
     const values = stages.map(stage => leads
       .filter(lead => lead.stage === stage.id)
@@ -1078,7 +1185,8 @@ export const renderSalesPipeline = () => {
         scales: {
           y: {
             ticks: {
-              callback: (value) => `AED ${Math.round(value / 1000)}k`
+              /** @type {(value: number|string) => string} */
+              callback: (value) => `AED ${Math.round(Number(value) / 1000)}k`
             }
           }
         }

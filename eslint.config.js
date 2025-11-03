@@ -25,6 +25,9 @@ export default [
         clearInterval: 'readonly',
         setInterval: 'readonly',
         FileReader: 'readonly',
+        HTMLElement: 'readonly',
+        HTMLInputElement: 'readonly',
+        getComputedStyle: 'readonly',
         atob: 'readonly',
         btoa: 'readonly',
         Chart: 'readonly',
@@ -32,7 +35,10 @@ export default [
         QRCode: 'readonly',
         self: 'readonly',
         caches: 'readonly',
-        fetch: 'readonly'
+        fetch: 'readonly',
+        FormData: 'readonly',
+        HTMLSelectElement: 'readonly',
+        HTMLTextAreaElement: 'readonly'
       }
     },
     rules: {

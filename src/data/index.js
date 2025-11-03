@@ -34,7 +34,7 @@ normalizedBookings.forEach(booking => {
 
 normalizedClients.forEach(client => {
   const rentals = (bookingsByClientIdMap.get(toKey(client.id)) || [])
-    .map(booking => ({
+    .map((booking) => ({
       bookingId: booking.id,
       status: booking.status,
       startDate: booking.startDate,
