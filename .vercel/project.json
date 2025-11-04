@@ -1,0 +1,16 @@
+{
+  "projectId": "prj_fiEyMeeV9thPAiE7ewf6SCGIwaLy",
+  "orgId": "team_uvbHb82hbQgVwUZm7oF0PqkZ",
+  "projectName": "skyluxse",
+  "settings": {
+    "createdAt": 1757935133736,
+    "framework": null,
+    "devCommand": null,
+    "installCommand": null,
+    "buildCommand": null,
+    "outputDirectory": null,
+    "rootDirectory": null,
+    "directoryListing": false,
+    "nodeVersion": "22.x"
+  }
+}
