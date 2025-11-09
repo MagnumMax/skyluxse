@@ -3,27 +3,27 @@
 Baseline inputs: `docs/PRD.md`, `docs/happy-paths.md`, `docs/schemas/database-schema.md`, and `docs/tech-specs/integrations.md`. All copy follows Canadian English.
 
 ## 1. Bootstrap & Tooling Foundations
-- [ ] Run the pre-install matrix to confirm latest LTS versions of Node.js, Next.js 15 App Router, Tailwind CSS 4, shadcn/ui CLI, and Supabase JS client before scaffolding or upgrading; document the matrix in `/docs/tech-specs/tooling.md` for future audits (Context7 `/tailwindlabs/tailwindcss.com`, `/vercel/next.js`).
-- [ ] Initialise or upgrade the Next.js App Router workspace with React Server Components, shared layouts, and Edge Runtime-ready route handlers per App Router migration guide (Context7 `/vercel/next.js`).
-- [ ] Install Tailwind CSS (with MDX + Next.js config alignment) and verify content paths cover `app`, `components`, and MDX sources as shown in Tailwind's Next.js configuration guidance (Context7 `/tailwindlabs/tailwindcss.com`).
-- [ ] Initialise shadcn/ui (`npx shadcn@latest init`) and add base primitives (Button, Card, Dialog, Sheet, Navigation Menu) plus ThemeProvider wiring in `app/layout.tsx` to support system-aware theming (Context7 `/shadcn-ui/ui`).
-- [ ] Configure absolute imports, ESLint/Prettier, Husky + lint-staged, and Storybook (or Chromatic) for component QA; ensure existing `/beta` SPA is referenced but not mutated.
+- [x] Run the pre-install matrix to confirm latest LTS versions of Node.js, Next.js 15 App Router, Tailwind CSS 4, shadcn/ui CLI, and Supabase JS client before scaffolding or upgrading; document the matrix in `/docs/tech-specs/tooling.md` for future audits (Context7 `/tailwindlabs/tailwindcss.com`, `/vercel/next.js`).
+- [x] Initialise or upgrade the Next.js App Router workspace with React Server Components, shared layouts, and Edge Runtime-ready route handlers per App Router migration guide (Context7 `/vercel/next.js`).
+- [x] Install Tailwind CSS (with MDX + Next.js config alignment) and verify content paths cover `app`, `components`, and MDX sources as shown in Tailwind's Next.js configuration guidance (Context7 `/tailwindlabs/tailwindcss.com`).
+- [x] Initialise shadcn/ui (`npx shadcn@latest init`) and add base primitives (Button, Card, Dialog, Sheet, Navigation Menu) plus ThemeProvider wiring in `app/layout.tsx` to support system-aware theming (Context7 `/shadcn-ui/ui`).
+- [x] Configure absolute imports, ESLint/Prettier, Husky + lint-staged, and Storybook (or Chromatic) for component QA; ensure existing `/beta` SPA is referenced but not mutated.
 - Pause & commit: `git commit -m "chore: bootstrap next app shell"` after lint/typecheck snapshots.
 
 ## 2. Supabase Infrastructure (Schema, Auth, Storage, RLS)
-- [ ] Translate `docs/schemas/database-schema.md` into incremental migrations under `/migrations`, starting with identity, bookings, vehicles, tasks, integrations_outbox, analytics, and AI feedback tables; record schema diffs in `/docs/schemas/CHANGELOG.md`.
-- [ ] Configure Supabase Auth (email magic link + OTP) and map roles (`operations`, `sales`, `ceo`, `driver`) to RLS policies per module access, ensuring `staff_accounts.default_route` persists navigation preferences (PRD §4, §6).
-- [ ] Set up Storage buckets (`documents`, `task-media`, `analytics-exports`) with signed URL policies and document retention of 7 years; enforce service-role uploads via Edge Functions following Supabase storage upload patterns (Context7 `/supabase/supabase`).
-- [ ] Implement Edge Function scaffolds `import-kommo` and `process-outbox` with environment variable handling, size checks, and logging, matching integration spec responsibilities while stubbing external calls for MVP (Context7 `/supabase/supabase`).
-- [ ] Add observability tables/log views for outbox retries, webhook events, and audit histories.
+- [x] Translate `docs/schemas/database-schema.md` into incremental migrations under `/migrations`, starting with identity, bookings, vehicles, tasks, integrations_outbox, analytics, and AI feedback tables; record schema diffs in `/docs/schemas/CHANGELOG.md`.
+- [x] Configure Supabase Auth (email magic link + OTP) and map roles (`operations`, `sales`, `ceo`, `driver`) to RLS policies per module access, ensuring `staff_accounts.default_route` persists navigation preferences (PRD §4, §6).
+- [x] Set up Storage buckets (`documents`, `task-media`, `analytics-exports`) with signed URL policies and document retention of 7 years; enforce service-role uploads via Edge Functions following Supabase storage upload patterns (Context7 `/supabase/supabase`).
+- [x] Implement Edge Function scaffolds `import-kommo` and `process-outbox` with environment variable handling, size checks, and logging, matching integration spec responsibilities while stubbing external calls for MVP (Context7 `/supabase/supabase`).
+- [x] Add observability tables/log views for outbox retries, webhook events, and audit histories.
 - Pause & commit: `git commit -m "feat: supabase schema-auth baseline"` after running migrations + tests.
 
 ## 3. MVP Integration Stubs (Feature-Flagged)
-- [ ] Create integration feature flags (`enableKommoLive`, `enableZohoLive`, `enableSlackAlerts`) stored in Supabase config tables; default to `false` for MVP to gate external calls.
-- [ ] Build Kommo webhook Edge Function stub that validates HMAC, logs payload, persists to staging tables, and short-circuits before external side effects when feature flag disabled (PRD §2 M1, §6 Integrations).
-- [ ] Implement Zoho outbox processor stub that enqueues payloads and simulates responses with deterministic mock data; ensure retries and exponential backoff logic run even when network calls are mocked (tech-spec integrations).
-- [ ] Provide placeholder adapters for AI copilots, telemetry feeds, and Slack alerts, all returning mocked responses while feature flags remain off.
-- [ ] Document stub swap strategy in `/docs/tech-specs/integrations.md` and add Playwright mocks for ingestion + outbox flows.
+- [x] Create integration feature flags (`enableKommoLive`, `enableZohoLive`, `enableSlackAlerts`) stored in Supabase config tables; default to `false` for MVP to gate external calls.
+- [x] Build Kommo webhook Edge Function stub that validates HMAC, logs payload, persists to staging tables, and short-circuits before external side effects when feature flag disabled (PRD §2 M1, §6 Integrations).
+- [x] Implement Zoho outbox processor stub that enqueues payloads and simulates responses with deterministic mock data; ensure retries and exponential backoff logic run even when network calls are mocked (tech-spec integrations).
+- [x] Provide placeholder adapters for AI copilots, telemetry feeds, and Slack alerts, all returning mocked responses while feature flags remain off.
+- [x] Document stub swap strategy in `/docs/tech-specs/integrations.md` and add Playwright mocks for ingestion + outbox flows.
 - Pause & commit: `git commit -m "feat: integration stubs with feature flags"` after integration tests.
 
 ## 4. App Router Migration of SPA Screens
