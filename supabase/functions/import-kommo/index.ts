@@ -1,9 +1,11 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts"
 import { timingSafeEqual } from "https://deno.land/std@0.224.0/crypto/timing_safe_equal.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.1"
+import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.45.1"
 
 const MAX_BODY_BYTES = 1_048_576 // 1 MB safety limit per Kommo spec
 const SIGNATURE_HEADER = "x-kommo-signature"
+const FEATURE_FLAG_KEY = 'enableKommoLive'
 
 function getServiceClient() {
   const supabaseUrl = Deno.env.get("SUPABASE_URL")
@@ -14,6 +16,16 @@ function getServiceClient() {
   return createClient(supabaseUrl, serviceRoleKey, {
     auth: { persistSession: false },
   })
+}
+
+async function isFeatureFlagEnabled(client: SupabaseClient, flag: string) {
+  const { data } = await client
+    .from('system_feature_flags')
+    .select('is_enabled')
+    .eq('flag', flag)
+    .maybeSingle()
+
+  return data?.is_enabled ?? false
 }
 
 async function isValidSignature(rawBody: string, headerValue: string | null) {
@@ -72,7 +84,7 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: "Unable to persist payload" }), { status: 500 })
     }
 
-    const isLive = (Deno.env.get("ENABLE_KOMMO_LIVE") ?? "false").toLowerCase() === "true"
+    const isLive = await isFeatureFlagEnabled(supabase, FEATURE_FLAG_KEY)
 
     if (!isLive) {
       return new Response(

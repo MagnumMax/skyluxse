@@ -12,10 +12,20 @@ _Last updated: 9 Nov 2025_
 Kommo Webhook --> Supabase Edge Function (import-kommo)
                      |  writes bookings/clients/leads
                      v
-              integrations_outbox (Zoho tasks)
-                     |
-          Supabase Edge Function (process-outbox) --> Zoho CRM API
+             integrations_outbox (Zoho tasks)
+                    |
+         Supabase Edge Function (process-outbox) --> Zoho CRM API
 ```
+
+## Feature Flags & Stub Strategy (MVP)
+- Feature toggles live in `system_feature_flags` and are fetched via `lib/feature-flags.ts` (Next.js) or inside Edge Functions. Default `false` keeps external systems disconnected until credentials + contracts are finalized.
+- Flag map:
+  - `enableKommoLive`: controls Kommo ingestion pipeline.
+  - `enableZohoLive`: controls Zoho outbox worker behaviour.
+  - `enableSlackAlerts`: drives `lib/integrations/slack.ts`.
+  - `enableAiCopilot`: powers `lib/integrations/ai.ts`.
+  - `enableTelemetryPipelines`: powers `lib/integrations/telemetry.ts`.
+- Toggling a flag happens via Supabase dashboard/SQL without redeploys. Use this as a kill-switch if external providers misbehave.
 
 ### Kommo webhook (`import-kommo`)
 - Hosted as a Supabase Edge Function exposed via `/functions/v1/import-kommo`.
@@ -29,6 +39,8 @@ Kommo Webhook --> Supabase Edge Function (import-kommo)
      - Create/refresh `booking_invoices`, `calendar_events`, `sales_leads` snapshot if needed.
   4. Enqueue Zoho tasks: insert rows into `integrations_outbox` for `contact.upsert` and `sales_order.create` (unless `zoho_contact_id`/`zoho_sales_order_id` already set).
   5. Respond 200 to Kommo; log structured event for observability.
+- MVP behaviour: when `enableKommoLive = false`, the function logs payloads + security metadata, then replies `202` with `{ mode: "stubbed" }` so upstream systems treat it as accepted but no DB writes occur.
+- Post-MVP: flip the flag to true and enable actual upsert logic + Zoho enqueueing once dry-runs pass.
 - Retry strategy: Kommo retries requests; function must be idempotent (use `source_payload_id`). On DB conflicts, return 200 after confirming record exists.
 
 ### Manual fallback (`POST /bookings`)
@@ -61,6 +73,8 @@ Kommo Webhook --> Supabase Edge Function (import-kommo)
      - `sales_order.create`: call Zoho Sales Orders API using booking totals/invoices; update `bookings.zoho_sales_order_id`, `bookings.zoho_sync_status = 'synced'`.
   4. On success: set outbox row status `succeeded`, clear `last_error`.
   5. On failure: set `status = 'failed'` (or `pending` with exponential backoff), populate `last_error`, compute `next_run_at = now() + retry_delay`. After N attempts (e.g., 5), keep `failed` until manual intervention.
+- MVP behaviour: with `enableZohoLive = false`, the worker marks jobs as `succeeded` immediately with `response.mode = 'stubbed'` so analytics and UI continue to work without hitting Zoho.
+- Post-MVP: once Zoho creds + retry harness are verified, turn the flag on and wire HTTP calls; toggle off for emergency rollback.
 - Logging/metrics: emit structured logs and optionally push metrics to monitoring (retry counts, latency).
 - Security: store Zoho credentials in Supabase secrets; Edge Function uses service role key.
 - Implementation notes:
@@ -70,3 +84,11 @@ Kommo Webhook --> Supabase Edge Function (import-kommo)
 ## Observability & Ops
 - Dashboard surfaces: count of pending/failed outbox rows, `bookings.zoho_sync_status`. Alerts when failed rows > threshold.
 - Runbook: manual requeue by setting `status = 'pending'` and adjusting `next_run_at` once issue resolved.
+- Feature flags double as a kill-switch; set the relevant flag to `false` before bulk requeues to prevent noisy retries.
+
+## Post-MVP swap guidance
+1. **Kommo ingestion** – enable `enableKommoLive`, run scripted dry-runs, then monitor `kommo_webhook_events` for failures. Disable flag if validation fails.
+2. **Zoho outbox** – enable `enableZohoLive`, integrate OAuth tokens + HTTP retries, and monitor `integrations_outbox` for <1% failure. Flag off = stubbed fallback.
+3. **Slack / Telemetry** – once secrets stored, enable `enableSlackAlerts` / `enableTelemetryPipelines` and replace stubbed adapters with webhook/queue dispatch.
+4. **AI Copilot** – after LLM contract + eval harness ready, flip `enableAiCopilot` and replace stub with provider SDK. Capture thumbs feedback in `ai_feedback_events`.
+5. Document every flag transition in release notes + `docs/tech-specs/integrations.md` to keep operators informed.
