@@ -27,14 +27,16 @@ Baseline inputs: `docs/PRD.md`, `docs/happy-paths.md`, `docs/schemas/database-sc
 - Pause & commit: `git commit -m "feat: integration stubs with feature flags"` after integration tests.
 
 ## 4. App Router Migration of SPA Screens
-- [ ] Inventory `/beta` SPA routes vs. new App Router structure; draft `app/(dashboard)/operations`, `(sales)`, `(exec)`, `(driver)` segmented layouts to match persona flows (PRD §2 modules, happy paths §1-4).
-- [ ] Migrate booking lifecycle board (M2) using server components for board data + client components for drag interactions; ensure fetch caching (`force-cache`, `no-store`, `revalidate`) aligns with data staleness needs (Context7 `/vercel/next.js`).
-- [ ] Port fleet calendar + maintenance automation (M3) with shared calendar grid component, hooking Supabase Realtime for event updates.
-- [ ] Rebuild sales workspace + AI lead intelligence (M4) with streaming suggestions placeholder; integrate shadcn panels/dialogs per installation guide (Context7 `/shadcn-ui/ui`).
-- [ ] Construct driver mobile shell (M5) as separate route group with `viewport` metadata for PWA-like behaviour; integrate offline-friendly caching once data APIs ready.
-- [ ] Build analytics + insight hub (M6) using suspense + skeletons; add Web Vitals reporter and instrumentation via shared layout (Context7 `/vercel/next.js`).
-- [ ] Stand up integrations outbox + Zoho management pages (M7) for integration engineers.
-- Pause & commit: `git commit -m "feat: migrate spa screens to app router"` after visual regression & lint.
+- [ ] Parity gate: capture `/beta` SPA route maps, screen recordings, and interaction notes; block any new routes, copy, or controls until the rebuilt App Router screens match the prototype pixel-for-pixel and behaviour-for-behaviour, logging parity artefacts in `/docs/prd-foundations.md`.
+- [ ] Inventory `/beta` SPA routes vs. the new App Router structure; draft `app/(dashboard)/operations`, `(sales)`, `(exec)`, `(driver)` segmented layouts to match persona flows (PRD §2 modules, happy paths §1-4) only after parity inputs exist.
+- [ ] Apply shadcn/ui primitives (Button, Card, Dialog, Sheet, Tabs, Data Table, Navigation Menu) to every migrated surface; document unavoidable gaps in `/docs/ui-gaps.md` and schedule follow-ups.
+- [ ] Migrate the booking lifecycle board (M2) using server components for board data + client components for drag interactions; align fetch caching (`force-cache`, `no-store`, `revalidate`) with data staleness needs (Context7 `/vercel/next.js`) while preserving `/beta` UX before iterating.
+- [ ] Port the fleet calendar + maintenance automation (M3) with a shared calendar grid component and Supabase Realtime hooks; validate gestures and keyboard paths against `/beta` recordings prior to enhancements.
+- [ ] Rebuild the sales workspace + AI lead intelligence (M4) with streaming suggestion placeholders; integrate shadcn panels/dialogs per installation guide (Context7 `/shadcn-ui/ui`) and guard new AI affordances behind the parity gate.
+- [ ] Construct the driver mobile shell (M5) as a separate route group with `viewport` metadata for PWA-like behaviour; keep layout, CTA order, and offline cues identical to `/beta` until post-parity iterations.
+- [ ] Build the analytics + insight hub (M6) using suspense + skeletons; add Web Vitals reporter and instrumentation via the shared layout (Context7 `/vercel/next.js`) once `/beta` charts/tables are mirrored.
+- [ ] Stand up integrations outbox + Zoho management pages (M7) for integration engineers, ensuring control sets and flows match `/beta` before expanding scope.
+- Pause & commit: `git commit -m "feat: migrate spa screens to app router"` only after visual regression, lint, and parity QA complete.
 
 ## 5. Business Logic & Automation
 - [ ] Implement Kommo intake orchestration: timeline stamping, SLA timer updates, document checklist auto-generation per PRD §2 M1-M2.

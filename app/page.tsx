@@ -1,13 +1,16 @@
 import Link from "next/link"
+import type { Route } from "next"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { NavigationMenu, NavigationMenuItem, NavigationMenuLink, NavigationMenuList, navigationMenuTriggerStyle } from "@/components/ui/navigation-menu"
 
+const route = <T extends string>(path: T) => path as Route
+
 const primaryActions = [
-  { label: "Bookings", href: "/app/bookings" },
-  { label: "Fleet", href: "/app/fleet" },
-  { label: "Analytics", href: "/app/analytics" },
-]
+  { label: "Bookings", href: route("/app/bookings") },
+  { label: "Fleet", href: route("/app/fleet") },
+  { label: "Analytics", href: route("/app/analytics") },
+] as const
 
 export default function HomePage() {
   return (
@@ -21,21 +24,19 @@ export default function HomePage() {
             <NavigationMenuList>
               {primaryActions.map((action) => (
                 <NavigationMenuItem key={action.label}>
-                  <Link href={action.href} legacyBehavior passHref>
-                    <NavigationMenuLink className={navigationMenuTriggerStyle()}>
-                      {action.label}
-                    </NavigationMenuLink>
-                  </Link>
+                  <NavigationMenuLink asChild className={navigationMenuTriggerStyle()}>
+                    <Link href={action.href}>{action.label}</Link>
+                  </NavigationMenuLink>
                 </NavigationMenuItem>
               ))}
             </NavigationMenuList>
           </NavigationMenu>
           <div className="space-x-2">
             <Button variant="ghost" asChild>
-              <Link href="/login">Log in</Link>
+              <Link href={route("/login")}>Log in</Link>
             </Button>
             <Button asChild>
-              <Link href="/request-demo">Request demo</Link>
+              <Link href={route("/request-demo")}>Request demo</Link>
             </Button>
           </div>
         </div>
@@ -55,10 +56,10 @@ export default function HomePage() {
           </p>
           <div className="flex flex-wrap gap-3">
             <Button size="lg" asChild>
-              <Link href="/app/onboarding">Launch workspace</Link>
+              <Link href={route("/app/onboarding")}>Launch workspace</Link>
             </Button>
             <Button size="lg" variant="outline" asChild>
-              <Link href="/docs/PRD">View PRD</Link>
+              <Link href={route("/docs/PRD")}>View PRD</Link>
             </Button>
           </div>
         </section>
