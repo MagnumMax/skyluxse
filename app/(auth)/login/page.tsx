@@ -1,0 +1,92 @@
+import type { Metadata } from "next"
+
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+
+import { LoginForm } from "./login-form"
+
+export const metadata: Metadata = {
+  title: "SkyLuxse ERP · Login",
+  description: "Паритетный экран входа SkyLuxse ERP с выбором роли и OTP-запросом.",
+}
+
+const roles = [
+  { value: "operations", label: "Fleet manager" },
+  { value: "sales", label: "Sales manager" },
+  { value: "ceo", label: "Executive team" },
+  { value: "driver", label: "Driver" },
+] as const
+
+const roleRoutes = {
+  operations: "/operations/fleet-calendar",
+  sales: "/sales/fleet-calendar",
+  ceo: "/exec/dashboard",
+  driver: "/driver/tasks",
+} satisfies Record<(typeof roles)[number]["value"], string>
+
+const heroBullets = [
+  "Корпоративный вход: заявки, авто и клиенты в одном учете.",
+  "Автосигналы по платежам, доставкам и возвратам.",
+  "Онлайн-отчеты по загрузке, марже и SLA.",
+]
+
+const heroGradient =
+  "radial-gradient(circle at 20% 20%, rgba(255,255,255,0.16), transparent 55%), " +
+  "radial-gradient(circle at 80% 70%, rgba(79,70,229,0.35), transparent 45%), " +
+  "linear-gradient(135deg, #05070c 0%, #0b1220 40%, #111b2e 70%, #19263f 100%)"
+
+export default function LoginPage() {
+  return (
+    <div className="min-h-screen bg-background px-6 py-12">
+      <div className="mx-auto grid w-full max-w-5xl gap-8 lg:grid-cols-[1.65fr_1.35fr]">
+        <Card className="rounded-[28px] border border-border/70 shadow-[0_20px_60px_rgba(15,23,42,0.08)]">
+          <CardHeader className="space-y-3">
+            <p className="text-xs font-semibold uppercase tracking-[0.32em] text-muted-foreground">SkyLuxse ERP</p>
+            <CardTitle className="text-3xl font-semibold tracking-tight text-foreground">Добро пожаловать</CardTitle>
+            <CardDescription className="text-base text-muted-foreground">
+              Выберите роль и подтвердите вход, чтобы продолжить работу с автопарком.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <LoginForm roles={roles} roleRoutes={roleRoutes} />
+          </CardContent>
+        </Card>
+
+        <section
+          className="relative overflow-hidden rounded-[32px] border border-border/60 p-8 text-slate-50 shadow-[0_30px_60px_-45px_rgba(18,22,62,0.9)]"
+          style={{ backgroundImage: heroGradient }}
+        >
+          <div className="inline-flex items-center gap-2 rounded-full border border-indigo-400/50 bg-slate-900/60 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em]">
+            <span className="h-1.5 w-1.5 rounded-full bg-indigo-300" />
+            Внутренний доступ SkyLuxse
+          </div>
+          <h2 className="mt-6 text-3xl font-semibold tracking-tight">Корпоративная ОС автопарка</h2>
+          <p className="mt-3 text-base text-slate-200">
+            Платформа для сотрудников: бронирования, SLA и водители собраны в одном рабочем окне.
+          </p>
+          <ul className="mt-6 space-y-3 text-sm">
+            {heroBullets.map((bullet) => (
+              <li key={bullet} className="flex items-start gap-3">
+                <span className="mt-2 h-1.5 w-1.5 rounded-full bg-indigo-300" />
+                <span>{bullet}</span>
+              </li>
+            ))}
+          </ul>
+          <div className="mt-8 grid gap-4 text-sm text-slate-200 sm:grid-cols-3">
+            <div>
+              <p className="text-xs uppercase tracking-[0.2em] text-indigo-200">SLA events</p>
+              <p className="text-base font-semibold text-white">24/7 monitored</p>
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-[0.2em] text-indigo-200">Fleet uptime</p>
+              <p className="text-base font-semibold text-white">98%</p>
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-[0.2em] text-indigo-200">Teams</p>
+              <p className="text-base font-semibold text-white">Ops · Sales · Drivers</p>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+  )
+}

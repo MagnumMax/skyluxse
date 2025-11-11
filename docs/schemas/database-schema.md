@@ -88,22 +88,30 @@ This schema proposal is derived from the production requirements captured in `do
 | --- | --- | --- |
 | id | uuid pk | Mirrors SPA IDs 1-5 via `external_ref`. |
 | external_ref | text unique | Existing numeric ID to keep history. |
-| name | text | e.g., `Rolls-Royce Ghost`. |
+| name | text | Display label (e.g., `Rolls-Royce Ghost`). |
+| kommo_vehicle_id | text unique | Nullable CRM ID from Kommo select lists. |
+| make | text | OEM brand (Audi, BMW, etc.). |
+| model | text | Model or trim code (Q8, X6, etc.). |
+| vin | text unique | Optional unique VIN; nullable for unknown/SOLD stock. |
+| model_year | smallint | Guard-railed between 1980 and 2100. |
+| exterior_color | text | Marketing colour name (e.g., Mango Blue). |
+| interior_color | text | Cabin palette (Black/Red, Beige, etc.). |
 | plate_number | text | |
-| status | vehicle_status enum | `available`, `in_rent`, `maintenance`. |
+| body_style | text | SUV, Sedan, Convertible, etc. |
+| status | vehicle_status enum | `available`, `in_rent`, `maintenance`, `reserved`, `sold`, `service_car`. |
 | class | text | `Luxury`, `SUV`, `Sport`. |
 | segment | text | Coupe, Sedan, etc. |
-| color | text | |
-| model_year | smallint | |
+| seating_capacity | smallint | 1-20 seats. |
+| engine_displacement_l | numeric(4,2) | Litres; parser normalises commas to dots. |
+| power_hp | smallint | Horsepower (50-1200). |
+| cylinders | smallint | 2-16 cylinders; `NULL` for EV variants. |
+| zero_to_hundred_sec | numeric(4,2) | 0-100 km/h time in seconds. |
+| transmission | text | e.g., Automatic, DCT, AMT. |
 | mileage_km | int | Current reading. |
 | utilization_pct | numeric(5,2) | Derived metric. |
 | revenue_ytd | numeric(12,2) | |
-| insurance_expires_on | date | |
-| mulkiya_expires_on | date | |
-| health_score | numeric(5,2) | 0-1 scale. |
-| last_service_on | date | |
-| next_service_on | date | |
-| mileage_to_service | int | |
+| created_at | timestamptz | Default `timezone('utc', now())`. |
+| updated_at | timestamptz | Updated via `set_updated_at()`. |
 
 **vehicle_reminders** track entries such as `RM-huracan-service` with columns `vehicle_id`, `reminder_type`, `due_date`, `status`, `severity`, `created_by`.
 
@@ -142,6 +150,7 @@ This schema proposal is derived from the production requirements captured in `do
 | booking_type | booking_type enum | `vip`, `short`, `corporate`. |
 | channel | text | `Kommo`, `Website`, etc. |
 | source_payload_id | text | Upstream identifier from Kommo webhook. |
+| kommo_status_id | bigint | Raw Kommo stage ID used for audit/filtering. |
 | priority | priority_level enum | `high`, `medium`, `low`. |
 | segment | client_segment enum | mirrors sales analytics. |
 | start_at | timestamptz | Combines date + time. |
@@ -195,6 +204,8 @@ This schema proposal is derived from the production requirements captured in `do
 | status | event_status enum | `scheduled`,`in_progress`,`completed`. |
 | priority | priority_level enum | |
 | color_token | text | for calendar rendering. |
+
+**calendar_events_expanded (view)** unions `calendar_events` with any `bookings` row that has both a vehicle and at least one timestamp, translating booking statuses (`lead/confirmed/in_progress/...`) into `event_status`. This keeps maintenance/repair entries in their dedicated table while surfacing Kommo-imported rentals in the same grid without duplicating rows. Columns mirror `calendar_events` (`id`, `vehicle_id`, `booking_id`, `event_type`, `start_at`, `end_at`, `status`).
 
 **tasks** correspond to the operations board and driver mobile cards.
 | Column | Type | Notes |
@@ -358,6 +369,7 @@ Table bookings {
   status booking_status
   booking_type booking_type
   channel text
+  kommo_status_id bigint
   priority priority_level
   start_at timestamptz
   end_at timestamptz

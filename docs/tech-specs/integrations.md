@@ -1,6 +1,6 @@
 # Integrations: Kommo Ingestion & Zoho Sync
 
-_Last updated: 9 Nov 2025_
+_Last updated: 10 Nov 2025_
 
 ## Goals
 - Treat Kommo as the primary source for booking requests, ensuring idempotent ingestion into our ERP (Supabase Postgres).
@@ -33,15 +33,39 @@ Kommo Webhook --> Supabase Edge Function (import-kommo)
 - Steps:
   1. Validate HMAC/secret to ensure payload authenticity.
   2. Upsert client: match by `kommo_contact_id` or email; update profile data (`clients.kommo_contact_id`).
-  3. Upsert booking:
+  3. Resolve vehicle: extract `kommo_vehicle_id` from the Kommo dropdown field using env vars `KOMMO_VEHICLE_FIELD_ID` / `KOMMO_VEHICLE_FIELD_CODE`, then lookup `vehicles.kommo_vehicle_id` to map bookings and calendar events. Payload logs and responses now include `{ kommoVehicleId, vehicleId }` for observability.
+  4. Ignore неподтверждённые статусы (`status_id` = 79790631, 91703923, 143). Такие payload’ы помечаются как `ignored_pending_status`, отвечают 202 и не дойдут до `bookings`/календаря, чтобы графики не засорялись бот-ответами или закрытыми-лидами; для всех остальных стадий значение сохраняется в `bookings.kommo_status_id`.
+  4. Upsert booking:
      - Find by `source_payload_id` or `external_code`.
      - If new, insert into `bookings` with `channel = 'Kommo'`, `created_by = 'system-kommo'`, `owner_id` resolved via mapping table (Kommo manager -> staff_accounts).
      - Create/refresh `booking_invoices`, `calendar_events`, `sales_leads` snapshot if needed.
-  4. Enqueue Zoho tasks: insert rows into `integrations_outbox` for `contact.upsert` and `sales_order.create` (unless `zoho_contact_id`/`zoho_sales_order_id` already set).
-  5. Respond 200 to Kommo; log structured event for observability.
+  5. Enqueue Zoho tasks: insert rows into `integrations_outbox` for `contact.upsert` and `sales_order.create` (unless `zoho_contact_id`/`zoho_sales_order_id` already set).
+  6. Respond 200 to Kommo; log structured event for observability.
 - MVP behaviour: when `enableKommoLive = false`, the function logs payloads + security metadata, then replies `202` with `{ mode: "stubbed" }` so upstream systems treat it as accepted but no DB writes occur.
 - Post-MVP: flip the flag to true and enable actual upsert logic + Zoho enqueueing once dry-runs pass.
 - Retry strategy: Kommo retries requests; function must be idempotent (use `source_payload_id`). On DB conflicts, return 200 after confirming record exists.
+
+### Kommo status webhook (`kommo-status-webhook`)
+- Supabase Edge Function at `/functions/v1/kommo-status-webhook`; expects HMAC (`x-kommo-signature`) identical to the intake webhook and is gated by `enableKommoLive`.
+- Kommo fires `leads.status` whenever a lead hops between stages. Мы теперь обрабатываем не только "Confirmed bookings" (`status_id = 75440391`), но и следующие статусы пайплайна: `75440395` (“Delivery within 24 hours”) и `75440399` (“Car with customers”).
+- Processing steps:
+  1. Validate signature + feature flag.
+  2. Fetch full lead + contact payload (`GET /api/v4/leads/{id}?with=contacts,custom_fields` + contacts endpoint).
+  3. Upsert `clients`, `sales_leads`, и `bookings` (по `source_payload_id = kommo:{id}`) c обновлением `bookings.status` в зависимости от стадии (`preparation`, `delivery`, `in_rent`).
+  4. Записываем системные события в `booking_timeline_events` (`event_type = 'kommo_status_sync'`) с указанием pipeline/stage label. Это даёт операторам видимость прогресса прямо в брони.
+  5. В `kommo_webhook_events` хранится последний Kommo stage (`kommo_status_id/kommo_status_label`), что выводится на `/exec/integrations` карточке “Last stage”.
+- Idempotency: replays обновляют те же строки. При ошибке событие помечается `status = 'failed'`, счётчики (`kommo_webhook_stats`/`kommo_webhook_summary`) обновляются триггером.
+
+### Kommo full refresh (`kommo-full-refresh`)
+- Adds a button-driven **historical import** that replays Kommo leads for a given calendar year (currently 2025) and swaps them wholesale into Supabase.
+- Trigger: Next.js API `POST /api/integrations/kommo/full-refresh` → Edge Function `kommo-full-refresh`. Edge function enforces `enableKommoLive` and reads Supabase secrets (`KOMMO_BASE_URL`, `KOMMO_ACCESS_TOKEN`, optional `KOMMO_VEHICLE_FIELD_ID`/`KOMMO_SOURCE_FIELD_ID`).
+- Flow:
+  1. `start_kommo_import_run(triggered_by)` creates a run record + advisory lock (90901) to avoid concurrent jobs.
+  2. Function paginates `GET /api/v4/leads?with=contacts,catalog_elements,source_id&filter[created_at]=2025`, skips status `143`, normalises timestamps (handles both ISO strings and unix seconds like `1762786272`), batches contact fetches, and writes into `stg_kommo_leads`, `stg_kommo_contacts`, `stg_kommo_booking_vehicles` via RPC upserts.
+  3. `run_kommo_full_refresh(run_id)` validates volume drop (<30%), deletes prior Kommo-derived `bookings`/`sales_leads`, upserts `clients` by `kommo_contact_id`, rebuilds leads/bookings snapshot, and backfills vehicle links. Advisory lock 90902 protects the transactional swap.
+  4. `finish_kommo_import_run` stores counters, status (`succeeded/failed/needs_review`), and releases locks.
+- Telemetry: `kommo_import_runs` REST view surfaces run status/counts for dashboards; staging tables remain for inspection on failure.
+- Latest run (10 Nov 2025) succeeded with **429 leads / 32 contacts / 26 vehicles** in ~110s, proving Kommo credentials + timestamp normalisation are production-ready.
 
 ### Manual fallback (`POST /bookings`)
 - UI hides "New booking" for sales unless Kommo outage flag is set.
@@ -83,6 +107,7 @@ Kommo Webhook --> Supabase Edge Function (import-kommo)
 
 ## Observability & Ops
 - Dashboard surfaces: count of pending/failed outbox rows, `bookings.zoho_sync_status`. Alerts when failed rows > threshold.
+- Exec portal route `/exec/integrations` теперь читает live данные из Supabase (`integrations_outbox`, `kommo_import_runs`, `kommo_webhook_events`, агрегаты `kommo_webhook_stats`). Блок “Kommo webhooks” показывает дату/время последнего события, объём за день и за последний час.
 - Runbook: manual requeue by setting `status = 'pending'` and adjusting `next_run_at` once issue resolved.
 - Feature flags double as a kill-switch; set the relevant flag to `false` before bulk requeues to prevent noisy retries.
 

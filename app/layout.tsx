@@ -1,10 +1,10 @@
 import type { Metadata } from "next"
-import { Inter as FontSans } from "next/font/google"
 import "./globals.css"
 import { cn } from "@/lib/utils"
 import { ThemeProvider } from "@/components/theme-provider"
-
-const fontSans = FontSans({ subsets: ["latin"], variable: "--font-geist-sans" })
+import { brandSans } from "@/lib/fonts"
+import { ToastProvider } from "@/components/ui/toast"
+import { WebVitals } from "@/components/web-vitals"
 
 export const metadata: Metadata = {
   title: "SkyLuxse ERP 2.0",
@@ -14,9 +14,10 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={cn("min-h-screen bg-background font-sans antialiased", fontSans.variable)}>
+      <body className={cn("min-h-screen bg-background font-sans antialiased", brandSans.variable, brandSans.className)}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-          {children}
+          <WebVitals />
+          <ToastProvider>{children}</ToastProvider>
         </ThemeProvider>
       </body>
     </html>

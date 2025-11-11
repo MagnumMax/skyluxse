@@ -1,6 +1,8 @@
 "use client"
 
-import { Fragment, useMemo, useState } from "react"
+import { Fragment, useCallback, useMemo, useState } from "react"
+import type { Route } from "next"
+import { useRouter } from "next/navigation"
 
 import type { CalendarEvent, CalendarEventType, FleetCar } from "@/lib/domain/entities"
 import { calendarEventTypes } from "@/lib/constants/calendar"
@@ -23,13 +25,13 @@ export const calendarViewOptions = [
 type CalendarViewOption = (typeof calendarViewOptions)[number]
 
 export type FleetCalendarController = ReturnType<typeof useFleetCalendarController>
-type GroupBy = "class" | "manufacturer"
+type GroupBy = "bodyStyle" | "manufacturer"
 
 export function useFleetCalendarController(initialViewId: CalendarViewOption["id"] = "week") {
   const fallback = calendarViewOptions.find((option) => option.id === initialViewId) ?? calendarViewOptions[1]
   const [viewId, setViewId] = useState<CalendarViewOption["id"]>(fallback.id)
   const [offset, setOffset] = useState(0)
-  const [grouping, setGrouping] = useState<GroupBy>("class")
+  const [grouping, setGrouping] = useState<GroupBy>("bodyStyle")
   const [baseDate, setBaseDate] = useState(() => getStartOfToday())
 
   const view = useMemo(() => {
@@ -55,18 +57,35 @@ export function FleetCalendarBoard({
   controller,
   vehicles,
   events,
+  bookingRouteBase,
   onEventClick,
 }: {
   controller?: FleetCalendarController
   vehicles: FleetCar[]
   events: CalendarEvent[]
+  bookingRouteBase?: string
   onEventClick?: (event: CalendarEvent) => void
 }) {
+  const router = useRouter()
   const internalController = useFleetCalendarController()
   const { view, setView, offset, setOffset, grouping, baseDate } = controller ?? internalController
   const combinedEvents = useMemo(() => [...events], [events])
 
-  const rangeStart = useMemo(() => new Date(baseDate.getTime() + offset * DAY_IN_MS), [baseDate, offset])
+  const handleEventClick = useCallback(
+    (event: CalendarEvent) => {
+      if (onEventClick) {
+        onEventClick(event)
+        return
+      }
+      if (bookingRouteBase && event.bookingId) {
+        const bookingRoute = `${bookingRouteBase}/bookings/${event.bookingId}` as Route
+        router.push(bookingRoute)
+      }
+    },
+    [onEventClick, bookingRouteBase, router]
+  )
+
+  const rangeStart = useMemo(() => new Date(baseDate.getTime() + (offset - 1) * DAY_IN_MS), [baseDate, offset])
   const visibleDates = useMemo(
     () => Array.from({ length: view.days }, (_, index) => new Date(rangeStart.getTime() + index * DAY_IN_MS)),
     [rangeStart, view.days]
@@ -87,17 +106,18 @@ export function FleetCalendarBoard({
   )
 
   const groupedRows = useMemo(() => {
+    const bodyStyleFor = (car: FleetCar) => car.bodyStyle?.trim() || "Unspecified"
     const orderedCars = [...vehicles].sort((a, b) => {
       if (grouping === "manufacturer") {
         return a.name.localeCompare(b.name)
       }
-      return a.class.localeCompare(b.class)
+      return bodyStyleFor(a).localeCompare(bodyStyleFor(b))
     })
 
     const map = new Map<string, { label: string; rows: { car: FleetCar; events: CalendarEvent[] }[] }>()
     orderedCars.forEach((car) => {
-      const key = grouping === "manufacturer" ? car.name.split(" ")[0] ?? car.name : car.class
-      const label = grouping === "manufacturer" ? `${key} · Make` : `${key} · Class`
+      const key = grouping === "manufacturer" ? car.name.split(" ")[0] ?? car.name : bodyStyleFor(car)
+      const label = grouping === "manufacturer" ? `${key} · Make` : `${key} · Body type`
       if (!map.has(key)) {
         map.set(key, { label, rows: [] })
       }
@@ -124,11 +144,7 @@ export function FleetCalendarBoard({
           <div className="fleet-calendar-row-grid">
             <div className="calendar-grid fleet-calendar-grid-header" style={{ gridTemplateColumns }}>
               {visibleDates.map((date) => (
-                <div
-                  key={`header-${date.toISOString()}`}
-                  className={cn("calendar-day-header", isSameDay(date, baseDate) && "calendar-day-header-today")}
-                  style={{ gridColumn: "span 2" }}
-                >
+                <div key={`header-${date.toISOString()}`} className="calendar-day-header" style={{ gridColumn: "span 2" }}>
                   {date.toLocaleDateString("en-GB", { day: "2-digit", month: "short" })}
                 </div>
               ))}
@@ -156,7 +172,7 @@ export function FleetCalendarBoard({
                     baseDate={baseDate}
                     gridTemplateColumns={gridTemplateColumns}
                     rowKey={`row-${group.label}-${car.id}`}
-                    onEventClick={onEventClick}
+                    onEventClick={handleEventClick}
                   />
                 </div>
               </div>
@@ -167,6 +183,8 @@ export function FleetCalendarBoard({
     </div>
   )
 }
+
+type EventPlacement = Exclude<ReturnType<typeof getEventGridPlacement>, null>
 
 function CarRowRight({
   events,
@@ -189,21 +207,18 @@ function CarRowRight({
         const placement = getEventGridPlacement(event, visibleDates)
         return placement ? { event, placement } : null
       })
-      .filter(Boolean) as { event: CalendarEvent; placement: ReturnType<typeof getEventGridPlacement> }[]
+      .filter((item): item is { event: CalendarEvent; placement: EventPlacement } => Boolean(item))
   }, [events, visibleDates])
 
   return (
     <div className="calendar-grid fleet-calendar-grid-body" style={{ gridTemplateColumns }}>
-      {visibleDates.map((date) => {
-        const isToday = isSameDay(date, baseDate)
-        return (
-          <div
-            key={`${rowKey}-${date.toISOString()}`}
-            className={cn("calendar-day-cell", isToday && "calendar-day-cell-today")}
-            style={{ gridColumn: "span 2", gridRow: "1 / 2" }}
-          />
-        )
-      })}
+      {visibleDates.map((date) => (
+        <div
+          key={`${rowKey}-${date.toISOString()}`}
+          className="calendar-day-cell"
+          style={{ gridColumn: "span 2", gridRow: "1 / 2" }}
+        />
+      ))}
       {placements.map(({ event, placement }) => (
         <div
           key={`${rowKey}-event-${event.id}`}
@@ -278,8 +293,4 @@ function CalendarEventPill({
       </div>
     </button>
   )
-}
-
-function isSameDay(a: Date, b: Date) {
-  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
 }

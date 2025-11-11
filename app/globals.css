@@ -1,54 +1,88 @@
-@tailwind base;
+@import "tailwindcss";
 
 @plugin "tailwindcss-animate";
 
 @custom-variant dark (&:is(.dark *));
-@tailwind components;
-@tailwind utilities;
 
-:root {
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.129 0.042 264.695);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.129 0.042 264.695);
-  --primary: oklch(0.208 0.042 265.755);
-  --primary-foreground: oklch(0.984 0.003 247.858);
-  --secondary: oklch(0.968 0.007 247.896);
-  --secondary-foreground: oklch(0.208 0.042 265.755);
-  --muted: oklch(0.968 0.007 247.896);
-  --muted-foreground: oklch(0.554 0.046 257.417);
-  --accent: oklch(0.968 0.007 247.896);
-  --accent-foreground: oklch(0.208 0.042 265.755);
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: 210 40% 98%;
-  --border: oklch(0.929 0.013 255.508);
-  --input: oklch(0.929 0.013 255.508);
-  --ring: oklch(0.704 0.04 256.788);
-  --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.129 0.042 264.695);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.984 0.003 247.858);
-  --sidebar-foreground: oklch(0.129 0.042 264.695);
-  --sidebar-primary: oklch(0.208 0.042 265.755);
-  --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-accent: oklch(0.968 0.007 247.896);
-  --sidebar-accent-foreground: oklch(0.208 0.042 265.755);
-  --sidebar-border: oklch(0.929 0.013 255.508);
-  --sidebar-ring: oklch(0.704 0.04 256.788);
-}
+@layer base {
+  :root {
+    --card: oklch(1 0 0);
+    --card-foreground: oklch(0.129 0.042 264.695);
+    --popover: oklch(1 0 0);
+    --popover-foreground: oklch(0.129 0.042 264.695);
+    --primary: oklch(0.208 0.042 265.755);
+    --primary-foreground: oklch(0.984 0.003 247.858);
+    --secondary: oklch(0.968 0.007 247.896);
+    --secondary-foreground: oklch(0.208 0.042 265.755);
+    --muted: oklch(0.968 0.007 247.896);
+    --muted-foreground: oklch(0.554 0.046 257.417);
+    --accent: oklch(0.968 0.007 247.896);
+    --accent-foreground: oklch(0.208 0.042 265.755);
+    --destructive: oklch(0.577 0.245 27.325);
+    --destructive-foreground: oklch(0.984 0.003 247.858);
+    --border: oklch(0.929 0.013 255.508);
+    --input: oklch(0.929 0.013 255.508);
+    --ring: oklch(0.704 0.04 256.788);
+    --radius: 0.625rem;
+    --background: oklch(1 0 0);
+    --foreground: oklch(0.129 0.042 264.695);
+    --chart-1: oklch(0.646 0.222 41.116);
+    --chart-2: oklch(0.6 0.118 184.704);
+    --chart-3: oklch(0.398 0.07 227.392);
+    --chart-4: oklch(0.828 0.189 84.429);
+    --chart-5: oklch(0.769 0.188 70.08);
+    --sidebar: oklch(0.984 0.003 247.858);
+    --sidebar-foreground: oklch(0.129 0.042 264.695);
+    --sidebar-primary: oklch(0.208 0.042 265.755);
+    --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
+    --sidebar-accent: oklch(0.968 0.007 247.896);
+    --sidebar-accent-foreground: oklch(0.208 0.042 265.755);
+    --sidebar-border: oklch(0.929 0.013 255.508);
+    --sidebar-ring: oklch(0.704 0.04 256.788);
+  }
 
-* {
-  border-color: hsl(var(--border));
-}
+  body {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+  }
 
-body {
-  background-color: hsl(var(--background));
-  color: hsl(var(--foreground));
+  * {
+    border-color: hsl(var(--border));
+  }
+
+  .dark {
+    --background: oklch(0.129 0.042 264.695);
+    --foreground: oklch(0.984 0.003 247.858);
+    --card: oklch(0.208 0.042 265.755);
+    --card-foreground: oklch(0.984 0.003 247.858);
+    --popover: oklch(0.208 0.042 265.755);
+    --popover-foreground: oklch(0.984 0.003 247.858);
+    --primary: oklch(0.929 0.013 255.508);
+    --primary-foreground: oklch(0.208 0.042 265.755);
+    --secondary: oklch(0.279 0.041 260.031);
+    --secondary-foreground: oklch(0.984 0.003 247.858);
+    --muted: oklch(0.279 0.041 260.031);
+    --muted-foreground: oklch(0.704 0.04 256.788);
+    --accent: oklch(0.279 0.041 260.031);
+    --accent-foreground: oklch(0.984 0.003 247.858);
+    --destructive: oklch(0.704 0.191 22.216);
+    --border: oklch(1 0 0 / 10%);
+    --input: oklch(1 0 0 / 15%);
+    --ring: oklch(0.551 0.027 264.364);
+    --chart-1: oklch(0.488 0.243 264.376);
+    --chart-2: oklch(0.696 0.17 162.48);
+    --chart-3: oklch(0.769 0.188 70.08);
+    --chart-4: oklch(0.627 0.265 303.9);
+    --chart-5: oklch(0.645 0.246 16.439);
+    --sidebar: oklch(0.208 0.042 265.755);
+    --sidebar-foreground: oklch(0.984 0.003 247.858);
+    --sidebar-primary: oklch(0.488 0.243 264.376);
+    --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
+    --sidebar-accent: oklch(0.279 0.041 260.031);
+    --sidebar-accent-foreground: oklch(0.984 0.003 247.858);
+    --sidebar-border: oklch(1 0 0 / 10%);
+    --sidebar-ring: oklch(0.551 0.027 264.364);
+  }
 }
 
 @theme inline {
@@ -89,45 +123,197 @@ body {
   --color-sidebar-ring: var(--sidebar-ring);
 }
 
-.dark {
-  --background: oklch(0.129 0.042 264.695);
-  --foreground: oklch(0.984 0.003 247.858);
-  --card: oklch(0.208 0.042 265.755);
-  --card-foreground: oklch(0.984 0.003 247.858);
-  --popover: oklch(0.208 0.042 265.755);
-  --popover-foreground: oklch(0.984 0.003 247.858);
-  --primary: oklch(0.929 0.013 255.508);
-  --primary-foreground: oklch(0.208 0.042 265.755);
-  --secondary: oklch(0.279 0.041 260.031);
-  --secondary-foreground: oklch(0.984 0.003 247.858);
-  --muted: oklch(0.279 0.041 260.031);
-  --muted-foreground: oklch(0.704 0.04 256.788);
-  --accent: oklch(0.279 0.041 260.031);
-  --accent-foreground: oklch(0.984 0.003 247.858);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.551 0.027 264.364);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.208 0.042 265.755);
-  --sidebar-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-accent: oklch(0.279 0.041 260.031);
-  --sidebar-accent-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.551 0.027 264.364);
-}
-
 @layer base {
-  * {
-    @apply border-border outline-ring/50;
-  }
   body {
     @apply bg-background text-foreground;
+  }
+
+  button,
+  [role="button"],
+  input,
+  select,
+  textarea {
+    @apply outline-ring/50;
+  }
+}
+
+@layer components {
+  .fleet-calendar-shell {
+    @apply rounded-[32px] border border-border/70 bg-card/70 shadow-[0_25px_60px_rgba(15,23,42,0.08)];
+    padding: 1.5rem;
+  }
+  .fleet-calendar-shell > * + * {
+    margin-top: 2rem;
+  }
+
+  .fleet-calendar-header-card {
+    @apply rounded-[28px] border border-border bg-gradient-to-br from-background via-background/90 to-muted/40;
+    padding: 1.5rem;
+    box-shadow: 0 1px 2px 0 rgba(15,23,42,0.05);
+  }
+  .fleet-calendar-header-card > * + * {
+    margin-top: 1.5rem;
+  }
+
+  .fleet-calendar-title-row {
+    @apply flex flex-wrap items-center justify-between;
+    gap: 1.5rem;
+  }
+
+  .fleet-calendar-header-eyebrow {
+    @apply text-[0.65rem] uppercase tracking-[0.35em] text-muted-foreground;
+    font-weight: 600;
+  }
+
+  .fleet-calendar-title {
+    @apply tracking-tight text-foreground;
+    font-weight: 600;
+    font-size: 1.875rem;
+    line-height: 2.25rem;
+  }
+
+  .fleet-calendar-subtitle {
+    @apply text-sm text-muted-foreground;
+  }
+
+  .fleet-calendar-title-row .calendar-search-input {
+    @apply inline-flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2 text-sm text-muted-foreground shadow-inner;
+  }
+
+  .calendar-search-input input {
+    @apply w-40 bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none;
+  }
+
+  .calendar-toolbar {
+    @apply flex flex-wrap items-center justify-between gap-4 rounded-[24px] border border-border/70 bg-card/80 px-4 py-3;
+  }
+
+  .calendar-toolbar-left,
+  .calendar-toolbar-right {
+    @apply flex flex-wrap items-center gap-2;
+  }
+
+  .calendar-range-btn,
+  .calendar-mode-btn {
+    @apply rounded-full border border-border/60 bg-background px-4 py-1.5 text-sm text-muted-foreground transition hover:border-primary/50 hover:text-primary;
+    font-weight: 600;
+  }
+
+  .calendar-range-btn.is-active,
+  .calendar-mode-btn.is-active {
+    @apply border-transparent bg-slate-900 text-white shadow;
+  }
+
+  .calendar-legend {
+    @apply flex flex-wrap items-center gap-4 rounded-[20px] border border-dashed border-border/70 bg-background/80 px-4 py-2 text-xs uppercase tracking-[0.3em] text-muted-foreground;
+    font-weight: 600;
+  }
+
+  .calendar-legend-item {
+    @apply flex items-center gap-2 text-[11px] font-medium tracking-normal text-foreground;
+  }
+
+  .calendar-legend-dot {
+    @apply inline-flex h-3 w-3 rounded-full;
+  }
+
+  .calendar-legend-dot-rental {
+    @apply bg-indigo-500;
+  }
+  .calendar-legend-dot-maintenance {
+    @apply bg-amber-500;
+  }
+  .calendar-legend-dot-repair {
+    @apply bg-rose-500;
+  }
+
+  .fleet-calendar-summary-grid {
+    @apply grid gap-4 md:grid-cols-2 xl:grid-cols-4;
+  }
+
+  .fleet-calendar-summary-card {
+    @apply rounded-[26px] border border-border/60 bg-background/90 p-5;
+    box-shadow: 0 1px 2px 0 rgba(15,23,42,0.05);
+  }
+
+  .fleet-calendar-summary-label {
+    @apply text-[0.65rem] uppercase tracking-[0.3em] text-muted-foreground;
+    font-weight: 600;
+  }
+
+  .fleet-calendar-summary-value {
+    @apply text-foreground;
+    font-weight: 600;
+    font-size: 1.875rem;
+    line-height: 2.25rem;
+  }
+
+  .fleet-calendar-summary-subtitle {
+    @apply text-xs text-muted-foreground;
+  }
+
+  .fleet-calendar-car-row {
+    @apply mb-4 rounded-[28px] border border-border/70 bg-card/80 overflow-hidden;
+    box-shadow: 0 1px 2px 0 rgba(15,23,42,0.05);
+  }
+
+  .fleet-calendar-car-header {
+    @apply flex flex-wrap items-center justify-between gap-4 border-b border-border/60 px-4 py-3;
+  }
+
+  .fleet-calendar-car-title {
+    @apply text-sm text-foreground;
+    font-weight: 600;
+  }
+
+  .fleet-calendar-car-meta {
+    @apply text-xs text-muted-foreground;
+  }
+
+  .fleet-calendar-car-status {
+    @apply rounded-full border border-dashed border-border px-3 py-1 text-[0.65rem] uppercase tracking-[0.35em] text-muted-foreground;
+    font-weight: 600;
+  }
+
+  .calendar-grid-scroll {
+    @apply overflow-auto;
+  }
+
+  .calendar-grid {
+    @apply min-w-[720px];
+  }
+
+  .calendar-day-header {
+    @apply bg-muted/30 px-3 py-2 text-xs uppercase tracking-[0.25em] text-muted-foreground;
+    font-weight: 600;
+  }
+
+  .calendar-day-cell {
+    @apply border border-border/40 px-3 py-3 text-xs text-muted-foreground;
+  }
+
+  .calendar-row > * + * {
+    margin-top: 0.5rem;
+  }
+
+  .calendar-event {
+    @apply rounded-xl border px-3 py-2 text-[11px] backdrop-blur;
+    box-shadow: 0 1px 2px 0 rgba(15,23,42,0.05);
+  }
+
+  .calendar-event-title {
+    @apply text-xs text-foreground;
+    font-weight: 600;
+  }
+
+  .calendar-event-meta {
+    @apply text-[11px] text-muted-foreground;
+  }
+
+  .calendar-grid-scroll::-webkit-scrollbar {
+    height: 6px;
+  }
+  .calendar-grid-scroll::-webkit-scrollbar-thumb {
+    @apply rounded-full bg-slate-300;
   }
 }
