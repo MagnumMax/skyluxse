@@ -15,18 +15,31 @@ export async function SalesAnalyticsDashboard() {
     <DashboardPageShell>
       <DashboardPageHeader title="Pipeline & intelligence" />
 
-      <section className="rounded-[24px] border border-border/70 bg-background/90 p-5 shadow-sm">
-        <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+      <Card className="rounded-[24px] border-border/70 bg-background/90 shadow-sm">
+        <CardContent className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
           {rangeOptions.map((option) => (
-            <button key={option} className="rounded-full border border-border/60 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.35em] text-muted-foreground">
+            <button
+              key={option}
+              type="button"
+              className={cn(
+                "inline-flex items-center justify-center rounded-full border px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.35em]",
+                "border-border/60 text-muted-foreground"
+              )}
+            >
               {rangeLabels[option]}
             </button>
           ))}
-          <button className="rounded-full border border-border/60 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.35em] text-muted-foreground">
+          <button
+            type="button"
+            className={cn(
+              "inline-flex items-center justify-center rounded-full border px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.35em]",
+              "border-border/60 text-muted-foreground"
+            )}
+          >
             Export CSV
           </button>
-        </div>
-      </section>
+        </CardContent>
+      </Card>
 
       <section className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
         <Card className="rounded-[28px] border-border/70 bg-card/80">

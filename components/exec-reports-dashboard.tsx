@@ -16,7 +16,9 @@ export async function ExecReportsDashboard() {
 
       <Card className="rounded-[26px] border-border/70 bg-card/80">
         <CardHeader>
-          <CardTitle className="text-sm uppercase tracking-[0.3em] text-muted-foreground">Financial snapshot</CardTitle>
+          <CardTitle className="text-sm uppercase tracking-[0.3em] text-muted-foreground">
+            Financial snapshot
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <ParameterList items={financialParameters(financials)} columns={3} valueSize="xl" />
@@ -26,7 +28,9 @@ export async function ExecReportsDashboard() {
       <section className="grid gap-4 lg:grid-cols-2">
         <Card className="rounded-[26px] border-border/70 bg-card/80">
           <CardHeader>
-            <CardTitle className="text-sm uppercase tracking-[0.3em] text-muted-foreground">Revenue vs expenses</CardTitle>
+            <CardTitle className="text-sm uppercase tracking-[0.3em] text-muted-foreground">
+              Revenue vs expenses
+            </CardTitle>
             <CardDescription>Daily trend for {periodLabel}.</CardDescription>
           </CardHeader>
           <CardContent>
@@ -34,10 +38,16 @@ export async function ExecReportsDashboard() {
               {revenueDaily.map((point) => (
                 <div key={point.date} className="flex items-center justify-between text-sm">
                   <div>
-                    <p className="font-semibold text-foreground">{dateFormatter.format(new Date(point.date))}</p>
-                    <p className="text-xs text-muted-foreground">Expenses {currencyFormatter.format(point.expenses)}</p>
+                    <p className="font-semibold text-foreground">
+                      {dateFormatter.format(new Date(point.date))}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Expenses {currencyFormatter.format(point.expenses)}
+                    </p>
                   </div>
-                  <p className="text-base font-semibold text-foreground">{currencyFormatter.format(point.revenue)}</p>
+                  <p className="text-base font-semibold text-foreground">
+                    {currencyFormatter.format(point.revenue)}
+                  </p>
                 </div>
               ))}
             </div>
@@ -45,21 +55,32 @@ export async function ExecReportsDashboard() {
         </Card>
         <Card className="rounded-[26px] border-border/70 bg-card/80">
           <CardHeader>
-            <CardTitle className="text-sm uppercase tracking-[0.3em] text-muted-foreground">Top vehicles by revenue</CardTitle>
-            <CardDescription>Ranked by utilisation-weighted mileage contribution.</CardDescription>
+            <CardTitle className="text-sm uppercase tracking-[0.3em] text-muted-foreground">
+              Top vehicles by revenue
+            </CardTitle>
+            <CardDescription>
+              Ranked by utilisation-weighted mileage contribution.
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <ol className="space-y-3 text-sm">
               {topVehicles.map((vehicle, index) => (
-                <li key={vehicle.name} className="flex items-center justify-between border-b border-border/60 pb-3 last:border-b-0 last:pb-0">
+                <li
+                  key={vehicle.name}
+                  className="flex items-center justify-between border-b border-border/60 pb-3 last:border-b-0 last:pb-0"
+                >
                   <div className="flex items-center gap-3">
                     <span className="text-muted-foreground">{index + 1}.</span>
                     <div>
                       <p className="font-semibold text-foreground">{vehicle.name}</p>
-                      <p className="text-xs text-muted-foreground">Utilisation {percentFormatter.format(vehicle.utilization)}</p>
+                      <p className="text-xs text-muted-foreground">
+                        Utilisation {percentFormatter.format(vehicle.utilization)}
+                      </p>
                     </div>
                   </div>
-                  <span className="text-base font-semibold text-foreground">{currencyFormatter.format(vehicle.revenue)}</span>
+                  <span className="text-base font-semibold text-foreground">
+                    {currencyFormatter.format(vehicle.revenue)}
+                  </span>
                 </li>
               ))}
             </ol>
@@ -69,7 +90,9 @@ export async function ExecReportsDashboard() {
 
       <Card className="rounded-[26px] border-border/70 bg-card/80">
         <CardHeader>
-          <CardTitle className="text-sm uppercase tracking-[0.3em] text-muted-foreground">Channel mix</CardTitle>
+          <CardTitle className="text-sm uppercase tracking-[0.3em] text-muted-foreground">
+            Channel mix
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <ParameterList items={channelMixItems(channelMix)} columns={3} />

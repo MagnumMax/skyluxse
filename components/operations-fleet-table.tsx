@@ -3,6 +3,7 @@ import { CalendarDays } from "lucide-react"
 
 import type { CalendarEvent, FleetCar } from "@/lib/domain/entities"
 import { cn } from "@/lib/utils"
+import { Badge } from "@/components/ui/badge"
 
 const referenceDate = new Date()
 
@@ -71,13 +72,25 @@ function VehicleCell({
         <CalendarLink carId={String(car.id)} nextEvent={nextEvent} />
       </div>
       <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
-        <span>{statusLabel}</span>
+        <Badge
+          className={cn(
+            "px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em]",
+            getVehicleStatusBadgeTone(statusLabel)
+          )}
+        >
+          {statusLabel}
+        </Badge>
         <span>Mileage {formatNumber(car.mileage)} km</span>
         <span>Utilisation {(utilization * 100).toFixed(0)}%</span>
         <span>Revenue YTD {formatCurrency(revenueYtd)}</span>
       </div>
       <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-        <span className="rounded-full border border-border/40 px-2 py-0.5">VIN {car.vin ?? "—"}</span>
+        <Badge
+          variant="outline"
+          className="border-border/40 px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.2em]"
+        >
+          VIN {car.vin ?? "—"}
+        </Badge>
       </div>
     </div>
   )
@@ -132,11 +145,21 @@ function ExpiryRow({ label, value }: { label: string; value?: string }) {
   return (
     <div className="flex items-center justify-between gap-3 text-xs">
       <div>
-        <p className="text-[0.6rem] uppercase tracking-[0.35em] text-muted-foreground">{label}</p>
+        <p className="text-[0.6rem] uppercase tracking-[0.35em] text-muted-foreground">
+          {label}
+        </p>
         <p className="text-sm font-semibold text-foreground">{meta.displayDate}</p>
       </div>
       <div className="text-right">
-        <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-semibold", meta.badgeClass)}>{meta.label}</span>
+        <Badge
+          variant="outline"
+          className={cn(
+            "px-2 py-0.5 text-[11px] font-semibold",
+            meta.badgeVariantClass
+          )}
+        >
+          {meta.label}
+        </Badge>
         <p className={cn("text-[0.6rem]", meta.accent)}>{meta.daysLabel}</p>
       </div>
     </div>
@@ -145,36 +168,67 @@ function ExpiryRow({ label, value }: { label: string; value?: string }) {
 
 function getExpiryMeta(value?: string) {
   if (!value) {
-    return { label: "—", badgeClass: "bg-slate-100 text-slate-600", displayDate: "—", daysLabel: "No date", accent: "text-muted-foreground" }
+    return {
+      label: "—",
+      badgeVariantClass: "",
+      displayDate: "—",
+      daysLabel: "No date",
+      accent: "text-muted-foreground",
+    }
   }
+
   const date = new Date(value)
   const diffMs = date.getTime() - referenceDate.getTime()
   const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24))
+
   if (diffDays <= 0) {
     return {
       label: "Expired",
-      badgeClass: "bg-rose-100 text-rose-700",
+      badgeVariantClass: "border-destructive/40 bg-destructive/10 text-destructive",
       displayDate: formatDate(value),
       daysLabel: `${Math.abs(diffDays)}d overdue`,
-      accent: "text-rose-600",
+      accent: "text-destructive",
     }
   }
+
   if (diffDays <= 30) {
     return {
       label: "Due soon",
-      badgeClass: "bg-amber-100 text-amber-700",
+      badgeVariantClass: "border-amber-300 bg-amber-50 text-amber-700",
       displayDate: formatDate(value),
       daysLabel: `${diffDays}d left`,
       accent: "text-amber-600",
     }
   }
+
   return {
     label: "Active",
-    badgeClass: "bg-emerald-100 text-emerald-700",
+    badgeVariantClass: "border-emerald-300 bg-emerald-50 text-emerald-700",
     displayDate: formatDate(value),
     daysLabel: `${diffDays}d left`,
     accent: "text-emerald-600",
   }
+}
+
+/**
+ * Маппинг статусов машины к тону бейджа.
+ * Локальный хелпер, не меняет входные пропсы компонента.
+ */
+function getVehicleStatusBadgeTone(status: string) {
+  const normalized = status.toLowerCase()
+  if (normalized.includes("available")) {
+    return "bg-emerald-50 text-emerald-700 border-emerald-200"
+  }
+  if (normalized.includes("in-rent") || normalized.includes("rented")) {
+    return "bg-indigo-50 text-indigo-700 border-indigo-200"
+  }
+  if (normalized.includes("maintenance") || normalized.includes("service")) {
+    return "bg-amber-50 text-amber-700 border-amber-200"
+  }
+  if (normalized.includes("offline") || normalized.includes("inactive")) {
+    return "bg-slate-100 text-slate-600 border-slate-200"
+  }
+  return "bg-slate-50 text-slate-700 border-slate-200"
 }
 
 function formatDate(value?: string) {

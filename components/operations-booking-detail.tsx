@@ -7,6 +7,7 @@ import { getClientSegmentLabel } from "@/lib/constants/client-segments"
 import { cn } from "@/lib/utils"
 import { DashboardPageShell } from "@/components/dashboard-page-shell"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
 import { ClientAiPanel } from "@/components/sales-client-ai-panel"
 import { ParameterList, type ParameterListItem } from "@/components/parameter-list"
 
@@ -104,28 +105,38 @@ function BookingOverviewSection({ booking, client, outstanding, advancePayment, 
   ]
 
   return (
-    <section className="space-y-6 rounded-[32px] border border-border/70 bg-card/80 p-6">
-      <div className="flex flex-wrap items-center gap-3">
-        <span className={cn("rounded-full px-3 py-1 text-xs font-semibold", statusTone)}>{booking.status}</span>
-      </div>
-      <div className="space-y-2">
-        <h1 className="text-3xl font-semibold tracking-tight">{booking.code}</h1>
-        {tags.length ? (
-          <div className="flex flex-wrap gap-2 text-[0.65rem] uppercase tracking-[0.35em] text-muted-foreground">
-            {tags.map((tag) => (
-              <span key={tag} className="rounded-full border border-border/60 px-2 py-0.5">
-                {tag}
-              </span>
-            ))}
-          </div>
-        ) : null}
-      </div>
-      <div className="grid gap-4 md:grid-cols-2">
-        {detailRows.map((row) => (
-          <DetailRow key={row.label} label={row.label} value={row.value} helper={row.helper} />
-        ))}
-      </div>
-    </section>
+    <Card className="space-y-6 rounded-[32px] border-border/70 bg-card/80">
+      <CardHeader className="space-y-4">
+        <div className="flex flex-wrap items-center gap-3">
+          <Badge className={cn("px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em]", getBookingStatusBadgeTone(booking.status, statusTone))}>
+            {booking.status}
+          </Badge>
+        </div>
+        <div className="space-y-2">
+          <h1 className="text-3xl font-semibold tracking-tight">{booking.code}</h1>
+          {tags.length ? (
+            <div className="flex flex-wrap gap-2 text-[0.65rem] uppercase tracking-[0.35em] text-muted-foreground">
+              {tags.map((tag) => (
+                <Badge
+                  key={tag}
+                  variant="outline"
+                  className="border-border/60 px-2 py-0.5 text-[0.6rem] font-medium tracking-[0.25em]"
+                >
+                  {tag}
+                </Badge>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="grid gap-4 md:grid-cols-2">
+          {detailRows.map((row) => (
+            <DetailRow key={row.label} label={row.label} value={row.value} helper={row.helper} />
+          ))}
+        </div>
+      </CardContent>
+    </Card>
   )
 }
 
@@ -312,7 +323,14 @@ function BookingDocumentsSection({ booking }: { booking: Booking }) {
                       <p className="font-semibold text-foreground">{doc.name ?? doc.type}</p>
                       <p className="text-xs text-muted-foreground">Type {doc.type}</p>
                     </div>
-                    <span className={cn("rounded-full px-3 py-1 text-xs font-semibold", documentTone(doc.status))}>{doc.status}</span>
+                    <Badge
+                      className={cn(
+                        "px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.15em]",
+                        getDocumentStatusBadgeTone(doc.status)
+                      )}
+                    >
+                      {doc.status}
+                    </Badge>
                     {url ? (
                       <Image src={url} alt={doc.name ?? doc.type} width={120} height={80} className="ml-3 hidden h-16 w-24 rounded object-cover sm:block" />
                     ) : null}
@@ -611,12 +629,36 @@ function getStatusTone(status: Booking["status"]) {
   return "bg-slate-100 text-slate-700"
 }
 
-function documentTone(status?: string) {
-  if (!status) return "bg-slate-100 text-slate-700"
+/**
+ * Маппинг статус-бейджа бронирования к цветам Badge.
+ * Сохраняет визуальный тон через className, но использует shadcn Badge.
+ */
+function getBookingStatusBadgeTone(status: Booking["status"], fallbackToneClass: string) {
+  if (status === "in-rent") return "bg-indigo-100 text-indigo-700 border-indigo-200"
+  if (status === "delivery") return "bg-blue-100 text-blue-700 border-blue-200"
+  if (status === "settlement") return "bg-emerald-100 text-emerald-700 border-emerald-200"
+  if (status === "preparation") return "bg-violet-100 text-violet-700 border-violet-200"
+  // fallback: переиспользуем старый класс, чтобы не ломать тональность
+  return fallbackToneClass
+}
+
+/**
+ * Маппинг статуса документа к цветам Badge.
+ */
+function getDocumentStatusBadgeTone(status?: string) {
+  if (!status) return "bg-slate-100 text-slate-700 border-slate-200"
   const normalized = status.toLowerCase()
-  if (normalized.includes("pending") || normalized.includes("warning")) return "bg-amber-100 text-amber-700"
-  if (normalized.includes("authorized") || normalized.includes("signed") || normalized.includes("active")) return "bg-emerald-100 text-emerald-700"
-  return "bg-slate-100 text-slate-700"
+  if (normalized.includes("pending") || normalized.includes("warning")) {
+    return "bg-amber-100 text-amber-700 border-amber-200"
+  }
+  if (
+    normalized.includes("authorized") ||
+    normalized.includes("signed") ||
+    normalized.includes("active")
+  ) {
+    return "bg-emerald-100 text-emerald-700 border-emerald-200"
+  }
+  return "bg-slate-100 text-slate-700 border-slate-200"
 }
 
 function toRoute(href: string) {

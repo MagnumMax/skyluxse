@@ -8,6 +8,7 @@ import type { Client } from "@/lib/domain/entities"
 import { clientSegmentFilterOptions, clientSegmentLabels, getClientSegmentLabel } from "@/lib/constants/client-segments"
 import { cn } from "@/lib/utils"
 import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard-page-shell"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -126,8 +127,15 @@ export function SalesClientsList({ clients }: { clients: Client[] }) {
 
       <section className="rounded-[26px] border border-border/70 bg-card/80 p-5 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-muted-foreground">Filters & sorting</p>
-          <Button variant="ghost" size="sm" onClick={handleReset}>
+          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-muted-foreground">
+            Filters & sorting
+          </p>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-auto px-3 py-1.5 text-[0.65rem] font-semibold uppercase tracking-[0.25em]"
+            onClick={handleReset}
+          >
             Reset
           </Button>
         </div>
@@ -167,7 +175,7 @@ export function SalesClientsList({ clients }: { clients: Client[] }) {
           <Label className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Sort by</Label>
           <div className="mt-1 flex flex-wrap items-center gap-2">
             <Select value={sortBy} onValueChange={(value) => setSortBy(value as SortOption)}>
-              <SelectTrigger className="w-48">
+              <SelectTrigger className="w-48 text-xs">
                 <SelectValue placeholder="Sort" />
               </SelectTrigger>
               <SelectContent>
@@ -182,11 +190,18 @@ export function SalesClientsList({ clients }: { clients: Client[] }) {
               type="button"
               variant="outline"
               size="icon"
-              onClick={() => setSortDirection((prev) => (prev === "desc" ? "asc" : "desc"))}
+              className="h-8 w-8"
+              onClick={() =>
+                setSortDirection((prev) => (prev === "desc" ? "asc" : "desc"))
+              }
               aria-label="Toggle sort direction"
               title={sortDirection === "desc" ? "Descending" : "Ascending"}
             >
-              {sortDirection === "desc" ? <ArrowDown className="h-4 w-4" /> : <ArrowUp className="h-4 w-4" />}
+              {sortDirection === "desc" ? (
+                <ArrowDown className="h-4 w-4" />
+              ) : (
+                <ArrowUp className="h-4 w-4" />
+              )}
             </Button>
           </div>
         </div>
@@ -230,22 +245,37 @@ export function SalesClientsList({ clients }: { clients: Client[] }) {
 }
 
 function ClientCell({ client }: { client: Client }) {
-  const statusClass = clientStatusTone[client.status] || "bg-muted text-muted-foreground"
   const segmentLabel = getClientSegmentLabel(client.segment)
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
-        <Link href={toRoute(`/clients/${client.id}`)} className="text-sm font-semibold text-primary hover:underline">
+        <Link
+          href={toRoute(`/clients/${client.id}`)}
+          className="text-sm font-semibold text-primary hover:underline"
+        >
           {client.name}
         </Link>
-        <span className={cn("rounded-full px-2.5 py-0.5 text-[11px] font-semibold", statusClass)}>{client.status}</span>
-        <span className="rounded-full border border-border/60 px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">
+        <Badge
+          className={cn(
+            "px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em]",
+            getClientStatusBadgeTone(client.status)
+          )}
+        >
+          {client.status}
+        </Badge>
+        <Badge
+          variant="outline"
+          className="border-border/60 px-2 py-0.5 text-[11px] font-semibold text-muted-foreground"
+        >
           {segmentLabel}
-        </span>
+        </Badge>
         {client.residencyCountry ? (
-          <span className="rounded-full border border-border/60 px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">
+          <Badge
+            variant="outline"
+            className="border-border/60 px-2 py-0.5 text-[11px] font-semibold text-muted-foreground"
+          >
             {client.residencyCountry}
-          </span>
+          </Badge>
         ) : null}
       </div>
       <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
@@ -260,9 +290,12 @@ function ClientCell({ client }: { client: Client }) {
       </div>
       <div className="flex flex-wrap gap-2">
         {client.outstanding > 0 ? (
-          <span className="rounded-full bg-rose-100 px-2 py-1 text-[11px] font-semibold text-rose-700">
+          <Badge
+            variant="destructive"
+            className="rounded-full bg-rose-100 px-2 py-1 text-[11px] font-semibold text-rose-700"
+          >
             Outstanding {formatCurrency(client.outstanding)}
-          </span>
+          </Badge>
         ) : null}
       </div>
     </div>
@@ -274,17 +307,28 @@ function EngagementCell({ client }: { client: Client }) {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-[0.6rem] uppercase tracking-[0.35em] text-muted-foreground">Outstanding</p>
-          <p className={cn("text-lg font-semibold", client.outstanding > 0 ? "text-rose-600" : "text-foreground")}>{formatCurrency(client.outstanding)}</p>
+          <p className="text-[0.6rem] uppercase tracking-[0.35em] text-muted-foreground">
+            Outstanding
+          </p>
+          <p
+            className={cn(
+              "text-lg font-semibold",
+              client.outstanding > 0 ? "text-rose-600" : "text-foreground"
+            )}
+          >
+            {formatCurrency(client.outstanding)}
+          </p>
         </div>
-        <span
+        <Badge
           className={cn(
-            "rounded-full px-2 py-0.5 text-[11px] font-semibold",
-            client.outstanding > 0 ? "bg-rose-100 text-rose-700" : "bg-emerald-100 text-emerald-700"
+            "px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em]",
+            client.outstanding > 0
+              ? "bg-rose-100 text-rose-700 border-rose-200"
+              : "bg-emerald-100 text-emerald-700 border-emerald-200"
           )}
         >
           {client.outstanding > 0 ? "Requires action" : "Settled"}
-        </span>
+        </Badge>
       </div>
       <div className="grid gap-3 text-xs text-muted-foreground">
         <MetricRow label="Lifetime value" value={formatCurrency(client.lifetimeValue)} />
@@ -348,11 +392,15 @@ function DocumentsActivityCell({ client }: { client: Client }) {
   return (
     <div className="space-y-4">
       <div className="space-y-3">
-        <p className="text-[0.6rem] uppercase tracking-[0.35em] text-muted-foreground">Recent rentals</p>
+        <p className="text-[0.6rem] uppercase tracking-[0.35em] text-muted-foreground">
+          Recent rentals
+        </p>
         {rentals.map((rental) => (
           <RentalRow key={rental.bookingId} rental={rental} />
         ))}
-        {!rentals.length ? <p className="text-xs text-muted-foreground">No rentals recorded.</p> : null}
+        {!rentals.length ? (
+          <p className="text-xs text-muted-foreground">No rentals recorded.</p>
+        ) : null}
       </div>
     </div>
   )
@@ -360,9 +408,15 @@ function DocumentsActivityCell({ client }: { client: Client }) {
 
 function KpiCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-[20px] border border-border/70 bg-card/80 p-4 shadow-sm">
-      <p className="text-[0.55rem] uppercase tracking-[0.35em] text-muted-foreground">{label}</p>
-      <p className="mt-2 text-2xl font-semibold text-foreground">{value}</p>
+    <div className="rounded-[20px] border border-border/70 bg-card/80 shadow-sm">
+      <div className="space-y-1 p-4 pb-1.5">
+        <p className="text-[0.55rem] uppercase tracking-[0.35em] text-muted-foreground">
+          {label}
+        </p>
+      </div>
+      <div className="p-4 pt-1.5">
+        <p className="text-2xl font-semibold text-foreground">{value}</p>
+      </div>
     </div>
   )
 }
@@ -371,11 +425,15 @@ function RentalRow({ rental }: { rental: Client["rentals"][number] }) {
   return (
     <div className="flex items-start justify-between gap-3 text-xs text-muted-foreground">
       <div>
-        <Link href={toRoute(`/operations/bookings/${rental.bookingId}`)} className="text-sm font-semibold text-primary hover:underline">
+        <Link
+          href={toRoute(`/operations/bookings/${rental.bookingId}`)}
+          className="text-sm font-semibold text-primary hover:underline"
+        >
           {rental.carName}
         </Link>
         <p>
-          {formatDateRange(rental.startDate, rental.endDate)} · {formatCurrency(rental.totalAmount)}
+          {formatDateRange(rental.startDate, rental.endDate)} ·{" "}
+          {formatCurrency(rental.totalAmount)}
         </p>
       </div>
     </div>
@@ -422,7 +480,9 @@ function sortClients(clients: Client[], sortBy: SortOption, direction: SortDirec
   const multiplier = direction === "asc" ? 1 : -1
   const list = [...clients]
   if (sortBy === "lifetimeValue") {
-    return list.sort((a, b) => ((a.lifetimeValue ?? 0) - (b.lifetimeValue ?? 0)) * multiplier)
+    return list.sort(
+      (a, b) => ((a.lifetimeValue ?? 0) - (b.lifetimeValue ?? 0)) * multiplier
+    )
   }
   if (sortBy === "lastBooking") {
     return list.sort((a, b) => {
@@ -436,4 +496,21 @@ function sortClients(clients: Client[], sortBy: SortOption, direction: SortDirec
     const bCreated = Date.parse(b.createdAt ?? "") || 0
     return (aCreated - bCreated) * multiplier
   })
+}
+
+/**
+ * Локальный хелпер: маппинг статуса клиента к цвету Badge.
+ */
+function getClientStatusBadgeTone(status: string) {
+  const normalized = status.toLowerCase()
+  if (normalized === "vip") {
+    return "bg-purple-100 text-purple-700 border-purple-200"
+  }
+  if (normalized === "gold") {
+    return "bg-amber-100 text-amber-700 border-amber-200"
+  }
+  if (normalized === "silver") {
+    return "bg-slate-100 text-slate-700 border-slate-200"
+  }
+  return "bg-muted text-muted-foreground border-border/50"
 }

@@ -25,12 +25,13 @@ export function DriverTaskList({ tasks }: { tasks: Task[] }) {
           <button
             key={item}
             className={cn(
-              "rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.3em]",
+              "inline-flex items-center justify-center rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.3em]",
               filter === item
                 ? "border-white bg-white/10 text-white"
                 : "border-white/20 text-white/60"
             )}
             onClick={() => setFilter(item as any)}
+            type="button"
           >
             {item === "all" ? "All" : typeLabels[item as Task["type"]]}
           </button>

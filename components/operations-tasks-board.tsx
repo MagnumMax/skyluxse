@@ -53,19 +53,23 @@ export function OperationsTasksBoard({ tasks }: { tasks: OperationsTask[] }) {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center gap-3">
         {typeFilters.map((filter) => (
-          <button
+          <Button
             key={filter}
+            variant={typeFilter === filter ? "default" : "outline"}
+            size="sm"
             className={cn(
-              "rounded-full border border-border/70 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.35em]",
-              typeFilter === filter ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground"
+              "h-auto rounded-full px-4 py-1.5 text-[0.6rem] font-semibold uppercase tracking-[0.35em]",
+              typeFilter === filter
+                ? "bg-primary text-primary-foreground"
+                : "border-border/70 bg-background text-muted-foreground"
             )}
             onClick={() => setTypeFilter(filter)}
           >
             {filter === "all" ? "All" : filter}
-          </button>
+          </Button>
         ))}
         <Select value={ownerFilter} onValueChange={(value) => setOwnerFilter(value)}>
-          <SelectTrigger className="w-48 rounded-full border-border/70 text-xs font-semibold uppercase tracking-[0.35em]">
+          <SelectTrigger className="w-48 rounded-full border-border/70 text-[0.6rem] font-semibold uppercase tracking-[0.35em]">
             <SelectValue placeholder="Owner" />
           </SelectTrigger>
           <SelectContent>
@@ -76,27 +80,42 @@ export function OperationsTasksBoard({ tasks }: { tasks: OperationsTask[] }) {
             ))}
           </SelectContent>
         </Select>
-        <Button variant="ghost" size="sm" className="rounded-full">Refresh board</Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-auto rounded-full px-4 py-1.5 text-[0.6rem] font-semibold uppercase tracking-[0.35em]"
+        >
+          Refresh board
+        </Button>
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
         {statusColumns.map((column) => {
           const columnTasks = filteredTasks.filter((task) => task.status === column.id)
           return (
-            <div key={column.id} className="rounded-[28px] border border-border/70 bg-background/90 p-4 shadow-sm">
+            <div
+              key={column.id}
+              className="rounded-[28px] border border-border/70 bg-background/90 p-4 shadow-sm"
+            >
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.35em] text-muted-foreground">{column.label}</p>
+                  <p className="text-[0.6rem] font-semibold uppercase tracking-[0.35em] text-muted-foreground">
+                    {column.label}
+                  </p>
                   <p className="text-sm text-muted-foreground">{column.description}</p>
                 </div>
-                <span className="text-sm font-semibold text-muted-foreground">{columnTasks.length}</span>
+                <span className="text-sm font-semibold text-muted-foreground">
+                  {columnTasks.length}
+                </span>
               </div>
               <div className="mt-4 space-y-3">
                 {columnTasks.map((task) => (
                   <TaskCard key={task.id} task={task} />
                 ))}
                 {columnTasks.length === 0 ? (
-                  <p className="rounded-3xl border border-dashed border-border/60 px-4 py-6 text-sm text-muted-foreground">No tasks in this state.</p>
+                  <div className="rounded-3xl border border-dashed border-border/60 px-4 py-6 text-sm text-muted-foreground">
+                    No tasks in this state.
+                  </div>
                 ) : null}
               </div>
             </div>
@@ -112,10 +131,16 @@ function TaskCard({ task }: { task: OperationsTask }) {
   return (
     <div className="space-y-3 rounded-3xl border border-border/60 bg-card/80 p-4">
       <div className="flex items-center justify-between text-xs">
-        <span className="uppercase tracking-[0.35em] text-muted-foreground">{task.category}</span>
-        <span className="rounded-full border border-border/60 px-3 py-1 text-[11px] font-semibold text-muted-foreground">
-          {task.priority}
+        <span className="uppercase tracking-[0.35em] text-muted-foreground">
+          {task.category}
         </span>
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-auto rounded-full border-border/60 px-3 py-1 text-[11px] font-semibold text-muted-foreground"
+        >
+          {task.priority}
+        </Button>
       </div>
       <div>
         <p className="text-base font-semibold text-foreground">{task.title}</p>
@@ -123,12 +148,28 @@ function TaskCard({ task }: { task: OperationsTask }) {
       </div>
       <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.35em] text-muted-foreground">
         {task.bookingId ? (
-          <span className="rounded-full border border-border/60 px-2 py-0.5">
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-auto rounded-full border-border/60 px-2 py-0.5 text-[10px] font-semibold"
+          >
             Booking #{task.bookingCode ?? task.bookingId}
-          </span>
+          </Button>
         ) : null}
-        <span className="rounded-full border border-border/60 px-2 py-0.5">SLA {task.slaMinutes}m</span>
-        <span className="rounded-full border border-border/60 px-2 py-0.5">{task.channel}</span>
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-auto rounded-full border-border/60 px-2 py-0.5 text-[10px] font-semibold"
+        >
+          SLA {task.slaMinutes}m
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-auto rounded-full border-border/60 px-2 py-0.5 text-[10px] font-semibold"
+        >
+          {task.channel}
+        </Button>
       </div>
       <div>
         <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">Required inputs</p>
