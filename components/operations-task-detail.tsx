@@ -4,6 +4,7 @@ import type { OperationsTask } from "@/lib/domain/entities"
 import { BOOKING_PRIORITIES } from "@/lib/constants/bookings"
 import { cn } from "@/lib/utils"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { ParameterList, type ParameterListItem } from "@/components/parameter-list"
 import { Checkbox } from "@/components/ui/checkbox"
 
 const statusTone: Record<OperationsTask["status"], string> = {
@@ -31,43 +32,14 @@ export function OperationsTaskDetail({ task }: { task: OperationsTask }) {
         <p className="text-sm text-muted-foreground">Channel: {task.channel} · Last update {new Date(task.lastUpdate).toLocaleString()}</p>
       </header>
 
-      <section className="grid gap-4 lg:grid-cols-3">
-        <Card className="rounded-[24px] border-border/70 bg-card/80">
-          <CardHeader>
-            <CardTitle className="text-sm uppercase tracking-[0.35em] text-muted-foreground">Owner</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-base font-semibold text-foreground">{task.owner}</p>
-            <p className="text-xs text-muted-foreground">{task.ownerRole}</p>
-          </CardContent>
-        </Card>
-        <Card className="rounded-[24px] border-border/70 bg-card/80">
-          <CardHeader>
-            <CardTitle className="text-sm uppercase tracking-[0.35em] text-muted-foreground">Deadline</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-base font-semibold text-foreground">{task.deadline}</p>
-            <p className="text-xs text-muted-foreground">SLA {task.slaMinutes} minutes</p>
-          </CardContent>
-        </Card>
-        <Card className="rounded-[24px] border-border/70 bg-card/80">
-          <CardHeader>
-            <CardTitle className="text-sm uppercase tracking-[0.35em] text-muted-foreground">Related booking</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {task.bookingId ? (
-              <Link
-                href={`/bookings/${String(task.bookingId)}?view=operations`}
-                className="text-sm font-semibold text-primary hover:underline"
-              >
-                Open booking #{task.bookingCode ?? task.bookingId}
-              </Link>
-            ) : (
-              <p className="text-sm text-muted-foreground">No linked booking</p>
-            )}
-          </CardContent>
-        </Card>
-      </section>
+      <Card className="rounded-[26px] border-border/70 bg-card/80">
+        <CardHeader>
+          <CardTitle className="text-sm uppercase tracking-[0.35em] text-muted-foreground">Task summary</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ParameterList items={buildTaskParameters(task)} columns={3} />
+        </CardContent>
+      </Card>
 
       <Card className="rounded-[28px] border-border/70 bg-card/80">
         <CardHeader>
@@ -123,6 +95,19 @@ export function OperationsTaskDetail({ task }: { task: OperationsTask }) {
   )
 }
 
-function toRoute(path: string) {
-  return path as Parameters<typeof Link>[0]["href"]
+function buildTaskParameters(task: OperationsTask): ParameterListItem[] {
+  return [
+    { label: "Owner", value: task.owner, helper: task.ownerRole },
+    { label: "Deadline", value: task.deadline, helper: `SLA ${task.slaMinutes} minutes` },
+    {
+      label: "Related booking",
+      value: task.bookingId ? (
+        <Link href={`/bookings/${String(task.bookingId)}?view=operations`} className="text-sm font-semibold text-primary hover:underline">
+          Open booking #{task.bookingCode ?? task.bookingId}
+        </Link>
+      ) : (
+        "No linked booking"
+      ),
+    },
+  ]
 }

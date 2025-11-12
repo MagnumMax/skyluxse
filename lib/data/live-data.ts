@@ -110,6 +110,15 @@ type BookingRow = {
   updated_at: string | null
   created_by: string | null
   kommo_status_id: number | null
+  delivery_fee_label?: string | null
+  delivery_location?: string | null
+  collect_location?: string | null
+  rental_duration_days?: number | null
+  price_daily?: number | null
+  insurance_fee_label?: string | null
+  advance_payment?: number | null
+  sales_order_url?: string | null
+  agreement_number?: string | null
 }
 
 type BookingInvoiceRow = {
@@ -306,7 +315,7 @@ const fetchBookingRows = cache(async (): Promise<BookingRow[]> => {
   const { data, error } = await serviceClient
     .from("bookings")
     .select(
-      "id, external_code, client_id, vehicle_id, driver_id, owner_id, status, booking_type, channel, priority, start_at, end_at, total_amount, deposit_amount, created_at, updated_at, created_by, kommo_status_id"
+      "id, external_code, client_id, vehicle_id, driver_id, owner_id, status, booking_type, channel, priority, start_at, end_at, total_amount, deposit_amount, created_at, updated_at, created_by, kommo_status_id, delivery_fee_label, delivery_location, collect_location, rental_duration_days, price_daily, insurance_fee_label, advance_payment, sales_order_url, agreement_number"
     )
     .order("start_at", { ascending: false })
     .limit(500)
@@ -320,7 +329,7 @@ async function fetchBookingRowsByClientId(clientId: string): Promise<BookingRow[
   const { data, error } = await serviceClient
     .from("bookings")
     .select(
-      "id, external_code, client_id, vehicle_id, driver_id, owner_id, status, booking_type, channel, priority, start_at, end_at, total_amount, deposit_amount, created_at, updated_at, created_by, kommo_status_id"
+      "id, external_code, client_id, vehicle_id, driver_id, owner_id, status, booking_type, channel, priority, start_at, end_at, total_amount, deposit_amount, created_at, updated_at, created_by, kommo_status_id, delivery_fee_label, delivery_location, collect_location, rental_duration_days, price_daily, insurance_fee_label, advance_payment, sales_order_url, agreement_number"
     )
     .eq("client_id", clientId)
     .order("start_at", { ascending: false })
@@ -851,6 +860,15 @@ function mapBookingRow(
       : undefined,
     addons: [],
     tags: [],
+    deliveryFeeLabel: row.delivery_fee_label ?? undefined,
+    deliveryLocation: row.delivery_location ?? undefined,
+    collectLocation: row.collect_location ?? undefined,
+    rentalDurationDays: row.rental_duration_days ?? undefined,
+    priceDaily: row.price_daily ?? undefined,
+    insuranceFeeLabel: row.insurance_fee_label ?? undefined,
+    advancePayment: row.advance_payment ?? undefined,
+    salesOrderUrl: row.sales_order_url ?? undefined,
+    agreementNumber: row.agreement_number ?? undefined,
     timeline: [],
     salesService: undefined,
     billing: {

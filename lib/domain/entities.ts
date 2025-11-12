@@ -40,6 +40,15 @@ export interface Booking {
   addons?: string[]
   tags?: string[]
   timeline?: Array<{ ts: string; status: string; note: string; actor: string }>
+  deliveryFeeLabel?: string | null
+  deliveryLocation?: string | null
+  collectLocation?: string | null
+  rentalDurationDays?: number | null
+  priceDaily?: number | null
+  insuranceFeeLabel?: string | null
+  advancePayment?: number | null
+  salesOrderUrl?: string | null
+  agreementNumber?: string | null
   salesService?: {
     rating?: number
     feedback?: string

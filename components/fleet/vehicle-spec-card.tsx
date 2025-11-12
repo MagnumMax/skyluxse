@@ -1,5 +1,6 @@
 import type { FleetCar } from "@/lib/domain/entities"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { ParameterList, type ParameterListItem } from "@/components/parameter-list"
 import { formatNumber, titleCase } from "@/lib/formatters"
 
 interface VehicleSpecCardProps {
@@ -7,7 +8,7 @@ interface VehicleSpecCardProps {
 }
 
 export function VehicleSpecCard({ vehicle }: VehicleSpecCardProps) {
-  const specs: Array<{ label: string; value: string | number | undefined }> = [
+  const specs: ParameterListItem[] = [
     { label: "Make", value: vehicle.make },
     { label: "Model", value: vehicle.model },
     { label: "VIN", value: vehicle.vin },
@@ -35,17 +36,9 @@ export function VehicleSpecCard({ vehicle }: VehicleSpecCardProps) {
     <Card className="rounded-[26px] border-border/70 bg-card/80">
       <CardHeader>
         <CardTitle className="text-sm uppercase tracking-[0.35em] text-muted-foreground">Vehicle specs</CardTitle>
-        <CardDescription>Values synced from the vehicles table.</CardDescription>
       </CardHeader>
       <CardContent>
-        <dl className="grid gap-3 md:grid-cols-2">
-          {specs.map((spec) => (
-            <div key={spec.label} className="rounded-2xl border border-border/60 px-3 py-2 text-sm">
-              <dt className="text-xs uppercase tracking-[0.35em] text-muted-foreground">{spec.label}</dt>
-              <dd className="text-foreground">{spec.value ?? "—"}</dd>
-            </div>
-          ))}
-        </dl>
+        <ParameterList items={specs} columns={2} />
       </CardContent>
     </Card>
   )

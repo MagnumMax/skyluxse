@@ -1,7 +1,7 @@
 import { getExecReportsSnapshot } from "@/lib/data/analytics"
-import { cn } from "@/lib/utils"
 import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard-page-shell"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { ParameterList, type ParameterListItem } from "@/components/parameter-list"
 
 const currencyFormatter = new Intl.NumberFormat("en-CA", { style: "currency", currency: "AED", maximumFractionDigits: 0 })
 const dateFormatter = new Intl.DateTimeFormat("en-CA", { month: "short", day: "numeric" })
@@ -14,11 +14,14 @@ export async function ExecReportsDashboard() {
     <DashboardPageShell>
       <DashboardPageHeader title="Financial & fleet performance" />
 
-      <section className="grid gap-4 md:grid-cols-3">
-        <MetricCard label="Revenue" value={financials.revenue} accent="text-emerald-600" />
-        <MetricCard label="Expenses" value={financials.expenses} accent="text-rose-600" />
-        <MetricCard label="Profit" value={financials.profit} accent="text-indigo-600" />
-      </section>
+      <Card className="rounded-[26px] border-border/70 bg-card/80">
+        <CardHeader>
+          <CardTitle className="text-sm uppercase tracking-[0.3em] text-muted-foreground">Financial snapshot</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ParameterList items={financialParameters(financials)} columns={3} valueSize="xl" />
+        </CardContent>
+      </Card>
 
       <section className="grid gap-4 lg:grid-cols-2">
         <Card className="rounded-[26px] border-border/70 bg-card/80">
@@ -67,33 +70,27 @@ export async function ExecReportsDashboard() {
       <Card className="rounded-[26px] border-border/70 bg-card/80">
         <CardHeader>
           <CardTitle className="text-sm uppercase tracking-[0.3em] text-muted-foreground">Channel mix</CardTitle>
-          <CardDescription>Highlights Kommo dominance and fallback channels.</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-4 md:grid-cols-5">
-            {channelMix.map((channel) => (
-              <div key={channel.channel} className="space-y-1 rounded-2xl border border-border/60 bg-background/60 p-3">
-                <p className="text-[0.6rem] uppercase tracking-[0.35em] text-muted-foreground">{channel.channel}</p>
-                <p className="text-base font-semibold text-foreground">{currencyFormatter.format(channel.revenue)}</p>
-                <p className="text-xs text-muted-foreground">{percentFormatter.format(channel.share)}</p>
-              </div>
-            ))}
-          </div>
+          <ParameterList items={channelMixItems(channelMix)} columns={3} />
         </CardContent>
       </Card>
     </DashboardPageShell>
   )
 }
 
-function MetricCard({ label, value, accent }: { label: string; value: number; accent?: string }) {
-  return (
-    <Card className="rounded-[24px] border-border/70 bg-card/80">
-      <CardHeader>
-        <CardTitle className="text-xs uppercase tracking-[0.35em] text-muted-foreground">{label}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <p className={cn("text-3xl font-semibold text-foreground", accent)}>{currencyFormatter.format(value)}</p>
-      </CardContent>
-    </Card>
-  )
+function financialParameters(financials: { revenue: number; expenses: number; profit: number }): ParameterListItem[] {
+  return [
+    { label: "Revenue", value: currencyFormatter.format(financials.revenue), valueToneClassName: "text-emerald-600" },
+    { label: "Expenses", value: currencyFormatter.format(financials.expenses), valueToneClassName: "text-rose-600" },
+    { label: "Profit", value: currencyFormatter.format(financials.profit), valueToneClassName: "text-indigo-600" },
+  ]
+}
+
+function channelMixItems(channelMix: { channel: string; revenue: number; share: number }[]): ParameterListItem[] {
+  return channelMix.map((channel) => ({
+    label: channel.channel,
+    value: currencyFormatter.format(channel.revenue),
+    helper: percentFormatter.format(channel.share),
+  }))
 }

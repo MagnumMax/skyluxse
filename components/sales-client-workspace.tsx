@@ -1,25 +1,16 @@
 import type { ReactNode } from "react"
 import type { Client, ClientDocument, ClientNotification, ClientPayment, ClientRental } from "@/lib/domain/entities"
 import Link from "next/link"
-import {
-  ArrowUpRight,
-  Bell,
-  Car,
-  CreditCard,
-  FileText,
-  Globe,
-  Mail,
-  Phone,
-  UserRound,
-} from "lucide-react"
+import { ArrowUpRight, Bell, Car, CreditCard, FileText } from "lucide-react"
 
-import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard-page-shell"
+import { DashboardPageShell } from "@/components/dashboard-page-shell"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { getClientSegmentLabel } from "@/lib/constants/client-segments"
 import { cn } from "@/lib/utils"
 import { ClientAiPanel } from "./sales-client-ai-panel"
-import { AuditMetadata } from "@/components/audit-metadata"
+import { ParameterList, type ParameterListItem } from "@/components/parameter-list"
 
 const AED_FORMATTER = new Intl.NumberFormat("en-CA", { style: "currency", currency: "AED", maximumFractionDigits: 0 })
 
@@ -33,65 +24,33 @@ export function SalesClientWorkspace({ client }: { client: Client }) {
 
   return (
     <DashboardPageShell>
-      <DashboardPageHeader
-        title={client.name}
-        description={`${segmentLabel} · ${client.status} · Client since ${sinceLabel}`}
-        meta={
-          <div className="flex flex-col gap-3 text-sm sm:flex-row sm:items-center">
-            <div className="min-w-[180px] rounded-2xl border border-border/60 bg-background/80 px-4 py-3">
-              <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Outstanding balance</p>
-              <p className="text-2xl font-semibold text-foreground">{outstandingLabel}</p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {client.kommoContactUrl ? (
-                <Button asChild variant="outline" className="h-11 rounded-2xl px-4 font-semibold">
-                  <a href={client.kommoContactUrl} target="_blank" rel="noreferrer">
-                    Open in Kommo
-                    <ArrowUpRight className="size-4" />
-                  </a>
-                </Button>
-              ) : null}
-              <Button asChild className="h-11 rounded-2xl px-4 font-semibold">
-                <Link href={{ pathname: "/bookings/new", query: { clientId: String(client.id) } }} prefetch={false}>
-                  Create Booking
-                </Link>
-              </Button>
-            </div>
-          </div>
-        }
-        align="between"
+      <ClientSummaryCard
+        client={client}
+        outstandingLabel={outstandingLabel}
+        preferredChannels={preferredChannels}
+        segmentLabel={segmentLabel}
+        sinceLabel={sinceLabel}
       />
-
-      <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
-        <ContactFact icon={Phone} label="Phone" value={normalizeContactValue(client.phone, "Not provided")} />
-        <ContactFact icon={Mail} label="Email" value={normalizeContactValue(client.email, "Not provided")} />
-        <ContactFact icon={UserRound} label="Gender" value={client.gender ?? "Not specified"} />
-        <ContactFact icon={Globe} label="Nationality" value={client.residencyCountry ?? "Unknown"} />
-      </div>
-      <AuditMetadata
-        className="mt-3"
-        createdAt={client.createdAt}
-        createdBy={client.createdBy ?? (client.kommoContactId ? "Kommo import" : undefined)}
-        updatedAt={client.updatedAt ?? client.lastBookingDate}
-        updatedBy={client.updatedBy}
-      />
-      <div className="mt-3 flex flex-wrap gap-3 text-xs text-muted-foreground">
-        <ProfileField label="Preferred channels" value={preferredChannels} />
-        <ProfileField label="Language" value={client.preferences.language?.toUpperCase() ?? "EN"} />
-        <ProfileField label="Timezone" value={client.preferences.timezone ?? "Asia/Dubai"} />
-      </div>
 
       <section className="grid gap-4 lg:grid-cols-3">
         <SectionCard
-          title="Documents & rentals"
-          subtitle="Compliance status and latest bookings"
+          title="Documents"
+          subtitle="Compliance status"
           icon={FileText}
           className="lg:col-span-2"
+          actions={
+            client.id ? (
+              <Link href={`/clients/${client.id}/documents`} className="text-xs font-semibold text-primary hover:underline" prefetch={false}>
+                View all
+              </Link>
+            ) : null
+          }
         >
-          <div className="grid gap-6 md:grid-cols-2">
-            <DocumentList documents={client.documents} clientId={client.id} showViewAllLink />
-            <RentalList rentals={client.rentals} />
-          </div>
+          <DocumentList documents={client.documents} compact />
+        </SectionCard>
+
+        <SectionCard title="Rentals" subtitle="Latest bookings" icon={Car} className="lg:col-span-2">
+          <RentalList rentals={client.rentals} compact />
         </SectionCard>
 
         <SectionCard title="Payments & notifications" subtitle="Cash flow and outreach trail" icon={CreditCard}>
@@ -107,22 +66,64 @@ export function SalesClientWorkspace({ client }: { client: Client }) {
   )
 }
 
-function ContactFact({
-  icon: Icon,
-  label,
-  value,
+function ClientSummaryCard({
+  client,
+  outstandingLabel,
+  preferredChannels,
+  segmentLabel,
+  sinceLabel,
 }: {
-  icon: typeof Phone
-  label: string
-  value: string
+  client: Client
+  outstandingLabel: string
+  preferredChannels: string
+  segmentLabel: string
+  sinceLabel: string
 }) {
+  const subtitle = `${client.status} · ${segmentLabel} · Client since ${sinceLabel}`
+  const overviewItems: ParameterListItem[] = [
+    {
+      label: "Outstanding balance",
+      value: outstandingLabel,
+      helper: client.outstanding > 0 ? "Requires attention" : "Settled",
+      valueToneClassName: client.outstanding > 0 ? "text-rose-600" : undefined,
+    },
+    { label: "Phone", value: normalizeContactValue(client.phone, "Not provided") },
+    { label: "Email", value: normalizeContactValue(client.email, "Not provided") },
+    { label: "Gender", value: client.gender ?? "Not specified" },
+    { label: "Nationality", value: client.residencyCountry ?? "Unknown" },
+    { label: "Preferred channels", value: preferredChannels },
+    { label: "Language", value: client.preferences.language?.toUpperCase() ?? "EN" },
+    { label: "Timezone", value: client.preferences.timezone ?? "Asia/Dubai" },
+    { label: "Last booking", value: client.lastBookingDate ? formatDateYear(client.lastBookingDate) : "No rentals" },
+  ]
+
   return (
-    <span className="inline-flex items-center gap-2 rounded-full border border-border/60 px-3 py-1">
-      <Icon className="size-4 text-muted-foreground" />
-      <span className="text-xs font-semibold text-muted-foreground">
-        {label}: <span className="text-foreground">{value}</span>
-      </span>
-    </span>
+    <Card className="mb-6 rounded-[28px] border-border/70 bg-card/85">
+      <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div className="space-y-1">
+          <h2 className="text-2xl font-semibold text-foreground">{client.name}</h2>
+          <p className="text-sm text-muted-foreground">{subtitle}</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2 md:justify-end">
+          {client.kommoContactUrl ? (
+            <Button asChild variant="outline" className="h-11 rounded-2xl px-4 font-semibold">
+              <a href={client.kommoContactUrl} target="_blank" rel="noreferrer">
+                Open in Kommo
+                <ArrowUpRight className="size-4" />
+              </a>
+            </Button>
+          ) : null}
+          <Button asChild className="h-11 rounded-2xl px-4 font-semibold">
+            <Link href={{ pathname: "/bookings/new", query: { clientId: String(client.id) } }} prefetch={false}>
+              Create Booking
+            </Link>
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <ParameterList items={overviewItems} columns={3} />
+      </CardContent>
+    </Card>
   )
 }
 
@@ -132,21 +133,26 @@ function SectionCard({
   icon: Icon,
   children,
   className,
+  actions,
 }: {
   title: string
   subtitle?: string
   icon?: typeof FileText
   children: ReactNode
   className?: string
+  actions?: ReactNode
 }) {
   return (
     <article className={cn("rounded-[26px] border border-border/70 bg-background/95 p-5 shadow-sm", className)}>
-      <div className="flex items-center gap-3">
-        {Icon ? <Icon className="size-4 text-muted-foreground" /> : null}
-        <div>
-          <h2 className="text-sm font-semibold uppercase tracking-[0.35em] text-muted-foreground">{title}</h2>
-          {subtitle ? <p className="text-xs text-muted-foreground/80">{subtitle}</p> : null}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          {Icon ? <Icon className="size-4 text-muted-foreground" /> : null}
+          <div>
+            <h2 className="text-sm font-semibold uppercase tracking-[0.35em] text-muted-foreground">{title}</h2>
+            {subtitle ? <p className="text-xs text-muted-foreground/80">{subtitle}</p> : null}
+          </div>
         </div>
+        {actions ? <div className="text-xs font-semibold">{actions}</div> : null}
       </div>
       <div className="mt-4">{children}</div>
     </article>
@@ -157,10 +163,12 @@ export function DocumentList({
   documents,
   clientId,
   showViewAllLink = false,
+  compact = false,
 }: {
   documents: ClientDocument[]
   clientId?: string | number
   showViewAllLink?: boolean
+  compact?: boolean
 }) {
   if (!documents.length) {
     return (
@@ -174,19 +182,22 @@ export function DocumentList({
 
   return (
     <div>
-      <div className="flex items-center justify-between gap-2">
-        <h3 className="text-sm font-semibold text-foreground">Documents</h3>
-        {showViewAllLink && clientId ? (
-          <Link
-            href={`/clients/${clientId}/documents`}
-            className="text-xs font-semibold text-primary hover:underline"
-            prefetch={false}
-          >
-            View all
-          </Link>
-        ) : null}
-      </div>
-      <ul className="mt-3 space-y-3 text-sm text-muted-foreground">
+      {!compact ? (
+        <div className="flex items-center justify-between gap-2">
+          <h3 className="text-sm font-semibold text-foreground">Documents</h3>
+          {showViewAllLink && clientId ? (
+            <Link
+              href={`/clients/${clientId}/documents`}
+              className="text-xs font-semibold text-primary hover:underline"
+              prefetch={false}
+            >
+              View all
+            </Link>
+          ) : null}
+        </div>
+      ) : null}
+      <ul className={cn("space-y-3 text-sm text-muted-foreground", compact ? "mt-0" : "mt-3")}
+      >
         {documents.map((doc) => (
           <li key={doc.id} className="rounded-2xl border border-border/60 px-3 py-2">
             <div className="flex items-start justify-between gap-2">
@@ -216,7 +227,7 @@ export function DocumentList({
   )
 }
 
-function RentalList({ rentals }: { rentals: ClientRental[] }) {
+function RentalList({ rentals, compact = false }: { rentals: ClientRental[]; compact?: boolean }) {
   if (!rentals.length) {
     return (
       <EmptyState
@@ -231,8 +242,8 @@ function RentalList({ rentals }: { rentals: ClientRental[] }) {
 
   return (
     <div>
-      <h3 className="text-sm font-semibold text-foreground">Recent rentals</h3>
-      <ul className="mt-3 space-y-3 text-sm text-muted-foreground">
+      {!compact ? <h3 className="text-sm font-semibold text-foreground">Recent rentals</h3> : null}
+      <ul className={cn("space-y-3 text-sm text-muted-foreground", compact ? "mt-0" : "mt-3")}>
         {rentals.map((rental) => (
           <li key={rental.bookingId} className="rounded-2xl border border-border/60 px-3 py-2">
             <p className="text-sm font-semibold text-foreground">{rental.carName}</p>
@@ -371,14 +382,6 @@ function EmptyState({
         )
       ) : null}
     </div>
-  )
-}
-
-function ProfileField({ label, value }: { label: string; value: string }) {
-  return (
-    <span className="rounded-full border border-border/60 px-3 py-1 font-semibold text-muted-foreground">
-      {label}: <span className="text-foreground">{value}</span>
-    </span>
   )
 }
 

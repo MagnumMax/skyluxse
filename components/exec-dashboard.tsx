@@ -6,6 +6,7 @@ import { getLiveBookings, getLiveDrivers } from "@/lib/data/live-data"
 import { cn } from "@/lib/utils"
 import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard-page-shell"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { ParameterList, type ParameterListItem } from "@/components/parameter-list"
 
 const trackedStatuses = ["new", "preparation", "delivery"]
 const currencyFormatter = new Intl.NumberFormat("en-CA", { style: "currency", currency: "AED", maximumFractionDigits: 0 })
@@ -48,12 +49,14 @@ export async function ExecDashboard() {
     <DashboardPageShell>
       <DashboardPageHeader title="Command centre" />
 
-      <section className="grid gap-4 md:grid-cols-4">
-        <KpiCard label="Fleet utilisation" value={formatPercent(kpis.fleetUtilization)} helper="Target ≥ 90%" trend="+4% WoW" />
-        <KpiCard label="SLA met" value={formatPercent(kpis.slaCompliance)} helper="Threshold ≥ 85%" trend="+2% WoW" />
-        <KpiCard label="Active bookings" value={kpis.activeBookings.toString()} helper="Monitored by fleet team" trend={'+3 per day'} />
-        <KpiCard label="Client NPS" value={kpis.clientNps.toString()} helper="Target ≥ 70" trend={'+1 pt'} />
-      </section>
+      <Card className="rounded-[26px] border-border/70 bg-card/80">
+        <CardHeader>
+          <CardTitle className="text-sm uppercase tracking-[0.35em] text-muted-foreground">Key metrics</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ParameterList items={buildMetricItems(kpis)} columns={4} valueSize="xl" />
+        </CardContent>
+      </Card>
 
       <section className="grid gap-4 md:grid-cols-3">
         {slaCards.map((card) => {
@@ -135,15 +138,38 @@ export async function ExecDashboard() {
   )
 }
 
-function KpiCard({ label, value, helper, trend }: { label: string; value: string; helper?: string; trend?: string }) {
-  const tone = trend?.startsWith("+") ? "text-emerald-600" : trend?.startsWith("-") ? "text-rose-600" : "text-muted-foreground"
+function buildMetricItems(kpis: { fleetUtilization: number; slaCompliance: number; activeBookings: number; clientNps: number }): ParameterListItem[] {
+  return [
+    {
+      label: "Fleet utilisation",
+      value: formatPercent(kpis.fleetUtilization),
+      helper: helperWithTrend("Target ≥ 90%", "+4% WoW"),
+    },
+    {
+      label: "SLA met",
+      value: formatPercent(kpis.slaCompliance),
+      helper: helperWithTrend("Threshold ≥ 85%", "+2% WoW"),
+    },
+    {
+      label: "Active bookings",
+      value: kpis.activeBookings.toString(),
+      helper: helperWithTrend("Monitored by fleet team", "+3 per day"),
+    },
+    {
+      label: "Client NPS",
+      value: kpis.clientNps.toString(),
+      helper: helperWithTrend("Target ≥ 70", "+1 pt"),
+    },
+  ]
+}
+
+function helperWithTrend(helper?: string, trend?: string) {
+  if (!helper && !trend) return undefined
   return (
-    <Card className="rounded-[24px] border-border/70 bg-card/80 p-5">
-      <p className="text-xs font-semibold uppercase tracking-[0.35em] text-muted-foreground">{label}</p>
-      <p className="mt-2 text-3xl font-semibold text-foreground">{value}</p>
-      {helper ? <p className="text-sm text-muted-foreground">{helper}</p> : null}
-      {trend ? <p className={cn("mt-3 text-xs", tone)}>{trend}</p> : null}
-    </Card>
+    <div className="space-y-0.5">
+      {helper ? <p className="text-xs text-muted-foreground">{helper}</p> : null}
+      {trend ? <p className="text-[11px] text-emerald-600">{trend}</p> : null}
+    </div>
   )
 }
 

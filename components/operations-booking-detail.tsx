@@ -1,3 +1,4 @@
+import type { ReactNode } from "react"
 import Image from "next/image"
 import Link from "next/link"
 
@@ -7,11 +8,12 @@ import { cn } from "@/lib/utils"
 import { DashboardPageShell } from "@/components/dashboard-page-shell"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ClientAiPanel } from "@/components/sales-client-ai-panel"
-import { AuditMetadata } from "@/components/audit-metadata"
+import { ParameterList, type ParameterListItem } from "@/components/parameter-list"
 
 const currencyFormatter = new Intl.NumberFormat("en-CA", { style: "currency", currency: "AED", maximumFractionDigits: 0 })
 const dateFormatter = new Intl.DateTimeFormat("en-CA", { month: "short", day: "numeric" })
 const dateTimeFormatter = new Intl.DateTimeFormat("en-CA", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })
+const timeFormatter = new Intl.DateTimeFormat("en-CA", { hour: "2-digit", minute: "2-digit" })
 const referenceDate = new Date("2025-10-13T08:00:00Z")
 
 export function OperationsBookingDetail({
@@ -26,19 +28,23 @@ export function OperationsBookingDetail({
   variant?: "operations" | "sales" | "exec"
 }) {
   const outstanding = Math.max((booking.totalAmount ?? 0) - (booking.paidAmount ?? 0), 0)
-  const deposit = booking.deposit ?? 0
+  const advancePayment = resolveAdvancePayment(booking)
   const tags = booking.tags ?? []
   const statusTone = getStatusTone(booking.status)
-  const priorityTone = getPriorityTone(booking.priority)
-  const locationChips = [booking.pickupLocation, booking.dropoffLocation].filter(Boolean) as string[]
+  const locationChips = [booking.pickupLocation, booking.dropoffLocation, booking.deliveryLocation, booking.collectLocation].filter(Boolean) as string[]
 
   return (
     <DashboardPageShell>
-      <BookingDetailHeader booking={booking} priorityTone={priorityTone} statusTone={statusTone} tags={tags} />
+      <BookingOverviewSection
+        booking={booking}
+        client={client}
+        outstanding={outstanding}
+        advancePayment={advancePayment}
+        statusTone={statusTone}
+        tags={tags}
+      />
 
-      <BookingDetailStatsSection booking={booking} client={client} driver={driver} outstanding={outstanding} deposit={deposit} />
-
-      <BookingLogisticsFinancialSection booking={booking} outstanding={outstanding} locationChips={locationChips} />
+      <BookingLogisticsFinancialSection booking={booking} outstanding={outstanding} locationChips={locationChips} advancePayment={advancePayment} />
 
       <BookingActivitySection booking={booking} />
 
@@ -52,57 +58,159 @@ export function OperationsBookingDetail({
   )
 }
 
-function BookingDetailHeader({ booking, statusTone, priorityTone, tags }: { booking: Booking; statusTone: string; priorityTone: string; tags: string[] }) {
-  const fallbackActor = booking.ownerName ?? (booking.ownerId ? String(booking.ownerId) : undefined)
+function BookingOverviewSection({ booking, client, outstanding, advancePayment, statusTone, tags }: { booking: Booking; client?: Client; outstanding: number; advancePayment?: number | null; statusTone: string; tags: string[] }) {
+  const advanceInvoice = findAdvanceInvoice(booking)
+  const depositInvoiceStatus = advanceInvoice?.status
+  const clientHref = booking.clientId ? toRoute(`/clients/${booking.clientId}`) : undefined
+  const detailRows: Array<{ label: string; value?: ReactNode; helper?: ReactNode }> = [
+    {
+      label: "Client",
+      value:
+        clientHref && booking.clientName ? (
+          <Link href={clientHref} className="text-primary hover:underline">
+            {booking.clientName}
+          </Link>
+        ) : (
+          booking.clientName
+        ),
+      helper: client?.status,
+    },
+    {
+      label: "Channel",
+      value: booking.channel,
+    },
+    {
+      label: "Vehicle",
+      value: booking.carName,
+    },
+    {
+      label: "Total",
+      value: currencyFormatter.format(booking.totalAmount),
+      helper: `Outstanding ${currencyFormatter.format(outstanding)}`,
+    },
+    {
+      label: "Advance payment",
+      value: advancePayment != null ? currencyFormatter.format(advancePayment) : "—",
+      helper: depositInvoiceStatus,
+    },
+    {
+      label: "Created",
+      value: formatDateTime(booking.createdAt),
+    },
+    {
+      label: "Last updated",
+      value: formatDateTime(booking.updatedAt),
+    },
+  ]
+
   return (
-    <header className="space-y-3">
+    <section className="space-y-6 rounded-[32px] border border-border/70 bg-card/80 p-6">
       <div className="flex flex-wrap items-center gap-3">
         <span className={cn("rounded-full px-3 py-1 text-xs font-semibold", statusTone)}>{booking.status}</span>
-        <span className={cn("rounded-full px-3 py-1 text-xs font-semibold", priorityTone)}>{booking.priority}</span>
       </div>
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="space-y-2">
         <h1 className="text-3xl font-semibold tracking-tight">{booking.code}</h1>
-        <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-          <span>{booking.type?.toUpperCase()}</span>
-          <span>Channel {booking.channel}</span>
-          <span>Segment {booking.segment}</span>
-        </div>
+        {tags.length ? (
+          <div className="flex flex-wrap gap-2 text-[0.65rem] uppercase tracking-[0.35em] text-muted-foreground">
+            {tags.map((tag) => (
+              <span key={tag} className="rounded-full border border-border/60 px-2 py-0.5">
+                {tag}
+              </span>
+            ))}
+          </div>
+        ) : null}
       </div>
-      {tags.length ? (
-        <div className="flex flex-wrap gap-2 text-[0.65rem] uppercase tracking-[0.35em] text-muted-foreground">
-          {tags.map((tag) => (
-            <span key={tag} className="rounded-full border border-border/60 px-2 py-0.5">
-              {tag}
-            </span>
-          ))}
-        </div>
-      ) : null}
-      <AuditMetadata
-        createdAt={booking.createdAt}
-        createdBy={booking.createdBy ?? fallbackActor}
-        updatedAt={booking.updatedAt}
-        updatedBy={booking.updatedBy ?? fallbackActor}
-      />
-    </header>
-  )
-}
-
-function BookingDetailStatsSection({ booking, client, driver, outstanding, deposit }: { booking: Booking; client?: Client; driver?: Driver | null; outstanding: number; deposit: number }) {
-  return (
-    <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-      <Stat label="Client" value={booking.clientName} helper={client?.status} />
-      <Stat label="Total" value={currencyFormatter.format(booking.totalAmount)} helper={`Outstanding ${currencyFormatter.format(outstanding)}`} />
-      <Stat
-        label="Deposit"
-        value={currencyFormatter.format(deposit)}
-        helper={booking.invoices?.find((inv) => inv.label?.toLowerCase().includes("deposit"))?.status}
-      />
-      <Stat label="Driver" value={driver?.name ?? "Unassigned"} helper={driver?.status} />
+      <div className="grid gap-4 md:grid-cols-2">
+        {detailRows.map((row) => (
+          <DetailRow key={row.label} label={row.label} value={row.value} helper={row.helper} />
+        ))}
+      </div>
     </section>
   )
 }
 
-function BookingLogisticsFinancialSection({ booking, outstanding, locationChips }: { booking: Booking; outstanding: number; locationChips: string[] }) {
+function BookingLogisticsFinancialSection({ booking, outstanding, locationChips, advancePayment }: { booking: Booking; outstanding: number; locationChips: string[]; advancePayment?: number | null }) {
+  const totalWithVat = computeTotalWithVat(booking)
+  const pickupDate = formatShortDate(booking.startDate, booking.startTime)
+  const pickupTime = formatTimeLabel(booking.startDate, booking.startTime)
+  const returnDate = formatShortDate(booking.endDate, booking.endTime)
+  const returnTime = formatTimeLabel(booking.endDate, booking.endTime)
+  const scheduleParameters: ParameterListItem[] = [
+    {
+      label: "Pickup",
+      value: pickupDate ?? "—",
+      helper: (
+        <div className="space-y-0.5">
+          {pickupTime ? <span>{pickupTime}</span> : null}
+          <span>{booking.pickupLocation ?? "—"}</span>
+        </div>
+      ),
+    },
+    {
+      label: "Return",
+      value: returnDate ?? "—",
+      helper: (
+        <div className="space-y-0.5">
+          {returnTime ? <span>{returnTime}</span> : null}
+          <span>{booking.dropoffLocation ?? "—"}</span>
+        </div>
+      ),
+    },
+    {
+      label: "Pickup mileage",
+      value: formatMileage(booking.pickupMileage),
+      helper: `Fuel ${booking.pickupFuel ?? "—"}`,
+    },
+    {
+      label: "Return mileage",
+      value: formatMileage(booking.returnMileage),
+      helper: `Fuel ${booking.returnFuel ?? "—"}`,
+    },
+  ]
+  const logisticsParameters: ParameterListItem[] = []
+  if (booking.deliveryLocation) {
+    logisticsParameters.push({ label: "Delivery location", value: booking.deliveryLocation })
+  }
+  if (booking.collectLocation) {
+    logisticsParameters.push({ label: "Collect location", value: booking.collectLocation })
+  }
+  if (booking.deliveryFeeLabel) {
+    logisticsParameters.push({ label: "Delivery fee", value: booking.deliveryFeeLabel })
+  }
+  if (booking.insuranceFeeLabel) {
+    logisticsParameters.push({ label: "Insurance plan", value: booking.insuranceFeeLabel })
+  }
+  if (booking.rentalDurationDays != null) {
+    logisticsParameters.push({ label: "Duration", value: `${booking.rentalDurationDays} day${booking.rentalDurationDays === 1 ? "" : "s"}` })
+  }
+  if (booking.priceDaily != null) {
+    logisticsParameters.push({ label: "Daily rate", value: currencyFormatter.format(booking.priceDaily) })
+  }
+  const financialParameters: ParameterListItem[] = [
+    {
+      label: "Total with VAT",
+      value: currencyFormatter.format(totalWithVat ?? 0),
+      helper: booking.channel?.toLowerCase() === "kommo" ? "Kommo quote" : undefined,
+    },
+    { label: "Advance payment", value: currencyFormatter.format((advancePayment ?? booking.deposit) ?? 0) },
+    { label: "Paid", value: currencyFormatter.format(booking.paidAmount ?? 0) },
+    { label: "Outstanding", value: currencyFormatter.format(outstanding) },
+  ]
+  const financialMeta: ParameterListItem[] = []
+  if (booking.agreementNumber) {
+    financialMeta.push({ label: "Agreement #", value: booking.agreementNumber })
+  }
+  if (booking.salesOrderUrl) {
+    financialMeta.push({
+      label: "Sales order",
+      value: (
+        <a href={booking.salesOrderUrl} target="_blank" rel="noreferrer" className="text-primary underline-offset-4 hover:underline">
+          Open in Zoho
+        </a>
+      ),
+      helper: booking.salesOrderUrl,
+    })
+  }
   return (
     <section className="grid gap-4 lg:grid-cols-2">
       <Card className="rounded-[26px] border-border/70 bg-card/80">
@@ -110,14 +218,13 @@ function BookingLogisticsFinancialSection({ booking, outstanding, locationChips 
           <CardTitle className="text-sm uppercase tracking-[0.35em] text-muted-foreground">Schedule & logistics</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4 text-sm">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <ScheduleItem label="Pickup" date={booking.startDate} time={booking.startTime} location={booking.pickupLocation} />
-            <ScheduleItem label="Return" date={booking.endDate} time={booking.endTime} location={booking.dropoffLocation} />
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <ScheduleStat label="Pickup mileage" value={formatMileage(booking.pickupMileage)} helper={`Fuel ${booking.pickupFuel ?? "—"}`} />
-            <ScheduleStat label="Return mileage" value={formatMileage(booking.returnMileage)} helper={`Fuel ${booking.returnFuel ?? "—"}`} />
-          </div>
+          <ParameterList items={scheduleParameters} columns={2} />
+          {logisticsParameters.length ? (
+            <div className="space-y-2">
+              <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">Logistics details</p>
+              <ParameterList items={logisticsParameters} columns={2} />
+            </div>
+          ) : null}
           {locationChips.length ? (
             <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
               {locationChips.map((loc) => (
@@ -140,11 +247,13 @@ function BookingLogisticsFinancialSection({ booking, outstanding, locationChips 
           <CardTitle className="text-sm uppercase tracking-[0.35em] text-muted-foreground">Financial summary</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4 text-sm">
-          <div className="grid gap-3 sm:grid-cols-3">
-            <AmountPill label="Total" amount={booking.totalAmount} accent="text-emerald-600" />
-            <AmountPill label="Paid" amount={booking.paidAmount} accent="text-primary" />
-            <AmountPill label="Outstanding" amount={outstanding} accent="text-rose-600" />
-          </div>
+          <ParameterList items={financialParameters} columns={2} />
+          {financialMeta.length ? (
+            <div className="space-y-2">
+              <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">References</p>
+              <ParameterList items={financialMeta} columns={2} />
+            </div>
+          ) : null}
           <div>
             <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">Invoices</p>
             <ul className="mt-2 space-y-2 text-sm">
@@ -219,43 +328,35 @@ function BookingDocumentsSection({ booking }: { booking: Booking }) {
   )
 }
 
-function Stat({ label, value, helper }: { label: string; value?: string | number; helper?: string | null }) {
+function DetailRow({ label, value, helper }: { label: string; value?: ReactNode; helper?: ReactNode }) {
   return (
-    <div className="rounded-2xl border border-border/60 bg-card/80 p-4 text-sm">
+    <div className="space-y-1 text-sm">
       <p className="text-[0.6rem] uppercase tracking-[0.35em] text-muted-foreground">{label}</p>
-      <p className="text-xl font-semibold text-foreground">{value ?? "—"}</p>
+      <p className="text-base font-semibold text-foreground">{value ?? "—"}</p>
       {helper ? <p className="text-xs text-muted-foreground">{helper}</p> : null}
     </div>
   )
 }
 
-function ScheduleItem({ label, date, time, location }: { label: string; date?: string; time?: string; location?: string }) {
-  return (
-    <div className="rounded-2xl border border-border/60 bg-background/60 p-3">
-      <p className="text-[0.6rem] uppercase tracking-[0.35em] text-muted-foreground">{label}</p>
-      <p className="text-sm font-semibold text-foreground">{formatDateLabel(date, time)}</p>
-      <p className="text-xs text-muted-foreground">{location ?? "—"}</p>
-    </div>
-  )
+function resolveAdvancePayment(booking: Booking) {
+  if (booking.advancePayment != null && booking.advancePayment > 0) {
+    return booking.advancePayment
+  }
+  const deposit = booking.deposit ?? null
+  if (deposit && deposit > 0) {
+    return deposit
+  }
+  const invoice = findAdvanceInvoice(booking)
+  return invoice && typeof invoice.amount === "number" ? invoice.amount : null
 }
 
-function ScheduleStat({ label, value, helper }: { label: string; value: string; helper?: string }) {
-  return (
-    <div className="rounded-2xl border border-border/60 bg-background/60 p-3">
-      <p className="text-[0.6rem] uppercase tracking-[0.35em] text-muted-foreground">{label}</p>
-      <p className="text-sm font-semibold text-foreground">{value}</p>
-      {helper ? <p className="text-xs text-muted-foreground">{helper}</p> : null}
-    </div>
-  )
-}
-
-function AmountPill({ label, amount, accent }: { label: string; amount?: number; accent?: string }) {
-  return (
-    <div className="rounded-2xl border border-border/60 bg-background/70 p-3 text-center">
-      <p className="text-[0.6rem] uppercase tracking-[0.35em] text-muted-foreground">{label}</p>
-      <p className={cn("text-xl font-semibold text-foreground", accent)}>{currencyFormatter.format(amount ?? 0)}</p>
-    </div>
-  )
+function findAdvanceInvoice(booking: Booking) {
+  const invoices = booking.invoices ?? []
+  return invoices.find((invoice) => {
+    const label = invoice.label?.toLowerCase() ?? ""
+    const scope = invoice.scope?.toLowerCase() ?? ""
+    return label.includes("deposit") || label.includes("advance") || scope.includes("deposit") || scope.includes("advance")
+  })
 }
 
 function TimelineCard({ title, description, entries }: { title: string; description?: string; entries: NonNullable<Booking["timeline"]> }) {
@@ -413,26 +514,44 @@ function SalesExtras({ booking, client }: { booking: Booking; client: Client }) 
 
 function ExecHighlights({ booking, driver, outstanding }: { booking: Booking; driver?: Driver | null; outstanding: number }) {
   const slaStatus = getSlaStatus(booking)
-  const cards = [
-    { label: "Outstanding", value: currencyFormatter.format(outstanding), helper: outstanding > 0 ? "Collect before release" : "Settled", tone: outstanding > 0 ? "text-rose-600" : "text-emerald-600" },
-    { label: "SLA status", value: slaStatus.label, helper: slaStatus.helper, tone: slaStatus.tone },
+  const items: ParameterListItem[] = [
+    {
+      label: "Outstanding",
+      value: currencyFormatter.format(outstanding),
+      helper: outstanding > 0 ? "Collect before release" : "Settled",
+      valueToneClassName: outstanding > 0 ? "text-rose-600" : "text-emerald-600",
+    },
+    {
+      label: "SLA status",
+      value: slaStatus.label,
+      helper: slaStatus.helper,
+      valueToneClassName: slaStatus.tone,
+    },
     { label: "Driver", value: driver?.name ?? "Unassigned", helper: driver?.status ?? "" },
   ]
   return (
-    <section className="grid gap-4 lg:grid-cols-3">
-      {cards.map((card) => (
-        <Card key={card.label} className="rounded-[24px] border-border/70 bg-card/80">
-          <CardHeader>
-            <CardTitle className="text-xs uppercase tracking-[0.35em] text-muted-foreground">{card.label}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className={cn("text-2xl font-semibold text-foreground", card.tone)}>{card.value}</p>
-            {card.helper ? <p className="text-xs text-muted-foreground">{card.helper}</p> : null}
-          </CardContent>
-        </Card>
-      ))}
-    </section>
+    <Card className="rounded-[26px] border-border/70 bg-card/80">
+      <CardHeader>
+        <CardTitle className="text-sm uppercase tracking-[0.35em] text-muted-foreground">Exec highlights</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <ParameterList items={items} columns={3} valueSize="lg" />
+      </CardContent>
+    </Card>
   )
+}
+
+function computeTotalWithVat(booking: Booking) {
+  const billing = booking.billing
+  if (!billing) {
+    return booking.totalAmount
+  }
+  const base = billing.base ?? 0
+  const addons = billing.addons ?? 0
+  const fees = billing.fees ?? 0
+  const discounts = billing.discounts ?? 0
+  const total = base + addons + fees - discounts
+  return total > 0 ? total : booking.totalAmount
 }
 
 function formatMileage(value?: number | null) {
@@ -440,14 +559,39 @@ function formatMileage(value?: number | null) {
   return `${new Intl.NumberFormat("en-CA", { maximumFractionDigits: 0 }).format(value)} km`
 }
 
-function formatDateLabel(date?: string, time?: string) {
-  if (!date) return "—"
-  try {
-    const iso = time ? `${date}T${time}:00Z` : `${date}T00:00:00Z`
-    return dateTimeFormatter.format(new Date(iso))
-  } catch {
-    return `${date} ${time ?? ""}`.trim()
+function formatShortDate(date?: string, time?: string) {
+  const parsed = parseScheduleDate(date, time)
+  if (parsed) return dateFormatter.format(parsed)
+  return date?.split("T")[0] ?? null
+}
+
+function formatTimeLabel(date?: string, time?: string) {
+  if (time && !time.includes("T")) return time
+  const parsed = parseScheduleDate(date, time)
+  if (parsed) return timeFormatter.format(parsed)
+  return time ?? null
+}
+
+function parseScheduleDate(date?: string, time?: string) {
+  if (!date) return null
+  const candidates = new Set<string>()
+  const normalizedTime = time ? (time.length === 5 ? `${time}:00` : time) : null
+  if (time && !date.includes("T")) {
+    candidates.add(`${date}T${normalizedTime}`)
+    candidates.add(`${date}T${normalizedTime}Z`)
   }
+  candidates.add(date)
+  if (!date.includes("T")) {
+    candidates.add(`${date}T00:00:00`)
+    candidates.add(`${date}T00:00:00Z`)
+  }
+  for (const value of candidates) {
+    const parsed = new Date(value)
+    if (!Number.isNaN(parsed.getTime())) {
+      return parsed
+    }
+  }
+  return null
 }
 
 function formatDateTime(value?: string) {
@@ -465,12 +609,6 @@ function getStatusTone(status: Booking["status"]) {
   if (status === "settlement") return "bg-emerald-100 text-emerald-700"
   if (status === "preparation") return "bg-violet-100 text-violet-700"
   return "bg-slate-100 text-slate-700"
-}
-
-function getPriorityTone(priority: Booking["priority"]) {
-  if (priority === "high") return "bg-rose-100 text-rose-700"
-  if (priority === "medium") return "bg-amber-100 text-amber-700"
-  return "bg-emerald-100 text-emerald-700"
 }
 
 function documentTone(status?: string) {
