@@ -889,7 +889,7 @@ export const renderBookingDetail = (id) => {
                                             <div class="grid gap-2 text-xs">
                                                 <div class="space-y-1">
                                                     <p class="font-medium text-muted-foreground">Lifetime value</p>
-                                                    <p class="text-sm text-foreground">${formatCurrency(client.lifetimeValue || client.turnover || 0)}</p>
+                                                    <p class="text-sm text-foreground">${formatCurrency(client.lifetimeValue || 0)}</p>
                                                     <p class="text-xs text-muted-foreground">Outstanding: ${formatCurrency(client.outstanding || 0)}</p>
                                                 </div>
                                             </div>

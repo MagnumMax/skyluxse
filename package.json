@@ -10,7 +10,8 @@
     "build:webpack": "next build --webpack",
     "start": "next start",
     "lint": "eslint . --ext .ts,.tsx --report-unused-disable-directives --max-warnings=0",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test"
   },
   "repository": {
     "type": "git",
@@ -36,6 +37,7 @@
     "prettier": "^3.6.2",
     "tailwindcss": "^4.1.17",
     "tailwindcss-animate": "^1.0.7",
+    "tsx": "^4.20.6",
     "typescript": "^5.6.3"
   },
   "dependencies": {

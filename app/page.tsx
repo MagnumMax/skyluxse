@@ -1,16 +1,8 @@
 import Link from "next/link"
 import type { Route } from "next"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { NavigationMenu, NavigationMenuItem, NavigationMenuLink, NavigationMenuList, navigationMenuTriggerStyle } from "@/components/ui/navigation-menu"
 
 const route = <T extends string>(path: T) => path as Route
-
-const primaryActions = [
-  { label: "Bookings", href: route("/app/bookings") },
-  { label: "Fleet", href: route("/app/fleet") },
-  { label: "Analytics", href: route("/app/analytics") },
-] as const
 
 export default function HomePage() {
   return (
@@ -20,64 +12,26 @@ export default function HomePage() {
           <Link href="/" className="text-lg font-semibold tracking-tight">
             SkyLuxse ERP
           </Link>
-          <NavigationMenu>
-            <NavigationMenuList>
-              {primaryActions.map((action) => (
-                <NavigationMenuItem key={action.label}>
-                  <NavigationMenuLink asChild className={navigationMenuTriggerStyle()}>
-                    <Link href={action.href}>{action.label}</Link>
-                  </NavigationMenuLink>
-                </NavigationMenuItem>
-              ))}
-            </NavigationMenuList>
-          </NavigationMenu>
           <div className="space-x-2">
             <Button variant="ghost" asChild>
               <Link href={route("/login")}>Log in</Link>
-            </Button>
-            <Button asChild>
-              <Link href={route("/request-demo")}>Request demo</Link>
             </Button>
           </div>
         </div>
       </header>
 
-      <main className="container mx-auto px-6 py-16">
+      <main className="container mx-auto flex min-h-[calc(100vh-4rem)] flex-col justify-center px-6 py-16">
         <section className="max-w-3xl space-y-6">
           <p className="inline-flex rounded-full border border-primary/40 px-3 py-1 text-xs uppercase tracking-[0.2em] text-primary">
-            Next.js App Router • Supabase • Tailwind 4
+            Executive mobility control centre for growth-minded fleets
           </p>
           <h1 className="text-4xl font-semibold tracking-tight text-foreground sm:text-6xl">
             Automation-first operations hub for premium mobility teams.
           </h1>
           <p className="text-lg text-muted-foreground">
-            Modular App Router shell ready for Kommo, Zoho, AI copilots, and mobile workflows—all wired for
-            Supabase and shadcn/ui components.
+            Unified command centre aligning sales, fleet, and finance around live KPIs, Supabase automations, and
+            concierge-grade workflows.
           </p>
-          <div className="flex flex-wrap gap-3">
-            <Button size="lg" asChild>
-              <Link href={route("/app/onboarding")}>Launch workspace</Link>
-            </Button>
-            <Button size="lg" variant="outline" asChild>
-              <Link href={route("/docs/PRD")}>View PRD</Link>
-            </Button>
-          </div>
-        </section>
-
-        <section className="mt-16 grid gap-6 md:grid-cols-3">
-          {primaryActions.map((action) => (
-            <Card key={action.label} className="border-border/40 bg-card/70 shadow-sm">
-              <CardHeader>
-                <CardTitle>{action.label}</CardTitle>
-                <CardDescription>Build App Router routes and automation for the {action.label} module.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Button variant="secondary" asChild className="w-full">
-                  <Link href={action.href}>Open module</Link>
-                </Button>
-              </CardContent>
-            </Card>
-          ))}
         </section>
       </main>
     </div>

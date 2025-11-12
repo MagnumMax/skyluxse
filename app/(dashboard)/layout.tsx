@@ -4,6 +4,7 @@ import { ReactNode } from "react"
 
 import { Icon, type NavIcon } from "@/components/icons"
 import { DashboardHeader, type DashboardNavGroup, type HeaderMeta } from "@/components/dashboard-header"
+import { ProfileMenu } from "@/components/profile-menu"
 
 type NavLink = {
   href: string
@@ -15,17 +16,18 @@ const navGroups: DashboardNavGroup[] = [
   {
     label: "Operations",
     links: [
-      { href: "/operations/fleet-calendar", label: "Fleet calendar", icon: "calendar" },
-      { href: "/operations/tasks", label: "Tasks", icon: "tasks" },
-      { href: "/operations/fleet", label: "Fleet", icon: "fleet" },
+      { href: "/fleet-calendar", label: "Fleet calendar", icon: "calendar" },
+      { href: "/tasks", label: "Tasks", icon: "tasks" },
+      { href: "/fleet", label: "Fleet", icon: "fleet" },
     ],
   },
   {
     label: "Sales",
     links: [
-      { href: "/sales/bookings", label: "Bookings", icon: "dashboard" },
-      { href: "/sales/clients", label: "Clients", icon: "clients" },
-      { href: "/sales/analytics", label: "Analytics", icon: "analytics" },
+      { href: "/fleet-calendar", label: "Fleet calendar", icon: "calendar" },
+      { href: "/bookings", label: "Bookings", icon: "dashboard" },
+      { href: "/clients", label: "Clients", icon: "clients" },
+      { href: "/analytics", label: "Analytics", icon: "analytics" },
     ],
   },
   {
@@ -44,124 +46,84 @@ const navGroups: DashboardNavGroup[] = [
 
 const headerMeta: HeaderMeta[] = [
   {
-    pattern: "/operations/fleet-calendar",
+    pattern: "/fleet-calendar",
     title: "Fleet calendar",
-    subtitle: "Layers: rental, maintenance, repair",
   },
   {
-    pattern: "/operations/tasks",
+    pattern: "/tasks",
     title: "Operations tasks",
-    subtitle: "Backlog · In progress · Completed",
   },
   {
-    pattern: "/operations/tasks/[taskId]",
+    pattern: "/tasks/[taskId]",
     title: "Task detail",
-    subtitle: "Checklist, SLA, booking context",
   },
   {
-    pattern: "/operations/fleet",
+    pattern: "/fleet",
     title: "Fleet overview",
-    subtitle: "Vehicles, compliance, reminders",
   },
   {
-    pattern: "/operations/fleet/[carId]",
+    pattern: "/fleet/[carId]",
     title: "Vehicle profile",
-    subtitle: "Health, bookings, inspections",
   },
   {
-    pattern: "/operations/fleet/new",
+    pattern: "/fleet/new",
     title: "Vehicle intake",
-    subtitle: "Capture VIN, specs, documents",
   },
   {
-    pattern: "/operations/maintenance/new",
+    pattern: "/maintenance/new",
     title: "Maintenance automation",
-    subtitle: "Triggers, reminders, vendors",
   },
   {
-    pattern: "/operations/bookings/new",
+    pattern: "/bookings/new",
     title: "Manual booking",
-    subtitle: "Client, vehicle, SLA inputs",
   },
   {
-    pattern: "/operations/bookings/[bookingId]",
-    title: "Booking detail",
-    subtitle: "Schedule, financials, timeline",
-  },
-  {
-    pattern: "/operations/documents/[docId]",
+    pattern: "/documents/[docId]",
     title: "Document viewer",
-    subtitle: "Metadata, owner, expiry",
   },
   {
-    pattern: "/sales/bookings",
+    pattern: "/bookings",
     title: "Sales bookings",
-    subtitle: "Lifecycle board and filters",
   },
   {
-    pattern: "/sales/bookings/[bookingId]",
+    pattern: "/bookings/[bookingId]",
     title: "Sales booking detail",
-    subtitle: "AI copilot, conflicts, payments",
   },
   {
-    pattern: "/sales/clients",
+    pattern: "/clients",
     title: "Clients",
-    subtitle: "Table filters, dossier tabs",
   },
   {
-    pattern: "/sales/clients/[clientId]",
+    pattern: "/clients/[clientId]",
     title: "Client workspace",
-    subtitle: "Documents, rentals, payments",
   },
   {
-    pattern: "/sales/analytics",
+    pattern: "/analytics",
     title: "Sales analytics",
-    subtitle: "Pipeline, manager vs. source",
-  },
-  {
-    pattern: "/sales/fleet-calendar",
-    title: "Sales fleet calendar",
-    subtitle: "Conflicts and delivery slots",
   },
   {
     pattern: "/exec/dashboard",
     title: "Executive dashboard",
-    subtitle: "KPIs, SLA, driver performance",
   },
   {
     pattern: "/exec/analytics",
     title: "Executive analytics",
-    subtitle: "Insights and trendlines",
   },
   {
     pattern: "/exec/reports",
     title: "Executive reports",
-    subtitle: "Financial and top vehicles",
-  },
-  {
-    pattern: "/exec/bookings",
-    title: "Executive bookings",
-    subtitle: "Read-only lifecycle board",
-  },
-  {
-    pattern: "/exec/bookings/[bookingId]",
-    title: "Executive booking detail",
-    subtitle: "KPI highlights, SLA state",
   },
   {
     pattern: "/exec/fleet-calendar",
     title: "Executive fleet calendar",
-    subtitle: "Utilisation snapshot",
   },
   {
     pattern: "/exec/integrations",
     title: "Integrations outbox",
-    subtitle: "Kommo runs & Zoho jobs",
   },
   {
     pattern: "*",
     title: "SkyLuxse ERP",
-    subtitle: "Automation hub for premium fleet",
   },
 ]
 
@@ -221,13 +183,7 @@ function DesktopSidebar() {
         ))}
       </nav>
       <div className="border-t border-border/60 px-4 py-5">
-        <div className="rounded-2xl border border-border/60 bg-background/90 p-3">
-          <p className="text-xs font-semibold text-foreground">Anna Koval</p>
-          <p className="text-[11px] text-muted-foreground">Head of Operations</p>
-          <button className="mt-3 w-full rounded-xl border border-border/60 px-3 py-1.5 text-xs font-semibold text-muted-foreground transition hover:border-primary hover:text-primary">
-            Switch role
-          </button>
-        </div>
+        <ProfileMenu placement="top" />
       </div>
     </aside>
   )

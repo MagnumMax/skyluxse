@@ -32,11 +32,11 @@ Baseline inputs: `docs/PRD.md`, `docs/happy-paths.md`, `docs/schemas/database-sc
 - [x] Parity gate: route map + скринкасты `/beta` зафиксированы в `/docs/prd-foundations.md` (раздел «Parity log», обновлено 10 Nov 2025); новые поверхности не добавляем, пока не подтверждён паритет.
 - [x] Inventory `/beta` SPA routes vs. App Router: таблица соответствий и описания групп `(operations|sales|exec|driver)` находятся в `/docs/prd-foundations.md` §1; layout-группы в `app/(dashboard)` и `app/(driver)` соответствуют им.
 - [x] Apply shadcn/ui primitives: базовые Button/Card/Dialog/Sheet/NavMenu и остальные UI компоненты заведены, аудит и оставшиеся отступления задокументированы в `/docs/ui-gaps.md`.
-- [x] Migrate booking lifecycle board (M2): `/sales/bookings` и `/exec/bookings` используют серверные данные с `dynamic = "force-dynamic"`, drag-обвязка готова к включению; копия UX совпадает с `/beta`.
-- [x] Port fleet calendar + maintenance automation (M3): `/operations|sales|exec/fleet-calendar` делят общий компонент `FleetCalendarBoard` с live-тогглами, формы `/operations/maintenance new` перенесены.
+- [x] Migrate booking lifecycle board (M2): `/bookings` (sales) и `/bookings?view=exec` используют серверные данные с `dynamic = "force-dynamic"`, drag-обвязка готова к включению; копия UX совпадает с `/beta`.
+- [x] Port fleet calendar + maintenance automation (M3): `/fleet-calendar` (operations + sales) и `/exec/fleet-calendar` делят общий компонент `FleetCalendarBoard` с live-тогглами, формы `/maintenance/new` перенесены.
 - [x] Rebuild sales workspace + AI intelligence (M4): страницы клиентов и booking detail содержат AI-панели/стриминг-плейсхолдеры, включаемые после parity gate (см. `/components/sales-client-workspace`).
 - [x] Construct driver mobile shell (M5): группа `app/(driver)` + `viewport` метаданные повторяют мобильную оболочку `/beta#driver`.
-- [x] Build analytics + insight hub (M6): `/sales/analytics` и `/exec/analytics` портированы, suspense/skeletonы и Web Vitals (см. `components/web-vitals.tsx`) подключены через `app/layout.tsx`.
+- [x] Build analytics + insight hub (M6): `/analytics` и `/exec/analytics` портированы, suspense/skeletonы и Web Vitals (см. `components/web-vitals.tsx`) подключены через `app/layout.tsx`.
 - [x] Stand up integrations outbox + Zoho management pages (M7) for integration engineers, ensuring control sets and flows match `/beta` before expanding scope. (Now powered by Supabase `kommo_import_runs` + `integrations_outbox`.)
 - [x] Add combined integrations status page (Kommo full refresh runs + Zoho outbox health) so operators can trigger Kommo refreshes and monitor Zoho parity from one screen.
 - [x] Extend Kommo status webhook coverage beyond "Confirmed bookings" (обработаны статусы `75440395`/`75440399`, пишем события в `booking_timeline_events`, UI отображает stage label в `/exec/integrations`).

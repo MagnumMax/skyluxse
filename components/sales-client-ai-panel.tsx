@@ -18,12 +18,14 @@ export function ClientAiPanel({
   const [lines, setLines] = useState<string[]>(["Analysing recent signals…"])
 
   useEffect(() => {
+    const preferredChannels = preferences.notifications.length ? preferences.notifications.join(", ") : "email"
     const suggestions = [
-      `Lead ${clientName} prefers ${preferences.notifications.join(", ")}.`,
+      `Lead ${clientName} prefers ${preferredChannels}.`,
       outstanding > 0
         ? `Recommend nudging outstanding AED ${outstanding.toLocaleString()} before next rental.`
         : `${clientName} has no outstanding balance. Focus on upselling chauffeur package.`,
       `Segment insight: ${segment} customers convert 18% faster with WhatsApp follow-ups.`,
+      `Use ${preferences.language?.toUpperCase() ?? "EN"} messaging and plan outreach in ${preferences.timezone ?? "Asia/Dubai"}.`,
     ]
     let idx = 0
     const interval = setInterval(() => {
@@ -34,7 +36,7 @@ export function ClientAiPanel({
       }
     }, 1200)
     return () => clearInterval(interval)
-  }, [clientName, outstanding, preferences.notifications, segment])
+  }, [clientName, outstanding, preferences.language, preferences.notifications, preferences.timezone, segment])
 
   return (
     <section className="rounded-[26px] border border-dashed border-primary/40 bg-primary/5 p-5 shadow-inner">

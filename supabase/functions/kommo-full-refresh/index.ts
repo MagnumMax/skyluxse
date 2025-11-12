@@ -11,7 +11,18 @@ const CONTACT_PARALLEL = Number(Deno.env.get("KOMMO_CONTACT_PARALLEL") ?? "5")
 const CONTACT_REQUEST_DELAY_MS = Number(Deno.env.get("KOMMO_CONTACT_DELAY_MS") ?? "80")
 const VEHICLE_FIELD_ID = Number(Deno.env.get("KOMMO_VEHICLE_FIELD_ID") ?? "1234163")
 const SOURCE_FIELD_ID = Number(Deno.env.get("KOMMO_SOURCE_FIELD_ID") ?? "823206")
-const EXCLUDED_STATUS_IDS = new Set([143, 79790631, 91703923])
+const ALLOWED_STATUS_IDS = new Set([
+  75440391,
+  75440395,
+  75440399,
+  76475495,
+  78486287,
+  75440643,
+  75440639,
+  142,
+])
+
+const ALLOWED_STATUS_LIST = Array.from(ALLOWED_STATUS_IDS)
 
 const sensitiveKeys = new Set([
   "access_token",
@@ -177,15 +188,24 @@ async function kommoFetch<T>(url: URL): Promise<T> {
     const text = await resp.text()
     throw new Error(`Kommo request failed (${resp.status}): ${text}`)
   }
-  return resp.json() as Promise<T>
+  const text = await resp.text()
+  try {
+    return JSON.parse(text) as T
+  } catch (error) {
+    console.error("Failed to parse Kommo response", {
+      url: url.toString(),
+      snippet: text.slice(0, 400),
+      parseError: error instanceof Error ? error.message : error,
+    })
+    throw new Error("Kommo response was not valid JSON")
+  }
 }
 
-async function fetchLeadPage(opts: { page: number; from: string; to: string; limit?: number }) {
+async function fetchLeadPage(opts: { page: number; statusId: number; limit?: number }) {
   const url = buildKommoUrl("/api/v4/leads", {
     limit: opts.limit ?? PAGE_LIMIT,
     page: opts.page,
-    "filter[created_at][from]": opts.from,
-    "filter[created_at][to]": opts.to,
+    "filter[statuses][0][status_id]": opts.statusId,
     with: "contacts,catalog_elements,source_id",
     "order[created_at]": "desc",
   })
@@ -235,7 +255,7 @@ async function stageContacts(
 async function stageLeads(
   client: SupabaseClient,
   runId: string,
-  year: number
+  range: { from: string; to: string }
 ): Promise<{ leads: number; contacts: number; vehicles: number }> {
   const counters: RunCounters = {
     leads: 0,
@@ -243,63 +263,82 @@ async function stageLeads(
     vehicles: new Set<number>(),
   }
 
-  const from = `${year}-01-01T00:00:00Z`
-  const to = `${year + 1}-01-01T00:00:00Z`
-  let page = 1
-  let hasNext = true
+  const parsedFrom = Date.parse(range.from)
+  const parsedTo = Date.parse(range.to)
+  const fromMs = Number.isFinite(parsedFrom) ? parsedFrom : Number.NEGATIVE_INFINITY
+  const toMs = Number.isFinite(parsedTo) ? parsedTo : Number.POSITIVE_INFINITY
 
-  while (hasNext) {
-    const { leads, next } = await fetchLeadPage({ page, from, to })
-    if (!leads.length) break
-    const contactIdsForPage: number[] = []
+  for (const statusId of ALLOWED_STATUS_LIST) {
+    let page = 1
+    let hasNext = true
+    while (hasNext) {
+      const { leads, next } = await fetchLeadPage({ page, statusId })
+      if (!leads.length) break
+      const contactIdsForPage: number[] = []
 
-    for (const lead of leads) {
-      if (lead.status_id && EXCLUDED_STATUS_IDS.has(lead.status_id)) continue
-      counters.leads += 1
+      let oldestLeadMs: number | null = null
 
-      const contactId = extractMainContactId(lead)
-      if (contactId) contactIdsForPage.push(contactId)
+      for (const lead of leads) {
+        const statusValue = lead.status_id ? Number(lead.status_id) : null
+        if (!statusValue || !ALLOWED_STATUS_IDS.has(statusValue)) continue
+        const createdAt = normalizeTimestamp(lead.created_at)
+        const createdMs = createdAt ? Date.parse(createdAt) : null
+        if (createdMs && !Number.isNaN(createdMs)) {
+          if (createdMs < fromMs) {
+            oldestLeadMs = oldestLeadMs == null ? createdMs : Math.min(oldestLeadMs, createdMs)
+            continue
+          }
+          if (createdMs > toMs) {
+            continue
+          }
+        }
 
-      const vehicleEnumId = extractSelectEnumId(lead.custom_fields_values, VEHICLE_FIELD_ID)
-      const sourceEnumId = extractSelectEnumId(lead.custom_fields_values, SOURCE_FIELD_ID)
+        counters.leads += 1
 
-      const kommoCreatedAt = normalizeTimestamp(lead.created_at)
-      const kommoUpdatedAt = normalizeTimestamp(lead.updated_at)
+        const contactId = extractMainContactId(lead)
+        if (contactId) contactIdsForPage.push(contactId)
 
-      const { error: leadError } = await client.rpc("insert_stg_kommo_lead", {
-        p_run_id: runId,
-        p_lead_id: lead.id,
-        p_contact_id: contactId,
-        p_vehicle_enum_id: vehicleEnumId,
-        p_source_enum_id: sourceEnumId,
-        p_kommo_created_at: kommoCreatedAt ?? null,
-        p_kommo_updated_at: kommoUpdatedAt ?? null,
-        p_payload: lead,
-      })
+        const vehicleEnumId = extractSelectEnumId(lead.custom_fields_values, VEHICLE_FIELD_ID)
+        const sourceEnumId = extractSelectEnumId(lead.custom_fields_values, SOURCE_FIELD_ID)
 
-      if (leadError) {
-        throw new Error(`Failed to stage Kommo lead ${lead.id}: ${leadError.message}`)
-      }
+        const kommoCreatedAt = createdAt
+        const kommoUpdatedAt = normalizeTimestamp(lead.updated_at)
 
-      if (vehicleEnumId) {
-        counters.vehicles.add(vehicleEnumId)
-        const { error: linkErr } = await client.rpc("insert_stg_kommo_vehicle_link", {
+        const { error: leadError } = await client.rpc("insert_stg_kommo_lead", {
           p_run_id: runId,
           p_lead_id: lead.id,
+          p_contact_id: contactId,
           p_vehicle_enum_id: vehicleEnumId,
+          p_source_enum_id: sourceEnumId,
+          p_kommo_created_at: kommoCreatedAt ?? null,
+          p_kommo_updated_at: kommoUpdatedAt ?? null,
+          p_payload: lead,
         })
-        if (linkErr) {
-          throw new Error(`Failed to stage vehicle link for lead ${lead.id}: ${linkErr.message}`)
+
+        if (leadError) {
+          throw new Error(`Failed to stage Kommo lead ${lead.id}: ${leadError.message}`)
+        }
+
+        if (vehicleEnumId) {
+          counters.vehicles.add(vehicleEnumId)
+          const { error: linkErr } = await client.rpc("insert_stg_kommo_vehicle_link", {
+            p_run_id: runId,
+            p_lead_id: lead.id,
+            p_vehicle_enum_id: vehicleEnumId,
+          })
+          if (linkErr) {
+            throw new Error(`Failed to stage vehicle link for lead ${lead.id}: ${linkErr.message}`)
+          }
         }
       }
-    }
 
-    await stageContacts(client, runId, contactIdsForPage, counters)
+      await stageContacts(client, runId, contactIdsForPage, counters)
 
-    hasNext = Boolean(next)
-    page += 1
-    if (hasNext) {
-      await delay(150)
+      hasNext = Boolean(next) && !(oldestLeadMs !== null && oldestLeadMs <= fromMs)
+      page += 1
+      if (hasNext) {
+        await delay(150)
+      }
     }
   }
 
@@ -350,12 +389,20 @@ serve(async (req) => {
 
   const body = await req.json().catch(() => ({}))
   const year = Number(body?.year ?? DEFAULT_YEAR)
+  const requestedFrom = typeof body?.from === "string" ? new Date(body.from) : null
+  const requestedTo = typeof body?.to === "string" ? new Date(body.to) : null
+  const rangeFrom = requestedFrom && !Number.isNaN(requestedFrom.valueOf())
+    ? requestedFrom.toISOString()
+    : `${year}-01-01T00:00:00Z`
+  const rangeTo = requestedTo && !Number.isNaN(requestedTo.valueOf())
+    ? requestedTo.toISOString()
+    : `${year + 1}-01-01T00:00:00Z`
   const triggeredBy = (req.headers.get("x-user-id") ?? body?.triggeredBy ?? null) as string | null
 
   let runId: string | null = null
   try {
     runId = await startRun(supabase, triggeredBy)
-    const counters = await stageLeads(supabase, runId, year)
+    const counters = await stageLeads(supabase, runId, { from: rangeFrom, to: rangeTo })
     await supabase.rpc("run_kommo_full_refresh", { p_run_id: runId })
     await finalizeRun(supabase, runId, "succeeded", counters)
 

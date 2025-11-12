@@ -15,46 +15,149 @@ export const BOOKING_PRIORITIES: Record<BookingPriority, { label: string; classN
   low: { label: "Low", className: "bg-emerald-500/10 text-emerald-600" },
 }
 
-export const KANBAN_STATUS_META: Record<BookingStatus, {
+export type KommoPipelineStageId =
+  | "79790631"
+  | "91703923"
+  | "75440391"
+  | "75440395"
+  | "75440399"
+  | "76475495"
+  | "78486287"
+  | "75440643"
+  | "75440639"
+  | "142"
+  | "143"
+
+export type KommoPipelineStageMeta = {
+  id: KommoPipelineStageId
   label: string
   group: string
-  accent: string
-  accentBorder: string
   description: string
-}> = {
-  new: {
-    label: "New booking",
+  headerColor: string
+  borderColor: string
+  bookingStatus: BookingStatus
+}
+
+const KOMMO_STAGE_DEFINITIONS: KommoPipelineStageMeta[] = [
+  {
+    id: "79790631",
+    label: "Request bot answering",
     group: "Intake",
-    accent: "bg-slate-100",
-    accentBorder: "border-slate-200",
-    description: "Booking imported from Kommo or created manually.",
+    description: "Bot captured a new lead; waiting for first human response.",
+    headerColor: "#99ccff",
+    borderColor: "#6fa8dc",
+    bookingStatus: "new",
   },
-  preparation: {
-    label: "Vehicle preparation",
-    group: "Fleet",
-    accent: "bg-violet-100",
-    accentBorder: "border-violet-200",
-    description: "Detailing, paperwork, and driver assignment.",
+  {
+    id: "91703923",
+    label: "Follow up",
+    group: "Intake",
+    description: "Sales team is qualifying the request and confirming details.",
+    headerColor: "#99ccff",
+    borderColor: "#6fa8dc",
+    bookingStatus: "new",
   },
-  delivery: {
-    label: "Awaiting delivery",
-    group: "Fleet",
-    accent: "bg-indigo-100",
-    accentBorder: "border-indigo-200",
-    description: "Driver en route or waiting for client.",
+  {
+    id: "75440391",
+    label: "Confirmed bookings",
+    group: "Preparation",
+    description: "Documents and payments are confirmed; assign assets.",
+    headerColor: "#d6eaff",
+    borderColor: "#9cc3e4",
+    bookingStatus: "preparation",
   },
-  "in-rent": {
-    label: "In rental",
+  {
+    id: "75440395",
+    label: "Delivery within 24 hours",
+    group: "Delivery",
+    description: "Delivery window approaching; prepare drivers and vehicles.",
+    headerColor: "#fffeb2",
+    borderColor: "#d6d37a",
+    bookingStatus: "delivery",
+  },
+  {
+    id: "75440399",
+    label: "Car with Customers",
     group: "Live",
-    accent: "bg-blue-100",
-    accentBorder: "border-blue-200",
-    description: "Rental in progress; monitor SLA and payments.",
+    description: "Vehicle handed over; monitor trip progress and SLA.",
+    headerColor: "#fffd7f",
+    borderColor: "#d4c95a",
+    bookingStatus: "in-rent",
   },
-  settlement: {
-    label: "Return & settlement",
-    group: "Closing",
-    accent: "bg-emerald-100",
-    accentBorder: "border-emerald-200",
-    description: "Final inspection, fines, and deposit returns.",
+  {
+    id: "76475495",
+    label: "Pick up within 24 hours",
+    group: "Return",
+    description: "Plan pickup logistics and final instructions for the driver.",
+    headerColor: "#ebffb1",
+    borderColor: "#b5d67d",
+    bookingStatus: "delivery",
   },
+  {
+    id: "78486287",
+    label: "OBJECTIONS",
+    group: "Live",
+    description: "Client raised objections; coordinate resolution and next steps.",
+    headerColor: "#ebffb1",
+    borderColor: "#b5d67d",
+    bookingStatus: "preparation",
+  },
+  {
+    id: "75440643",
+    label: "Refund Deposit",
+    group: "Settlement",
+    description: "Deposit refund in progress; confirm inspections and charges.",
+    headerColor: "#deff81",
+    borderColor: "#a9d44c",
+    bookingStatus: "settlement",
+  },
+  {
+    id: "75440639",
+    label: "Deal is Closed",
+    group: "Settlement",
+    description: "All paperwork done; awaiting final approvals.",
+    headerColor: "#87f2c0",
+    borderColor: "#54c995",
+    bookingStatus: "settlement",
+  },
+  {
+    id: "142",
+    label: "Closed · won",
+    group: "Closed",
+    description: "Lead converted successfully; booking archived as won.",
+    headerColor: "#ccff66",
+    borderColor: "#97d433",
+    bookingStatus: "settlement",
+  },
+  {
+    id: "143",
+    label: "Closed · lost",
+    group: "Closed",
+    description: "Lead lost or cancelled; keep for reporting.",
+    headerColor: "#d5d8db",
+    borderColor: "#a6a9ac",
+    bookingStatus: "settlement",
+  },
+]
+
+export const KOMMO_PIPELINE_STAGE_META: Record<KommoPipelineStageId, KommoPipelineStageMeta> =
+  KOMMO_STAGE_DEFINITIONS.reduce((acc, stage) => {
+    acc[stage.id] = stage
+    return acc
+  }, {} as Record<KommoPipelineStageId, KommoPipelineStageMeta>)
+
+export const KOMMO_PIPELINE_STAGE_ORDER: KommoPipelineStageId[] = KOMMO_STAGE_DEFINITIONS.map(
+  (stage) => stage.id
+)
+
+type FallbackKommoStageMeta = Omit<KommoPipelineStageMeta, "id"> & { id: "fallback" }
+
+export const FALLBACK_KOMMO_STAGE_META: FallbackKommoStageMeta = {
+  id: "fallback",
+  label: "Unmapped stage",
+  group: "Other",
+  description: "Kommo returned an unknown stage; review lead in Kommo.",
+  headerColor: "#e5e7eb",
+  borderColor: "#cbd5f5",
+  bookingStatus: "settlement",
 }

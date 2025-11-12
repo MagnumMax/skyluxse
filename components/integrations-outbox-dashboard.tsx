@@ -1,6 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
+import Link from "next/link"
 
 import { cn } from "@/lib/utils"
 import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard-page-shell"
@@ -66,45 +67,38 @@ export type KommoImportRunRow = {
   error: string | null
 }
 
-export type KommoWebhookSummary = {
-  last_event_at: string | null
-  events_today: number
-  events_failed: number
-  last_status: string | null
-  last_status_id: string | null
-  last_status_label: string | null
-  hour_total_events: number
-  hour_failed_events: number
-  hour_last_event_at: string | null
+export type KommoWebhookEventRow = {
+  id: string
+  status: string
+  kommoStatusId: string | null
+  kommoStatusLabel: string | null
+  receivedAt: string | null
+  errorMessage: string | null
+  bookingId: string | null
+  bookingCode: string | null
+  bookingStatus: string | null
+  clientId: string | null
+  clientName: string | null
+  vehicleId: string | null
+  vehicleName: string | null
+  vehiclePlate: string | null
 }
 
 type IntegrationsOutboxDashboardProps = {
   outboxJobs: OutboxDashboardJob[]
   kommoRuns: KommoImportRunRow[]
-  kommoWebhookSummary: KommoWebhookSummary
+  kommoWebhookEvents: KommoWebhookEventRow[]
 }
 
 export function IntegrationsOutboxDashboard({
   outboxJobs,
   kommoRuns,
-  kommoWebhookSummary,
+  kommoWebhookEvents,
 }: IntegrationsOutboxDashboardProps) {
   const [statusFilter, setStatusFilter] = useState<(typeof statusOptions)[number]["value"]>("all")
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [lastRunId, setLastRunId] = useState<string | null>(kommoRuns[0]?.id ?? null)
   const { pushToast } = useToast()
-
-  const summary: KommoWebhookSummary = kommoWebhookSummary ?? {
-    last_event_at: null,
-    events_today: 0,
-    events_failed: 0,
-    last_status: null,
-    last_status_id: null,
-    last_status_label: null,
-    hour_total_events: 0,
-    hour_failed_events: 0,
-    hour_last_event_at: null,
-  }
 
   const filteredJobs = useMemo(() => {
     return outboxJobs.filter((job) =>
@@ -145,41 +139,90 @@ export function IntegrationsOutboxDashboard({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.35em] text-muted-foreground">Kommo webhooks</p>
-            <h2 className="text-2xl font-semibold tracking-tight">Live intake</h2>
+            <h2 className="text-2xl font-semibold tracking-tight">Latest intake</h2>
           </div>
         </div>
         <div className="mt-4 overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead className="text-left text-xs uppercase tracking-[0.2em] text-muted-foreground">
               <tr>
-                <th className="px-4 py-3">Metric</th>
-                <th className="px-4 py-3">Value</th>
-                <th className="px-4 py-3">Notes</th>
+                <th className="px-4 py-2">Booking</th>
+                <th className="px-4 py-2">Client</th>
+                <th className="px-4 py-2">Vehicle</th>
+                <th className="px-4 py-2">Stage</th>
+                <th className="px-4 py-2">Webhook</th>
+                <th className="px-4 py-2">Received</th>
+                <th className="px-4 py-2">Error</th>
               </tr>
             </thead>
             <tbody>
-              <tr className="border-t border-border/50">
-                <td className="px-4 py-3 font-medium text-foreground">Last event</td>
-                <td className="px-4 py-3">{formatDate(summary.last_event_at)}</td>
-                <td className="px-4 py-3 text-muted-foreground">{formatRelative(summary.last_event_at)}</td>
-              </tr>
-              <tr className="border-t border-border/50">
-                <td className="px-4 py-3 font-medium text-foreground">Last stage</td>
-                <td className="px-4 py-3">{summary.last_status_label ?? "—"}</td>
-                <td className="px-4 py-3 text-muted-foreground">Status: {summary.last_status ?? "processed"}</td>
-              </tr>
-              <tr className="border-t border-border/50">
-                <td className="px-4 py-3 font-medium text-foreground">Events today</td>
-                <td className="px-4 py-3">{summary.events_today}</td>
-                <td className="px-4 py-3 text-muted-foreground">Failed: {summary.events_failed}</td>
-              </tr>
-              <tr className="border-t border-border/50">
-                <td className="px-4 py-3 font-medium text-foreground">Last hour volume</td>
-                <td className="px-4 py-3">{summary.hour_total_events}</td>
-                <td className="px-4 py-3 text-muted-foreground">
-                  Failed: {summary.hour_failed_events} · Updated {formatRelative(summary.hour_last_event_at)}
-                </td>
-              </tr>
+              {kommoWebhookEvents.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="px-4 py-6 text-center text-xs text-muted-foreground">
+                    No Kommo webhooks captured yet.
+                  </td>
+                </tr>
+              ) : (
+                kommoWebhookEvents.map((event) => (
+                  <tr key={event.id} className="border-t border-border/50">
+                    <td className="px-4 py-3">
+                      {event.bookingId ? (
+                        <Link
+                          href={`/bookings/${event.bookingId}?view=exec`}
+                          className="font-semibold text-primary transition hover:underline"
+                        >
+                          {event.bookingCode ?? "View booking"}
+                        </Link>
+                      ) : (
+                        <p className="font-semibold text-foreground">{event.bookingCode ?? "—"}</p>
+                      )}
+                      <p className="text-xs text-muted-foreground">{event.bookingStatus ?? "Not linked"}</p>
+                    </td>
+                    <td className="px-4 py-3">
+                      {event.clientId ? (
+                        <Link
+                          href={`/clients/${event.clientId}?view=exec`}
+                          className="font-semibold text-primary transition hover:underline"
+                        >
+                          {event.clientName ?? "Open client"}
+                        </Link>
+                      ) : (
+                        <p className="font-semibold text-foreground">—</p>
+                      )}
+                      <p className="text-xs text-muted-foreground">
+                        {event.clientId ? "Client record" : "Not linked"}
+                      </p>
+                    </td>
+                    <td className="px-4 py-3">
+                      {event.vehicleId ? (
+                        <Link
+                          href={`/fleet/${event.vehicleId}?view=exec`}
+                          className="font-semibold text-primary transition hover:underline"
+                        >
+                          {event.vehicleName ?? event.vehiclePlate ?? "Open vehicle"}
+                        </Link>
+                      ) : (
+                        <p className="font-semibold text-foreground">—</p>
+                      )}
+                      <p className="text-xs text-muted-foreground">
+                        {event.vehiclePlate ?? (event.vehicleId ? "Assigned vehicle" : "No vehicle linked")}
+                      </p>
+                    </td>
+                    <td className="px-4 py-3">
+                      <p className="font-semibold text-foreground">{event.kommoStatusLabel ?? "—"}</p>
+                      <p className="text-xs text-muted-foreground">ID {event.kommoStatusId ?? "n/a"}</p>
+                    </td>
+                    <td className="px-4 py-3">
+                      <StatusPill status={event.status} />
+                    </td>
+                    <td className="px-4 py-3">
+                      <div>{formatDate(event.receivedAt)}</div>
+                      <div className="text-xs text-muted-foreground">{formatRelative(event.receivedAt)}</div>
+                    </td>
+                    <td className="px-4 py-3 text-xs text-rose-600">{event.errorMessage ?? "—"}</td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -435,7 +478,10 @@ function StatusPill({ status }: { status: string }) {
         return "bg-amber-100 text-amber-800"
       case "completed":
       case "succeeded":
+      case "processed":
         return "bg-emerald-100 text-emerald-700"
+      case "skipped":
+        return "bg-slate-100 text-slate-700"
       default:
         return "bg-muted text-muted-foreground"
     }

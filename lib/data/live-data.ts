@@ -1,4 +1,5 @@
 import { cache } from "react"
+import { unstable_noStore as noStore } from "next/cache"
 
 import type {
   Booking,
@@ -19,34 +20,75 @@ type ClientRow = {
   name: string | null
   phone: string | null
   email: string | null
+  kommo_contact_id: string | null
   residency_country: string | null
   tier: string | null
   segment: string | null
+  gender: string | null
   outstanding_amount: number | null
-  lifetime_value: number | null
   nps_score: number | null
   preferred_channels: string[] | null
   preferred_language: string | null
   timezone: string | null
   created_at: string | null
+  updated_at: string | null
+  created_by: string | null
+  updated_by: string | null
 }
+
+const CLIENT_SELECT_COLUMNS = [
+  "id",
+  "name",
+  "phone",
+  "email",
+  "kommo_contact_id",
+  "residency_country",
+  "tier",
+  "segment",
+  "gender",
+  "outstanding_amount",
+  "nps_score",
+  "preferred_channels",
+  "preferred_language",
+  "timezone",
+  "created_by",
+  "updated_by",
+  "created_at",
+  "updated_at",
+].join(", ")
 
 type VehicleRow = {
   id: string
   external_ref: string | null
   name: string | null
+  make: string | null
+  model: string | null
+  vin: string | null
   plate_number: string | null
   status: string | null
   class: string | null
   body_style: string | null
   segment: string | null
+  interior_color: string | null
+  seating_capacity: number | null
   mileage_km: number | null
   utilization_pct: number | null
   revenue_ytd: number | null
   model_year: number | null
   exterior_color: string | null
+  engine_displacement_l: number | null
+  power_hp: number | null
+  cylinders: number | null
+  zero_to_hundred_sec: number | null
+  transmission: string | null
+  kommo_vehicle_id: string | null
   updated_at: string | null
   created_at: string | null
+  created_by: string | null
+  updated_by: string | null
+  health_score?: number | null
+  location?: string | null
+  image_url?: string | null
 }
 
 type BookingRow = {
@@ -66,6 +108,7 @@ type BookingRow = {
   deposit_amount: number | null
   created_at: string | null
   updated_at: string | null
+  created_by: string | null
   kommo_status_id: number | null
 }
 
@@ -164,40 +207,106 @@ const DEFAULT_TIMEZONE = "Asia/Dubai"
 const DEFAULT_CHANNEL = "Manual"
 const AED = "AED"
 const SUPABASE_PUBLIC_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL
+const KOMMO_BASE_URL = process.env.NEXT_PUBLIC_KOMMO_BASE_URL || process.env.KOMMO_BASE_URL || ""
 
 const fetchClientRows = cache(async (): Promise<ClientRow[]> => {
   const { data, error } = await serviceClient
     .from("clients")
-    .select(
-      "id, name, phone, email, residency_country, tier, segment, outstanding_amount, lifetime_value, nps_score, preferred_channels, preferred_language, timezone, created_at"
-    )
+    .select(CLIENT_SELECT_COLUMNS)
     .order("name", { ascending: true })
     .limit(500)
   if (error) {
     throw new Error(`[supabase] Failed to load clients: ${error.message}`)
   }
-  return data ?? []
+  return coerceRows<ClientRow>(data)
 })
+
+async function fetchClientRowById(clientId: string): Promise<ClientRow | null> {
+  const { data, error } = await serviceClient.from("clients").select(CLIENT_SELECT_COLUMNS).eq("id", clientId).maybeSingle()
+  if (error) {
+    if (isMissingTableError(error, "clients")) {
+      return null
+    }
+    throw new Error(`[supabase] Failed to load client ${clientId}: ${error.message}`)
+  }
+  return coerceRow<ClientRow>(data)
+}
+
+const VEHICLE_SELECT_COLUMNS = [
+  "id",
+  "external_ref",
+  "name",
+  "make",
+  "model",
+  "vin",
+  "plate_number",
+  "status",
+  "class",
+  "body_style",
+  "segment",
+  "interior_color",
+  "seating_capacity",
+  "mileage_km",
+  "utilization_pct",
+  "revenue_ytd",
+  "model_year",
+  "exterior_color",
+  "engine_displacement_l",
+  "power_hp",
+  "cylinders",
+  "zero_to_hundred_sec",
+  "transmission",
+  "health_score",
+  "location",
+  "image_url",
+  "kommo_vehicle_id",
+  "created_by",
+  "updated_by",
+  "updated_at",
+  "created_at",
+].join(", ")
 
 const fetchVehicleRows = cache(async (): Promise<VehicleRow[]> => {
   const { data, error } = await serviceClient
     .from("vehicles")
-    .select(
-      "id, external_ref, name, plate_number, status, class, body_style, segment, mileage_km, utilization_pct, revenue_ytd, model_year, exterior_color, updated_at, created_at"
-    )
+    .select(VEHICLE_SELECT_COLUMNS)
     .order("name", { ascending: true })
     .limit(500)
   if (error) {
     throw new Error(`[supabase] Failed to load vehicles: ${error.message}`)
   }
-  return data ?? []
+  return coerceRows<VehicleRow>(data)
 })
+
+async function fetchVehicleRowsByIds(vehicleIds: string[]): Promise<VehicleRow[]> {
+  if (!vehicleIds.length) return []
+  const { data, error } = await serviceClient
+    .from("vehicles")
+    .select(VEHICLE_SELECT_COLUMNS)
+    .in("id", vehicleIds)
+  if (error) {
+    throw new Error(`[supabase] Failed to load vehicles by id: ${error.message}`)
+  }
+  return coerceRows<VehicleRow>(data)
+}
+
+async function fetchVehicleRowById(vehicleId: string): Promise<VehicleRow | null> {
+  const { data, error } = await serviceClient
+    .from("vehicles")
+    .select(VEHICLE_SELECT_COLUMNS)
+    .eq("id", vehicleId)
+    .maybeSingle()
+  if (error) {
+    throw new Error(`[supabase] Failed to load vehicle ${vehicleId}: ${error.message}`)
+  }
+  return coerceRow<VehicleRow>(data)
+}
 
 const fetchBookingRows = cache(async (): Promise<BookingRow[]> => {
   const { data, error } = await serviceClient
     .from("bookings")
     .select(
-      "id, external_code, client_id, vehicle_id, driver_id, owner_id, status, booking_type, channel, priority, start_at, end_at, total_amount, deposit_amount, created_at, updated_at, kommo_status_id"
+      "id, external_code, client_id, vehicle_id, driver_id, owner_id, status, booking_type, channel, priority, start_at, end_at, total_amount, deposit_amount, created_at, updated_at, created_by, kommo_status_id"
     )
     .order("start_at", { ascending: false })
     .limit(500)
@@ -206,6 +315,20 @@ const fetchBookingRows = cache(async (): Promise<BookingRow[]> => {
   }
   return data ?? []
 })
+
+async function fetchBookingRowsByClientId(clientId: string): Promise<BookingRow[]> {
+  const { data, error } = await serviceClient
+    .from("bookings")
+    .select(
+      "id, external_code, client_id, vehicle_id, driver_id, owner_id, status, booking_type, channel, priority, start_at, end_at, total_amount, deposit_amount, created_at, updated_at, created_by, kommo_status_id"
+    )
+    .eq("client_id", clientId)
+    .order("start_at", { ascending: false })
+  if (error) {
+    throw new Error(`[supabase] Failed to load bookings for client ${clientId}: ${error.message}`)
+  }
+  return data ?? []
+}
 
 const fetchBookingInvoiceRows = cache(async (): Promise<BookingInvoiceRow[]> => {
   const { data, error } = await serviceClient
@@ -218,6 +341,19 @@ const fetchBookingInvoiceRows = cache(async (): Promise<BookingInvoiceRow[]> => 
   }
   return data ?? []
 })
+
+async function fetchBookingInvoiceRowsByBookingIds(bookingIds: string[]): Promise<BookingInvoiceRow[]> {
+  if (!bookingIds.length) return []
+  const { data, error } = await serviceClient
+    .from("booking_invoices")
+    .select("id, booking_id, label, invoice_type, amount, status, issued_at, due_at")
+    .in("booking_id", bookingIds)
+    .order("issued_at", { ascending: false, nullsFirst: false })
+  if (error) {
+    throw new Error(`[supabase] Failed to load booking invoices for client: ${error.message}`)
+  }
+  return data ?? []
+}
 
 const fetchDriverProfileRows = cache(async (): Promise<DriverProfileRow[]> => {
   const { data, error } = await serviceClient
@@ -254,6 +390,22 @@ const fetchDocumentLinkRows = cache(async (): Promise<DocumentLinkRow[]> => {
   return rows.map(normalizeDocumentLinkRow)
 })
 
+async function fetchDocumentLinkRowsByClientId(clientId: string): Promise<DocumentLinkRow[]> {
+  const { data, error } = await serviceClient
+    .from("document_links")
+    .select("id, document_id, scope, entity_id, metadata, document:documents(id, bucket, storage_path, file_name, mime_type, created_at)")
+    .eq("entity_id", clientId)
+    .in("scope", ["client"])
+  if (error) {
+    if (isMissingTableError(error, "document_links")) {
+      return []
+    }
+    throw new Error(`[supabase] Failed to load document links for client ${clientId}: ${error.message}`)
+  }
+  const rows = (data ?? []) as RawDocumentLinkRow[]
+  return rows.map(normalizeDocumentLinkRow)
+}
+
 const fetchClientNotificationRows = cache(async (): Promise<ClientNotificationRow[]> => {
   const { data, error } = await serviceClient
     .from("client_notifications")
@@ -268,6 +420,21 @@ const fetchClientNotificationRows = cache(async (): Promise<ClientNotificationRo
   }
   return data ?? []
 })
+
+async function fetchClientNotificationRowsByClientId(clientId: string): Promise<ClientNotificationRow[]> {
+  const { data, error } = await serviceClient
+    .from("client_notifications")
+    .select("id, client_id, channel, subject, content, sent_at, status, created_at")
+    .eq("client_id", clientId)
+    .order("sent_at", { ascending: false, nullsFirst: false })
+  if (error) {
+    if (isMissingTableError(error, "client_notifications")) {
+      return []
+    }
+    throw new Error(`[supabase] Failed to load notifications for client ${clientId}: ${error.message}`)
+  }
+  return data ?? []
+}
 
 const fetchCalendarEventRows = cache(async (): Promise<CalendarEventRow[]> => {
   const { data, error } = await serviceClient
@@ -297,13 +464,14 @@ const fetchMaintenanceJobRows = cache(async (): Promise<MaintenanceJobRow[]> => 
 })
 
 export const getLiveClients = cache(async (): Promise<Client[]> => {
-  const [clientRows, bookingRows, vehicleRows, invoiceRows, documentLinks, notificationRows] = await Promise.all([
+  const [clientRows, bookingRows, vehicleRows, invoiceRows, documentLinks, notificationRows, staffRows] = await Promise.all([
     fetchClientRows(),
     fetchBookingRows(),
     fetchVehicleRows(),
     fetchBookingInvoiceRows(),
     fetchDocumentLinkRows(),
     fetchClientNotificationRows(),
+    fetchStaffRows(),
   ])
 
   const vehiclesById = new Map<string, VehicleRow>()
@@ -350,9 +518,14 @@ export const getLiveClients = cache(async (): Promise<Client[]> => {
     notificationsByClient.set(row.client_id, list)
   })
 
+  const staffById = new Map<string, StaffRow>()
+  staffRows.forEach((staff) => staffById.set(staff.id, staff))
+
   return clientRows.map((row) => {
-    const rentals = buildClientRentals(bookingsByClient.get(row.id) ?? [], vehiclesById)
-    const turnover = rentals.reduce((sum, rental) => sum + (rental.totalAmount ?? 0), 0)
+    const clientBookings = bookingsByClient.get(row.id) ?? []
+    const rentals = buildClientRentals(clientBookings, vehiclesById, 4)
+    const lifetimeValue = clientBookings.reduce((sum, booking) => sum + numberOrZero(booking.total_amount), 0)
+    const lastBookingDate = getLastBookingDate(clientBookings)
     return {
       id: row.id,
       name: row.name ?? "Unnamed client",
@@ -361,9 +534,16 @@ export const getLiveClients = cache(async (): Promise<Client[]> => {
       status: formatTier(row.tier),
       segment: formatSegment(row.segment),
       residencyCountry: row.residency_country ?? undefined,
+      gender: formatGender(row.gender),
+      kommoContactId: row.kommo_contact_id ?? undefined,
+      kommoContactUrl: buildKommoContactUrl(row.kommo_contact_id),
       outstanding: numberOrZero(row.outstanding_amount),
-      turnover: turnover || numberOrZero(row.lifetime_value),
-      lifetimeValue: numberOrZero(row.lifetime_value) || turnover,
+      lifetimeValue,
+      createdAt: row.created_at ?? undefined,
+      createdBy: deriveClientAuditActor(row, staffById, "created"),
+      updatedAt: row.updated_at ?? undefined,
+      updatedBy: deriveClientAuditActor(row, staffById, "updated"),
+      lastBookingDate,
       nps: row.nps_score ?? 0,
       documents: (documentsByClient.get(row.id) ?? []).slice(0, 5),
       rentals,
@@ -378,9 +558,81 @@ export const getLiveClients = cache(async (): Promise<Client[]> => {
   })
 })
 
+export const getLiveClientByIdFromDb = cache(async (clientId: string): Promise<Client | null> => {
+  const clientRow = await fetchClientRowById(clientId)
+  if (!clientRow) {
+    return null
+  }
+
+  const bookingRows = await fetchBookingRowsByClientId(clientId)
+  const bookingIds = bookingRows.map((booking) => booking.id)
+  const vehicleIds = Array.from(
+    new Set(bookingRows.map((booking) => booking.vehicle_id).filter((id): id is string => Boolean(id)))
+  )
+
+  const [vehicleRows, invoiceRows, documentRows, notificationRows, staffRows] = await Promise.all([
+    fetchVehicleRowsByIds(vehicleIds),
+    fetchBookingInvoiceRowsByBookingIds(bookingIds),
+    fetchDocumentLinkRowsByClientId(clientId),
+    fetchClientNotificationRowsByClientId(clientId),
+    fetchStaffRows(),
+  ])
+
+  const vehiclesById = new Map<string, VehicleRow>()
+  vehicleRows.forEach((vehicle) => {
+    if (vehicle.id) {
+      vehiclesById.set(vehicle.id, vehicle)
+    }
+  })
+
+  const rentals = buildClientRentals(bookingRows, vehiclesById, undefined)
+  const lifetimeValue = bookingRows.reduce((sum, booking) => sum + numberOrZero(booking.total_amount), 0)
+  const lastBookingDate = getLastBookingDate(bookingRows)
+  const documents = documentRows.map(mapDocumentLinkRow).filter(Boolean) as ClientDocument[]
+  const payments = invoiceRows.map(mapInvoiceToPayment).sort((a, b) => (b.date ?? "").localeCompare(a.date ?? ""))
+  const notifications = notificationRows.map(mapNotificationRow).sort((a, b) => (b.date ?? "").localeCompare(a.date ?? ""))
+
+  const staffById = new Map<string, StaffRow>()
+  staffRows.forEach((staff) => staffById.set(staff.id, staff))
+
+  return {
+    id: clientRow.id,
+    name: clientRow.name ?? "Unnamed client",
+    phone: clientRow.phone ?? "—",
+    email: clientRow.email ?? "—",
+    status: formatTier(clientRow.tier),
+    segment: formatSegment(clientRow.segment),
+    residencyCountry: clientRow.residency_country ?? undefined,
+    gender: formatGender(clientRow.gender),
+    kommoContactId: clientRow.kommo_contact_id ?? undefined,
+    kommoContactUrl: buildKommoContactUrl(clientRow.kommo_contact_id),
+    outstanding: numberOrZero(clientRow.outstanding_amount),
+    lifetimeValue,
+    createdAt: clientRow.created_at ?? undefined,
+    createdBy: deriveClientAuditActor(clientRow, staffById, "created"),
+    updatedAt: clientRow.updated_at ?? undefined,
+    updatedBy: deriveClientAuditActor(clientRow, staffById, "updated"),
+    lastBookingDate,
+    nps: clientRow.nps_score ?? 0,
+    documents,
+    rentals,
+    payments,
+    notifications,
+    preferences: {
+      notifications: buildPreferredChannels(clientRow.preferred_channels),
+      language: clientRow.preferred_language ?? "en",
+      timezone: clientRow.timezone ?? DEFAULT_TIMEZONE,
+    },
+  }
+})
+
 export const getLiveClientById = cache(async (clientId: string): Promise<Client | null> => {
+  const client = await getLiveClientByIdFromDb(clientId)
+  if (client) {
+    return client
+  }
   const clients = await getLiveClients()
-  return clients.find((client) => String(client.id) === clientId) ?? null
+  return clients.find((item) => String(item.id) === clientId) ?? null
 })
 
 export const getClientNotifications = cache(async (clientId: string): Promise<ClientNotification[]> => {
@@ -420,14 +672,23 @@ export const getDocumentRecordById = cache(async (documentId: string): Promise<D
 })
 
 export const getLiveFleetVehicles = cache(async (): Promise<FleetCar[]> => {
-  const rows = await fetchVehicleRows()
-  return rows.map(mapVehicleRow)
+  const [rows, staffRows] = await Promise.all([fetchVehicleRows(), fetchStaffRows()])
+  const staffById = new Map<string, StaffRow>()
+  staffRows.forEach((staff) => staffById.set(staff.id, staff))
+  return rows.map((row) => mapVehicleRow(row, { staffById }))
 })
 
-export const getLiveFleetVehicleById = cache(async (vehicleId: string): Promise<FleetCar | null> => {
-  const vehicles = await getLiveFleetVehicles()
-  return vehicles.find((vehicle) => String(vehicle.id) === vehicleId) ?? null
-})
+export async function getLiveFleetVehicleById(vehicleId: string): Promise<FleetCar | null> {
+  noStore()
+  if (!vehicleId) {
+    return null
+  }
+  const [row, staffRows] = await Promise.all([fetchVehicleRowById(vehicleId), fetchStaffRows()])
+  if (!row) return null
+  const staffById = new Map<string, StaffRow>()
+  staffRows.forEach((staff) => staffById.set(staff.id, staff))
+  return mapVehicleRow(row, { staffById })
+}
 
 export const getLiveBookings = cache(async (): Promise<Booking[]> => {
   const [bookingRows, clientRows, vehicleRows, invoiceRows, staffRows] = await Promise.all([
@@ -474,7 +735,7 @@ export const getLiveDrivers = cache(async (): Promise<Driver[]> => {
   }))
 })
 
-export const getFleetCalendarData = cache(async (): Promise<{ vehicles: FleetCar[]; events: CalendarEvent[] }> => {
+export const getFleetCalendarData = cache(async (): Promise<{ vehicles: FleetCar[]; bookings: Booking[]; events: CalendarEvent[] }> => {
   const [vehicles, bookings, calendarRows, maintenanceRows] = await Promise.all([
     getLiveFleetVehicles(),
     getLiveBookings(),
@@ -482,17 +743,25 @@ export const getFleetCalendarData = cache(async (): Promise<{ vehicles: FleetCar
     fetchMaintenanceJobRows(),
   ])
   const events = buildFleetCalendarEvents({ vehicles, bookings, calendarRows, maintenanceRows })
-  return { vehicles, events }
+  return { vehicles, bookings, events }
 })
 
-function mapVehicleRow(row: VehicleRow): FleetCar {
+function mapVehicleRow(row: VehicleRow, options?: { staffById?: Map<string, StaffRow> }): FleetCar {
   const utilization = normalizeRatio(row.utilization_pct)
   const updatedAt = row.updated_at ?? row.created_at ?? new Date().toISOString()
   const nextServiceDate = new Date(updatedAt)
   nextServiceDate.setDate(nextServiceDate.getDate() + 45)
+  const health = row.health_score != null ? normalizeRatio(row.health_score) : utilization || 0.75
+  const location = row.location ?? "SkyLuxse HQ"
+  const staffById = options?.staffById
+  const createdBy = resolveStaffActorById(staffById, row.created_by) ?? (row.kommo_vehicle_id ? "Kommo import" : undefined)
+  const updatedBy = resolveStaffActorById(staffById, row.updated_by) ?? createdBy
   return {
     id: row.id,
     name: row.name ?? "Unnamed vehicle",
+    make: row.make ?? row.name?.split(" ")[0] ?? "—",
+    model: row.model ?? row.name ?? undefined,
+    vin: row.vin ?? undefined,
     plate: row.plate_number ?? "—",
     status: mapVehicleStatus(row.status),
     class: row.class ?? "Class",
@@ -500,21 +769,36 @@ function mapVehicleRow(row: VehicleRow): FleetCar {
     segment: row.segment ?? "Segment",
     color: row.exterior_color ?? "Black",
     year: row.model_year ?? new Date(updatedAt).getFullYear(),
+    seatingCapacity: row.seating_capacity ?? undefined,
     mileage: row.mileage_km ?? 0,
     utilization,
     revenueYTD: numberOrZero(row.revenue_ytd),
+    engineDisplacementL: row.engine_displacement_l ?? undefined,
+    powerHp: row.power_hp ?? undefined,
+    zeroToHundredSec: row.zero_to_hundred_sec ?? undefined,
+    transmission: row.transmission ?? undefined,
+    interiorColor: row.interior_color ?? undefined,
+    cylinders: row.cylinders ?? undefined,
     insuranceExpiry: undefined,
     mulkiyaExpiry: undefined,
-    location: "SkyLuxse HQ",
+    location,
     serviceStatus: {
       label: "Fleet health",
-      health: utilization || 0.75,
+      health,
       lastService: updatedAt,
       nextService: nextServiceDate.toISOString(),
       mileageToService: Math.max(0, 10000 - ((row.mileage_km ?? 0) % 10000)),
     },
     documents: [],
     reminders: [],
+    documentGallery: [],
+    maintenanceHistory: [],
+    imageUrl: row.image_url ?? undefined,
+    kommoVehicleId: row.kommo_vehicle_id ?? undefined,
+    createdAt: row.created_at ?? undefined,
+    updatedAt: row.updated_at ?? undefined,
+    createdBy,
+    updatedBy,
   }
 }
 
@@ -533,6 +817,8 @@ function mapBookingRow(
   const vehicle = row.vehicle_id ? context.vehiclesById.get(row.vehicle_id) : null
   const owner = row.owner_id ? context.staffById.get(row.owner_id) : null
   const invoices = context.invoicesByBooking.get(row.id) ?? []
+  const createdBy = resolveAuditActor(row.created_by, owner?.full_name)
+  const updatedBy = resolveAuditActor(undefined, owner?.full_name)
   return {
     id: row.id,
     code: row.external_code ?? formatFallbackCode(row.id),
@@ -583,6 +869,10 @@ function mapBookingRow(
     history: [],
     extensions: [],
     kommoStatusId: row.kommo_status_id ?? undefined,
+    createdAt: row.created_at ?? undefined,
+    updatedAt: row.updated_at ?? undefined,
+    createdBy,
+    updatedBy,
   }
 }
 
@@ -609,10 +899,21 @@ function mapInvoiceToPayment(row: BookingInvoiceRow): ClientPayment {
   }
 }
 
-function buildClientRentals(bookings: BookingRow[], vehiclesById: Map<string, VehicleRow>): ClientRental[] {
-  return bookings
-    .sort((a, b) => (b.start_at ?? "").localeCompare(a.start_at ?? ""))
-    .slice(0, 4)
+function getLastBookingDate(bookings: BookingRow[]): string | undefined {
+  const latest = bookings.reduce((max, booking) => {
+    const reference = booking.start_at ?? booking.end_at ?? booking.created_at ?? booking.updated_at ?? null
+    if (!reference) return max
+    const timestamp = Date.parse(reference)
+    if (Number.isNaN(timestamp)) return max
+    return Math.max(max, timestamp)
+  }, 0)
+  return latest > 0 ? new Date(latest).toISOString() : undefined
+}
+
+function buildClientRentals(bookings: BookingRow[], vehiclesById: Map<string, VehicleRow>, limit?: number): ClientRental[] {
+  const sorted = bookings.sort((a, b) => (b.start_at ?? "").localeCompare(a.start_at ?? ""))
+  const subset = typeof limit === "number" ? sorted.slice(0, limit) : sorted
+  return subset
     .map((booking) => {
       const vehicle = booking.vehicle_id ? vehiclesById.get(booking.vehicle_id) : null
       const start = booking.start_at ?? new Date().toISOString()
@@ -693,6 +994,24 @@ function mapVehicleStatus(value: string | null): FleetCar["status"] {
   }
 }
 
+function deriveClientAuditActor(row: ClientRow, staffById: Map<string, StaffRow> | undefined, kind: "created" | "updated"): string | undefined {
+  const staffId = kind === "created" ? row.created_by : row.updated_by
+  const staffName = resolveStaffActorById(staffById, staffId)
+  if (staffName) {
+    return staffName
+  }
+  if (kind === "updated") {
+    const createdFallback = resolveStaffActorById(staffById, row.created_by)
+    if (createdFallback) {
+      return createdFallback
+    }
+  }
+  if (row.kommo_contact_id) {
+    return "Kommo import"
+  }
+  return undefined
+}
+
 function formatTier(value: string | null): string {
   const tier = (value ?? "vip").toLowerCase()
   if (tier === "vip") return "VIP"
@@ -701,8 +1020,30 @@ function formatTier(value: string | null): string {
   return titleCase(value) || "VIP"
 }
 
+function resolveAuditActor(primary?: string | null, fallback?: string | null): string | undefined {
+  const value = primary ?? fallback
+  if (!value) return undefined
+  return titleCase(value)
+}
+
+function resolveStaffActorById(map: Map<string, StaffRow> | undefined, staffId?: string | null): string | undefined {
+  if (!staffId) return undefined
+  const record = map?.get(staffId)
+  const name = record?.full_name?.trim()
+  return name && name.length ? name : undefined
+}
+
 function formatSegment(value: string | null): string {
-  return titleCase(value) || "General"
+  return (value ?? "general").toLowerCase()
+}
+
+function formatGender(value: string | null): string | undefined {
+  if (!value) return undefined
+  const normalized = value.trim().toLowerCase()
+  if (!normalized) return undefined
+  if (normalized === "male") return "Male"
+  if (normalized === "female") return "Female"
+  return titleCase(value)
 }
 
 function buildPreferredChannels(values: string[] | null): string[] {
@@ -713,6 +1054,28 @@ function buildPreferredChannels(values: string[] | null): string[] {
 function numberOrZero(value: number | string | null | undefined): number {
   const parsed = Number(value)
   return Number.isFinite(parsed) ? parsed : 0
+}
+
+function buildKommoContactUrl(contactId?: string | null): string | undefined {
+  if (!contactId || !KOMMO_BASE_URL) return undefined
+  try {
+    const base = new URL(KOMMO_BASE_URL)
+    const normalizedPath = base.pathname.endsWith("/") ? base.pathname.slice(0, -1) : base.pathname
+    base.pathname = `${normalizedPath}/contacts/detail/${contactId}`
+    base.search = ""
+    base.hash = ""
+    return base.toString()
+  } catch {
+    return undefined
+  }
+}
+
+function coerceRows<T>(data: unknown[] | null): T[] {
+  return (data ?? []) as T[]
+}
+
+function coerceRow<T>(data: unknown | null): T | null {
+  return data ? (data as T) : null
 }
 
 function normalizeRatio(value: number | null): number {
@@ -766,7 +1129,7 @@ function mapNotificationRow(row: ClientNotificationRow): ClientNotification {
   }
 }
 
-function buildStoragePublicUrl(bucket?: string | null, path?: string | null): string | undefined {
+export function buildStoragePublicUrl(bucket?: string | null, path?: string | null): string | undefined {
   if (!SUPABASE_PUBLIC_URL || !bucket || !path) return undefined
   const normalizedPath = path.replace(/^\/+/, "")
   return `${SUPABASE_PUBLIC_URL}/storage/v1/object/public/${bucket}/${normalizedPath}`
@@ -875,7 +1238,7 @@ async function resolveDocumentEntity(scope: string | null | undefined, entityId:
         return {
           type: "Client",
           label: data?.name ?? "Client",
-          link: `/sales/clients/${entityId}`,
+          link: `/clients/${entityId}`,
         }
       }
       case "vehicle": {
@@ -887,7 +1250,7 @@ async function resolveDocumentEntity(scope: string | null | undefined, entityId:
         return {
           type: "Vehicle",
           label: data?.name ?? "Vehicle",
-          link: `/operations/fleet/${entityId}`,
+          link: `/fleet/${entityId}`,
         }
       }
       case "booking": {
@@ -900,7 +1263,7 @@ async function resolveDocumentEntity(scope: string | null | undefined, entityId:
         return {
           type: "Booking",
           label,
-          link: `/operations/bookings/${entityId}`,
+          link: `/bookings/${entityId}?view=operations`,
         }
       }
       case "task": {
@@ -912,7 +1275,7 @@ async function resolveDocumentEntity(scope: string | null | undefined, entityId:
         return {
           type: "Task",
           label: data?.title ?? "Task",
-          link: `/operations/tasks/${entityId}`,
+          link: `/tasks/${entityId}`,
         }
       }
       case "lead": {

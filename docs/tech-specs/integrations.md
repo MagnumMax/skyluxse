@@ -34,7 +34,7 @@ Kommo Webhook --> Supabase Edge Function (import-kommo)
   1. Validate HMAC/secret to ensure payload authenticity.
   2. Upsert client: match by `kommo_contact_id` or email; update profile data (`clients.kommo_contact_id`).
   3. Resolve vehicle: extract `kommo_vehicle_id` from the Kommo dropdown field using env vars `KOMMO_VEHICLE_FIELD_ID` / `KOMMO_VEHICLE_FIELD_CODE`, then lookup `vehicles.kommo_vehicle_id` to map bookings and calendar events. Payload logs and responses now include `{ kommoVehicleId, vehicleId }` for observability.
-  4. Ignore неподтверждённые статусы (`status_id` = 79790631, 91703923, 143). Такие payload’ы помечаются как `ignored_pending_status`, отвечают 202 и не дойдут до `bookings`/календаря, чтобы графики не засорялись бот-ответами или закрытыми-лидами; для всех остальных стадий значение сохраняется в `bookings.kommo_status_id`.
+  4. Принимаем только подтверждённые стадии Kommo: `75440391`, `75440395`, `75440399`, `76475495`, `78486287`, `75440643`, `75440639`, `142`. Payload’ы с другими статусами (включая `79790631`, `91703923`, `143`) помечаются `ignored_pending_status`, отвечают 202 и не дойдут до `bookings`/календаря; при этом их `status_id` продолжает записываться в `bookings.kommo_status_id` для аудита.
   4. Upsert booking:
      - Find by `source_payload_id` or `external_code`.
      - If new, insert into `bookings` with `channel = 'Kommo'`, `created_by = 'system-kommo'`, `owner_id` resolved via mapping table (Kommo manager -> staff_accounts).

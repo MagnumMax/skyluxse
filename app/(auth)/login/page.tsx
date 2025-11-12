@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
 import { LoginForm } from "./login-form"
 
@@ -17,8 +17,8 @@ const roles = [
 ] as const
 
 const roleRoutes = {
-  operations: "/operations/fleet-calendar",
-  sales: "/sales/fleet-calendar",
+  operations: "/fleet-calendar",
+  sales: "/fleet-calendar",
   ceo: "/exec/dashboard",
   driver: "/driver/tasks",
 } satisfies Record<(typeof roles)[number]["value"], string>
@@ -36,15 +36,12 @@ const heroGradient =
 
 export default function LoginPage() {
   return (
-    <div className="min-h-screen bg-background px-6 py-12">
+    <div className="flex min-h-screen items-center justify-center bg-background px-6 py-12">
       <div className="mx-auto grid w-full max-w-5xl gap-8 lg:grid-cols-[1.65fr_1.35fr]">
         <Card className="rounded-[28px] border border-border/70 shadow-[0_20px_60px_rgba(15,23,42,0.08)]">
           <CardHeader className="space-y-3">
             <p className="text-xs font-semibold uppercase tracking-[0.32em] text-muted-foreground">SkyLuxse ERP</p>
             <CardTitle className="text-3xl font-semibold tracking-tight text-foreground">Добро пожаловать</CardTitle>
-            <CardDescription className="text-base text-muted-foreground">
-              Выберите роль и подтвердите вход, чтобы продолжить работу с автопарком.
-            </CardDescription>
           </CardHeader>
           <CardContent>
             <LoginForm roles={roles} roleRoutes={roleRoutes} />
@@ -71,20 +68,6 @@ export default function LoginPage() {
               </li>
             ))}
           </ul>
-          <div className="mt-8 grid gap-4 text-sm text-slate-200 sm:grid-cols-3">
-            <div>
-              <p className="text-xs uppercase tracking-[0.2em] text-indigo-200">SLA events</p>
-              <p className="text-base font-semibold text-white">24/7 monitored</p>
-            </div>
-            <div>
-              <p className="text-xs uppercase tracking-[0.2em] text-indigo-200">Fleet uptime</p>
-              <p className="text-base font-semibold text-white">98%</p>
-            </div>
-            <div>
-              <p className="text-xs uppercase tracking-[0.2em] text-indigo-200">Teams</p>
-              <p className="text-base font-semibold text-white">Ops · Sales · Drivers</p>
-            </div>
-          </div>
         </section>
       </div>
     </div>

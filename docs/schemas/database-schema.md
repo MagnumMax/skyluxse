@@ -68,19 +68,33 @@ This schema proposal is derived from the production requirements captured in `do
 | phone | text | |
 | email | citext | |
 | residency_country | text | ISO code. |
-| tier | client_tier enum | `vip`, `gold`, `silver`. |
-| segment | client_segment enum | `resident`, `tourist`, `business_traveller`, `special`. |
+| tier | client_tier enum | Автопересчёт от LTV (сумма `bookings.total_amount`): `VIP ≥ 50k`, `Gold ≥ 35k`, `Silver < 15k`. |
+| segment | client_segment enum | Автосегментация по давности последнего букинга и LTV: `premier_loyalist`, `dormant_vip`, `growth_gold`, `at_risk`, `new_rising`, `high_value_dormant`, `general`. |
+| gender | text | Normalised value (`Male`, `Female`, `Non-binary`, etc.). |
 | birth_date | date | Optional. |
 | outstanding_amount | numeric(12,2) | Live balance. |
-| lifetime_value | numeric(12,2) | Summed revenue. |
 | nps_score | smallint | Latest NPS rating. |
 | preferred_channels | text[] | e.g., `{email,sms}`. |
 | preferred_language | text | `ru`, `en`, `ar`. |
 | timezone | text | |
+| created_by | uuid fk staff_accounts | Nullable; операции/боты могут оставлять `NULL`. |
+| updated_by | uuid fk staff_accounts | Nullable; фиксирует последнего редактора. |
+| created_at | timestamptz | Default `timezone('utc', now())`. |
+| updated_at | timestamptz | Updated via `set_updated_at()`. |
 
 **client_notifications** keep the historical feed currently mocked under each client (`NT-101` etc.). Columns: `id`, `client_id`, `channel`, `subject`, `content`, `sent_at`, `status`, `meta jsonb`.
 
 **client_preferences** holds structured boolean flags (marketing opt-in, VIP concierge assignment) separate from the high-churn `clients` row.
+
+> `tier` и `segment` пересчитываются функцией `refresh_client_tier_from_booking()` после любого изменения в `bookings`. LTV считается как сумма всех `bookings.total_amount` по клиенту, `tier` = `VIP ≥ 50k`, `Gold ≥ 35k`, `Silver < 15k`, а `segment` выбирается по правилам:
+> - `premier_loyalist`: VIP и букинг был ≤ 30 дней назад.
+> - `dormant_vip`: VIP, но букинг отсутствует > 60 дней.
+> - `growth_gold`: Gold, букинг ≤ 45 дней.
+> - `at_risk`: Gold/Silver, букинг > 90 дней.
+> - `new_rising`: Silver, букинг ≤ 30 дней, LTV < 15k.
+> - `high_value_dormant`: LTV ≥ 35k и букинг > 45 дней.
+> - иначе `general`.
+> Хелперы: `calculate_client_lifetime_value`, `calculate_client_last_booking_at`, `refresh_client_metrics_for_ids`. Не пишите `tier`/`segment` напрямую из внешних импортов.
 
 ### Fleet & maintenance
 **vehicles**
@@ -110,14 +124,56 @@ This schema proposal is derived from the production requirements captured in `do
 | mileage_km | int | Current reading. |
 | utilization_pct | numeric(5,2) | Derived metric. |
 | revenue_ytd | numeric(12,2) | |
+| health_score | numeric(5,2) | Normalised 0–1 score used by fleet health bar. |
+| location | text | Base location / depot label for hero metadata. |
+| image_url | text | Optional hero background for vehicle profile. |
+| created_by | uuid fk staff_accounts | Nullable; `NULL` для Kommo импорта. |
+| updated_by | uuid fk staff_accounts | Nullable; последний оператор. |
 | created_at | timestamptz | Default `timezone('utc', now())`. |
 | updated_at | timestamptz | Updated via `set_updated_at()`. |
 
+> `utilization_pct` пересчитывается функцией `refresh_vehicle_utilization_from_booking()` после любого `INSERT/UPDATE/DELETE` в `bookings`. Формула повторяет runtime-метрику в приложении: суммируется перекрытие активных букингов за последние 30 дней и нормализуется в диапазон 0—1 (хранится в decimal с точностью до двух знаков). Не записывайте значение вручную — используйте `refresh_vehicle_utilization(<vehicle_id>)` или правьте buкінги.
+
 **vehicle_reminders** track entries such as `RM-huracan-service` with columns `vehicle_id`, `reminder_type`, `due_date`, `status`, `severity`, `created_by`.
+| Column | Type | Notes |
+| --- | --- | --- |
+| id | uuid pk | |
+| vehicle_id | uuid fk `vehicles.id` | Cascade delete when vehicle gone. |
+| reminder_type | text | e.g., `insurance`, `mulkiya`, `maintenance`. |
+| due_date | date | Shown in Reminders card. |
+| status | text | `scheduled`, `warning`, `critical`. |
+| severity | text | visual tone; default `info`. |
+| notes | text | Optional operator note. |
+| created_by | uuid fk `staff_accounts.id` | nullable. |
+| created_at/updated_at | timestamptz | `set_updated_at()` trigger. |
 
-**vehicle_inspections** capture the inspection cards shown in fleet detail: `vehicle_id`, `inspection_date`, `performed_by` (driver/staff), `notes`, `photos document[]`, `odometer_km`.
+**vehicle_inspections** capture the inspection cards shown in fleet detail.
+| Column | Type | Notes |
+| --- | --- | --- |
+| id | uuid pk | |
+| vehicle_id | uuid fk `vehicles.id` | |
+| inspection_date | date | Displayed in Inspection highlights. |
+| driver_id | uuid fk `driver_profiles.id` | nullable. |
+| performed_by | text | Snapshot of staff/contractor name. |
+| notes | text | optional remarks. |
+| photo_document_ids | uuid[] | Document IDs stored in `documents`/`document_links`. |
+| created_at/updated_at | timestamptz | |
 
-**maintenance_jobs** unify maintenance + repair schedules: `id`, `vehicle_id`, `booking_id nullable`, `job_type` (`maintenance`,`repair`,`detailing`), `status`, `scheduled_start`, `scheduled_end`, `actual_start`, `actual_end`, `odometer_start`, `odometer_end`, `vendor`, `cost_estimate`, `description`.
+**maintenance_jobs** unify maintenance + repair schedules.
+| Column | Type | Notes |
+| --- | --- | --- |
+| id | uuid pk | |
+| vehicle_id | uuid fk `vehicles.id` | required. |
+| booking_id | uuid fk `bookings.id` | nullable reference to job-triggering booking. |
+| job_type | text | `maintenance`, `repair`, `detailing`. |
+| status | text | `scheduled`, `in_progress`, `done`, `cancelled`. |
+| scheduled_start / scheduled_end | timestamptz | planned window. |
+| actual_start / actual_end | timestamptz | actual window. |
+| odometer_start / odometer_end | integer | km readings. |
+| vendor | text | preferred supplier. |
+| cost_estimate | numeric(12,2) | optional. |
+| description | text | job summary. |
+| created_at/updated_at | timestamptz | |
 
 ### Documents & media
 **documents** own the binary metadata once instead of duplicating arrays per entity.
@@ -135,6 +191,16 @@ This schema proposal is derived from the production requirements captured in `do
 | created_by | uuid fk staff_accounts | Nullable (system imports). |
 
 **document_links** map each file to a domain entity with polymorphic fields: `document_id`, `entity_type` (`client`,`vehicle`,`booking`,`task`,`lead`), `entity_id`, `doc_type`, `notes`, `created_at`.
+| Column | Type | Notes |
+| --- | --- | --- |
+| id | uuid pk | |
+| document_id | uuid fk `documents.id` | |
+| scope | document_scope enum | existing field. |
+| entity_id | uuid | |
+| doc_type | text | e.g., `insurance`, `mulkiya`, `gallery`, `inspection`. |
+| notes | text | optional description/tooltips. |
+| metadata | jsonb | unchanged. |
+| created_at | timestamptz | |
 
 ### Bookings & rentals
 **bookings**
@@ -339,7 +405,6 @@ Table clients {
   tier client_tier
   segment client_segment
   outstanding_amount numeric(12,2)
-  lifetime_value numeric(12,2)
   nps_score smallint
   preferred_channels text
   preferred_language text

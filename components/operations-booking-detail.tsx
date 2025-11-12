@@ -2,10 +2,12 @@ import Image from "next/image"
 import Link from "next/link"
 
 import type { Booking, Client, Driver } from "@/lib/domain/entities"
+import { getClientSegmentLabel } from "@/lib/constants/client-segments"
 import { cn } from "@/lib/utils"
 import { DashboardPageShell } from "@/components/dashboard-page-shell"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ClientAiPanel } from "@/components/sales-client-ai-panel"
+import { AuditMetadata } from "@/components/audit-metadata"
 
 const currencyFormatter = new Intl.NumberFormat("en-CA", { style: "currency", currency: "AED", maximumFractionDigits: 0 })
 const dateFormatter = new Intl.DateTimeFormat("en-CA", { month: "short", day: "numeric" })
@@ -28,155 +30,192 @@ export function OperationsBookingDetail({
   const tags = booking.tags ?? []
   const statusTone = getStatusTone(booking.status)
   const priorityTone = getPriorityTone(booking.priority)
-  const locationChips = [booking.pickupLocation, booking.dropoffLocation].filter(Boolean)
+  const locationChips = [booking.pickupLocation, booking.dropoffLocation].filter(Boolean) as string[]
 
   return (
     <DashboardPageShell>
-      <header className="space-y-3">
-        <div className="flex flex-wrap items-center gap-3">
-          <span className={cn("rounded-full px-3 py-1 text-xs font-semibold", statusTone)}>{booking.status}</span>
-          <span className={cn("rounded-full px-3 py-1 text-xs font-semibold", priorityTone)}>{booking.priority}</span>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-3xl font-semibold tracking-tight">{booking.code}</h1>
-          <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-            <span>{booking.type?.toUpperCase()}</span>
-            <span>Channel {booking.channel}</span>
-            <span>Segment {booking.segment}</span>
-          </div>
-        </div>
-        {tags.length ? (
-          <div className="flex flex-wrap gap-2 text-[0.65rem] uppercase tracking-[0.35em] text-muted-foreground">
-            {tags.map((tag) => (
-              <span key={tag} className="rounded-full border border-border/60 px-2 py-0.5">
-                {tag}
-              </span>
-            ))}
-          </div>
-        ) : null}
-      </header>
+      <BookingDetailHeader booking={booking} priorityTone={priorityTone} statusTone={statusTone} tags={tags} />
 
-      <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Stat label="Client" value={booking.clientName} helper={client?.status} />
-        <Stat label="Total" value={currencyFormatter.format(booking.totalAmount)} helper={`Outstanding ${currencyFormatter.format(outstanding)}`} />
-        <Stat label="Deposit" value={currencyFormatter.format(deposit)} helper={booking.invoices?.find((inv) => inv.label?.toLowerCase().includes("deposit"))?.status} />
-        <Stat label="Driver" value={driver?.name ?? "Unassigned"} helper={driver?.status} />
-      </section>
+      <BookingDetailStatsSection booking={booking} client={client} driver={driver} outstanding={outstanding} deposit={deposit} />
 
-      <section className="grid gap-4 lg:grid-cols-2">
-        <Card className="rounded-[26px] border-border/70 bg-card/80">
-          <CardHeader>
-            <CardTitle className="text-sm uppercase tracking-[0.35em] text-muted-foreground">Schedule & logistics</CardTitle>
-            <CardDescription>Pickup and return timeline overview.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4 text-sm">
-            <div className="grid gap-3 sm:grid-cols-2">
-              <ScheduleItem label="Pickup" date={booking.startDate} time={booking.startTime} location={booking.pickupLocation} />
-              <ScheduleItem label="Return" date={booking.endDate} time={booking.endTime} location={booking.dropoffLocation} />
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <ScheduleStat label="Pickup mileage" value={formatMileage(booking.pickupMileage)} helper={`Fuel ${booking.pickupFuel ?? "—"}`} />
-              <ScheduleStat label="Return mileage" value={formatMileage(booking.returnMileage)} helper={`Fuel ${booking.returnFuel ?? "—"}`} />
-            </div>
-            {locationChips.length ? (
-              <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-                {locationChips.map((loc) => (
-                  <a key={loc} href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(loc!)}`} target="_blank" rel="noreferrer" className="rounded-full border border-border/60 px-3 py-1 hover:text-primary">
-                    {loc}
-                  </a>
-                ))}
-              </div>
-            ) : null}
-          </CardContent>
-        </Card>
-        <Card className="rounded-[26px] border-border/70 bg-card/80">
-          <CardHeader>
-            <CardTitle className="text-sm uppercase tracking-[0.35em] text-muted-foreground">Financial summary</CardTitle>
-            <CardDescription>Totals, billing breakdown, outstanding balance.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4 text-sm">
-            <div className="grid gap-3 sm:grid-cols-3">
-              <AmountPill label="Total" amount={booking.totalAmount} accent="text-emerald-600" />
-              <AmountPill label="Paid" amount={booking.paidAmount} accent="text-primary" />
-              <AmountPill label="Outstanding" amount={outstanding} accent="text-rose-600" />
-            </div>
-            {booking.billing ? (
-              <div className="rounded-2xl border border-border/60 bg-background/80 p-3 text-xs text-muted-foreground">
-                <p>Base {currencyFormatter.format(booking.billing.base)}</p>
-                <p>Add-ons {currencyFormatter.format(booking.billing.addons)}</p>
-                <p>Discounts {currencyFormatter.format(booking.billing.discounts)}</p>
-              </div>
-            ) : null}
-            <div>
-              <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">Invoices</p>
-              <ul className="mt-2 space-y-2 text-sm">
-                {(booking.invoices ?? []).length === 0 ? (
-                  <li className="text-muted-foreground">No invoices yet</li>
-                ) : (
-                  booking.invoices!.map((invoice) => (
-                    <li key={invoice.id} className="rounded-2xl border border-border/60 px-3 py-2">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="font-semibold text-foreground">{invoice.label}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {invoice.issuedDate} · Due {invoice.dueDate ?? "—"}
-                          </p>
-                        </div>
-                        <span className="text-base font-semibold text-foreground">{currencyFormatter.format(invoice.amount)}</span>
-                      </div>
-                      <p className="text-xs text-muted-foreground">Status: {invoice.status}</p>
-                    </li>
-                  ))
-                )}
-              </ul>
-            </div>
-          </CardContent>
-        </Card>
-      </section>
+      <BookingLogisticsFinancialSection booking={booking} outstanding={outstanding} locationChips={locationChips} />
 
-      <section className="grid gap-4 lg:grid-cols-2">
-        <TimelineCard title="Timeline" description="Latest operational updates" entries={booking.timeline ?? []} />
-        <HistoryCard title="History" entries={booking.history ?? []} />
-      </section>
+      <BookingActivitySection booking={booking} />
 
-      <section className="grid gap-4 lg:grid-cols-2">
-        <Card className="rounded-[26px] border-border/70 bg-card/80">
-          <CardHeader>
-            <CardTitle className="text-sm uppercase tracking-[0.35em] text-muted-foreground">Documents</CardTitle>
-            <CardDescription>Contract, deposit, addenda.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ul className="space-y-2 text-sm">
-              {(booking.documents ?? []).length === 0 ? (
-                <li className="text-muted-foreground">No documents uploaded</li>
-              ) : (
-                booking.documents!.map((doc, idx) => {
-                  const url = doc.url ? doc.url.replace(/^\/public/, "") : undefined
-                  return (
-                    <li key={`${doc.type}-${idx}`} className="flex items-center justify-between rounded-2xl border border-border/60 px-3 py-2">
-                      <div>
-                        <p className="font-semibold text-foreground">{doc.name ?? doc.type}</p>
-                        <p className="text-xs text-muted-foreground">Type {doc.type}</p>
-                      </div>
-                      <span className={cn("rounded-full px-3 py-1 text-xs font-semibold", documentTone(doc.status))}>{doc.status}</span>
-                      {url ? (
-                        <Image src={url} alt={doc.name ?? doc.type} width={120} height={80} className="ml-3 hidden h-16 w-24 rounded object-cover sm:block" />
-                      ) : null}
-                    </li>
-                  )
-                })
-              )}
-            </ul>
-          </CardContent>
-        </Card>
-        <SalesServiceCard booking={booking} />
-      </section>
+      <BookingDocumentsSection booking={booking} />
 
       <ExtensionsSection extensions={booking.extensions ?? []} />
 
       {variant === "sales" && client ? <SalesExtras booking={booking} client={client} /> : null}
       {variant === "exec" ? <ExecHighlights booking={booking} driver={driver} outstanding={outstanding} /> : null}
     </DashboardPageShell>
+  )
+}
+
+function BookingDetailHeader({ booking, statusTone, priorityTone, tags }: { booking: Booking; statusTone: string; priorityTone: string; tags: string[] }) {
+  const fallbackActor = booking.ownerName ?? (booking.ownerId ? String(booking.ownerId) : undefined)
+  return (
+    <header className="space-y-3">
+      <div className="flex flex-wrap items-center gap-3">
+        <span className={cn("rounded-full px-3 py-1 text-xs font-semibold", statusTone)}>{booking.status}</span>
+        <span className={cn("rounded-full px-3 py-1 text-xs font-semibold", priorityTone)}>{booking.priority}</span>
+      </div>
+      <div className="flex flex-wrap items-center gap-3">
+        <h1 className="text-3xl font-semibold tracking-tight">{booking.code}</h1>
+        <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+          <span>{booking.type?.toUpperCase()}</span>
+          <span>Channel {booking.channel}</span>
+          <span>Segment {booking.segment}</span>
+        </div>
+      </div>
+      {tags.length ? (
+        <div className="flex flex-wrap gap-2 text-[0.65rem] uppercase tracking-[0.35em] text-muted-foreground">
+          {tags.map((tag) => (
+            <span key={tag} className="rounded-full border border-border/60 px-2 py-0.5">
+              {tag}
+            </span>
+          ))}
+        </div>
+      ) : null}
+      <AuditMetadata
+        createdAt={booking.createdAt}
+        createdBy={booking.createdBy ?? fallbackActor}
+        updatedAt={booking.updatedAt}
+        updatedBy={booking.updatedBy ?? fallbackActor}
+      />
+    </header>
+  )
+}
+
+function BookingDetailStatsSection({ booking, client, driver, outstanding, deposit }: { booking: Booking; client?: Client; driver?: Driver | null; outstanding: number; deposit: number }) {
+  return (
+    <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <Stat label="Client" value={booking.clientName} helper={client?.status} />
+      <Stat label="Total" value={currencyFormatter.format(booking.totalAmount)} helper={`Outstanding ${currencyFormatter.format(outstanding)}`} />
+      <Stat
+        label="Deposit"
+        value={currencyFormatter.format(deposit)}
+        helper={booking.invoices?.find((inv) => inv.label?.toLowerCase().includes("deposit"))?.status}
+      />
+      <Stat label="Driver" value={driver?.name ?? "Unassigned"} helper={driver?.status} />
+    </section>
+  )
+}
+
+function BookingLogisticsFinancialSection({ booking, outstanding, locationChips }: { booking: Booking; outstanding: number; locationChips: string[] }) {
+  return (
+    <section className="grid gap-4 lg:grid-cols-2">
+      <Card className="rounded-[26px] border-border/70 bg-card/80">
+        <CardHeader>
+          <CardTitle className="text-sm uppercase tracking-[0.35em] text-muted-foreground">Schedule & logistics</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4 text-sm">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <ScheduleItem label="Pickup" date={booking.startDate} time={booking.startTime} location={booking.pickupLocation} />
+            <ScheduleItem label="Return" date={booking.endDate} time={booking.endTime} location={booking.dropoffLocation} />
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <ScheduleStat label="Pickup mileage" value={formatMileage(booking.pickupMileage)} helper={`Fuel ${booking.pickupFuel ?? "—"}`} />
+            <ScheduleStat label="Return mileage" value={formatMileage(booking.returnMileage)} helper={`Fuel ${booking.returnFuel ?? "—"}`} />
+          </div>
+          {locationChips.length ? (
+            <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+              {locationChips.map((loc) => (
+                <a
+                  key={loc}
+                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(loc)}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="rounded-full border border-border/60 px-3 py-1 hover:text-primary"
+                >
+                  {loc}
+                </a>
+              ))}
+            </div>
+          ) : null}
+        </CardContent>
+      </Card>
+      <Card className="rounded-[26px] border-border/70 bg-card/80">
+        <CardHeader>
+          <CardTitle className="text-sm uppercase tracking-[0.35em] text-muted-foreground">Financial summary</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4 text-sm">
+          <div className="grid gap-3 sm:grid-cols-3">
+            <AmountPill label="Total" amount={booking.totalAmount} accent="text-emerald-600" />
+            <AmountPill label="Paid" amount={booking.paidAmount} accent="text-primary" />
+            <AmountPill label="Outstanding" amount={outstanding} accent="text-rose-600" />
+          </div>
+          <div>
+            <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">Invoices</p>
+            <ul className="mt-2 space-y-2 text-sm">
+              {(booking.invoices ?? []).length === 0 ? (
+                <li className="text-muted-foreground">No invoices yet</li>
+              ) : (
+                booking.invoices!.map((invoice) => (
+                  <li key={invoice.id} className="rounded-2xl border border-border/60 px-3 py-2">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-semibold text-foreground">{invoice.label}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {invoice.issuedDate} · Due {invoice.dueDate ?? "—"}
+                        </p>
+                      </div>
+                      <span className="text-base font-semibold text-foreground">{currencyFormatter.format(invoice.amount)}</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">Status: {invoice.status}</p>
+                  </li>
+                ))
+              )}
+            </ul>
+          </div>
+        </CardContent>
+      </Card>
+    </section>
+  )
+}
+
+function BookingActivitySection({ booking }: { booking: Booking }) {
+  return (
+    <section className="grid gap-4 lg:grid-cols-2">
+      <TimelineCard title="Timeline" description="Latest operational updates" entries={booking.timeline ?? []} />
+      <HistoryCard title="History" entries={booking.history ?? []} />
+    </section>
+  )
+}
+
+function BookingDocumentsSection({ booking }: { booking: Booking }) {
+  return (
+    <section className="grid gap-4 lg:grid-cols-2">
+      <Card className="rounded-[26px] border-border/70 bg-card/80">
+        <CardHeader>
+          <CardTitle className="text-sm uppercase tracking-[0.35em] text-muted-foreground">Documents</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ul className="space-y-2 text-sm">
+            {(booking.documents ?? []).length === 0 ? (
+              <li className="text-muted-foreground">No documents uploaded</li>
+            ) : (
+              booking.documents!.map((doc, idx) => {
+                const url = doc.url ? doc.url.replace(/^\/public/, "") : undefined
+                return (
+                  <li key={`${doc.type}-${idx}`} className="flex items-center justify-between rounded-2xl border border-border/60 px-3 py-2">
+                    <div>
+                      <p className="font-semibold text-foreground">{doc.name ?? doc.type}</p>
+                      <p className="text-xs text-muted-foreground">Type {doc.type}</p>
+                    </div>
+                    <span className={cn("rounded-full px-3 py-1 text-xs font-semibold", documentTone(doc.status))}>{doc.status}</span>
+                    {url ? (
+                      <Image src={url} alt={doc.name ?? doc.type} width={120} height={80} className="ml-3 hidden h-16 w-24 rounded object-cover sm:block" />
+                    ) : null}
+                  </li>
+                )
+              })
+            )}
+          </ul>
+        </CardContent>
+      </Card>
+      <SalesServiceCard booking={booking} />
+    </section>
   )
 }
 
@@ -254,7 +293,6 @@ function HistoryCard({ title, entries }: { title: string; entries: NonNullable<B
     <Card className="rounded-[26px] border-border/70 bg-card/80">
       <CardHeader>
         <CardTitle className="text-sm uppercase tracking-[0.35em] text-muted-foreground">{title}</CardTitle>
-        <CardDescription>Events logged in Kommo + ERP.</CardDescription>
       </CardHeader>
       <CardContent>
         <ul className="space-y-2 text-sm">
@@ -284,7 +322,6 @@ function SalesServiceCard({ booking }: { booking: Booking }) {
     <Card className="rounded-[26px] border-border/70 bg-card/80">
       <CardHeader>
         <CardTitle className="text-sm uppercase tracking-[0.35em] text-muted-foreground">Sales service score</CardTitle>
-        <CardDescription>Read-only view on the operations route.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-3 text-sm">
         <p className="text-4xl font-semibold text-foreground">{rating}/10</p>
@@ -305,9 +342,9 @@ function ExtensionsSection({ extensions }: { extensions: NonNullable<Booking["ex
           <Card key={extension.id} className="rounded-[26px] border-border/70 bg-card/80">
             <CardHeader>
               <CardTitle className="text-base font-semibold text-foreground">{extension.label}</CardTitle>
-              <CardDescription>
+              <p className="text-xs text-muted-foreground">
                 {extension.startDate} {extension.startTime} → {extension.endDate} {extension.endTime}
-              </CardDescription>
+              </p>
             </CardHeader>
             <CardContent className="space-y-3 text-sm">
               <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">Status {extension.status}</p>
@@ -341,18 +378,19 @@ function ExtensionsSection({ extensions }: { extensions: NonNullable<Booking["ex
 
 function SalesExtras({ booking, client }: { booking: Booking; client: Client }) {
   const conflicts = getConflictSignals(booking)
+  const segmentLabel = getClientSegmentLabel(client.segment)
   return (
     <section className="grid gap-4 lg:grid-cols-2">
       <ClientAiPanel
         clientName={client.name}
-        segment={client.segment}
+        segment={segmentLabel}
         outstanding={client.outstanding}
         preferences={client.preferences}
       />
       <Card className="rounded-[26px] border-dashed border-border/70 bg-card/80">
         <CardHeader>
           <CardTitle className="text-sm uppercase tracking-[0.35em] text-muted-foreground">Conflict signals</CardTitle>
-          <CardDescription>Alerts for overdue SLAs, balances, and extension clashes.</CardDescription>
+          <p className="text-xs text-muted-foreground">Alerts for overdue SLAs, balances, and extension clashes.</p>
         </CardHeader>
         <CardContent>
           <ul className="space-y-2 text-sm">

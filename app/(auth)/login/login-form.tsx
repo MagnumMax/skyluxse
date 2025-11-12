@@ -18,7 +18,7 @@ type LoginFormProps = {
   roles: readonly RoleOption[]
   roleRoutes: Record<RoleOption["value"], string>
 }
-const DEFAULT_OPERATIONS_ROUTE = "/operations/fleet-calendar"
+const DEFAULT_OPERATIONS_ROUTE = "/fleet-calendar"
 
 export function LoginForm({ roles, roleRoutes }: LoginFormProps) {
   const router = useRouter()

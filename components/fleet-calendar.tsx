@@ -1,8 +1,6 @@
 "use client"
 
 import { Fragment, useCallback, useMemo, useState } from "react"
-import type { Route } from "next"
-import { useRouter } from "next/navigation"
 
 import type { CalendarEvent, CalendarEventType, FleetCar } from "@/lib/domain/entities"
 import { calendarEventTypes } from "@/lib/constants/calendar"
@@ -32,7 +30,12 @@ export function useFleetCalendarController(initialViewId: CalendarViewOption["id
   const [viewId, setViewId] = useState<CalendarViewOption["id"]>(fallback.id)
   const [offset, setOffset] = useState(0)
   const [grouping, setGrouping] = useState<GroupBy>("bodyStyle")
-  const [baseDate, setBaseDate] = useState(() => getStartOfToday())
+  const [baseDate, setBaseDate] = useState(() => {
+    const today = getStartOfToday()
+    const yesterday = new Date(today)
+    yesterday.setDate(yesterday.getDate() - 1)
+    return yesterday
+  })
 
   const view = useMemo(() => {
     return calendarViewOptions.find((option) => option.id === viewId) ?? calendarViewOptions[1]
@@ -46,7 +49,10 @@ export function useFleetCalendarController(initialViewId: CalendarViewOption["id
   const goPrev = () => setOffset((value) => value - view.days)
   const goNext = () => setOffset((value) => value + view.days)
   const goToday = () => {
-    setBaseDate(getStartOfToday())
+    const today = getStartOfToday()
+    const yesterday = new Date(today)
+    yesterday.setDate(yesterday.getDate() - 1)
+    setBaseDate(yesterday)
     setOffset(0)
   }
 
@@ -57,16 +63,13 @@ export function FleetCalendarBoard({
   controller,
   vehicles,
   events,
-  bookingRouteBase,
   onEventClick,
 }: {
   controller?: FleetCalendarController
   vehicles: FleetCar[]
   events: CalendarEvent[]
-  bookingRouteBase?: string
   onEventClick?: (event: CalendarEvent) => void
 }) {
-  const router = useRouter()
   const internalController = useFleetCalendarController()
   const { view, setView, offset, setOffset, grouping, baseDate } = controller ?? internalController
   const combinedEvents = useMemo(() => [...events], [events])
@@ -75,17 +78,12 @@ export function FleetCalendarBoard({
     (event: CalendarEvent) => {
       if (onEventClick) {
         onEventClick(event)
-        return
-      }
-      if (bookingRouteBase && event.bookingId) {
-        const bookingRoute = `${bookingRouteBase}/bookings/${event.bookingId}` as Route
-        router.push(bookingRoute)
       }
     },
-    [onEventClick, bookingRouteBase, router]
+    [onEventClick]
   )
 
-  const rangeStart = useMemo(() => new Date(baseDate.getTime() + (offset - 1) * DAY_IN_MS), [baseDate, offset])
+  const rangeStart = useMemo(() => new Date(baseDate.getTime() + offset * DAY_IN_MS), [baseDate, offset])
   const visibleDates = useMemo(
     () => Array.from({ length: view.days }, (_, index) => new Date(rangeStart.getTime() + index * DAY_IN_MS)),
     [rangeStart, view.days]
@@ -132,19 +130,38 @@ export function FleetCalendarBoard({
   }, [grouping, vehicles, visibleEvents])
 
   const gridTemplateColumns = useMemo(
-    () => `repeat(${visibleDates.length * 2}, minmax(140px, 1fr))`,
+    () => `repeat(${visibleDates.length * 2}, minmax(65px, 1fr))`,
     [visibleDates.length]
   )
 
-  return (
+    // Определяем "сегодня" по локальному времени браузера (нормализовано до дня)
+    const today = useMemo(() => getStartOfToday(), [])
+  
+    // Диапазон всегда начинается с сегодняшнего дня (today - 1 был только для старого поведения подсветки)
+    const adjustedRangeStart = useMemo(() => today, [today])
+  
+    // Пересчитываем видимые даты так, чтобы today всегда был первым столбцом
+    const adjustedVisibleDates = useMemo(
+      () => Array.from({ length: view.days }, (_, index) => new Date(adjustedRangeStart.getTime() + index * DAY_IN_MS)),
+      [adjustedRangeStart, view.days]
+    )
+  
+    // today всегда первый столбец
+    const todayColumnIndex = 0
+  
+    return (
     <div className="fleet-calendar-shell">
       <div className="fleet-calendar-table calendar-grid-scroll">
         <div className="fleet-calendar-table-row fleet-calendar-table-row--header">
           <div className="fleet-calendar-left-cell fleet-calendar-left-cell--header">Vehicles</div>
           <div className="fleet-calendar-row-grid">
             <div className="calendar-grid fleet-calendar-grid-header" style={{ gridTemplateColumns }}>
-              {visibleDates.map((date) => (
-                <div key={`header-${date.toISOString()}`} className="calendar-day-header" style={{ gridColumn: "span 2" }}>
+              {adjustedVisibleDates.map((date, index) => (
+                <div
+                  key={`header-${date.toISOString()}`}
+                  className="calendar-day-header"
+                  style={{ gridColumn: "span 2" }}
+                >
                   {date.toLocaleDateString("en-GB", { day: "2-digit", month: "short" })}
                 </div>
               ))}
@@ -168,11 +185,11 @@ export function FleetCalendarBoard({
                 <div className="fleet-calendar-row-grid">
                   <CarRowRight
                     events={events}
-                    visibleDates={visibleDates}
-                    baseDate={baseDate}
+                    visibleDates={adjustedVisibleDates}
                     gridTemplateColumns={gridTemplateColumns}
                     rowKey={`row-${group.label}-${car.id}`}
                     onEventClick={handleEventClick}
+                    todayColumnIndex={todayColumnIndex}
                   />
                 </div>
               </div>
@@ -189,17 +206,17 @@ type EventPlacement = Exclude<ReturnType<typeof getEventGridPlacement>, null>
 function CarRowRight({
   events,
   visibleDates,
-  baseDate,
   gridTemplateColumns,
   rowKey,
   onEventClick,
+  todayColumnIndex,
 }: {
   events: CalendarEvent[]
   visibleDates: Date[]
-  baseDate: Date
   gridTemplateColumns: string
   rowKey: string
   onEventClick?: (event: CalendarEvent) => void
+  todayColumnIndex: number
 }) {
   const placements = useMemo(() => {
     return events

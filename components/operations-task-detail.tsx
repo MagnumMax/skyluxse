@@ -57,7 +57,7 @@ export function OperationsTaskDetail({ task }: { task: OperationsTask }) {
           <CardContent>
             {task.bookingId ? (
               <Link
-                href={toRoute(`/operations/bookings/${task.bookingId}`)}
+                href={`/bookings/${String(task.bookingId)}?view=operations`}
                 className="text-sm font-semibold text-primary hover:underline"
               >
                 Open booking #{task.bookingCode ?? task.bookingId}

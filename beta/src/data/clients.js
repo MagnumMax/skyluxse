@@ -13,7 +13,6 @@ export const clients = [
     residencyCountry: 'UAE',
     birthDate: '1982-03-14',
     outstanding: 0,
-    turnover: 25400,
     lifetimeValue: 72000,
     nps: 72,
     documents: [
@@ -48,7 +47,6 @@ export const clients = [
     residencyCountry: 'UK',
     birthDate: '1990-07-22',
     outstanding: 150,
-    turnover: 12500,
     lifetimeValue: 28000,
     nps: 68,
     documents: [
@@ -81,7 +79,6 @@ export const clients = [
     residencyCountry: 'Canada',
     birthDate: '1988-11-05',
     outstanding: 0,
-    turnover: 3200,
     lifetimeValue: 15000,
     nps: 64,
     documents: [],
@@ -106,7 +103,6 @@ export const clients = [
     status: 'VIP',
     segment: 'Resident',
     outstanding: 0,
-    turnover: 56200,
     lifetimeValue: 91000,
     nps: 84,
     documents: [
@@ -140,7 +136,6 @@ export const clients = [
     residencyCountry: 'Italy',
     birthDate: '1992-10-19',
     outstanding: 1200,
-    turnover: 12800,
     lifetimeValue: 15400,
     nps: 72,
     documents: [
@@ -173,7 +168,6 @@ export const clients = [
     residencyCountry: 'China',
     birthDate: '1984-06-28',
     outstanding: 0,
-    turnover: 18800,
     lifetimeValue: 30500,
     nps: 80,
     documents: [
@@ -205,7 +199,6 @@ export const clients = [
     residencyCountry: 'United Kingdom',
     birthDate: '1995-01-30',
     outstanding: 350,
-    turnover: 9400,
     lifetimeValue: 12600,
     nps: 68,
     documents: [
@@ -237,7 +230,6 @@ export const clients = [
     residencyCountry: 'UAE',
     birthDate: '1987-08-12',
     outstanding: 0,
-    turnover: 23800,
     lifetimeValue: 40200,
     nps: 77,
     documents: [
@@ -271,7 +263,6 @@ export const clients = [
     residencyCountry: 'UAE',
     birthDate: '1993-05-08',
     outstanding: 0,
-    turnover: 0,
     lifetimeValue: 0,
     nps: null,
     documents: [

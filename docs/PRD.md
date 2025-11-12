@@ -89,7 +89,7 @@ Build a unified, automation-forward operations hub where premium car-rental team
 5. **Technical Constraints**: Next.js App Router nested layouts with streaming data fetch (per /vercel/next.js). Document metadata stored per schema; use Supabase Storage signed URLs.
 6. **Dependencies**: M1 data, Supabase Storage, Document viewer route `/documents/[id]`.
 7. **Priority**: P1.
-8. **UX Flow**: 1) User opens `/sales/bookings` board → 2) Click card to open detail drawer `/sales/bookings/[bookingId]` → 3) Upload docs → 4) Move stage; SLA recalculates.
+8. **UX Flow**: 1) User opens `/bookings` board → 2) Click card to open detail drawer `/bookings/[bookingId]` → 3) Upload docs → 4) Move stage; SLA recalculates.
 9. **AI/Automation Usage**: SLA breach predictor uses analytics view to warn if stage > threshold; automation triggers tasks.
 10. **Integration Matrix**: N/A (internal).
 11. **Non-Functional**: Guard rails for RLS; realtime updates via Supabase Realtime; doc storage encrypted at rest.
@@ -104,7 +104,7 @@ Build a unified, automation-forward operations hub where premium car-rental team
 5. **Technical Constraints**: Use Next.js dynamic routes; time-zone set to Dubai; caching per App Router guidelines (server components). Predictive suggestions use analytics view `analytics_vehicle_utilization_daily`.
 6. **Dependencies**: `vehicles`, `vehicle_reminders`, `tasks`, `analytics_vehicle_utilization_daily`.
 7. **Priority**: P1.
-8. **UX Flow**: 1) `/operations/fleet-calendar` loads → 2) User toggles layers → 3) Click event to open drawer `/calendar/events/[eventId]` → 4) Accept automation suggestion (create maintenance task) → 5) Task assigned to driver.
+8. **UX Flow**: 1) `/fleet-calendar` loads → 2) User toggles layers → 3) Click event to open drawer `/calendar/events/[eventId]` → 4) Accept automation suggestion (create maintenance task) → 5) Task assigned to driver.
 9. **AI/Automation**: Gradient boosted model (hosted service) predicts service need probability; displays AI confidence chip; autop-creates tasks when >85%.
 10. **Integration Matrix**: optional telematics later (out of scope).
 11. **Non-Functional**: Data refreshed every minute; handle 50 concurrent viewers.

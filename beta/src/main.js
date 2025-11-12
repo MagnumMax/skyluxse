@@ -648,7 +648,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="space-y-1 text-sm text-gray-600">
                     <div class="flex items-center justify-between">
                         <span>Lifetime Value</span>
-                        <span class="font-medium text-gray-900">${formatCurrency(client.lifetimeValue || client.turnover)}</span>
+                        <span class="font-medium text-gray-900">${formatCurrency(client.lifetimeValue || 0)}</span>
                     </div>
                     <div class="flex items-center justify-between">
                         <span>Outstanding</span>

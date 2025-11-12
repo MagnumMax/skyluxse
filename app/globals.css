@@ -172,9 +172,6 @@
     line-height: 2.25rem;
   }
 
-  .fleet-calendar-subtitle {
-    @apply text-sm text-muted-foreground;
-  }
 
   .fleet-calendar-title-row .calendar-search-input {
     @apply inline-flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2 text-sm text-muted-foreground shadow-inner;
@@ -246,10 +243,6 @@
     font-weight: 600;
     font-size: 1.875rem;
     line-height: 2.25rem;
-  }
-
-  .fleet-calendar-summary-subtitle {
-    @apply text-xs text-muted-foreground;
   }
 
   .fleet-calendar-car-row {

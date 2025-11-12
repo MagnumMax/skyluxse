@@ -1,0 +1,52 @@
+import type { FleetCar } from "@/lib/domain/entities"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { formatNumber, titleCase } from "@/lib/formatters"
+
+interface VehicleSpecCardProps {
+  vehicle: FleetCar
+}
+
+export function VehicleSpecCard({ vehicle }: VehicleSpecCardProps) {
+  const specs: Array<{ label: string; value: string | number | undefined }> = [
+    { label: "Make", value: vehicle.make },
+    { label: "Model", value: vehicle.model },
+    { label: "VIN", value: vehicle.vin },
+    { label: "Plate", value: vehicle.plate },
+    { label: "Year", value: vehicle.year },
+    { label: "Body style", value: vehicle.bodyStyle },
+    { label: "Segment", value: vehicle.segment },
+    { label: "Exterior colour", value: vehicle.color },
+    { label: "Interior colour", value: vehicle.interiorColor },
+    { label: "Seating", value: vehicle.seatingCapacity != null ? `${vehicle.seatingCapacity}` : undefined },
+    {
+      label: "Engine",
+      value: vehicle.engineDisplacementL ? `${vehicle.engineDisplacementL.toFixed(1)} L` : undefined,
+    },
+    { label: "Power", value: vehicle.powerHp ? `${formatNumber(vehicle.powerHp)} hp` : undefined },
+    { label: "Cylinders", value: vehicle.cylinders },
+    {
+      label: "0-100 km/h",
+      value: vehicle.zeroToHundredSec ? `${vehicle.zeroToHundredSec.toFixed(1)} s` : undefined,
+    },
+    { label: "Transmission", value: vehicle.transmission ? titleCase(vehicle.transmission) : undefined },
+  ]
+
+  return (
+    <Card className="rounded-[26px] border-border/70 bg-card/80">
+      <CardHeader>
+        <CardTitle className="text-sm uppercase tracking-[0.35em] text-muted-foreground">Vehicle specs</CardTitle>
+        <CardDescription>Values synced from the vehicles table.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <dl className="grid gap-3 md:grid-cols-2">
+          {specs.map((spec) => (
+            <div key={spec.label} className="rounded-2xl border border-border/60 px-3 py-2 text-sm">
+              <dt className="text-xs uppercase tracking-[0.35em] text-muted-foreground">{spec.label}</dt>
+              <dd className="text-foreground">{spec.value ?? "—"}</dd>
+            </div>
+          ))}
+        </dl>
+      </CardContent>
+    </Card>
+  )
+}

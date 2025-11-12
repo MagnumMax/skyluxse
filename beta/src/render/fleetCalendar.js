@@ -308,7 +308,6 @@ const ensureDrawerElements = () => {
   drawerElements = {
     container,
     title: container.querySelector('#calendar-drawer-title'),
-    subtitle: container.querySelector('#calendar-drawer-subtitle'),
     content: container.querySelector('#calendar-event-drawer-content'),
     closeBtn: container.querySelector('#calendar-drawer-close'),
     dismissArea: container.querySelector('[data-calendar-drawer-dismiss]')
@@ -363,7 +362,6 @@ const closeCalendarDrawer = () => {
   drawer.container.classList.add('hidden');
   drawer.content.innerHTML = '';
   drawer.title.textContent = '';
-  drawer.subtitle.textContent = '';
   selectedEventId = null;
   selectedEventData = null;
   clearEventHighlight();
@@ -404,7 +402,6 @@ const openCalendarDrawer = (eventData, { preserveHighlight = false } = {}) => {
   selectedEventData = eventData;
 
   const typeMeta = CALENDAR_EVENT_TYPES[eventData.type] || { label: 'Событие' };
-  drawer.subtitle.textContent = typeMeta.label || 'Событие';
   drawer.title.textContent = eventData.title || typeMeta.label || 'Событие';
   drawer.content.innerHTML = buildGenericEventContent(eventData);
 

@@ -72,6 +72,7 @@ Performed inside a single transaction after staging is populated and validated.
    - Or physically delete rows where `source_payload_id IS NOT NULL AND channel='Kommo'` once no downstream dependency.
 4. **Upsert clients**
    - `INSERT INTO clients (...) SELECT ... FROM stg_kommo_contacts` with `ON CONFLICT (kommo_contact_id)` update name/phone/email.
+   - При вставке извлекаем кастомные поля Kommo «Nationality» и «Gender», прогоняем через нормализацию (ISO-коды для стран, `Male/Female` для пола) и сохраняем в `clients.residency_country` и `clients.gender`.
 5. **Upsert sales_leads**
    - `INSERT INTO sales_leads (lead_code, client_id, stage_id, value_amount, owner_id, expected_close_at, created_at, updated_at, source)`
      from staging join `clients`.
@@ -79,7 +80,8 @@ Performed inside a single transaction after staging is populated and validated.
    - Insert rows with `channel='Kommo'`, `source_payload_id = 'kommo:' || lead_id`, `source` from enum mapping, `owner_id` resolved via mapping table `kommo_user_map`.
    - Parse custom fields “Date/Time Delivery” (ID `1218176`) and “Date/Time Collect” (ID `1218178`) via helper `extract_kommo_epoch` to hydrate `bookings.start_at` / `bookings.end_at`; fall back to whichever timestamp is present to keep the record calendar-ready.
    - Map pipeline statuses to `bookings.status` per `docs/schemas/kommo-import-mapping.md` and persist `vehicle_id` when a `stg_kommo_booking_vehicles.vehicle_enum_id` matches `vehicles.kommo_vehicle_id`.
-   - Лиды в статусах `79790631 (Request bot answering)`, `91703923 (Follow up)` и `143 (Closed - lost)` считаются “вне подтверждения” — остаются в `sales_leads`, но не попадают в `bookings`/календарь, хотя их `status_id` записывается в `bookings.kommo_status_id` для всех остальных стадий.
+   - В календарь попадают только лиды, у которых `status_id ∈ {75440391, 75440395, 75440399, 76475495, 78486287, 75440643, 75440639, 142}`. Все остальные стадии (включая `79790631`, `91703923`, `143`) остаются в `sales_leads`, но не превращаются в букинги, чтобы календарь отображал только подтверждённые / активные сделки.
+   - Ограничение Kommo API: фильтр `filter[statuses]` принимает только **одну** стадию на запрос, поэтому full refresh обходит whitelist последовательно (8 отдельных пагинированных выборок) и локально обрезает результаты по диапазону `from/to`.
 7. **Link vehicles**
    - Ensure each `vehicles.kommo_vehicle_id` exists (create missing rows on the fly).
    - Populate `booking_vehicles` linking the inserted booking ID with the resolved vehicle ID; mark `primary = true`.

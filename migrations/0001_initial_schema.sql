@@ -70,7 +70,6 @@ create table if not exists public.clients (
   tier client_tier not null default 'vip',
   segment client_segment not null default 'resident',
   outstanding_amount numeric(12,2) default 0,
-  lifetime_value numeric(12,2) default 0,
   nps_score smallint,
   preferred_channels text[],
   preferred_language text,

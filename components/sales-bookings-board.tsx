@@ -1,6 +1,8 @@
 "use client"
 
 import { forwardRef, useMemo, useState } from "react"
+import type { KeyboardEvent } from "react"
+import { useRouter } from "next/navigation"
 import {
   DragDropContext,
   Draggable,
@@ -10,15 +12,24 @@ import {
   type DropResult,
 } from "@hello-pangea/dnd"
 
-import type { Booking, BookingStatus, Driver } from "@/lib/domain/entities"
-import { BOOKING_PRIORITIES, BOOKING_TYPES, KANBAN_STATUS_META } from "@/lib/constants/bookings"
+import type { Booking, Driver } from "@/lib/domain/entities"
+import {
+  BOOKING_TYPES,
+  FALLBACK_KOMMO_STAGE_META,
+  KOMMO_PIPELINE_STAGE_META,
+  KOMMO_PIPELINE_STAGE_ORDER,
+  type KommoPipelineStageId,
+} from "@/lib/constants/bookings"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
-const statusOrder: BookingStatus[] = ["new", "preparation", "delivery", "in-rent", "settlement"]
+type StageBucketId = KommoPipelineStageId | "fallback"
+
+const stageOrder = KOMMO_PIPELINE_STAGE_ORDER
+type RouterPushInput = Parameters<ReturnType<typeof useRouter>["push"]>[0]
 
 type SalesBookingsBoardProps = {
   bookings: Booking[]
@@ -66,10 +77,15 @@ export function SalesBookingsBoard({ bookings, drivers, readOnly = false }: Sale
   }, [boardBookings, driverFilter, searchTerm, typeFilter])
 
   const grouped = useMemo(() => {
-    return statusOrder.reduce<Record<BookingStatus, Booking[]>>((acc, status) => {
-      acc[status] = filtered.filter((booking) => booking.status === status)
-      return acc
-    }, { new: [], preparation: [], delivery: [], "in-rent": [], settlement: [] })
+    const initialEntries = [...stageOrder, "fallback" as const].map((stageId) => [stageId, [] as Booking[]])
+    const buckets = Object.fromEntries(initialEntries) as Record<StageBucketId, Booking[]>
+
+    filtered.forEach((booking) => {
+      const key = normalizeStageId(booking.kommoStatusId)
+      buckets[key].push(booking)
+    })
+
+    return buckets
   }, [filtered])
 
   const uniqueTypes = useMemo(() => {
@@ -83,22 +99,25 @@ export function SalesBookingsBoard({ bookings, drivers, readOnly = false }: Sale
     const { destination, source, draggableId } = result
     if (!destination) return
 
-    const sourceStatus = source.droppableId as BookingStatus
-    const targetStatus = destination.droppableId as BookingStatus
+    const sourceStage = source.droppableId as StageBucketId
+    const targetStage = destination.droppableId as StageBucketId
     const bookingId = draggableId
-    if (sourceStatus === targetStatus && source.index === destination.index) return
+    if (sourceStage === targetStage && source.index === destination.index) return
+    if (targetStage === "fallback") return
 
     setBoardBookings((prev) => {
       return prev.map((booking) => {
         if (String(booking.id) !== bookingId) return booking
-        const { updatedBooking } = applyAutomations(booking, targetStatus, drivers)
+        const { updatedBooking } = applyAutomations(booking, targetStage, drivers)
         return updatedBooking
       })
     })
 
     const booking = boardBookings.find((item) => String(item.id) === bookingId)
-    const statusLabel = KANBAN_STATUS_META[targetStatus].label
-    const entry = booking ? `${booking.code} → ${statusLabel}` : `Booking ${bookingId} → ${statusLabel}`
+    const stageMeta = resolveStageMeta(targetStage)
+    const entry = booking
+      ? `${booking.code} → ${stageMeta.label}`
+      : `Booking ${bookingId} → ${stageMeta.label}`
     setActivityLog((prev) => [entry, ...prev].slice(0, 6))
   }
 
@@ -166,19 +185,26 @@ export function SalesBookingsBoard({ bookings, drivers, readOnly = false }: Sale
 
       <DragDropContext onDragEnd={handleDragEnd}>
         <div className="grid gap-4 lg:grid-cols-5">
-          {statusOrder.map((status) => {
-            const meta = KANBAN_STATUS_META[status]
-            const columnBookings = grouped[status]
+          {([...stageOrder, ...(grouped.fallback.length ? ["fallback" as const] : [])] as StageBucketId[]).map((stageId) => {
+            const meta = resolveStageMeta(stageId)
+            const columnBookings = grouped[stageId]
             return (
-              <Droppable droppableId={status} key={status}>
+              <Droppable
+                droppableId={stageId}
+                key={stageId}
+                isDropDisabled={stageId === "fallback"}
+              >
                 {(provided) => (
                   <section
                     ref={provided.innerRef}
                     {...provided.droppableProps}
                     className="flex flex-col rounded-2xl border border-border/70 bg-background"
                   >
-                    <header className={cn("border-b px-4 py-3", meta.accentBorder, meta.accent)}>
-                      <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-600">{meta.group}</p>
+                    <header
+                      className="border-b px-4 py-3"
+                      style={{ backgroundColor: meta.headerColor, borderColor: meta.borderColor }}
+                    >
+                      <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-700">{meta.group}</p>
                       <div className="flex items-center justify-between">
                         <h2 className="text-base font-semibold text-slate-900">{meta.label}</h2>
                         <span className="text-sm text-muted-foreground">{columnBookings.length}</span>
@@ -199,14 +225,13 @@ export function SalesBookingsBoard({ bookings, drivers, readOnly = false }: Sale
                             isDragDisabled={readOnly}
                           >
                             {(dragProvided, snapshot) => (
-                              <KanbanCard
-                                ref={dragProvided.innerRef}
-                                booking={booking}
-                                drivers={drivers}
-                                draggableProps={dragProvided.draggableProps}
-                                dragHandleProps={readOnly ? null : dragProvided.dragHandleProps}
-                                isDragging={snapshot.isDragging && !readOnly}
-                              />
+                          <KanbanCard
+                            ref={dragProvided.innerRef}
+                            booking={booking}
+                            draggableProps={dragProvided.draggableProps}
+                            dragHandleProps={readOnly ? null : dragProvided.dragHandleProps}
+                            isDragging={snapshot.isDragging && !readOnly}
+                          />
                             )}
                           </Draggable>
                         ))
@@ -247,52 +272,86 @@ const timeFormatter = new Intl.DateTimeFormat("en-CA", {
   minute: "2-digit",
 })
 
-const applyAutomations = (booking: Booking, targetStatus: BookingStatus, drivers: Driver[]) => {
-  const updatedBooking: Booking = { ...booking, status: targetStatus }
+const applyAutomations = (booking: Booking, targetStage: KommoPipelineStageId, drivers: Driver[]) => {
+  const stageMeta = KOMMO_PIPELINE_STAGE_META[targetStage]
+  const updatedBooking: Booking = {
+    ...booking,
+    status: stageMeta.bookingStatus,
+    kommoStatusId: Number(targetStage),
+  }
 
-  if (targetStatus === "preparation" && !booking.driverId) {
+  if (stageMeta.bookingStatus === "preparation" && !booking.driverId) {
     const fallbackDriver = drivers.find((driver) => driver.status === "Available") ?? drivers[0]
     if (fallbackDriver) {
       updatedBooking.driverId = fallbackDriver.id
     }
   }
 
-  if (targetStatus === "delivery" && !booking.targetTime) {
+  if (stageMeta.bookingStatus === "delivery" && !booking.targetTime) {
     updatedBooking.targetTime = Date.now() + 2 * 60 * 60 * 1000
   }
 
-  if (targetStatus === "settlement") {
+  if (stageMeta.bookingStatus === "settlement") {
     updatedBooking.targetTime = null
   }
 
   return { updatedBooking }
 }
 
+function normalizeStageId(value: Booking["kommoStatusId"]): StageBucketId {
+  const stringId = value ? String(value) : null
+  if (stringId && KOMMO_PIPELINE_STAGE_META[stringId as KommoPipelineStageId]) {
+    return stringId as KommoPipelineStageId
+  }
+  return "fallback"
+}
+
+function resolveStageMeta(stageId: StageBucketId) {
+  if (stageId === "fallback") {
+    return FALLBACK_KOMMO_STAGE_META
+  }
+  return KOMMO_PIPELINE_STAGE_META[stageId]
+}
+
 type KanbanCardProps = {
   booking: Booking
-  drivers: Driver[]
   draggableProps: DraggableProvidedDraggableProps
   dragHandleProps: DraggableProvidedDragHandleProps | null | undefined
   isDragging: boolean
 }
 
 const KanbanCard = forwardRef<HTMLDivElement, KanbanCardProps>(
-  ({ booking, drivers, dragHandleProps, draggableProps, isDragging }, ref) => {
+  ({ booking, dragHandleProps, draggableProps, isDragging }, ref) => {
+  const router = useRouter()
   const outstanding = Math.max(booking.totalAmount - booking.paidAmount, 0)
-  const driverLabel = booking.driverId ? drivers.find((driver) => driver.id === booking.driverId)?.name : null
-  const priorityMeta = BOOKING_PRIORITIES[booking.priority]
   const typeLabel = BOOKING_TYPES[booking.type]
   const dateRange = `${datelikeFormatter.format(new Date(booking.startDate))} – ${datelikeFormatter.format(
     new Date(booking.endDate)
   )}`
   const targetTime = booking.targetTime ? timeFormatter.format(new Date(booking.targetTime)) : null
+  const handleClick = () => {
+    if (isDragging) return
+    const bookingId = String(booking.id)
+      const detailUrl = `/bookings/${bookingId}?view=operations`
+      router.push(detailUrl as RouterPushInput)
+  }
+  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault()
+      handleClick()
+    }
+  }
   return (
     <article
       ref={ref}
       {...draggableProps}
       {...dragHandleProps}
+      onClick={handleClick}
+      onKeyDown={handleKeyDown}
+      role="button"
+      tabIndex={0}
       className={cn(
-        "space-y-3 rounded-2xl border border-border bg-card/80 p-4 shadow-sm transition",
+        "space-y-3 rounded-2xl border border-border bg-card/80 p-4 shadow-sm transition cursor-pointer",
         isDragging && "ring-2 ring-primary shadow-lg"
       )}
       data-booking-id={booking.id}
@@ -306,7 +365,6 @@ const KanbanCard = forwardRef<HTMLDivElement, KanbanCardProps>(
           <span className="rounded-full px-3 py-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
             {typeLabel}
           </span>
-          <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-medium", priorityMeta.className)}>{priorityMeta.label}</span>
         </div>
       </div>
       <div className="space-y-1 text-xs text-muted-foreground">
@@ -322,12 +380,6 @@ const KanbanCard = forwardRef<HTMLDivElement, KanbanCardProps>(
             {booking.dropoffLocation ? ` → ${booking.dropoffLocation}` : ""}
           </p>
         ) : null}
-        <p>
-          <span className="font-medium text-foreground">Owner:</span> {formatOwnerLabel(booking)}
-        </p>
-        <p>
-          <span className="font-medium text-foreground">Driver:</span> {driverLabel ?? "Not assigned"}
-        </p>
       </div>
       <div className="flex flex-wrap gap-2 text-xs">
         <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-700">
@@ -351,14 +403,3 @@ const KanbanCard = forwardRef<HTMLDivElement, KanbanCardProps>(
 )
 
 KanbanCard.displayName = "KanbanCard"
-
-function formatOwnerLabel(booking: Booking) {
-  if (booking.ownerName) {
-    return booking.ownerName
-  }
-  const raw = booking.ownerId?.toString() ?? "Unassigned"
-  if (raw.length <= 8) {
-    return raw.toUpperCase()
-  }
-  return `${raw.slice(0, 4).toUpperCase()}…`
-}

@@ -43,7 +43,43 @@
 - В конце миграции повторно прогоняется последний успешный Kommo-ран, чтобы проставить даты/машины для уже загруженных букингов и сразу наполнить календарь.
 
 ## 2025-11-11 — Kommo Pending Status Filter
-- `run_kommo_full_refresh` теперь игнорирует лиды в статусах `79790631` (Request bot answering) и `91703923` (Follow up) при построении букингов, чтобы календарь наполнялся только подтверждёнными бронями.
-- Документация для Kommo mapping/tech spec обновлена, поясняя, что эти “предподтверждённые” шаги остаются в `sales_leads`, но больше не попадают в `bookings`/`calendar_events_expanded`.
-- Фильтр расширен до `status_id = 143 (Closed - lost)`, чтобы в календаре не появлялись проигранные сделки.
-- В `public.bookings` добавлена колонка `kommo_status_id bigint`, а снапшот Kommo импортов теперь сохраняет исходный `status_id` для каждой записи, что позволяет строить отчёты по стадиям без повторного обращения к Kommo.
+- `run_kommo_full_refresh` теперь работает по whitelist’у стадий: `75440391`, `75440395`, `75440399`, `76475495`, `78486287`, `75440643`, `75440639`, `142`. Только эти статусы конвертируются в букинги/календарь.
+- Документация для Kommo mapping/tech spec обновлена: подчёркиваем, что бот-ответы `79790631`, `91703923`, `143` и прочие стадии остаются в `sales_leads`, но не попадают в `bookings`/`calendar_events_expanded`.
+- `bookings.kommo_status_id` по-прежнему хранит исходный `status_id`, поэтому отчёты по стадиям можно строить без повторных запросов в Kommo.
+
+## 2025-11-11 — Kommo Contact Profile Fields
+- Добавлена колонка `gender text` в `public.clients`, чтобы фиксировать нормализованный пол контакта из Kommo и использовать его в клиентском рабочем пространстве.
+- Обновлены `docs/schemas/database-schema.md` и `docs/schemas/kommo-import-mapping.md`, чтобы отразить новый атрибут и его назначение.
+- Kommo full refresh теперь извлекает телефоны, email, `residency_country` и `gender` напрямую из `stg_kommo_contacts`, нормализует значения и заполняет `clients` без пустых полей.
+- Realtime вебхук (`supabase/functions/kommo-status-webhook`) повторяет ту же нормализацию, чтобы инкрементальные обновления клиентов не перетирали новые столбцы.
+
+## 2025-11-12 — Lifetime Value Derives From Bookings
+- Удалена колонка `clients.lifetime_value`, поскольку LTV теперь высчитывается на лету из суммарного оборота аренды (совпадает с прежней формулой Turnover).
+- Обновлены базовые миграции и документация, чтобы отразить вычисляемую природу метрики; UI показывает только новый LTV, поле `turnover` исключено.
+
+## 2025-11-12 — Automatic Tier From Bookings
+- Добавлены функции `calculate_client_lifetime_value` и `calc_client_tier_from_ltv` с порогами VIP ≥ 50 000 AED, Gold ≥ 35 000 AED, Silver < 15 000 AED. LTV теперь суммирует все `bookings.total_amount` независимо от статуса.
+- Введена lifecycle-сегментация клиентов (`premier_loyalist`, `dormant_vip`, `growth_gold`, `at_risk`, `new_rising`, `high_value_dormant`, `general`) через функции `calculate_client_last_booking_at`, `calc_client_segment_from_metrics`, `refresh_client_metrics_for_ids`.
+- Триггер `trg_bookings_refresh_client_tier` на `bookings` пересчитывает `clients.tier` и `clients.segment` при любой вставке/обновлении/удалении, чтобы статусы и сегменты всегда следовали за LTV/активностью.
+- Документация обновлена: записывать tier/segment вручную в импортах/Edge Functions больше не требуется.
+
+## 2025-11-11 — Fleet Detail Data Surfaces
+- Расширили `vehicles` метаданными (`health_score`, `location`, `image_url`), чтобы UI мог отображать здоровье и точку базирования без моков.
+- Таблица `vehicle_reminders` хранит напоминания по страховым, мулькия и сервису (тип, дедлайн, статус, severity, автор) с индексами по `vehicle_id`/`due_date` и RLS, совпадающим с существующими ролями.
+- Таблица `vehicle_inspections` фиксирует осмотры (дата, водитель/исполнитель, заметки, массив `photo_document_ids`), открывая путь к хранению медиа через `document_links`.
+- Таблица `maintenance_jobs` стандартизирует окна работ (расписание, фактическое время, пробеги, вендор, стоимость) и связывается с букингами/календарём.
+- `document_links` теперь имеет `doc_type` и `notes`, что позволяет фильтровать страховые/мулькия документы и галерею прямо в SQL.
+- Все новые таблицы получили `set_updated_at` триггеры и RLS/политики для операций/сервис-ролей; документация (`docs/tech-specs/fleet-detail-page.md`, `docs/schemas/database-schema.md`) обновлена.
+
+## 2025-11-12 — Kommo Webhook Status Metadata
+- Added `kommo_status_id`/`kommo_status_label` columns to `public.kommo_webhook_events` so intake/status Edge Functions can persist the latest Kommo stage directly in the event log.
+- Updated schema powers the “Last stage”/“Status label” card on `/exec/integrations` without extra Kommo API calls and makes troubleshooting failed webhooks faster.
+
+## 2025-11-12 — Kommo booking financials & documents
+- Extended `public.bookings` with nullable columns: `delivery_fee_label`, `delivery_location`, `collect_location`, `rental_duration_days`, `price_daily`, `insurance_fee_label`, `advance_payment`, `sales_order_url`, `agreement_number`. These fields mirror Kommo custom fields so the status webhook can keep ERP totals, fees, and logistical notes aligned with CRM.
+- Kommo status webhook now ingests client documents (passport/driver license/Emirates ID): files are downloaded via Kommo Files API, uploaded to the Supabase Storage bucket `client-documents`, stored in `documents`, and linked to clients via `document_links` with `doc_type` values `passport_id`, `driver_license`, `emirates_id`.
+
+## 2025-11-12 — Client & Vehicle Audit Actors
+- Добавлены колонки `created_by`/`updated_by` в `public.clients` и `public.vehicles`, обе nullable и ссылающиеся на `staff_accounts(id)` с `on delete set null`, чтобы UI мог выводить точных авторов без эвристик.
+- Документация обновлена в `docs/schemas/database-schema.md` и смежных техспеках (клиент/флот), подчёркивая, что системные импорты всё ещё отображаются как “Kommo import”, если актуальных акторов нет.
+- Новый SQL вошёл в миграцию `0027_add_clients_vehicles_audit_columns.sql`; ручных backfill’ов не требуется, так как UI gracefully обрабатывает `NULL`.

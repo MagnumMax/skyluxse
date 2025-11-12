@@ -9,24 +9,24 @@ _Last updated: 10 Nov 2025_
 - Parity artefacts (скринкасты, route map, interaction notes) за 10 Nov 2025 зафиксированы в этом документе: раздел «Parity log» + таблица `hash → App Router`.
 - 10 Nov 2025 parity log:
   - `/login` mirrors `/beta#index.html#page-login` with split grid (role selector + MFA stub on left, hero narrative on right), default email `fleet@skyluxse.ae`, роль по умолчанию `sales`, тот же порядок опций, фирменные радиус/тени и hero-градиенты зафиксированы до локализации.
-  - `/sales/bookings` copies `/beta#sales/bookings/main` Kanban: five columns (`new → preparation → delivery → in-rent → settlement`), same card badges (SLA, driver, payment), identical drag affordances mocked with shadcn cards until live Supabase data is wired.
-  - `/operations/fleet-calendar` reflects `/beta#operations/fleet-calendar/main` grid: identical layer toggles (rental, maintenance, repair), same 7 sample events, chip colours, and tooltip copy; CTA order (assign driver, reschedule) preserved.
-  - `/sales/fleet-calendar` и `/exec/fleet-calendar` переиспользуют тот же календарь, но применяют роль-специфичные копии/доступ: sales видит конфликты, exec — только чтение, как в `/beta#sales/fleet-calendar/main` и `/beta#ceo/fleet-calendar/main`.
-  - `/operations/fleet` recreates `/beta#operations/fleet-table/main`: three-column table (Vehicle, Year, Compliance) with plate chips, status pills, tags, mileage/utilisation/revenue stats, and expiry badges for insurance + mulkiya using the same October 2025 snapshot.
-  - `/operations/fleet/[carId]` mirrors `/beta#operations/fleet-detail/<carId>`: hero block with status + health bar, reminder chips, active/next/last booking cards, maintenance/documents/inspection sections, and gallery tiles populated from the original SPA car dataset.
-  - `/operations/bookings/[bookingId]` recreates `/beta#operations/booking-detail/<bookingId>`: hero summary (status, priority, tags), schedule/logistics cards, financial summary (invoices, outstanding, deposit), timeline/history, documents, sales service score, and extension cards driven by the same mock dataset.
-  - `/sales/bookings/[bookingId]` reuses the booking detail shell but adds the AI copilot + conflict signals card from `/beta#sales/booking-detail/<bookingId>`, including outstanding prompts and extension alerts for sales reps.
-  - `/exec/bookings/[bookingId]` leverages the same detail view but appends KPI highlights (outstanding, SLA state, driver) to match `/beta#ceo/booking-detail/<bookingId>` dashboard cards.
-  - `/operations/tasks` mirrors `/beta#operations/tasks/main` board: three columns (Backlog, In progress, Completed), owner filters, SLA chips, and checklist progress bars match the prototype copy; cards reuse identical task titles (`BK-1052` docs, Huracan driver assignment, Continental maintenance) and status badges.
-  - `/operations/tasks/[taskId]` now renders the SPA detail drawer with owner card, SLA timers, checklist progress, required inputs bar, and booking shortcut.
-  - `/sales/clients` and `/sales/clients/[clientId]` mirror `/beta#sales/clients-table/main` plus detail drawer: table columns, filters, and dossier tabs (Profile, Documents, Rentals, Payments) stay 1:1 with prototype data from `lib/mock-data.ts`.
+- `/bookings` copies `/beta#sales/bookings/main` Kanban: five columns (`new → preparation → delivery → in-rent → settlement`), same card badges (SLA, driver, payment), identical drag affordances mocked with shadcn cards until live Supabase data is wired.
+- `/fleet-calendar` reflects `/beta#operations/fleet-calendar/main` grid: identical layer toggles (rental, maintenance, repair), same 7 sample events, chip colours, and tooltip copy; CTA order (assign driver, reschedule) preserved for both operations and sales teams.
+- `/exec/fleet-calendar` переиспользует тот же календарь, но остаётся read-only, как в `/beta#ceo/fleet-calendar/main`.
+  - `/fleet` recreates `/beta#operations/fleet-table/main`: three-column table (Vehicle, Year, Compliance) with plate chips, status pills, tags, mileage/utilisation/revenue stats, and expiry badges for insurance + mulkiya using the same October 2025 snapshot.
+  - `/fleet/[carId]` mirrors `/beta#operations/fleet-detail/<carId>`: hero block with status + health bar, reminder chips, active/next/last booking cards, maintenance/documents/inspection sections, and gallery tiles populated from the original SPA car dataset.
+  - `/bookings/[bookingId]?view=operations` recreates `/beta#operations/booking-detail/<bookingId>`: hero summary (status, priority, tags), schedule/logistics cards, financial summary (invoices, outstanding, deposit), timeline/history, documents, sales service score, and extension cards driven by the same mock dataset.
+- `/bookings/[bookingId]` reuses the booking detail shell but adds the AI copilot + conflict signals card from `/beta#sales/booking-detail/<bookingId>`, including outstanding prompts and extension alerts for sales reps.
+- `/bookings/[bookingId]?view=exec` leverages the same detail view but appends KPI highlights (outstanding, SLA state, driver) to match `/beta#ceo/booking-detail/<bookingId>` dashboard cards.
+  - `/tasks` mirrors `/beta#operations/tasks/main` board: three columns (Backlog, In progress, Completed), owner filters, SLA chips, and checklist progress bars match the prototype copy; cards reuse identical task titles (`BK-1052` docs, Huracan driver assignment, Continental maintenance) and status badges.
+  - `/tasks/[taskId]` now renders the SPA detail drawer with owner card, SLA timers, checklist progress, required inputs bar, and booking shortcut.
+- `/clients` and `/clients/[clientId]` mirror `/beta#sales/clients-table/main` plus detail drawer: table columns, filters, and dossier tabs (Profile, Documents, Rentals, Payments) stay 1:1 with prototype data from `lib/mock-data.ts`.
   - `/driver/tasks` and `/driver/tasks/[taskId]` reuse the mobile shell from `/beta#driver/driver-tasks/...`: sticky action buttons, task timeline copy, offline banners, and CTA order (Start trip → Directions → Complete) remain unchanged.
-  - `/sales/analytics` matches `/beta#sales/analytics/main`: range chips, pipeline velocity cards, revenue-by-manager and source-mix lists, plus the AI lead intelligence callouts.
+- `/analytics` matches `/beta#sales/analytics/main`: range chips, pipeline velocity cards, revenue-by-manager and source-mix lists, plus the AI lead intelligence callouts.
   - `/exec/analytics` implements `/beta#ceo/analytics/main` cards: KPI tiles, pipeline panel, insight list, and chart captions follow the same labels and values. Suspense skeleton timings match the recordings.
   - `/exec/dashboard` now renders the KPI grid, SLA buckets, revenue trend, and driver performance lists from `/beta#ceo/dashboard/main`, using identical mock metrics (utilisation 0.87, SLA 0.86, NPS 82) and the same booking-based SLA heuristics (3h risk window).
-  - `/exec/bookings` shows the read-only lifecycle board (same Kanban as sales, but drag disabled) per `/beta#ceo/bookings/main`.
-  - `/operations/bookings/new`, `/operations/maintenance/new`, and `/operations/fleet/new` expose the parity forms that output JSON payloads used by the manual intake workflows.
-  - `/operations/documents/[docId]` mirrors the SPA document lightbox with preview, metadata, and links back to the owning client/vehicle record.
+- `/bookings?view=exec` shows the read-only lifecycle board (same Kanban as sales, но drag disabled) per `/beta#ceo/bookings/main`.
+  - `/bookings/new`, `/maintenance/new`, and `/fleet/new` expose the parity forms that output JSON payloads used by the manual intake workflows.
+  - `/documents/[docId]` mirrors the SPA document lightbox with preview, metadata, and links back to the owning client/vehicle record.
   - `/exec/reports` mirrors `/beta#ceo/reports/main`: summary tiles for revenue/expenses/profit with 7-day totals, daily trend list, top vehicles ranking, and channel mix chips based on the same mocked dataset.
   - `/exec/integrations` (M7 outbox) now restates `/beta#ceo/integrations/outbox`: filters (`All/Pending/Processing/Failed/Completed`), stat cards, queue table columns, manual replay button, and status pill colours align exactly; **data now comes from Supabase** (`integrations_outbox` + `kommo_import_runs`). Release notes must mention this so ops know the page reflects production queues.
   - Added Kommo status webhook (`/functions/v1/kommo-status-webhook`) to auto-create/update bookings when sales move лид в "Confirmed bookings". На данный момент статус букинга при импорте ставится как “New booking” (`bookings.status = 'new'`), чтобы пламя SLA шло из UI.
@@ -35,22 +35,22 @@ _Last updated: 10 Nov 2025_
 
 | Prototype hash (role/page/selector) | Surface + notes | Proposed App Router route |
 | --- | --- | --- |
-| `#operations/fleet-calendar/main`, `#sales/fleet-calendar/main`, `#ceo/fleet-calendar/main` | Fleet calendar grid with layer toggles, realtime indicators | `/operations/fleet-calendar`, `/sales/fleet-calendar`, `/exec/fleet-calendar` (shared RSC layout + role-scoped data) |
-| `#operations/tasks/main` | Ops tasks board + SLA timers | `/operations/tasks` |
-| `#operations/fleet-table/main` | Fleet table and vehicle drawers | `/operations/fleet` |
-| `#sales/bookings/main`, `#ceo/bookings/main` | Kanban bookings board (M2) | `/sales/bookings`, `/exec/bookings` |
-| `#sales/clients-table/main` | Clients table + detail drawers | `/sales/clients` |
+| `#operations/fleet-calendar/main`, `#sales/fleet-calendar/main`, `#ceo/fleet-calendar/main` | Fleet calendar grid with layer toggles, realtime indicators | `/fleet-calendar`, `/fleet-calendar`, `/exec/fleet-calendar` (shared RSC layout + role-scoped data) |
+| `#operations/tasks/main` | Ops tasks board + SLA timers | `/tasks` |
+| `#operations/fleet-table/main` | Fleet table and vehicle drawers | `/fleet` |
+| `#sales/bookings/main`, `#ceo/bookings/main` | Kanban bookings board (M2) | `/bookings`, `/bookings?view=exec` |
+| `#sales/clients-table/main` | Clients table + detail drawers | `/clients` |
 | `#ceo/dashboard/main` | KPI dashboard cards | `/exec/dashboard` |
 | `#ceo/reports/main` | Financial + top vehicles reports | `/exec/reports` |
-| `#sales/analytics/main`, `#ceo/analytics/main` | Analytics hub (charts, filters) | `/sales/analytics`, `/exec/analytics` |
-| `#operations/booking-detail/<bookingId>` (selector = booking id) | Booking detail split-pane | `/operations/bookings/[bookingId]` (parallel route reused by sales/exec) |
-| `#operations/task-detail/<taskId>` | Task detail drawer | `/operations/tasks/[taskId]` |
-| `#operations/fleet-detail/<carId>` | Vehicle profile | `/operations/fleet/[carId]` |
-| `#sales/client-detail/<clientId>` | Client dossier | `/sales/clients/[clientId]` |
-| `#operations/document-viewer/<docId>` | Document lightbox | `/operations/documents/[docId]` (modal route) |
-| `#operations/maintenance-create/main` | Maintenance automation form | `/operations/maintenance/new` |
-| `#operations/booking-create/main` | Manual booking form | `/operations/bookings/new` |
-| `#operations/vehicle-create/main` | Vehicle intake form | `/operations/fleet/new` |
+| `#sales/analytics/main`, `#ceo/analytics/main` | Analytics hub (charts, filters) | `/analytics`, `/exec/analytics` |
+| `#operations/booking-detail/<bookingId>` (selector = booking id) | Booking detail split-pane | `/bookings/[bookingId]?view=operations` (parallel route reused by sales/exec) |
+| `#operations/task-detail/<taskId>` | Task detail drawer | `/tasks/[taskId]` |
+| `#operations/fleet-detail/<carId>` | Vehicle profile | `/fleet/[carId]` |
+| `#sales/client-detail/<clientId>` | Client dossier | `/clients/[clientId]` |
+| `#operations/document-viewer/<docId>` | Document lightbox | `/documents/[docId]` (modal route) |
+| `#operations/maintenance-create/main` | Maintenance automation form | `/maintenance/new` |
+| `#operations/booking-create/main` | Manual booking form | `/bookings/new` |
+| `#operations/vehicle-create/main` | Vehicle intake form | `/fleet/new` |
 | `#driver/driver-tasks/main` | Driver mobile list | `/driver/tasks` (separate route group w/ mobile layout + viewport metadata) |
 | `#driver/driver-task-detail/<taskId>` | Driver task detail | `/driver/tasks/[taskId]` |
 | `#login` | Auth gate (паритет достигнут) | `/login` |
@@ -63,15 +63,15 @@ _Last updated: 10 Nov 2025_
 
 | Role (prototype key) | Default App Router page | Primary navigation (prototype) | Permissions from SPA config |
 | --- | --- | --- | --- |
-| Fleet manager (`operations`) | `/operations/fleet-calendar` | Fleet Calendar, Tasks, Fleet | Can assign drivers, manage calendar; blocked from client tables. |
-| Sales manager (`sales`) | `/sales/fleet-calendar` | Fleet Calendar, Bookings (Kanban), Clients, Analytics | Can access reports & client portal integrations, not driver assignment. |
+| Fleet manager (`operations`) | `/fleet-calendar` | Fleet Calendar, Tasks, Fleet | Can assign drivers, manage calendar; blocked from client tables. |
+| Sales manager (`sales`) | `/fleet-calendar` | Fleet Calendar, Bookings (Kanban), Clients, Analytics | Can access reports & client portal integrations, not driver assignment. |
 | CEO (`ceo`) | `/exec/dashboard` | Dashboard, Reports, Analytics, Bookings, Fleet Calendar | Read-only strategic view with report export rights. |
 | Driver (`driver`) | `/driver/tasks` | Mobile-only tasks list + task detail | Narrow scope: complete assignments, capture odometer/fuel/photos, collect payments. |
 
 ### 1.1 Fleet manager (Operations)
 - **Mission**: keep 5-car fleet (Rolls-Royce Ghost to Ferrari 488) serviceable, scheduled, and staffed, reacting to 7 active calendar events between 14-22 Oct 2025.
 - **Daily surfaces**: Fleet Calendar filter set (layer toggles for `rental`, `maintenance`, `repair`), Tasks board segmented by SLA, Fleet table (generic table view) and vehicle detail panels with inspections, reminders, and document galleries.
-- **Key workflows**: assign drivers to bookings like `BK-1052` delivery (SLA 30 min), trigger maintenance forms (`/operations/maintenance/new`) when reminders such as `RM-huracan-service` hit critical, open document viewer for insurance/mulkiya renewals, and update task checklists (fuel, odometer, photos) for logistics and maintenance jobs.
+- **Key workflows**: assign drivers to bookings like `BK-1052` delivery (SLA 30 min), trigger maintenance forms (`/maintenance/new`) when reminders such as `RM-huracan-service` hit critical, open document viewer for insurance/mulkiya renewals, and update task checklists (fuel, odometer, photos) for logistics and maintenance jobs.
 - **Data dependencies**: needs booking status taxonomy (`new -> preparation -> delivery -> in-rent -> settlement`), task type templates (delivery/pickup/maintenance) with required inputs, driver availability states, and vehicle service metadata (`serviceStatus.health`, mileage to service).
 
 ### 1.2 Sales manager
@@ -138,8 +138,8 @@ All hash routes (`#role/page/selector`) will become shareable URLs. Every route 
 ```
 
 ### Sitemap notes
-- **Role-aware shells**: `/operations`, `/sales`, and `/exec` share core layout components but load different nav items and permissions exactly as in `ROLES_CONFIG`.
-- **State preservation**: previous hash `selector` (default `main`) becomes either `/[id]` or `?panel=`. Example: prototype hash `#sales/booking-detail/BK-1052` becomes `/sales/bookings/BK-1052`.
+- **Role-aware shells**: `operations` routes (now exposed as `/fleet`, `/tasks`, and `/bookings?[view=operations]`), sales workspace routes (`/bookings`, `/clients`, `/analytics`), and `/exec` share core layout components but load different nav items and permissions exactly as in `ROLES_CONFIG`.
+- **State preservation**: previous hash `selector` (default `main`) becomes either `/[id]` or `?panel=`. Example: prototype hash `#sales/booking-detail/BK-1052` becomes `/bookings/BK-1052`.
 - **Forms as routes**: creation flows currently rendered as separate "page-*-create" views get dedicated URLs for bookmarking and access control.
 - **Document viewer**: `registerDocument` already maps IDs to URLs; `/documents/[id]` exposes the same asset outside the SPA context (e.g., mulkiya, contracts).
 - **Driver experience**: served from a distinct App Router segment (`app/(driver)/`) so we can enforce mobile-first bundles and offline caching while keeping desktop shell untouched.
@@ -206,8 +206,8 @@ Base path `/api/v1`. Each resource is grounded in existing mock data so we can v
 -  _Tables: `tasks.status`, `tasks.deadline_at`, `tasks.assignee_driver_id`, `task_checklist_items.completed`._
 
 ### 3.6 Clients & Documents
-- `GET /clients`: supports filters by `status` (VIP/Gold/Silver), `segment`, `outstanding>0`, `documents.status`; returns summary data, outstanding balances, lifetime value, NPS, preferred channels, and last rental info.
--  _Tables: `clients.tier`, `clients.segment`, `clients.outstanding_amount`, `clients.lifetime_value`, `clients.nps_score`, `clients.preferred_channels`, lookups to `document_links`/`documents` for verification status, plus latest `bookings` for last rental._
+- `GET /clients`: supports filters by `status` (VIP/Gold/Silver), `segment` (e.g., Premier Loyalist, Dormant VIP, Growth Gold), `outstanding>0`, `documents.status`; returns summary data, outstanding balances, lifetime value, NPS, preferred channels, and last rental info.
+-  _Tables: `clients.tier`, `clients.segment`, `clients.outstanding_amount`, `clients.nps_score`, `clients.preferred_channels`, lookups to `document_links`/`documents` for verification status, плюс агрегация по `booking_invoices`/`bookings` для расчёта lifetime value и последнего rental._
 - `GET /clients/{clientId}`: full dossier as in SPA detail card-documents array (type, number, expiry, status), rentals (bookingId, status, dates, carName, totalAmount), payments (id, type, amount, status, channel, date), notifications, preferences.
 -  _Tables: `clients`, `document_links` + `documents`, `bookings`, `booking_invoices`, `client_notifications`, `client_preferences`._
 - `GET /documents/{documentId}`: resolves registry ID to signed URL and metadata (type, name, expiry, status) for both client and vehicle artefacts.
@@ -230,8 +230,8 @@ Base path `/api/v1`. Each resource is grounded in existing mock data so we can v
 -  _Tables/views: materialized view `analytics_revenue_daily` (fact rows by date with `revenue`, `expenses`, `bookings`, `cancellations`), refreshed hourly from `booking_invoices` (revenue/expense) and `bookings` (counts, cancellation flags)._ 
 - `GET /analytics/driver-performance`: returns driver metrics (completionRate, NPS, overtimeHours, kilometers) for the "Driver performance" chart.
 -  _Tables/views: view `analytics_driver_metrics` (aggregates per `driver_profiles.id` sourced from `tasks` for completion/overtime/km and from `booking_timeline_events` for NPS), refreshed every 15 minutes._
-- `GET /analytics/segment-mix` and `/analytics/forecast`: supply `segmentMix` shares and weekly forecasts for the analytics page.
--  _Tables/views: `analytics_segment_mix` (daily share per `client_segment`, fed from `bookings.segment` + `sales_leads.segment`) and `analytics_forecast` (weekly projections generated by ETL job from historical `bookings`/`sales_leads`)._
+- `GET /analytics/segment-mix` and `/analytics/forecast`: supply `segmentMix` shares (Premier Loyalist/Dormant VIP/etc.) and weekly forecasts for the analytics page.
+-  _Tables/views: `analytics_segment_mix` (daily share per lifecycle `client_segment`, fed from `bookings.segment` + `sales_leads.segment`) and `analytics_forecast` (weekly projections generated by ETL job from historical `bookings`/`sales_leads`)._
 - `GET /reports/top-vehicles?period=2024-09`: yields profitability leaderboard for the Reports page, matching `top-cars-report` content.
 -  _Tables/views: materialized view `reports_vehicle_profitability` (joins `bookings`, `booking_invoices`, `vehicles`, plus apportioned expense facts) refreshed nightly for the requested period._
 
@@ -242,7 +242,7 @@ Base path `/api/v1`. Each resource is grounded in existing mock data so we can v
 | `kpi_snapshots` | `bookings`, `tasks`, `documents`, `driver_profiles` | Nightly (00:30 Gulf) | Dashboard KPIs (fleet utilization, SLA, NPS, etc.). |
 | `analytics_revenue_daily` | `booking_invoices`, `bookings` | Hourly | Revenue/expense/bookings/cancellations time series. |
 | `analytics_driver_metrics` | `driver_profiles`, `tasks`, `booking_timeline_events` | 15 min | Driver completion, overtime, kilometres, NPS. |
-| `analytics_segment_mix` | `bookings.segment`, `sales_leads.segment` | Nightly | Share of Resident/Tourist/etc. demand. |
+| `analytics_segment_mix` | `bookings.segment`, `sales_leads.segment` | Nightly | Share of lifecycle segments (Premier Loyalist, Dormant VIP, etc.). |
 | `analytics_forecast` | Historical `bookings`, `sales_leads` | Weekly (Sunday 02:00 Gulf) | Rolling revenue/bookings projections (W38+). |
 | `reports_vehicle_profitability` | `bookings`, `booking_invoices`, `vehicles` | Nightly | Top vehicle profitability list for reports. |
 | `analytics_channel_performance` | `bookings.channel`, `sales_leads.source`, `booking_invoices` | Nightly | Marketing attribution (win rate, CAC proxy, margin). |

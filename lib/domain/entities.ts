@@ -61,6 +61,10 @@ export interface Booking {
   invoices?: BookingInvoice[]
   history?: BookingHistoryItem[]
   extensions?: BookingExtension[]
+  createdAt?: string
+  createdBy?: string
+  updatedAt?: string
+  updatedBy?: string
 }
 
 export interface BookingInvoice {
@@ -173,8 +177,10 @@ export interface Client {
   status: string
   segment: string
   residencyCountry?: string
+  gender?: string
+  kommoContactId?: string
+  kommoContactUrl?: string
   outstanding: number
-  turnover: number
   lifetimeValue: number
   nps: number
   documents: ClientDocument[]
@@ -182,6 +188,11 @@ export interface Client {
   payments: ClientPayment[]
   notifications: ClientNotification[]
   preferences: ClientPreferences
+  createdAt?: string
+  createdBy?: string
+  updatedAt?: string
+  updatedBy?: string
+  lastBookingDate?: string
 }
 
 export interface OutboxJob {
@@ -237,9 +248,10 @@ export interface VehicleDocument {
   id: string
   type: string
   name: string
-  expiry: string
+  expiry?: string
   status: "active" | "warning" | "expired" | string
   url?: string
+  notes?: string
 }
 
 export interface VehicleReminder {
@@ -247,6 +259,8 @@ export interface VehicleReminder {
   type: string
   dueDate: string
   status: "scheduled" | "warning" | "critical" | string
+  severity?: string
+  notes?: string
 }
 
 export interface VehicleServiceStatus {
@@ -260,6 +274,7 @@ export interface VehicleServiceStatus {
 export interface VehicleInspection {
   date: string
   driver?: string
+  performedBy?: string
   notes?: string
   photos?: string[]
 }
@@ -270,24 +285,36 @@ export interface VehicleMaintenanceEntry {
   type: string
   odometer?: number
   notes?: string
+  vendor?: string
+  status?: string
+  costEstimate?: number
 }
 
 export interface FleetCar {
   id: EntityId
   name: string
+  make?: string
+  model?: string
+  vin?: string
   plate: string
   status: FleetCarStatus
   class: string
   bodyStyle?: string
   segment: string
   color: string
+  interiorColor?: string
   year: number
+  seatingCapacity?: number
   mileage: number
   utilization: number
   revenueYTD: number
+  engineDisplacementL?: number
+  powerHp?: number
+  cylinders?: number
+  zeroToHundredSec?: number
+  transmission?: string
   insuranceExpiry?: string
   mulkiyaExpiry?: string
-  location: string
   serviceStatus: VehicleServiceStatus
   documents: VehicleDocument[]
   reminders: VehicleReminder[]
@@ -295,7 +322,12 @@ export interface FleetCar {
   inspections?: VehicleInspection[]
   maintenanceHistory?: VehicleMaintenanceEntry[]
   imageUrl?: string
+  location?: string
   kommoVehicleId?: string
+  createdAt?: string
+  updatedAt?: string
+  createdBy?: string
+  updatedBy?: string
 }
 
 export type CalendarEventType = "rental" | "maintenance" | "repair"

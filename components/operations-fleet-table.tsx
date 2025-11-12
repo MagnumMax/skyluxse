@@ -1,24 +1,23 @@
 import Link from "next/link"
+import { CalendarDays } from "lucide-react"
 
-import type { FleetCar } from "@/lib/domain/entities"
+import type { CalendarEvent, FleetCar } from "@/lib/domain/entities"
 import { cn } from "@/lib/utils"
-
-const statusPriority: Record<string, number> = { "In Rent": 0, Maintenance: 1, Available: 2 }
-const statusTone: Record<string, string> = {
-  Available: "bg-emerald-100 text-emerald-700",
-  "In Rent": "bg-indigo-100 text-indigo-700",
-  Maintenance: "bg-amber-100 text-amber-700",
-}
 
 const referenceDate = new Date()
 
-export function OperationsFleetTable({ cars }: { cars: FleetCar[] }) {
-  const sorted = [...cars].sort((a, b) => {
-    const priorityDiff = (statusPriority[a.status] ?? 99) - (statusPriority[b.status] ?? 99)
-    if (priorityDiff !== 0) return priorityDiff
-    return a.name.localeCompare(b.name)
-  })
+type NextEventMap = Record<string, CalendarEvent | undefined>
+type RuntimeMap = Record<string, { status: string; utilization: number; revenueYTD: number }>
 
+export function OperationsFleetTable({
+  cars,
+  nextEvents,
+  runtime,
+}: {
+  cars: FleetCar[]
+  nextEvents?: NextEventMap
+  runtime?: RuntimeMap
+}) {
   return (
     <div className="overflow-hidden rounded-[28px] border border-border/70 bg-card/80">
       <table className="w-full border-collapse">
@@ -30,10 +29,10 @@ export function OperationsFleetTable({ cars }: { cars: FleetCar[] }) {
           </tr>
         </thead>
         <tbody className="divide-y divide-border/60">
-          {sorted.map((car) => (
+          {cars.map((car) => (
             <tr key={car.id} className="align-top">
               <td className="px-6 py-5">
-                <VehicleCell car={car} />
+                <VehicleCell car={car} nextEvent={nextEvents?.[String(car.id)]} runtime={runtime?.[String(car.id)]} />
               </td>
               <td className="px-6 py-5">
                 <VehicleYearCell car={car} />
@@ -49,40 +48,58 @@ export function OperationsFleetTable({ cars }: { cars: FleetCar[] }) {
   )
 }
 
-function VehicleCell({ car }: { car: FleetCar }) {
-  const badgeClass = statusTone[car.status] || "bg-slate-100 text-slate-700"
-  const tags = [car.class, car.segment, car.color].filter(Boolean)
+function VehicleCell({
+  car,
+  nextEvent,
+  runtime,
+}: {
+  car: FleetCar
+  nextEvent?: CalendarEvent
+  runtime?: { status: string; utilization: number; revenueYTD: number }
+}) {
+  const displayName = car.name || [car.make, car.model].filter(Boolean).join(" ") || "Unnamed vehicle"
+  const statusLabel = runtime?.status ?? car.status ?? "Available"
+  const utilization = runtime?.utilization ?? car.utilization ?? 0
+  const revenueYtd = runtime?.revenueYTD ?? car.revenueYTD ?? 0
   return (
-    <div className="flex items-start gap-4">
-      <div className="flex h-16 w-24 flex-shrink-0 flex-col items-center justify-center rounded-xl border border-border/60 bg-muted/40 text-center">
-        <span className="text-xs font-semibold uppercase tracking-[0.35em] text-muted-foreground">{car.class}</span>
-        <span className="text-base font-semibold text-foreground">{car.plate}</span>
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <Link href={toRoute(`/fleet/${car.id}`)} className="text-base font-semibold text-primary hover:underline">
+          {displayName}
+        </Link>
+        <span className="text-xs font-semibold uppercase tracking-[0.25em] text-muted-foreground">{car.plate}</span>
+        <CalendarLink carId={String(car.id)} nextEvent={nextEvent} />
       </div>
-      <div className="space-y-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <Link href={toRoute(`/operations/fleet/${car.id}`)} className="text-sm font-semibold text-primary hover:underline">
-            {car.name}
-          </Link>
-          <span className={cn("rounded-full px-2.5 py-0.5 text-[11px] font-semibold", badgeClass)}>{car.status}</span>
-          <span className="rounded-full border border-border/50 px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">
-            {car.location}
-          </span>
-        </div>
-        <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-          {tags.map((tag) => (
-            <span key={tag} className="rounded-full border border-border/40 px-2 py-0.5">
-              {tag}
-            </span>
-          ))}
-        </div>
-        <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
-          <span>Mileage {formatNumber(car.mileage)} km</span>
-          <span>Utilization {(car.utilization * 100).toFixed(0)}%</span>
-          <span>Revenue YTD {formatCurrency(car.revenueYTD)}</span>
-        </div>
+      <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
+        <span>{statusLabel}</span>
+        <span>Mileage {formatNumber(car.mileage)} km</span>
+        <span>Utilisation {(utilization * 100).toFixed(0)}%</span>
+        <span>Revenue YTD {formatCurrency(revenueYtd)}</span>
+      </div>
+      <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+        <span className="rounded-full border border-border/40 px-2 py-0.5">VIN {car.vin ?? "—"}</span>
       </div>
     </div>
   )
+}
+
+function CalendarLink({ carId, nextEvent }: { carId: string; nextEvent?: CalendarEvent }) {
+  const label = nextEvent ? `${formatEventType(nextEvent.type)} · ${formatDate(nextEvent.start)} → ${formatDate(nextEvent.end)}` : "Fleet calendar"
+  return (
+    <Link
+      href={toRoute(`/fleet-calendar?vehicleId=${encodeURIComponent(carId)}`)}
+      className="inline-flex items-center gap-1 rounded-full border border-border/40 px-2 py-0.5 text-[11px] font-semibold text-muted-foreground hover:text-primary"
+      title={label}
+    >
+      <CalendarDays className="h-3 w-3" />
+      <span>{nextEvent ? "Next slot" : "Calendar"}</span>
+    </Link>
+  )
+}
+
+function formatEventType(value?: string) {
+  if (!value) return "Event"
+  return value.charAt(0).toUpperCase() + value.slice(1)
 }
 
 function VehicleYearCell({ car }: { car: FleetCar }) {

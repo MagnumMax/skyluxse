@@ -7,7 +7,6 @@ import { usePathname } from "next/navigation"
 
 import { Icon, type NavIcon } from "@/components/icons"
 import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
 import {
   Sheet,
   SheetContent,
@@ -15,6 +14,8 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet"
+import { Button } from "@/components/ui/button"
+import { ProfileMenu } from "@/components/profile-menu"
 
 export type DashboardNavGroup = {
   label: string
@@ -24,7 +25,6 @@ export type DashboardNavGroup = {
 export type HeaderMeta = {
   pattern: string
   title: string
-  subtitle: string
 }
 
 type DashboardHeaderProps = {
@@ -38,7 +38,6 @@ const toRoute = (href: string) => href as Parameters<typeof Link>[0]["href"]
 const defaultMeta: HeaderMeta = {
   pattern: "*",
   title: "SkyLuxse ERP",
-  subtitle: "Automation hub for operations, sales, and exec teams",
 }
 
 function matchPattern(pathname: string, pattern: string) {
@@ -134,6 +133,9 @@ function MobileNav({ navGroups }: { navGroups: DashboardNavGroup[] }) {
               </div>
             </div>
           ))}
+        </div>
+        <div className="border-t border-border/60 bg-muted/40 px-6 py-5">
+          <ProfileMenu placement="top" onNavigate={() => setOpen(false)} />
         </div>
       </SheetContent>
     </Sheet>

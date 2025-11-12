@@ -2,26 +2,31 @@
 
 import Link from "next/link"
 import { useMemo, useState } from "react"
+import { ArrowDown, ArrowUp } from "lucide-react"
 
 import type { Client } from "@/lib/domain/entities"
+import { clientSegmentFilterOptions, clientSegmentLabels, getClientSegmentLabel } from "@/lib/constants/client-segments"
 import { cn } from "@/lib/utils"
 import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard-page-shell"
+import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
-const statusOptions = ["VIP", "Gold", "Silver"]
-const segmentOptions = ["Resident", "Tourist", "Business Traveller"]
+const statusFilterOptions = [
+  { value: "VIP", label: "VIP" },
+  { value: "Gold", label: "Gold" },
+  { value: "Silver", label: "Silver" },
+]
+const SORT_OPTIONS = [
+  { value: "freshness", label: "Newest" },
+  { value: "lifetimeValue", label: "Lifetime value" },
+  { value: "lastBooking", label: "Last booking" },
+]
 const clientStatusTone: Record<string, string> = {
   VIP: "bg-purple-100 text-purple-700",
   Gold: "bg-amber-100 text-amber-700",
   Silver: "bg-slate-100 text-slate-700",
-}
-const documentStatusTone: Record<string, string> = {
-  verified: "bg-emerald-100 text-emerald-700",
-  "needs-review": "bg-amber-100 text-amber-700",
-  pending: "bg-amber-100 text-amber-700",
-  expired: "bg-rose-100 text-rose-700",
 }
 const rentalStatusTone: Record<string, string> = {
   active: "bg-indigo-100 text-indigo-700",
@@ -32,70 +37,157 @@ const rentalStatusTone: Record<string, string> = {
 const dateFormatter = new Intl.DateTimeFormat("en-CA", { month: "short", day: "numeric" })
 const currencyFormatter = new Intl.NumberFormat("en-CA", { style: "currency", currency: "AED", maximumFractionDigits: 0 })
 const numberFormatter = new Intl.NumberFormat("en-CA", { maximumFractionDigits: 0 })
+const percentFormatter = new Intl.NumberFormat("en-CA", { style: "percent", minimumFractionDigits: 0, maximumFractionDigits: 0 })
+
+type FilterOption = { value: string; label: string }
+
+type FilterState = {
+  search: string
+  status: string
+  segment: string
+}
+
+type SortOption = (typeof SORT_OPTIONS)[number]["value"]
+type SortDirection = "asc" | "desc"
+
+const DEFAULT_FILTERS: FilterState = {
+  search: "",
+  status: "all",
+  segment: "all",
+}
 
 export function SalesClientsList({ clients }: { clients: Client[] }) {
-  const [statusFilter, setStatusFilter] = useState<string>("all")
-  const [segmentFilter, setSegmentFilter] = useState<string>("all")
-  const [search, setSearch] = useState("")
+  const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS)
+  const [sortBy, setSortBy] = useState<SortOption>("freshness")
+  const [sortDirection, setSortDirection] = useState<SortDirection>("desc")
+  const [referenceTimestamp] = useState(() => Date.now())
+
+  const kpis = useMemo(() => {
+    const totalClients = clients.length
+    const totalOutstanding = clients.reduce((sum, client) => sum + (client.outstanding ?? 0), 0)
+    const totalLtv = clients.reduce((sum, client) => sum + (client.lifetimeValue ?? 0), 0)
+    const avgLtv = totalClients ? totalLtv / totalClients : 0
+    const THIRTY_DAYS = 30 * 24 * 60 * 60 * 1000
+    const activeRecently = clients.filter((client) => {
+      if (!client.lastBookingDate) return false
+      const ts = Date.parse(client.lastBookingDate)
+      if (Number.isNaN(ts)) return false
+      return referenceTimestamp - ts <= THIRTY_DAYS
+    }).length
+    const vipShare = totalClients
+      ? percentFormatter.format(clients.filter((client) => client.status === "VIP").length / totalClients)
+      : percentFormatter.format(0)
+    const goldShare = totalClients
+      ? percentFormatter.format(clients.filter((client) => client.status === "Gold").length / totalClients)
+      : percentFormatter.format(0)
+
+    return {
+      totalClients: numberFormatter.format(totalClients),
+      activeRecently: `${numberFormatter.format(activeRecently)} / ${totalClients || 0}`,
+      totalOutstanding: currencyFormatter.format(totalOutstanding),
+      avgLtv: currencyFormatter.format(avgLtv),
+      vipShare,
+      goldShare,
+    }
+  }, [clients, referenceTimestamp])
 
   const filteredClients = useMemo(() => {
-    return clients.filter((client) => {
-      if (statusFilter !== "all" && client.status !== statusFilter) return false
-      if (segmentFilter !== "all" && client.segment !== segmentFilter) return false
-      if (search.trim().length) {
+    const list = clients.filter((client) => {
+      const segmentKey = client.segment ?? "general"
+      if (filters.status !== "all" && client.status !== filters.status) return false
+      if (filters.segment !== "all" && segmentKey !== filters.segment) return false
+      if (filters.search.trim().length) {
         const haystack = `${client.name} ${client.email} ${client.phone}`.toLowerCase()
-        if (!haystack.includes(search.toLowerCase())) return false
+        if (!haystack.includes(filters.search.toLowerCase())) return false
       }
       return true
     })
-  }, [clients, search, segmentFilter, statusFilter])
+    return sortClients(list, sortBy, sortDirection)
+  }, [clients, filters, sortBy, sortDirection])
+
+  const handleReset = () => {
+    setFilters(DEFAULT_FILTERS)
+    setSortBy("freshness")
+    setSortDirection("desc")
+  }
 
   return (
     <DashboardPageShell>
       <DashboardPageHeader title="Client workspace" />
 
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
+        <KpiCard label="Всего клиентов" value={kpis.totalClients} />
+        <KpiCard label="Активны (30 дн)" value={kpis.activeRecently} />
+        <KpiCard label="Средний LTV" value={kpis.avgLtv} />
+        <KpiCard label="Задолженность" value={kpis.totalOutstanding} />
+        <KpiCard label="VIP доля" value={kpis.vipShare} />
+        <KpiCard label="Gold доля" value={kpis.goldShare} />
+      </section>
+
       <section className="rounded-[26px] border border-border/70 bg-card/80 p-5 shadow-sm">
-        <div className="grid gap-4 md:grid-cols-3">
-          <div className="space-y-1">
-            <Label htmlFor="client-search">Search</Label>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-muted-foreground">Filters & sorting</p>
+          <Button variant="ghost" size="sm" onClick={handleReset}>
+            Reset
+          </Button>
+        </div>
+        <div className="mt-4 grid gap-4 lg:grid-cols-2">
+          <div>
+            <Label htmlFor="client-search" className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
+              Search
+            </Label>
             <Input
               id="client-search"
               placeholder="Search by name, email, phone"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
+              value={filters.search}
+              onChange={(event) => setFilters((prev) => ({ ...prev, search: event.target.value }))}
+              className="mt-1"
             />
           </div>
-          <div className="space-y-1">
-            <Label htmlFor="status-filter">Status</Label>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger id="status-filter">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All statuses</SelectItem>
-                {statusOptions.map((status) => (
-                  <SelectItem key={status} value={status}>
-                    {status}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <FilterSelect
+              id="status-filter"
+              label="Status"
+              allLabel="All statuses"
+              value={filters.status}
+              options={statusFilterOptions}
+              onValueChange={(value) => setFilters((prev) => ({ ...prev, status: value }))}
+            />
+            <FilterSelect
+              id="segment-filter"
+              label="Segment"
+              allLabel="Все сегменты"
+              value={filters.segment}
+              options={clientSegmentFilterOptions}
+              onValueChange={(value) => setFilters((prev) => ({ ...prev, segment: value }))}
+            />
           </div>
-          <div className="space-y-1">
-            <Label htmlFor="segment-filter">Segment</Label>
-            <Select value={segmentFilter} onValueChange={setSegmentFilter}>
-              <SelectTrigger id="segment-filter">
-                <SelectValue placeholder="Segment" />
+        </div>
+        <div className="mt-4">
+          <Label className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Sort by</Label>
+          <div className="mt-1 flex flex-wrap items-center gap-2">
+            <Select value={sortBy} onValueChange={(value) => setSortBy(value as SortOption)}>
+              <SelectTrigger className="w-48">
+                <SelectValue placeholder="Sort" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All segments</SelectItem>
-                {segmentOptions.map((segment) => (
-                  <SelectItem key={segment} value={segment}>
-                    {segment}
+                {SORT_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              onClick={() => setSortDirection((prev) => (prev === "desc" ? "asc" : "desc"))}
+              aria-label="Toggle sort direction"
+              title={sortDirection === "desc" ? "Descending" : "Ascending"}
+            >
+              {sortDirection === "desc" ? <ArrowDown className="h-4 w-4" /> : <ArrowUp className="h-4 w-4" />}
+            </Button>
           </div>
         </div>
       </section>
@@ -107,7 +199,7 @@ export function SalesClientsList({ clients }: { clients: Client[] }) {
               <tr className="text-left text-xs font-semibold uppercase tracking-[0.35em] text-muted-foreground">
                 <th className="px-6 py-4">Client</th>
                 <th className="px-6 py-4">Engagement</th>
-                <th className="px-6 py-4">Documents &amp; Rentals</th>
+                <th className="px-6 py-4">Recent rentals</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/60">
@@ -139,15 +231,16 @@ export function SalesClientsList({ clients }: { clients: Client[] }) {
 
 function ClientCell({ client }: { client: Client }) {
   const statusClass = clientStatusTone[client.status] || "bg-muted text-muted-foreground"
+  const segmentLabel = getClientSegmentLabel(client.segment)
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
-        <Link href={toRoute(`/sales/clients/${client.id}`)} className="text-sm font-semibold text-primary hover:underline">
+        <Link href={toRoute(`/clients/${client.id}`)} className="text-sm font-semibold text-primary hover:underline">
           {client.name}
         </Link>
         <span className={cn("rounded-full px-2.5 py-0.5 text-[11px] font-semibold", statusClass)}>{client.status}</span>
         <span className="rounded-full border border-border/60 px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">
-          {client.segment}
+          {segmentLabel}
         </span>
         {client.residencyCountry ? (
           <span className="rounded-full border border-border/60 px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">
@@ -160,22 +253,17 @@ function ClientCell({ client }: { client: Client }) {
         <span>•</span>
         <span>{client.email}</span>
       </div>
+      <div className="flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
+        <DetailItem label="Gender" value={client.gender ?? "Not specified"} />
+        <span>•</span>
+        <DetailItem label="Nationality" value={client.residencyCountry ?? "Unknown"} />
+      </div>
       <div className="flex flex-wrap gap-2">
-        <Link
-          href={toRoute(`/sales/clients/${client.id}`)}
-          className="rounded-full border border-primary bg-primary/10 px-3 py-1 text-xs font-semibold text-primary"
-        >
-          View workspace
-        </Link>
         {client.outstanding > 0 ? (
           <span className="rounded-full bg-rose-100 px-2 py-1 text-[11px] font-semibold text-rose-700">
             Outstanding {formatCurrency(client.outstanding)}
           </span>
-        ) : (
-          <span className="rounded-full border border-border/50 px-2 py-1 text-[11px] font-semibold text-muted-foreground">
-            In good standing
-          </span>
-        )}
+        ) : null}
       </div>
     </div>
   )
@@ -200,7 +288,6 @@ function EngagementCell({ client }: { client: Client }) {
       </div>
       <div className="grid gap-3 text-xs text-muted-foreground">
         <MetricRow label="Lifetime value" value={formatCurrency(client.lifetimeValue)} />
-        <MetricRow label="Turnover" value={formatCurrency(client.turnover)} />
         <MetricRow label="NPS" value={numberFormatter.format(client.nps)} />
         <MetricRow label="Channels" value={client.preferences.notifications.join(", ")} />
       </div>
@@ -217,28 +304,49 @@ function MetricRow({ label, value }: { label: string; value: string }) {
   )
 }
 
+function FilterSelect({
+  id,
+  label,
+  value,
+  options,
+  allLabel,
+  onValueChange,
+}: {
+  id: string
+  label: string
+  value: string
+  options: FilterOption[]
+  allLabel: string
+  onValueChange: (value: string) => void
+}) {
+  return (
+    <div>
+      <Label htmlFor={id} className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
+        {label}
+      </Label>
+      <Select value={value} onValueChange={onValueChange}>
+        <SelectTrigger id={id} className="mt-1">
+          <SelectValue placeholder={label} />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">{allLabel}</SelectItem>
+          {options.map((option) => (
+            <SelectItem key={option.value} value={option.value}>
+              {option.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  )
+}
+
 function DocumentsActivityCell({ client }: { client: Client }) {
-  const highlightDocuments = client.documents.slice(0, 3)
   const rentals = [...client.rentals]
     .sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime())
     .slice(0, 2)
   return (
     <div className="space-y-4">
-      <div>
-        <p className="text-[0.6rem] uppercase tracking-[0.35em] text-muted-foreground">Documents</p>
-        <div className="mt-2 flex flex-wrap gap-2">
-          {highlightDocuments.map((doc) => (
-            <span key={doc.id} className={cn("rounded-full px-2 py-0.5 text-[11px] font-semibold", documentStatusTone[doc.status] || "bg-muted text-muted-foreground")}>
-              {doc.name}
-            </span>
-          ))}
-          {client.documents.length > highlightDocuments.length ? (
-            <span className="text-[11px] font-semibold text-muted-foreground">
-              +{client.documents.length - highlightDocuments.length} more
-            </span>
-          ) : null}
-        </div>
-      </div>
       <div className="space-y-3">
         <p className="text-[0.6rem] uppercase tracking-[0.35em] text-muted-foreground">Recent rentals</p>
         {rentals.map((rental) => (
@@ -250,17 +358,26 @@ function DocumentsActivityCell({ client }: { client: Client }) {
   )
 }
 
+function KpiCard({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-[20px] border border-border/70 bg-card/80 p-4 shadow-sm">
+      <p className="text-[0.55rem] uppercase tracking-[0.35em] text-muted-foreground">{label}</p>
+      <p className="mt-2 text-2xl font-semibold text-foreground">{value}</p>
+    </div>
+  )
+}
+
 function RentalRow({ rental }: { rental: Client["rentals"][number] }) {
-  const statusClass = rentalStatusTone[rental.status] || "bg-muted text-muted-foreground"
   return (
     <div className="flex items-start justify-between gap-3 text-xs text-muted-foreground">
       <div>
-        <p className="text-sm font-semibold text-foreground">{rental.carName}</p>
+        <Link href={toRoute(`/operations/bookings/${rental.bookingId}`)} className="text-sm font-semibold text-primary hover:underline">
+          {rental.carName}
+        </Link>
         <p>
           {formatDateRange(rental.startDate, rental.endDate)} · {formatCurrency(rental.totalAmount)}
         </p>
       </div>
-      <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-semibold", statusClass)}>{rental.status}</span>
     </div>
   )
 }
@@ -291,4 +408,32 @@ function formatDateRange(start?: string, end?: string) {
     return [start, end].filter(Boolean).join(" – ")
   }
   return "—"
+}
+
+function DetailItem({ label, value }: { label: string; value: string }) {
+  return (
+    <span>
+      {label}: <span className="font-semibold text-foreground">{value}</span>
+    </span>
+  )
+}
+
+function sortClients(clients: Client[], sortBy: SortOption, direction: SortDirection) {
+  const multiplier = direction === "asc" ? 1 : -1
+  const list = [...clients]
+  if (sortBy === "lifetimeValue") {
+    return list.sort((a, b) => ((a.lifetimeValue ?? 0) - (b.lifetimeValue ?? 0)) * multiplier)
+  }
+  if (sortBy === "lastBooking") {
+    return list.sort((a, b) => {
+      const aTs = a.lastBookingDate ? Date.parse(a.lastBookingDate) : 0
+      const bTs = b.lastBookingDate ? Date.parse(b.lastBookingDate) : 0
+      return (aTs - bTs) * multiplier
+    })
+  }
+  return list.sort((a, b) => {
+    const aCreated = Date.parse(a.createdAt ?? "") || 0
+    const bCreated = Date.parse(b.createdAt ?? "") || 0
+    return (aCreated - bCreated) * multiplier
+  })
 }

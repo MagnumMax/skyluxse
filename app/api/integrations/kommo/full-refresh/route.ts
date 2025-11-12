@@ -4,6 +4,8 @@ import { serviceClient } from '@/lib/supabase/service-client'
 type RefreshRequest = {
   year?: number
   triggeredBy?: string
+  from?: string
+  to?: string
 }
 
 async function resolveUserId(req: Request) {
@@ -26,7 +28,7 @@ export async function POST(req: Request) {
     const userId = body.triggeredBy ?? (await resolveUserId(req))
 
     const { data, error } = await serviceClient.functions.invoke('kommo-full-refresh', {
-      body: { year, triggeredBy: userId ?? null },
+      body: { year, triggeredBy: userId ?? null, from: body.from, to: body.to },
       headers: userId ? { 'x-user-id': userId } : undefined,
     })
 

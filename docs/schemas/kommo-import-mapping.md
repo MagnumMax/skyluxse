@@ -3,7 +3,7 @@
 _Last updated: 10 Nov 2025 (Kommo account `infoskyluxsecom.kommo.com`, pipelines snapshot retrieved via API)._
 
 ## Scope
-- Import Kommo leads created between **1 Jan 2025** and **31 Dec 2025**, skipping stages `status_id ∈ {143, 79790631, 91703923}` so только подтверждённые сделки попадают в букинги.
+- Import Kommo leads created between **1 Jan 2025** and **31 Dec 2025**, но в букинги проходят только стадии `status_id ∈ {75440391, 75440395, 75440399, 76475495, 78486287, 75440643, 75440639, 142}`. Kommo API разрешает указывать лишь одну стадию в `filter[statuses]`, поэтому full refresh делает по одному проходу на каждый статус и дальше режет результат по датам уже на нашей стороне.
 - Alongside each lead we ingest its main contact (`_embedded.contacts[is_main=true]`) and the custom select field **Vehicle** so we can tie bookings to our fleet.
 - Target tables: `sales_leads`, `bookings`, `clients`, `vehicles`, `booking_vehicles`, `documents`, `sales_pipeline_stages`.
 
@@ -21,7 +21,7 @@ _Last updated: 10 Nov 2025 (Kommo account `infoskyluxsecom.kommo.com`, pipelines
 | `lead.source_id` / custom field **Source** (ID 823206) | `21022` / `RENTACAR-DUBAI.AE` | `bookings.source`, `sales_leads.channel` | `bookings.channel` hard-coded to `Kommo`; marketing source stored separately. |
 | Custom field **Date/Time Delivery** (ID 1218176) | `1735977600` | `bookings.start_at` | Stored as epoch seconds in Kommo; converted to `timestamptz` via `extract_kommo_epoch`.
 | Custom field **Date/Time Collect** (ID 1218178) | `1736064000` | `bookings.end_at` | Same conversion; also used as fallback when delivery time is missing.
-| `lead.status_id` | `79790631`, `91703923`, `143` | `bookings.kommo_status_id` (кроме исключённых) | “Request bot answering”, “Follow up” и “Closed - lost” отбрасываются при импорте букингов, но значение хранится в колонке `kommo_status_id` для остальных стадий. |
+| `lead.status_id` | `75440391` и др. | `bookings.kommo_status_id` (только whitelist) | В букинги попадают лишь статусы `75440391`, `75440395`, `75440399`, `76475495`, `78486287`, `75440643`, `75440639`, `142`; остальные стадии (включая `79790631`, `91703923`, `143`) игнорируются, но сохраняются в `kommo_status_id` для аудита. |
 | `lead.custom_fields_values[]` (`field_name="Vehicle"`, ID 1234163) | `enum_id: 958555` | `booking_vehicles.vehicle_id` (via mapping table), `vehicles.kommo_vehicle_id` | See “Vehicle select mapping”. |
 | `_embedded.contacts[].id` | `22190089` | `bookings.client_id`, `sales_leads.client_id` | Look up/insert client using contact mapping below. |
 | `is_deleted` | `false` | `bookings.is_active` flag / soft-delete logic | Skip deleted leads unless historically needed. |
@@ -35,7 +35,7 @@ _Last updated: 10 Nov 2025 (Kommo account `infoskyluxsecom.kommo.com`, pipelines
 | Custom field **Email** (`code=EMAIL`) | `clients.email` | Prefer `WORK`, fallback `OTHER`. |
 | Custom field **Nationality** | `clients.residency_country` | Normalize to ISO (map known free-text values). |
 | Custom field **Birthday** | `clients.birth_date` | Stored as date. |
-| Custom field **Gender** | `clients.metadata->gender` (JSONB) | Values `Male`/`Female`. |
+| Custom field **Gender** | `clients.gender` | Normalise casing (`Male`/`Female`). |
 | Custom field **Source phone** | `clients.metadata->source_phone` | Optional audit. |
 | Custom fields **Passport/ID**, **Driver's license**, **Emirates ID** (type `file`) | `documents` + `document_links` | Upload URLs referenced in Kommo to Supabase storage when available; set `documents.source='Kommo'` and link to `clients`. |
 
@@ -104,6 +104,7 @@ Create `sales_pipeline_stages` slugs following `pipelineName_statusName` (lowerc
 | 9815931 | 75440643 `Refund Deposit` | `skyluxse_refund_deposit` | `settlement` |
 | 9815931 | 75440639 `Deal is Closed` | `skyluxse_deal_closed` | `settlement` |
 | 9815931 | 142 `Closed - won` | `skyluxse_closed_won` | `settlement` |
+| 9815931 | 143 `Closed - lost` | (excluded) | — |
 | 9839071 `Aleksei` | 75590083 `Incoming leads` | `aleksei_incoming` | `new` |
 | 9839071 | 82164527 `Manager` | `aleksei_manager` | `preparation` |
 | 9839071 | 75590091 `pre-Confirmed booking` | `aleksei_preconfirmed` | `preparation` |
@@ -130,6 +131,8 @@ Create `sales_pipeline_stages` slugs following `pipelineName_statusName` (lowerc
 | 11527247 | 143 `Closed - lost` | (excluded) | — |
 
 > When inserting into `sales_pipeline_stages`, reuse the IDs above. `bookings.status` mapping is indicative; operations may choose to keep Kommo stage strictly within `sales_leads` while `bookings.status` follows operational lifecycle post-confirmation.
+
+`/app/(dashboard)/bookings` now renders the Kommo journey directly, pulling labels/colours/order from `KOMMO_PIPELINE_STAGE_META`. Keep this file as the source of truth whenever Kommo pipelines change so the UI definitions stay in sync.
 
 ## Data quality rules
 - **Idempotency**: Use `lead.id` + `contact.id` to avoid duplicate rows. Any re-run must upsert (not append) when Kommo data changes.

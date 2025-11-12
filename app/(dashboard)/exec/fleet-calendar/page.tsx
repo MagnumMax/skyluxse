@@ -1,6 +1,6 @@
 export const dynamic = "force-dynamic" // Executive snapshot should stay in sync with live fleet collisions.
 
-import "@/app/(dashboard)/operations/fleet-calendar/fleet-calendar.css"
+import "@/app/(dashboard)/fleet-calendar/fleet-calendar.css"
 
 import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard-page-shell"
 import { FleetCalendarBoard } from "@/components/fleet-calendar"

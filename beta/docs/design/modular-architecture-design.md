@@ -533,8 +533,8 @@ Routing System
 #### Route Examples
 ```
 /ceo/dashboard → CEO Dashboard
-/sales/bookings → Sales Bookings Kanban
-/operations/fleet-calendar → Operations Fleet Calendar
+/bookings → Sales Bookings Kanban
+/fleet-calendar → Operations Fleet Calendar
 /driver/tasks → Driver Mobile Tasks
 /ceo/analytics?tab=pipeline → CEO Analytics with Pipeline tab
 ```
@@ -962,8 +962,8 @@ Routing System
 #### Route Examples
 ```
 /ceo/dashboard → CEO Dashboard
-/sales/bookings → Sales Bookings Kanban
-/operations/fleet-calendar → Operations Fleet Calendar
+/bookings → Sales Bookings Kanban
+/fleet-calendar → Operations Fleet Calendar
 /driver/tasks → Driver Mobile Tasks
 /ceo/analytics?tab=pipeline → CEO Analytics with Pipeline tab
 ```
