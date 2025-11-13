@@ -5,7 +5,9 @@ import Link from "next/link"
 import type { Booking, Client, Driver } from "@/lib/domain/entities"
 import { getClientSegmentLabel } from "@/lib/constants/client-segments"
 import { cn } from "@/lib/utils"
+import { rateSalesService } from "@/app/actions/rate-sales-service"
 import { DashboardPageShell } from "@/components/dashboard-page-shell"
+import { SalesServiceForm } from "@/components/sales-service-form"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { ClientAiPanel } from "@/components/sales-client-ai-panel"
@@ -32,7 +34,9 @@ export function OperationsBookingDetail({
   const advancePayment = resolveAdvancePayment(booking)
   const tags = booking.tags ?? []
   const statusTone = getStatusTone(booking.status)
-  const locationChips = [booking.pickupLocation, booking.dropoffLocation, booking.deliveryLocation, booking.collectLocation].filter(Boolean) as string[]
+  const locationChips = Array.from(
+    new Set([booking.pickupLocation, booking.dropoffLocation, booking.deliveryLocation, booking.collectLocation].filter(Boolean)),
+  ) as string[]
 
   return (
     <DashboardPageShell>
@@ -432,20 +436,37 @@ function HistoryCard({ title, entries }: { title: string; entries: NonNullable<B
 }
 
 function SalesServiceCard({ booking }: { booking: Booking }) {
-  const rating = booking.salesService?.rating ?? 8
-  const feedback = booking.salesService?.feedback ?? "Awaiting feedback"
-  const ratedAt = booking.salesService?.ratedAt ? formatDateTime(booking.salesService.ratedAt) : "—"
-  const ratedBy = booking.salesService?.ratedBy ?? "ceo"
+  const rating = booking.salesService?.rating
+  const feedback = booking.salesService?.feedback
+  const ratedAt = booking.salesService?.ratedAt ? formatDateTime(booking.salesService.ratedAt) : undefined
+  const ratedBy = booking.salesService?.ratedBy
+  const hasRating = typeof rating === "number" && !Number.isNaN(rating)
+  const ratingDisplay = hasRating ? `${rating}/10` : "—"
+  const ratingMetaParts = []
+  if (ratedAt) ratingMetaParts.push(`Updated ${ratedAt}`)
+  if (ratedBy) ratingMetaParts.push(ratedBy.toUpperCase())
+  const ratingMeta = ratingMetaParts.length ? ratingMetaParts.join(" · ") : undefined
+  const bookingId = String(booking.id)
 
   return (
-    <Card className="rounded-[26px] border-border/70 bg-card/80">
-      <CardHeader>
+    <Card className="rounded-[24px] border-border/70 bg-card/80">
+      <CardHeader className="pb-0">
         <CardTitle className="text-sm uppercase tracking-[0.35em] text-muted-foreground">Sales service score</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-3 text-sm">
-        <p className="text-4xl font-semibold text-foreground">{rating}/10</p>
-        <p className="text-xs text-muted-foreground">Updated {ratedAt} by {ratedBy.toUpperCase()}</p>
-        <p className="rounded-2xl border border-border/60 bg-background/70 p-3 text-sm text-foreground">{feedback}</p>
+      <CardContent className="space-y-3 p-5 text-sm">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-baseline sm:justify-between">
+          <p className="text-3xl font-semibold text-foreground">{ratingDisplay}</p>
+          {ratingMeta ? <p className="text-xs text-muted-foreground">{ratingMeta}</p> : null}
+        </div>
+        {feedback ? (
+          <p className="rounded-2xl border border-border/60 bg-background/80 p-3 text-sm text-foreground">{feedback}</p>
+        ) : null}
+        <SalesServiceForm
+          action={rateSalesService}
+          bookingId={bookingId}
+          initialRating={rating ?? undefined}
+          initialFeedback={booking.salesService?.feedback}
+        />
       </CardContent>
     </Card>
   )

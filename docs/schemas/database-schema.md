@@ -234,10 +234,10 @@ This schema proposal is derived from the production requirements captured in `do
 | pickup_fuel_level | text | `Full`, `3/4`, etc. |
 | return_mileage | int | nullable. |
 | return_fuel_level | text | nullable. |
-| sales_rating_value | smallint | 0-10. |
-| sales_rating_feedback | text | |
-| rated_by_role | role_type | `ceo` per prototype. |
-| rated_at | timestamptz | |
+| sales_service_rating | smallint | 1-10 leadership score logged post-delivery. |
+| sales_service_feedback | text | Optional qualitative feedback for sales follow-up. |
+| sales_service_rated_by | text | Actor label (role, staff id, or system source). |
+| sales_service_rated_at | timestamptz | Timestamp when the score was last updated. |
 | zoho_sales_order_id | text | Linked Zoho Sales Order reference. |
 | zoho_sync_status | text | `pending`,`synced`,`failed`. |
 | zoho_sync_error | text | Last error payload for Zoho integration. |

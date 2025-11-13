@@ -2,6 +2,15 @@ import { ReactNode } from "react"
 
 import { cn } from "@/lib/utils"
 
-export function DriverPageShell({ children, className }: { children: ReactNode; className?: string }) {
-  return <div className={cn("space-y-5", className)}>{children}</div>
+type DriverPageShellProps = {
+  children: ReactNode
+  className?: string
+}
+
+export function DriverPageShell({ children, className }: DriverPageShellProps) {
+  return (
+    <div className={cn("mx-auto flex w-full max-w-3xl flex-col gap-5 px-4 py-6 text-white", className)}>
+      {children}
+    </div>
+  )
 }

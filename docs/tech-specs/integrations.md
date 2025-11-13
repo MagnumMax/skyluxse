@@ -33,7 +33,7 @@ Kommo Webhook --> Supabase Edge Function (import-kommo)
 - Steps:
   1. Validate HMAC/secret to ensure payload authenticity.
   2. Upsert client: match by `kommo_contact_id` or email; update profile data (`clients.kommo_contact_id`).
-  3. Resolve vehicle: extract `kommo_vehicle_id` from the Kommo dropdown field using env vars `KOMMO_VEHICLE_FIELD_ID` / `KOMMO_VEHICLE_FIELD_CODE`, then lookup `vehicles.kommo_vehicle_id` to map bookings and calendar events. Payload logs and responses now include `{ kommoVehicleId, vehicleId }` for observability.
+  3. Resolve vehicle: extract `kommo_vehicle_id` from the Kommo dropdown field (field ID `1234163`, baked into the Edge Functions with an optional env override) and then lookup `vehicles.kommo_vehicle_id` to map bookings and calendar events. Payload logs and responses now include `{ kommoVehicleId, vehicleId }` for observability.
   4. Принимаем только подтверждённые стадии Kommo: `75440391`, `75440395`, `75440399`, `76475495`, `78486287`, `75440643`, `75440639`, `142`. Payload’ы с другими статусами (включая `79790631`, `91703923`, `143`) помечаются `ignored_pending_status`, отвечают 202 и не дойдут до `bookings`/календаря; при этом их `status_id` продолжает записываться в `bookings.kommo_status_id` для аудита.
   4. Upsert booking:
      - Find by `source_payload_id` or `external_code`.
@@ -58,7 +58,7 @@ Kommo Webhook --> Supabase Edge Function (import-kommo)
 
 ### Kommo full refresh (`kommo-full-refresh`)
 - Adds a button-driven **historical import** that replays Kommo leads for a given calendar year (currently 2025) and swaps them wholesale into Supabase.
-- Trigger: Next.js API `POST /api/integrations/kommo/full-refresh` → Edge Function `kommo-full-refresh`. Edge function enforces `enableKommoLive` and reads Supabase secrets (`KOMMO_BASE_URL`, `KOMMO_ACCESS_TOKEN`, optional `KOMMO_VEHICLE_FIELD_ID`/`KOMMO_SOURCE_FIELD_ID`).
+- Trigger: Next.js API `POST /api/integrations/kommo/full-refresh` → Edge Function `kommo-full-refresh`. Edge function enforces `enableKommoLive` and reads Supabase secrets (`KOMMO_BASE_URL`, `KOMMO_ACCESS_TOKEN`, optional overrides like `KOMMO_VEHICLE_FIELD_ID`/`KOMMO_SOURCE_FIELD_ID`).
 - Flow:
   1. `start_kommo_import_run(triggered_by)` creates a run record + advisory lock (90901) to avoid concurrent jobs.
   2. Function paginates `GET /api/v4/leads?with=contacts,catalog_elements,source_id&filter[created_at]=2025`, skips status `143`, normalises timestamps (handles both ISO strings and unix seconds like `1762786272`), batches contact fetches, and writes into `stg_kommo_leads`, `stg_kommo_contacts`, `stg_kommo_booking_vehicles` via RPC upserts.

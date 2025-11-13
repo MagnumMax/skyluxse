@@ -119,6 +119,10 @@ type BookingRow = {
   advance_payment?: number | null
   sales_order_url?: string | null
   agreement_number?: string | null
+  sales_service_rating?: number | null
+  sales_service_feedback?: string | null
+  sales_service_rated_by?: string | null
+  sales_service_rated_at?: string | null
 }
 
 type BookingInvoiceRow = {
@@ -315,7 +319,7 @@ const fetchBookingRows = cache(async (): Promise<BookingRow[]> => {
   const { data, error } = await serviceClient
     .from("bookings")
     .select(
-      "id, external_code, client_id, vehicle_id, driver_id, owner_id, status, booking_type, channel, priority, start_at, end_at, total_amount, deposit_amount, created_at, updated_at, created_by, kommo_status_id, delivery_fee_label, delivery_location, collect_location, rental_duration_days, price_daily, insurance_fee_label, advance_payment, sales_order_url, agreement_number"
+      "id, external_code, client_id, vehicle_id, driver_id, owner_id, status, booking_type, channel, priority, start_at, end_at, total_amount, deposit_amount, created_at, updated_at, created_by, kommo_status_id, delivery_fee_label, delivery_location, collect_location, rental_duration_days, price_daily, insurance_fee_label, advance_payment, sales_order_url, agreement_number, sales_service_rating, sales_service_feedback, sales_service_rated_by, sales_service_rated_at"
     )
     .order("start_at", { ascending: false })
     .limit(500)
@@ -329,7 +333,7 @@ async function fetchBookingRowsByClientId(clientId: string): Promise<BookingRow[
   const { data, error } = await serviceClient
     .from("bookings")
     .select(
-      "id, external_code, client_id, vehicle_id, driver_id, owner_id, status, booking_type, channel, priority, start_at, end_at, total_amount, deposit_amount, created_at, updated_at, created_by, kommo_status_id, delivery_fee_label, delivery_location, collect_location, rental_duration_days, price_daily, insurance_fee_label, advance_payment, sales_order_url, agreement_number"
+      "id, external_code, client_id, vehicle_id, driver_id, owner_id, status, booking_type, channel, priority, start_at, end_at, total_amount, deposit_amount, created_at, updated_at, created_by, kommo_status_id, delivery_fee_label, delivery_location, collect_location, rental_duration_days, price_daily, insurance_fee_label, advance_payment, sales_order_url, agreement_number, sales_service_rating, sales_service_feedback, sales_service_rated_by, sales_service_rated_at"
     )
     .eq("client_id", clientId)
     .order("start_at", { ascending: false })
@@ -828,6 +832,7 @@ function mapBookingRow(
   const invoices = context.invoicesByBooking.get(row.id) ?? []
   const createdBy = resolveAuditActor(row.created_by, owner?.full_name)
   const updatedBy = resolveAuditActor(undefined, owner?.full_name)
+  const salesService = mapSalesService(row)
   return {
     id: row.id,
     code: row.external_code ?? formatFallbackCode(row.id),
@@ -870,7 +875,7 @@ function mapBookingRow(
     salesOrderUrl: row.sales_order_url ?? undefined,
     agreementNumber: row.agreement_number ?? undefined,
     timeline: [],
-    salesService: undefined,
+    salesService,
     billing: {
       base: numberOrZero(row.total_amount),
       addons: 0,
@@ -891,6 +896,24 @@ function mapBookingRow(
     updatedAt: row.updated_at ?? undefined,
     createdBy,
     updatedBy,
+  }
+}
+
+function mapSalesService(row: BookingRow): Booking["salesService"] | undefined {
+  const rating = row.sales_service_rating ?? undefined
+  const feedback = row.sales_service_feedback ?? undefined
+  const ratedBy = row.sales_service_rated_by ?? undefined
+  const ratedAt = row.sales_service_rated_at ?? undefined
+
+  if (rating == null && !feedback && !ratedBy && !ratedAt) {
+    return undefined
+  }
+
+  return {
+    rating,
+    feedback,
+    ratedBy,
+    ratedAt,
   }
 }
 

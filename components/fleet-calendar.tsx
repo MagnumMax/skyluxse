@@ -32,12 +32,7 @@ export function useFleetCalendarController(initialViewId: CalendarViewOption["id
   const [viewId, setViewId] = useState<CalendarViewOption["id"]>(fallback.id)
   const [offset, setOffset] = useState(0)
   const [grouping, setGrouping] = useState<GroupBy>("bodyStyle")
-  const [baseDate, setBaseDate] = useState(() => {
-    const today = getStartOfToday()
-    const yesterday = new Date(today)
-    yesterday.setDate(yesterday.getDate() - 1)
-    return yesterday
-  })
+  const [baseDate, setBaseDate] = useState(() => getStartOfToday())
 
   const view = useMemo(() => {
     return calendarViewOptions.find((option) => option.id === viewId) ?? calendarViewOptions[1]
@@ -52,9 +47,7 @@ export function useFleetCalendarController(initialViewId: CalendarViewOption["id
   const goNext = () => setOffset((value) => value + view.days)
   const goToday = () => {
     const today = getStartOfToday()
-    const yesterday = new Date(today)
-    yesterday.setDate(yesterday.getDate() - 1)
-    setBaseDate(yesterday)
+    setBaseDate(today)
     setOffset(0)
   }
 
@@ -114,19 +107,17 @@ export function FleetCalendarBoard({
 
   const groupedRows = useMemo(() => {
     const bodyStyleFor = (car: FleetCar) => car.bodyStyle?.trim() || "Unspecified"
-    const orderedCars = [...vehicles].sort((a, b) => {
-      if (grouping === "manufacturer") {
-        return a.name.localeCompare(b.name)
-      }
-      return bodyStyleFor(a).localeCompare(bodyStyleFor(b))
-    })
+    const brandNameFor = (car: FleetCar) => car.make?.trim() || car.name.split(" ")[0] || car.name
+    const groupKeyFor = (car: FleetCar) =>
+      grouping === "manufacturer" ? brandNameFor(car) : bodyStyleFor(car)
+    const labelFor = (key: string) =>
+      grouping === "manufacturer" ? `${key} · Make` : `${key} · Body type`
 
     const map = new Map<string, { label: string; rows: { car: FleetCar; events: CalendarEvent[] }[] }>()
-    orderedCars.forEach((car) => {
-      const key = grouping === "manufacturer" ? car.name.split(" ")[0] ?? car.name : bodyStyleFor(car)
-      const label = grouping === "manufacturer" ? `${key} · Make` : `${key} · Body type`
+    vehicles.forEach((car) => {
+      const key = groupKeyFor(car)
       if (!map.has(key)) {
-        map.set(key, { label, rows: [] })
+        map.set(key, { label: labelFor(key), rows: [] })
       }
       map.get(key)!.rows.push({
         car,
@@ -135,7 +126,15 @@ export function FleetCalendarBoard({
           .sort((a, b) => a.start.localeCompare(b.start)),
       })
     })
+
     return Array.from(map.values())
+      .sort((a, b) => a.label.localeCompare(b.label, "en", { sensitivity: "base" }))
+      .map((group) => ({
+        ...group,
+        rows: [...group.rows].sort((a, b) =>
+          brandNameFor(a.car).localeCompare(brandNameFor(b.car), "en", { sensitivity: "base" })
+        ),
+      }))
   }, [grouping, vehicles, visibleEvents])
 
   const gridTemplateColumns = useMemo(

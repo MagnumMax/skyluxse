@@ -1,10 +1,13 @@
 # UI Gaps Log
 
-_Last updated: 10 Nov 2025_
+_Last updated: 13 Nov 2025_
 
 ## Coverage snapshot
 - **Shadcn primitives в использовании:** Button, Card, Dialog, Sheet, Navigation Menu, Badge, Input, Label, Select, Checkbox, Toast. Все новые поверхности из блока 4 строятся поверх этих примитивов + композиции (канбан, календари, аналитика) из Card/Grid.
-- **Layout shell:** `DashboardPageShell` → App Router страницы с сайдбаром/хедерами; `DashboardPageHeader` задаёт title/meta/description (eyebrow удалён после ревью 11 Nov 2025). `DriverPageShell` зеркалит подход в мобильном приложении (единыe `space-y-5`, max-width 480px). Страницы календарей и документ-вьюера подключены к shell и наследуют общие отступы.
+- **Layout shell:** `DashboardPageShell` и `DashboardPageHeader` теперь используют shadcn Card + Breadcrumb, поддерживают meta/actions, и задают единый вертикальный ритм без bespoke `header` классов. `DriverPageShell` зеркалит подход в мобильном приложении (единыe `space-y-5`, max-width 480px). Страницы календарей и документ-вьюера подключены к shell и наследуют общие отступы.
+- **Layout shell:** `DashboardPageShell` и `DashboardPageHeader` теперь используют shadcn Card + Breadcrumb, поддерживают meta/actions, и задают единый вертикальный ритм без bespoke `header` классов. `DriverPageShell` зеркалит подход в мобильном приложении (единый `max-w-3xl`, padding), поэтому все mobile-first экраны получают одинаковую сетку.
+- **Driver experience:** `DriverTaskList` + `DriverTaskDetail` собраны на Card/Badge/ToggleGroup/Checkbox, фильтры и чеклисты больше не используют кастомные кнопки/иконки. Любые новые водительские поверхности должны переиспользовать эти заготовки.
+- **Fleet calendar controls:** панель фильтров/поиска построена на Card + Tabs + Popover (shadcn), включая селект группировки и dropdown слоёв событий. Остаточный CSS с классами `.fleet-calendar-shell` применяется только к сетке расписания.
 - **Login / landing:** `/login` теперь использует стандартные Card/Button/Input/Select + tailwind utility-отступы без bespoke классов, градиент вынесен в inline-style токен.
 - **Login redirect (11 Nov 2025):** Кнопка `Sign in` маршрутизирует пользователя в App Router по выбранной роли (`operations → /fleet-calendar`, `sales → /fleet-calendar`, `ceo → /exec/dashboard`, `driver → /driver/tasks`) с валидацией email, пока Supabase Auth не подключен.
 - **Modals / drawers:** документ-вьюер, Zoho OAuth sheet, sales workspace панели собраны через `Sheet`/`Dialog` API + Card контент.

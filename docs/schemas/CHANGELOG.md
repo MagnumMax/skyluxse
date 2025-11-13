@@ -1,5 +1,9 @@
 # Schema Changelog
 
+## 2025-11-13 — Sales Service Feedback Capture
+- Added `sales_service_rating`, `sales_service_feedback`, `sales_service_rated_by`, and `sales_service_rated_at` columns to `public.bookings` to store the CEO’s handoff assessment without relying on UI placeholders.
+- Documented the new fields inside `docs/schemas/database-schema.md` so the operations booking detail card can render live data and accept updates via server actions.
+
 ## 2025-11-09 — Initial Supabase Schema Baseline
 - Added Postgres enums for roles, vehicle/task/booking statuses, and document scopes to keep RLS + App Router types in sync with `docs/schemas/database-schema.md`.
 - Created core tables: `staff_accounts`, `driver_profiles`, `clients`, `vehicles`, `bookings`, `booking_invoices`, `booking_timeline_events`, `calendar_events`, `tasks`, `task_checklist_items`, `documents`, `document_links`, `sales_pipeline_stages`, `sales_leads`, `integrations_outbox`, `kommo_webhook_events`, `kpi_snapshots`, `ai_feedback_events`, and `system_feature_flags`.

@@ -7,7 +7,8 @@ const MAX_BODY_BYTES = 1_048_576 // 1 MB safety limit per Kommo spec
 const SIGNATURE_HEADER = "x-kommo-signature"
 const FEATURE_FLAG_KEY = 'enableKommoLive'
 const EXCLUDED_STATUS_IDS = new Set([79790631, 91703923, 143])
-const KOMMO_VEHICLE_FIELD_ID = Deno.env.get("KOMMO_VEHICLE_FIELD_ID")
+const DEFAULT_KOMMO_VEHICLE_FIELD_ID = "1234163"
+const KOMMO_VEHICLE_FIELD_ID = Deno.env.get("KOMMO_VEHICLE_FIELD_ID") ?? DEFAULT_KOMMO_VEHICLE_FIELD_ID
 const KOMMO_VEHICLE_FIELD_CODE = Deno.env.get("KOMMO_VEHICLE_FIELD_CODE")?.toLowerCase()
 
 type KommoPayload = Record<string, unknown>
@@ -101,7 +102,7 @@ function extractKommoVehicleId(payload: KommoPayload): string | null {
     const values = (field as { values?: Array<{ value?: unknown; enum_code?: unknown; enum?: unknown }> }).values
     if (!Array.isArray(values)) continue
     for (const entry of values) {
-      const candidate = asString(entry?.value ?? entry?.enum_code ?? entry?.enum)
+      const candidate = asString(entry?.enum_id ?? entry?.value ?? entry?.enum_code ?? entry?.enum)
       if (candidate) {
         return candidate
       }

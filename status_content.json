@@ -2,16 +2,14 @@ import { serve } from "https://deno.land/std@0.224.0/http/server.ts"
 import { timingSafeEqual } from "https://deno.land/std@0.224.0/crypto/timing_safe_equal.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.1"
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.45.1"
+import { KOMMO_VEHICLE_FIELD_CODE, KOMMO_VEHICLE_FIELD_ID } from "../_shared/kommo.ts"
 
 const SIGNATURE_HEADER = "x-kommo-signature"
 const REQUIRE_SIGNATURE = false
+const FEATURE_FLAG_KEY = "enableKommoLive"
 const KOMMO_BASE_URL = Deno.env.get("KOMMO_BASE_URL") ?? ""
 const KOMMO_ACCESS_TOKEN = Deno.env.get("KOMMO_ACCESS_TOKEN") ?? ""
 const KOMMO_WEBHOOK_SECRET = Deno.env.get("KOMMO_WEBHOOK_SECRET") ?? ""
-const DOCUMENTS_BUCKET = Deno.env.get("SUPABASE_STORAGE_DOCUMENTS_BUCKET") ?? ""
-const DEFAULT_KOMMO_VEHICLE_FIELD_ID = "1234163"
-const KOMMO_VEHICLE_FIELD_ID = Deno.env.get("KOMMO_VEHICLE_FIELD_ID") ?? DEFAULT_KOMMO_VEHICLE_FIELD_ID
-const KOMMO_VEHICLE_FIELD_CODE = Deno.env.get("KOMMO_VEHICLE_FIELD_CODE")?.toLowerCase()
 const KOMMO_DELIVERY_FIELD_ID = Number(Deno.env.get("KOMMO_DELIVERY_FIELD_ID") ?? "1218176")
 const KOMMO_COLLECT_FIELD_ID = Number(Deno.env.get("KOMMO_COLLECT_FIELD_ID") ?? "1218178")
 
@@ -33,6 +31,8 @@ const DOCUMENT_FIELD_MAP = [
   { fieldId: 1234171, docType: "emirates_id" },
 ]
 
+const DOCUMENTS_BUCKET = Deno.env.get("SUPABASE_STORAGE_DOCUMENTS_BUCKET") ?? ""
+
 const KOMMO_MAX_RETRIES = Math.max(1, Math.floor(coerceEnvNumber(Deno.env.get("KOMMO_MAX_RETRIES"), 4)))
 const KOMMO_RETRY_BASE_DELAY_MS = Math.max(
   100,
@@ -47,19 +47,9 @@ const KOMMO_STATUS_CONFIG: Record<
   string,
   { label: string; bookingStatus: "lead" | "confirmed" | "delivery" | "in_progress" | "completed" | "cancelled" }
 > = {
-  "75440383": { label: "Incoming leads", bookingStatus: "lead" },
-  "79790631": { label: "Request bot answering", bookingStatus: "lead" },
-  "91703923": { label: "Follow up", bookingStatus: "lead" },
-  "96150292": { label: "waiting for payment", bookingStatus: "lead" },
   "75440391": { label: "Confirmed bookings", bookingStatus: "confirmed" },
   "75440395": { label: "Delivery within 24 hours", bookingStatus: "delivery" },
-  "75440399": { label: "Car with Customers", bookingStatus: "in_progress" },
-  "76475495": { label: "Pick up within 24 hours", bookingStatus: "in_progress" },
-  "78486287": { label: "OBJECTIONS", bookingStatus: "lead" },
-  "75440643": { label: "Refund Deposit", bookingStatus: "completed" },
-  "75440639": { label: "Deal is Closed", bookingStatus: "completed" },
-  "142": { label: "Closed - won", bookingStatus: "completed" },
-  "143": { label: "lost", bookingStatus: "cancelled" },
+  "75440399": { label: "Car with customers", bookingStatus: "in_progress" },
 }
 
 const COUNTRY_MAP: Record<string, string> = {
@@ -104,6 +94,15 @@ function getServiceClient() {
   return createClient(supabaseUrl, serviceRoleKey, {
     auth: { persistSession: false },
   })
+}
+
+async function isFeatureFlagEnabled(client: SupabaseClient, flag: string) {
+  const { data } = await client
+    .from("system_feature_flags")
+    .select("is_enabled")
+    .eq("flag", flag)
+    .maybeSingle()
+  return data?.is_enabled ?? false
 }
 
 type SignatureValidation = {
@@ -171,7 +170,7 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
-async function kommoGet(path: string, attempt = 1) {
+async function kommoGet(path: string, attempt = 1): Promise<any> {
   const url = `${KOMMO_BASE_URL}${path}`
   const resp = await fetch(url, {
     headers: {
@@ -275,11 +274,6 @@ function extractIntegerField(entity: any, fieldId: number) {
 
 function mapBookingStatus(statusId: string) {
   return KOMMO_STATUS_CONFIG[statusId]?.bookingStatus ?? "lead"
-}
-
-function resolveKommoStatusLabel(statusId: string | null) {
-  const normalized = statusId && statusId.length ? statusId : "unknown"
-  return KOMMO_STATUS_CONFIG[normalized]?.label ?? `Kommo status ${normalized}`
 }
 
 function mapPipelineStage(pipelineId: string, statusId: string) {
@@ -477,7 +471,7 @@ function extractKommoVehicleId(entity: any): string | null {
     if (!fieldIdMatches && !fieldCodeMatches) continue
     const values = Array.isArray(field?.values) ? field.values : []
     for (const entry of values) {
-      const candidate = asString(entry?.enum_id ?? entry?.value ?? entry?.enum_code ?? entry?.enum)
+      const candidate = asString(entry?.value ?? entry?.enum_code ?? entry?.enum)
       if (candidate) return candidate
     }
   }
@@ -603,7 +597,10 @@ function parseFormEncodedPayload(rawBody: string) {
 
 async function handleStatusChange(client: SupabaseClient, event: any): Promise<HandleResult> {
   const statusId = String(event.status_id ?? "")
-  const statusLabel = resolveKommoStatusLabel(statusId)
+  const config = KOMMO_STATUS_CONFIG[statusId]
+  if (!config) {
+    return { leadId: event.id, skipped: true, statusId, statusLabel: null }
+  }
 
   const lead = await kommoGet(`/api/v4/leads/${event.id}?with=contacts,custom_fields`)
   const contactId = lead?._embedded?.contacts?.find((c: any) => c.is_main)?.id ?? lead?._embedded?.contacts?.[0]?.id
@@ -615,8 +612,7 @@ async function handleStatusChange(client: SupabaseClient, event: any): Promise<H
       console.error("Failed to sync Kommo documents", error)
     )
   }
-  const stageId =
-    mapPipelineStage(String(event.pipeline_id), String(event.status_id)) ?? String(event.status_id ?? "")
+  const stageId = mapPipelineStage(String(event.pipeline_id), String(event.status_id))
   await upsertSalesLead(client, lead, clientId, stageId)
   const bookingStatus = mapBookingStatus(statusId)
   const kommoVehicleId = extractKommoVehicleId(lead)
@@ -644,10 +640,10 @@ async function handleStatusChange(client: SupabaseClient, event: any): Promise<H
     })
   )
   if (bookingId) {
-    await logBookingTimelineEvent(client, bookingId, statusId, statusLabel, event.pipeline_id)
+    await logBookingTimelineEvent(client, bookingId, statusId, config.label, event.pipeline_id)
   }
 
-  return { leadId: event.id, processed: true, statusId, statusLabel }
+  return { leadId: event.id, processed: true, statusId, statusLabel: config.label }
 }
 
 function buildBookingOptions(
@@ -847,6 +843,11 @@ serve(async (req) => {
 
     const supabase = getServiceClient()
 
+    const live = await isFeatureFlagEnabled(supabase, FEATURE_FLAG_KEY)
+    if (!live) {
+      return new Response(JSON.stringify({ error: "Kommo integration disabled" }), { status: 403 })
+    }
+
     const statusEventsRaw = payload?.leads?.status
     const statusEvents = Array.isArray(statusEventsRaw) ? statusEventsRaw : []
     if (!Array.isArray(statusEventsRaw)) {
@@ -877,8 +878,8 @@ serve(async (req) => {
           hmac_validated: true,
           status: "failed",
           kommo_status_id: String(event.status_id ?? ""),
-          kommo_status_label: resolveKommoStatusLabel(String(event.status_id ?? "")),
-          error_message: errorMessage,
+          kommo_status_label: KOMMO_STATUS_CONFIG[String(event.status_id ?? "")]?.label ?? null,
+          error_message: errorMessage
         })
         results.push({ leadId: event.id, error: errorMessage })
       }
