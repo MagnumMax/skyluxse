@@ -141,6 +141,7 @@
   z-index: 1;
   padding: 0.25rem 0.45rem;
   border-radius: 0.45rem;
+  border: 1px solid transparent;
   font-size: 0.68rem;
   line-height: 1.2;
   display: flex;
@@ -148,6 +149,7 @@
   flex-direction: column;
   gap: 0.12rem;
   box-shadow: 0 8px 18px -14px rgba(15, 23, 42, 0.45);
+  color: var(--fleet-calendar-event-text, hsl(var(--foreground)));
 }
 
 .calendar-event-button {
@@ -196,40 +198,44 @@
 
 /* Surfaces mapped from event types */
 
+.calendar-event-surface-reservation {
+  background-color: var(--fleet-calendar-reservation-surface);
+}
+
+.calendar-event-border-reservation {
+  border: 1px solid var(--fleet-calendar-reservation-border);
+}
+
 .calendar-event-surface-rental {
-  background-color: hsl(var(--primary) / 0.12);
-  color: hsl(var(--primary));
+  background-color: var(--fleet-calendar-rental-surface);
 }
 
 .calendar-event-border-rental {
-  border: 1px solid hsl(var(--primary) / 0.35);
+  border: 1px solid var(--fleet-calendar-rental-border);
 }
 
 .calendar-event-surface-maintenance {
-  background-color: hsl(var(--secondary) / 0.4);
-  color: hsl(var(--secondary-foreground));
+  background-color: var(--fleet-calendar-maintenance-surface);
 }
 
 .calendar-event-border-maintenance {
-  border: 1px solid hsl(var(--secondary) / 0.8);
+  border: 1px solid var(--fleet-calendar-maintenance-border);
 }
 
 .calendar-event-surface-repair {
-  background-color: hsl(var(--destructive) / 0.12);
-  color: hsl(var(--destructive));
+  background-color: var(--fleet-calendar-repair-surface);
 }
 
 .calendar-event-border-repair {
-  border: 1px solid hsl(var(--destructive) / 0.35);
+  border: 1px solid var(--fleet-calendar-repair-border);
 }
 
 .calendar-event-surface-neutral {
-  background-color: hsl(var(--muted));
-  color: hsl(var(--foreground));
+  background-color: var(--fleet-calendar-neutral-surface);
 }
 
 .calendar-event-border-neutral {
-  border: 1px solid hsl(var(--border));
+  border: 1px solid var(--fleet-calendar-neutral-border);
 }
 
 /* Legend */

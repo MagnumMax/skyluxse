@@ -42,6 +42,17 @@
     --dashboard-header-height: 64px;
     --fleet-calendar-sticky-gap: 0rem;
     --fleet-calendar-sticky-offset: calc(var(--dashboard-header-height, 64px) + var(--fleet-calendar-sticky-gap, 0px));
+    --fleet-calendar-event-text: #0f172a;
+    --fleet-calendar-reservation-surface: #e0f2fe;
+    --fleet-calendar-reservation-border: #bae6fd;
+    --fleet-calendar-rental-surface: #e0e7ff;
+    --fleet-calendar-rental-border: #c7d2fe;
+    --fleet-calendar-maintenance-surface: #fffbeb;
+    --fleet-calendar-maintenance-border: #fde68a;
+    --fleet-calendar-repair-surface: #ffe4e6;
+    --fleet-calendar-repair-border: #fecdd3;
+    --fleet-calendar-neutral-surface: hsl(var(--muted));
+    --fleet-calendar-neutral-border: hsl(var(--border));
   }
 
   body {
@@ -85,6 +96,17 @@
     --sidebar-accent-foreground: oklch(0.984 0.003 247.858);
     --sidebar-border: oklch(1 0 0 / 10%);
     --sidebar-ring: oklch(0.551 0.027 264.364);
+    --fleet-calendar-event-text: #f7f8ff;
+    --fleet-calendar-reservation-surface: rgba(82, 155, 255, 0.2);
+    --fleet-calendar-reservation-border: rgba(138, 191, 255, 0.55);
+    --fleet-calendar-rental-surface: rgba(168, 132, 255, 0.22);
+    --fleet-calendar-rental-border: rgba(197, 164, 255, 0.6);
+    --fleet-calendar-maintenance-surface: rgba(255, 192, 120, 0.24);
+    --fleet-calendar-maintenance-border: rgba(255, 210, 150, 0.6);
+    --fleet-calendar-repair-surface: rgba(255, 134, 160, 0.24);
+    --fleet-calendar-repair-border: rgba(255, 174, 190, 0.62);
+    --fleet-calendar-neutral-surface: rgba(255, 255, 255, 0.06);
+    --fleet-calendar-neutral-border: rgba(255, 255, 255, 0.16);
   }
 }
 

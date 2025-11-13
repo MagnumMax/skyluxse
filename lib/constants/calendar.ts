@@ -85,22 +85,22 @@ export function normalizePeriodRange(fromParam?: string, toParam?: string): Peri
 export const calendarEventTypes: Record<CalendarEventType, { label: string; surface: string; border: string }> = {
   reservation: {
     label: "Reservation",
-    surface: "bg-sky-100",
-    border: "border-sky-200",
+    surface: "calendar-event-surface-reservation",
+    border: "calendar-event-border-reservation",
   },
   rental: {
     label: "Rental",
-    surface: "bg-indigo-100",
-    border: "border-indigo-200",
+    surface: "calendar-event-surface-rental",
+    border: "calendar-event-border-rental",
   },
   maintenance: {
     label: "Maintenance",
-    surface: "bg-amber-50",
-    border: "border-amber-200",
+    surface: "calendar-event-surface-maintenance",
+    border: "calendar-event-border-maintenance",
   },
   repair: {
     label: "Repair",
-    surface: "bg-rose-100",
-    border: "border-rose-200",
+    surface: "calendar-event-surface-repair",
+    border: "calendar-event-border-repair",
   },
 }
