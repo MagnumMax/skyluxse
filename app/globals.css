@@ -39,6 +39,9 @@
     --sidebar-accent-foreground: oklch(0.208 0.042 265.755);
     --sidebar-border: oklch(0.929 0.013 255.508);
     --sidebar-ring: oklch(0.704 0.04 256.788);
+    --dashboard-header-height: 64px;
+    --fleet-calendar-sticky-gap: 0rem;
+    --fleet-calendar-sticky-offset: calc(var(--dashboard-header-height, 64px) + var(--fleet-calendar-sticky-gap, 0px));
   }
 
   body {
@@ -269,7 +272,8 @@
   }
 
   .calendar-grid-scroll {
-    @apply overflow-auto;
+    @apply overflow-x-auto;
+    overflow-y: visible;
   }
 
   .calendar-grid {

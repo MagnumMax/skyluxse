@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 
 import "./fleet-calendar.css"
@@ -9,6 +9,7 @@ import { DashboardPageShell } from "@/components/dashboard-page-shell"
 import { FleetCalendarBoard, calendarViewOptions, useFleetCalendarController } from "@/components/fleet-calendar"
 import type { Booking, CalendarEvent, FleetCar } from "@/lib/domain/entities"
 import { calculateVehicleRuntimeMetrics } from "@/lib/fleet/runtime"
+import { calendarEventTypes } from "@/lib/constants/calendar"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -16,7 +17,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
-export type CalendarLayer = "rental" | "maintenance" | "repair"
+export type CalendarLayer = "reservation" | "rental" | "maintenance" | "repair"
 
 interface OperationsFleetCalendarClientProps {
   vehicles: FleetCar[]
@@ -24,11 +25,16 @@ interface OperationsFleetCalendarClientProps {
   events: CalendarEvent[]
 }
 
-export function OperationsFleetCalendarClient({ vehicles, bookings, events }: OperationsFleetCalendarClientProps) {
+export function OperationsFleetCalendarClient({
+  vehicles,
+  bookings,
+  events,
+}: OperationsFleetCalendarClientProps) {
   const router = useRouter()
   const metrics = useMemo(() => buildCalendarMetrics(vehicles, bookings, events), [vehicles, bookings, events])
   const calendarController = useFleetCalendarController()
   const [layerFilters, setLayerFilters] = useState<Record<CalendarLayer, boolean>>({
+    reservation: true,
     rental: true,
     maintenance: true,
     repair: true,
@@ -72,31 +78,19 @@ export function OperationsFleetCalendarClient({ vehicles, bookings, events }: Op
         <KpiCard label="Repair conflicts" value={metrics.repairEvents.toString()} tone="text-rose-600" />
       </section>
 
-      <section className="rounded-[26px] border border-border/70 bg-card/80 p-5 shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-muted-foreground">Filters & sorting</p>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => resetFilters(setLayerFilters, calendarController, setSearchQuery)}
-          >
-            Reset
-          </Button>
-        </div>
-        <div className="mt-4 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div className="flex w-full flex-col gap-3 lg:flex-row">
-            <div className="flex-1">
-              <Label htmlFor="calendar-search" className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
-                Search
-              </Label>
-              <Input
-                id="calendar-search"
-                placeholder="Search car, plate, booking…"
-                value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
-                className="mt-1"
-              />
-            </div>
+      <section className="rounded-[26px] border border-border/70 bg-card/80 p-5 shadow-sm space-y-4">
+        <div className="flex w-full flex-wrap items-end gap-3">
+          <div className="flex-1 min-w-[220px]">
+            <Label htmlFor="calendar-search" className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
+              Search
+            </Label>
+            <Input
+              id="calendar-search"
+              placeholder="Search car, plate, booking…"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              className="mt-1 w-full"
+            />
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {calendarViewOptions.map((option) => (
@@ -104,13 +98,13 @@ export function OperationsFleetCalendarClient({ vehicles, bookings, events }: Op
                 key={option.id}
                 size="sm"
                 variant={calendarController.view.id === option.id ? "default" : "outline"}
-                onClick={() => {
-                  calendarController.setView(option.id)
-                }}
+                onClick={() => calendarController.setView(option.id)}
               >
                 {option.label}
               </Button>
             ))}
+          </div>
+          <div className="flex gap-2">
             <Button variant="ghost" size="sm" onClick={calendarController.goPrev}>
               ← Prev
             </Button>
@@ -122,8 +116,8 @@ export function OperationsFleetCalendarClient({ vehicles, bookings, events }: Op
             </Button>
           </div>
         </div>
-        <div className="mt-4 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-          <div className="space-y-1">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-1 min-w-[180px] flex-col gap-1">
             <Label htmlFor="calendar-grouping" className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
               Group by
             </Label>
@@ -137,26 +131,16 @@ export function OperationsFleetCalendarClient({ vehicles, bookings, events }: Op
               </SelectContent>
             </Select>
           </div>
-        </div>
-        <div className="mt-4 grid gap-3 sm:grid-cols-3">
-          {Object.keys(layerMeta).map((key) => {
-            const layer = key as CalendarLayer
-            const meta = layerMeta[layer]
-            return (
-              <label key={layer} className="flex items-center gap-3 rounded-2xl border border-border/70 bg-background/60 p-3 text-sm">
-                <Checkbox
-                  checked={layerFilters[layer]}
-                  onCheckedChange={(value) =>
-                    setLayerFilters((prev) => ({ ...prev, [layer]: Boolean(value) }))
-                  }
-                />
-                <div>
-                  <p className="font-semibold text-foreground">{meta.label}</p>
-                  <p className="text-xs text-muted-foreground">{meta.countLabel(metrics)}</p>
-                </div>
-              </label>
-            )
-          })}
+          <div className="flex flex-wrap items-center gap-3">
+            <EventLayerDropdown
+              filters={layerFilters}
+              metrics={metrics}
+              onToggle={(layer) => setLayerFilters((prev) => ({ ...prev, [layer]: !prev[layer] }))}
+            />
+            <Button variant="ghost" size="sm" onClick={() => resetFilters(setLayerFilters, calendarController, setSearchQuery)}>
+              Reset
+            </Button>
+          </div>
         </div>
       </section>
 
@@ -175,6 +159,10 @@ export function OperationsFleetCalendarClient({ vehicles, bookings, events }: Op
 }
 
 const layerMeta: Record<CalendarLayer, { label: string; countLabel: (metrics: CalendarMetrics) => string }> = {
+  reservation: {
+    label: "Reservations",
+    countLabel: (metrics) => `${metrics.reservationEvents} pending`,
+  },
   rental: {
     label: "Rentals",
     countLabel: (metrics) => `${metrics.activeRentals} active`,
@@ -188,6 +176,8 @@ const layerMeta: Record<CalendarLayer, { label: string; countLabel: (metrics: Ca
     countLabel: (metrics) => `${metrics.repairEvents} flagged`,
   },
 }
+
+const EVENT_LAYER_ORDER: CalendarLayer[] = ["reservation", "rental", "maintenance", "repair"]
 
 type CalendarMetrics = ReturnType<typeof buildCalendarMetrics>
 
@@ -222,6 +212,7 @@ function buildCalendarMetrics(vehicles: FleetCar[], bookings: Booking[], events:
   const maintenanceEvents = events.filter((event) => event.type === "maintenance").length
   const repairEvents = events.filter((event) => event.type === "repair").length
   const activeRentals = events.filter((event) => event.type === "rental").length
+  const reservationEvents = events.filter((event) => event.type === "reservation").length
 
   return {
     totalVehicles,
@@ -229,8 +220,79 @@ function buildCalendarMetrics(vehicles: FleetCar[], bookings: Booking[], events:
     maintenanceVehicles,
     maintenanceEvents,
     repairEvents,
+    reservationEvents,
     activeRentals,
   }
+}
+
+function EventLayerDropdown({
+  filters,
+  metrics,
+  onToggle,
+}: {
+  filters: Record<CalendarLayer, boolean>
+  metrics: CalendarMetrics
+  onToggle: (layer: CalendarLayer) => void
+}) {
+  const dropdownRef = useRef<HTMLDivElement>(null)
+  const [isOpen, setIsOpen] = useState(false)
+
+  useEffect(() => {
+    if (!isOpen) return
+    const handle = (event: PointerEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false)
+      }
+    }
+    document.addEventListener("pointerdown", handle)
+    return () => document.removeEventListener("pointerdown", handle)
+  }, [isOpen])
+
+  const activeCount = EVENT_LAYER_ORDER.filter((layer) => filters[layer]).length
+
+  return (
+    <div ref={dropdownRef} className="relative">
+      <Button
+        variant="outline"
+        size="sm"
+        className="flex items-center gap-2"
+        onClick={() => setIsOpen((prev) => !prev)}
+        aria-expanded={isOpen}
+      >
+        <span>Events</span>
+        <span className="text-[0.65rem] font-semibold text-muted-foreground">
+          {activeCount}/{EVENT_LAYER_ORDER.length}
+        </span>
+        <span className="text-xs text-muted-foreground">▾</span>
+      </Button>
+      {isOpen && (
+        <div className="absolute right-0 top-full z-10 mt-2 w-56 space-y-2 rounded-2xl border border-border/70 bg-card/90 p-3 text-sm shadow-lg">
+          {EVENT_LAYER_ORDER.map((layer) => {
+            const meta = layerMeta[layer]
+            const indicatorClasses = `${calendarEventTypes[layer].surface} ${calendarEventTypes[layer].border}`
+            return (
+              <label
+                key={layer}
+                className="flex cursor-pointer items-start gap-3 rounded-xl p-2 hover:bg-background/40"
+              >
+                <Checkbox
+                  checked={filters[layer]}
+                  onCheckedChange={() => onToggle(layer)}
+                />
+                <div className="flex flex-col gap-0.5">
+                  <div className="flex items-center gap-2">
+                    <span className={`h-2.5 w-2.5 rounded-full ${indicatorClasses}`} />
+                    <span className="font-semibold text-foreground">{meta.label}</span>
+                  </div>
+                  <span className="text-xs text-muted-foreground">{meta.countLabel(metrics)}</span>
+                </div>
+              </label>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
 }
 
 function resetFilters(
@@ -238,7 +300,7 @@ function resetFilters(
   controller: ReturnType<typeof useFleetCalendarController>,
   setSearchQuery: (value: string) => void
 ) {
-  setLayerFilters({ rental: true, maintenance: true, repair: true })
+  setLayerFilters({ reservation: true, rental: true, maintenance: true, repair: true })
   controller.setView("week")
   controller.goToday()
   setSearchQuery("")

@@ -5,9 +5,18 @@ import "@/app/(dashboard)/fleet-calendar/fleet-calendar.css"
 import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard-page-shell"
 import { FleetCalendarBoard } from "@/components/fleet-calendar"
 import { getFleetCalendarData } from "@/lib/data/live-data"
+import { normalizePeriodRange } from "@/lib/constants/calendar"
 
-export default async function ExecFleetCalendarPage() {
+interface ExecFleetCalendarPageProps {
+  searchParams?: {
+    from?: string
+    to?: string
+  }
+}
+
+export default async function ExecFleetCalendarPage({ searchParams }: ExecFleetCalendarPageProps) {
   const { vehicles, events } = await getFleetCalendarData()
+  const periodRange = normalizePeriodRange(searchParams?.from, searchParams?.to)
   return (
     <DashboardPageShell>
       <DashboardPageHeader
@@ -19,7 +28,7 @@ export default async function ExecFleetCalendarPage() {
           </span>
         }
       />
-      <FleetCalendarBoard vehicles={vehicles} events={events} />
+      <FleetCalendarBoard vehicles={vehicles} events={events} periodRange={periodRange} />
     </DashboardPageShell>
   )
 }

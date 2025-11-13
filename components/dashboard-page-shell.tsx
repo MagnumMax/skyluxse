@@ -8,7 +8,7 @@ interface DashboardPageShellProps {
 }
 
 export function DashboardPageShell({ children, className }: DashboardPageShellProps) {
-  return <div className={cn("space-y-6", className)}>{children}</div>
+  return <div className={cn("flex flex-col gap-6", className)}>{children}</div>
 }
 
 interface DashboardPageHeaderProps {

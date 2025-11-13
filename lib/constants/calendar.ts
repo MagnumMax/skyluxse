@@ -1,6 +1,93 @@
 import type { CalendarEventType } from "@/lib/domain/entities"
 
+export type PeriodRange = {
+  from: string
+  to: string
+}
+
+export const DEFAULT_PERIOD_DAYS = 7
+export const MAX_PERIOD_DAYS = 31
+
+function formatDate(date: Date): string {
+  const year = date.getFullYear()
+  const month = `${date.getMonth() + 1}`.padStart(2, "0")
+  const day = `${date.getDate()}`.padStart(2, "0")
+  return `${year}-${month}-${day}`
+}
+
+function parseDate(value?: string): Date | null {
+  if (!value) return null
+  // Ожидаем формат YYYY-MM-DD, без использования внешних библиотек.
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
+  if (!match) return null
+
+  const year = Number(match[1])
+  const monthIndex = Number(match[2]) - 1
+  const day = Number(match[3])
+
+  const date = new Date(Date.UTC(year, monthIndex, day))
+  if (
+    date.getUTCFullYear() !== year ||
+    date.getUTCMonth() !== monthIndex ||
+    date.getUTCDate() !== day
+  ) {
+    return null
+  }
+
+  return date
+}
+
+function addDaysUTC(date: Date, days: number): Date {
+  const result = new Date(date.getTime())
+  result.setUTCDate(result.getUTCDate() + days)
+  return result
+}
+
+const todayUTC = (() => {
+  const now = new Date()
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()))
+})()
+
+export const DEFAULT_PERIOD_RANGE: PeriodRange = {
+  from: formatDate(todayUTC),
+  to: formatDate(addDaysUTC(todayUTC, DEFAULT_PERIOD_DAYS - 1)),
+}
+
+/**
+ * Нормализует диапазон дат в формате YYYY-MM-DD.
+ * Используется UTC-основанная логика, чтобы избежать проблем с часовыми поясами.
+ */
+export function normalizePeriodRange(fromParam?: string, toParam?: string): PeriodRange {
+  let fromDate = parseDate(fromParam) ?? parseDate(DEFAULT_PERIOD_RANGE.from)!
+  let toDate = parseDate(toParam)
+
+  if (!toDate) {
+    toDate = addDaysUTC(fromDate, DEFAULT_PERIOD_DAYS - 1)
+  }
+
+  // Если to < from → to = from
+  if (toDate.getTime() < fromDate.getTime()) {
+    toDate = new Date(fromDate.getTime())
+  }
+
+  // Ограничиваем максимальную длину диапазона MAX_PERIOD_DAYS
+  const maxEndDate = addDaysUTC(fromDate, MAX_PERIOD_DAYS - 1)
+  if (toDate.getTime() > maxEndDate.getTime()) {
+    toDate = maxEndDate
+  }
+
+  return {
+    from: formatDate(fromDate),
+    to: formatDate(toDate),
+  }
+}
+
 export const calendarEventTypes: Record<CalendarEventType, { label: string; surface: string; border: string }> = {
+  reservation: {
+    label: "Reservation",
+    surface: "bg-sky-100",
+    border: "border-sky-200",
+  },
   rental: {
     label: "Rental",
     surface: "bg-indigo-100",

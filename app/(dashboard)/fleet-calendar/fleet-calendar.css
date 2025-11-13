@@ -106,8 +106,8 @@
 
 .calendar-day-header {
   position: sticky;
-  top: 0;
-  z-index: 20;
+  top: var(--fleet-calendar-sticky-offset, var(--dashboard-header-height, 0px));
+  z-index: 24;
   background-color: hsl(var(--muted));
   color: hsl(var(--muted-foreground));
   border-left: 1px solid hsl(var(--border));
@@ -276,6 +276,7 @@
   flex-direction: column;
   gap: 1.25rem;
   --fleet-calendar-left-width: 200px;
+  --fleet-calendar-sticky-gap: 0rem;
 }
 
 .fleet-calendar-group {
@@ -399,6 +400,14 @@
   z-index: 2;
 }
 
+.fleet-calendar-table-row--header {
+  position: sticky;
+  top: var(--fleet-calendar-sticky-offset, var(--dashboard-header-height, 0px));
+  z-index: 30;
+  background: linear-gradient(180deg, hsl(var(--card)) 0%, hsl(var(--card) / 0.95) 100%);
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.16);
+}
+
 .fleet-calendar-table-row--group {
   margin-top: 0.4rem;
 }
@@ -425,6 +434,9 @@
   text-transform: uppercase;
   color: hsl(var(--muted-foreground));
   border-bottom: 1px solid hsl(var(--border));
+  position: sticky;
+  top: var(--fleet-calendar-sticky-offset, var(--dashboard-header-height, 0px));
+  z-index: 31;
 }
 
 .fleet-calendar-left-cell--group {

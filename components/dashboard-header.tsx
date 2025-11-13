@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { Menu } from "lucide-react"
 import { usePathname } from "next/navigation"
 
@@ -67,9 +67,35 @@ export function DashboardHeader({ navGroups, className, meta = [defaultMeta] }: 
   const currentMeta = useMemo(() => {
     return meta.find((entry) => matchPattern(pathname, entry.pattern)) ?? defaultMeta
   }, [meta, pathname])
+  const headerRef = useRef<HTMLElement | null>(null)
+
+  useEffect(() => {
+    const node = headerRef.current
+    if (!node || typeof window === "undefined") return
+
+    const root = document.documentElement
+    const updateHeight = () => {
+      const height = node.getBoundingClientRect().height
+      root.style.setProperty("--dashboard-header-height", `${height}px`)
+    }
+
+    updateHeight()
+
+    let observer: ResizeObserver | undefined
+    if (typeof ResizeObserver !== "undefined") {
+      observer = new ResizeObserver(() => updateHeight())
+      observer.observe(node)
+    }
+
+    return () => {
+      observer?.disconnect()
+      root.style.removeProperty("--dashboard-header-height")
+    }
+  }, [])
 
   return (
     <header
+      ref={headerRef}
       className={cn(
         "flex flex-wrap items-center justify-between gap-4 border-b border-border/60 bg-background/95 px-4 py-3 lg:px-10",
         className

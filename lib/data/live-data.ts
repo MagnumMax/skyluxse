@@ -1165,7 +1165,9 @@ function buildFleetCalendarEvents(params: {
   const bookingsById = new Map<string, Booking>()
   params.bookings.forEach((booking) => bookingsById.set(String(booking.id), booking))
 
-  const calendarEvents = params.calendarRows.map((row) => mapCalendarEventRow(row, { vehiclesById, bookingsById }))
+  const calendarEvents = params.calendarRows.map((row) =>
+    mapCalendarEventRow(row, { vehiclesById, bookingsById })
+  )
 
   const maintenanceEvents = params.maintenanceRows.map((row) => mapMaintenanceJobRow(row, vehiclesById))
 
@@ -1190,7 +1192,7 @@ function mapCalendarEventRow(
     id: row.id,
     carId: row.vehicle_id ?? booking?.carId ?? row.id,
     bookingId: booking?.id ?? row.booking_id ?? null,
-    type: mapCalendarEventType(row.event_type),
+    type: mapCalendarEventType(row.event_type, booking),
     title,
     start,
     end,
@@ -1214,11 +1216,30 @@ function mapMaintenanceJobRow(row: MaintenanceJobRow, vehiclesById: Map<string, 
   }
 }
 
-function mapCalendarEventType(value: string | null | undefined): CalendarEvent["type"] {
+const RESERVATION_KOMMO_STATUS_IDS = new Set([
+  79790631,
+  91703923,
+  96150292,
+  75440391,
+])
+
+function mapCalendarEventType(value: string | null | undefined, booking?: Booking): CalendarEvent["type"] {
   const normalized = (value ?? "rental").toLowerCase()
-  if (normalized === "booking" || normalized === "rental") return "rental"
   if (normalized === "maintenance") return "maintenance"
-  return "repair"
+  if (normalized === "repair") return "repair"
+  if (normalized === "booking" || normalized === "rental") {
+    return isReservationBooking(booking) ? "reservation" : "rental"
+  }
+  return "rental"
+}
+
+function isReservationBooking(booking?: Booking): boolean {
+  if (!booking) return false
+  const stageId = booking.kommoStatusId
+  if (stageId == null) return false
+  const normalized = Number(stageId)
+  if (!Number.isFinite(normalized)) return false
+  return RESERVATION_KOMMO_STATUS_IDS.has(normalized)
 }
 
 function mapMaintenanceJobType(value: string | null | undefined): CalendarEvent["type"] {

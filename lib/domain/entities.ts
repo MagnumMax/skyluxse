@@ -339,7 +339,7 @@ export interface FleetCar {
   updatedBy?: string
 }
 
-export type CalendarEventType = "rental" | "maintenance" | "repair"
+export type CalendarEventType = "reservation" | "rental" | "maintenance" | "repair"
 
 export interface CalendarEvent {
   id: string

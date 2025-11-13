@@ -18,6 +18,8 @@ export const calendarViewOptions = [
   { id: "3-day", label: "3 days", days: 3 },
   { id: "week", label: "Week", days: 7 },
   { id: "fortnight", label: "14 days", days: 14 },
+  { id: "30-day", label: "30 days", days: 30 },
+  { id: "90-day", label: "90 days", days: 90 },
 ] as const
 
 type CalendarViewOption = (typeof calendarViewOptions)[number]
@@ -59,17 +61,19 @@ export function useFleetCalendarController(initialViewId: CalendarViewOption["id
   return { view, setView, offset, setOffset, goPrev, goNext, goToday, grouping, setGrouping, baseDate }
 }
 
+export interface FleetCalendarBoardProps {
+  controller?: FleetCalendarController
+  vehicles: FleetCar[]
+  events: CalendarEvent[]
+  onEventClick?: (event: CalendarEvent) => void
+}
+
 export function FleetCalendarBoard({
   controller,
   vehicles,
   events,
   onEventClick,
-}: {
-  controller?: FleetCalendarController
-  vehicles: FleetCar[]
-  events: CalendarEvent[]
-  onEventClick?: (event: CalendarEvent) => void
-}) {
+}: FleetCalendarBoardProps) {
   const internalController = useFleetCalendarController()
   const { view, setView, offset, setOffset, grouping, baseDate } = controller ?? internalController
   const combinedEvents = useMemo(() => [...events], [events])
@@ -83,25 +87,30 @@ export function FleetCalendarBoard({
     [onEventClick]
   )
 
-  const rangeStart = useMemo(() => new Date(baseDate.getTime() + offset * DAY_IN_MS), [baseDate, offset])
-  const visibleDates = useMemo(
-    () => Array.from({ length: view.days }, (_, index) => new Date(rangeStart.getTime() + index * DAY_IN_MS)),
-    [rangeStart, view.days]
-  )
-  const rangeEndExclusive = useMemo(
-    () => new Date(rangeStart.getTime() + view.days * DAY_IN_MS),
-    [rangeStart, view.days]
-  )
+  // Рассчитываем из контроллера (baseDate + offset + view.days).
+  const visibleDates = useMemo(() => {
+    const rangeStart = new Date(baseDate.getTime() + offset * DAY_IN_MS)
+    return Array.from({ length: view.days }, (_, index) => new Date(rangeStart.getTime() + index * DAY_IN_MS))
+  }, [baseDate, offset, view.days])
 
-  const visibleEvents = useMemo(
-    () =>
-      combinedEvents.filter((event) => {
-        const start = new Date(event.start)
-        const end = new Date(event.end)
-        return end > rangeStart && start < rangeEndExclusive
-      }),
-    [combinedEvents, rangeStart, rangeEndExclusive]
-  )
+  const visibleEvents = useMemo(() => {
+    if (visibleDates.length === 0) {
+      return []
+    }
+
+    const rangeStart = new Date(
+      visibleDates[0].getFullYear(),
+      visibleDates[0].getMonth(),
+      visibleDates[0].getDate()
+    )
+    const rangeEndExclusive = new Date(rangeStart.getTime() + visibleDates.length * DAY_IN_MS)
+
+    return combinedEvents.filter((event) => {
+      const start = new Date(event.start)
+      const end = new Date(event.end)
+      return end > rangeStart && start < rangeEndExclusive
+    })
+  }, [combinedEvents, visibleDates])
 
   const groupedRows = useMemo(() => {
     const bodyStyleFor = (car: FleetCar) => car.bodyStyle?.trim() || "Unspecified"
@@ -134,29 +143,28 @@ export function FleetCalendarBoard({
     [visibleDates.length]
   )
 
-    // Определяем "сегодня" по локальному времени браузера (нормализовано до дня)
-    const today = useMemo(() => getStartOfToday(), [])
-  
-    // Диапазон всегда начинается с сегодняшнего дня (today - 1 был только для старого поведения подсветки)
-    const adjustedRangeStart = useMemo(() => today, [today])
-  
-    // Пересчитываем видимые даты так, чтобы today всегда был первым столбцом
-    const adjustedVisibleDates = useMemo(
-      () => Array.from({ length: view.days }, (_, index) => new Date(adjustedRangeStart.getTime() + index * DAY_IN_MS)),
-      [adjustedRangeStart, view.days]
-    )
-  
-    // today всегда первый столбец
-    const todayColumnIndex = 0
-  
-    return (
+  // "Сегодня" по локальному времени браузера (нормализовано до дня).
+  const today = useMemo(() => getStartOfToday(), [])
+
+  // Индекс столбца для "сегодня", если он в пределах видимого диапазона. Иначе -1.
+  const todayColumnIndex = useMemo(() => {
+    if (visibleDates.length === 0) return -1
+    const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime()
+    const index = visibleDates.findIndex((date) => {
+      const dateStart = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime()
+      return dateStart === todayStart
+    })
+    return index === -1 ? -1 : index
+  }, [today, visibleDates])
+
+  return (
     <div className="fleet-calendar-shell">
       <div className="fleet-calendar-table calendar-grid-scroll">
         <div className="fleet-calendar-table-row fleet-calendar-table-row--header">
           <div className="fleet-calendar-left-cell fleet-calendar-left-cell--header">Vehicles</div>
           <div className="fleet-calendar-row-grid">
             <div className="calendar-grid fleet-calendar-grid-header" style={{ gridTemplateColumns }}>
-              {adjustedVisibleDates.map((date, index) => (
+              {visibleDates.map((date) => (
                 <div
                   key={`header-${date.toISOString()}`}
                   className="calendar-day-header"
@@ -185,7 +193,7 @@ export function FleetCalendarBoard({
                 <div className="fleet-calendar-row-grid">
                   <CarRowRight
                     events={events}
-                    visibleDates={adjustedVisibleDates}
+                    visibleDates={visibleDates}
                     gridTemplateColumns={gridTemplateColumns}
                     rowKey={`row-${group.label}-${car.id}`}
                     onEventClick={handleEventClick}
