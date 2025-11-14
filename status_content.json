@@ -43,14 +43,33 @@ const KOMMO_RETRY_MAX_DELAY_MS = Math.max(
   Math.floor(coerceEnvNumber(Deno.env.get("KOMMO_RETRY_MAX_DELAY_MS"), 5000))
 )
 
-const KOMMO_STATUS_CONFIG: Record<
-  string,
-  { label: string; bookingStatus: "lead" | "confirmed" | "delivery" | "in_progress" | "completed" | "cancelled" }
-> = {
-  "75440391": { label: "Confirmed bookings", bookingStatus: "confirmed" },
-  "75440395": { label: "Delivery within 24 hours", bookingStatus: "delivery" },
-  "75440399": { label: "Car with customers", bookingStatus: "in_progress" },
+type BookingLifecycleStatus =
+  | "lead"
+  | "confirmed"
+  | "delivery"
+  | "in_progress"
+  | "completed"
+  | "cancelled"
+
+type StageMetadata = {
+  stageId: string
+  label: string
+  bookingStatus: BookingLifecycleStatus
 }
+
+type StageLookup = {
+  byPipelineStatus: Map<string, StageMetadata>
+  byStatus: Map<string, StageMetadata>
+}
+
+type ResolvedStageInfo = {
+  stageId: string | null
+  label: string
+  bookingStatus: BookingLifecycleStatus
+}
+
+const PIPELINE_STAGE_CACHE_TTL_MS = 1000 * 60 * 5
+let pipelineStageCache: { fetchedAt: number; lookup: StageLookup } | null = null
 
 const COUNTRY_MAP: Record<string, string> = {
   uae: "AE",
@@ -272,20 +291,97 @@ function extractIntegerField(entity: any, fieldId: number) {
   return Number.isFinite(parsed) ? parsed : null
 }
 
-function mapBookingStatus(statusId: string) {
-  return KOMMO_STATUS_CONFIG[statusId]?.bookingStatus ?? "lead"
+function normalizeBookingLifecycleStatus(value: string | null | undefined): BookingLifecycleStatus {
+  switch ((value ?? "").toLowerCase()) {
+    case "confirmed":
+      return "confirmed"
+    case "delivery":
+      return "delivery"
+    case "in_progress":
+      return "in_progress"
+    case "completed":
+      return "completed"
+    case "cancelled":
+      return "cancelled"
+    default:
+      return "lead"
+  }
 }
 
-function mapPipelineStage(pipelineId: string, statusId: string) {
-  const map: Record<string, Record<string, string>> = {
-    "9815931": {
-      "75440391": "skyluxse_confirmed",
-      "79790631": "skyluxse_bot_answering",
-      "75440395": "skyluxse_delivery_24h",
-      "75440399": "skyluxse_with_customer",
-    },
+function makePipelineStageKey(pipelineId: string | null, statusId: string | null) {
+  if (!pipelineId || !statusId) return null
+  return `${pipelineId}:${statusId}`
+}
+
+async function loadPipelineStageLookup(client: SupabaseClient): Promise<StageLookup> {
+  const cached = pipelineStageCache
+  if (cached && Date.now() - cached.fetchedAt < PIPELINE_STAGE_CACHE_TTL_MS) {
+    return cached.lookup
   }
-  return map[pipelineId]?.[statusId] ?? null
+
+  const { data, error } = await client
+    .from("sales_pipeline_stages")
+    .select("id, name, kommo_pipeline_id, kommo_status_id, booking_status")
+    .not("kommo_status_id", "is", null)
+
+  if (error) throw error
+
+  const byPipelineStatus = new Map<string, StageMetadata>()
+  const byStatus = new Map<string, StageMetadata>()
+
+  for (const row of data ?? []) {
+    if (!row?.kommo_status_id || !row?.id) continue
+    const metadata: StageMetadata = {
+      stageId: row.id,
+      label: row.name ?? `Kommo status ${row.kommo_status_id}`,
+      bookingStatus: normalizeBookingLifecycleStatus(row.booking_status),
+    }
+    if (row.kommo_pipeline_id) {
+      byPipelineStatus.set(`${row.kommo_pipeline_id}:${row.kommo_status_id}`, metadata)
+    }
+    byStatus.set(row.kommo_status_id, metadata)
+  }
+
+  const lookup: StageLookup = { byPipelineStatus, byStatus }
+  pipelineStageCache = { fetchedAt: Date.now(), lookup }
+  return lookup
+}
+
+function defaultStageLabel(statusId: string | null) {
+  return statusId && statusId.length ? `Kommo status ${statusId}` : "Kommo status unknown"
+}
+
+async function resolveKommoStageMetadata(
+  client: SupabaseClient,
+  pipelineId: string | null,
+  statusId: string | null
+): Promise<ResolvedStageInfo> {
+  const fallback: ResolvedStageInfo = {
+    stageId: null,
+    bookingStatus: "lead",
+    label: defaultStageLabel(statusId),
+  }
+  if (!statusId) return fallback
+
+  const lookup = await loadPipelineStageLookup(client)
+  const key = makePipelineStageKey(pipelineId, statusId)
+  const match = (key ? lookup.byPipelineStatus.get(key) : undefined) ?? lookup.byStatus.get(statusId)
+  if (match) return match
+  return fallback
+}
+
+async function resolveStageLabelSafe(
+  client: SupabaseClient,
+  pipelineId: string | null,
+  statusId: string | null
+) {
+  try {
+    const metadata = await resolveKommoStageMetadata(client, pipelineId, statusId)
+    return metadata.label
+  } catch (error) {
+    console.error("Failed to resolve Kommo stage label", error)
+    return defaultStageLabel(statusId)
+  }
 }
 
 function leadSourcePayloadId(leadId: number | string) {
@@ -596,11 +692,10 @@ function parseFormEncodedPayload(rawBody: string) {
 }
 
 async function handleStatusChange(client: SupabaseClient, event: any): Promise<HandleResult> {
-  const statusId = String(event.status_id ?? "")
-  const config = KOMMO_STATUS_CONFIG[statusId]
-  if (!config) {
-    return { leadId: event.id, skipped: true, statusId, statusLabel: null }
-  }
+  const statusId = event?.status_id != null ? String(event.status_id) : ""
+  const pipelineId = event?.pipeline_id != null ? String(event.pipeline_id) : null
+  const stageMetadata = await resolveKommoStageMetadata(client, pipelineId, statusId || null)
+  const statusLabel = stageMetadata.label
 
   const lead = await kommoGet(`/api/v4/leads/${event.id}?with=contacts,custom_fields`)
   const contactId = lead?._embedded?.contacts?.find((c: any) => c.is_main)?.id ?? lead?._embedded?.contacts?.[0]?.id
@@ -612,9 +707,9 @@ async function handleStatusChange(client: SupabaseClient, event: any): Promise<H
       console.error("Failed to sync Kommo documents", error)
     )
   }
-  const stageId = mapPipelineStage(String(event.pipeline_id), String(event.status_id))
+  const stageId = stageMetadata.stageId
   await upsertSalesLead(client, lead, clientId, stageId)
-  const bookingStatus = mapBookingStatus(statusId)
+  const bookingStatus = stageMetadata.bookingStatus
   const kommoVehicleId = extractKommoVehicleId(lead)
   let vehicleMatch: { id: string } | null = null
   if (kommoVehicleId) {
@@ -640,10 +735,10 @@ async function handleStatusChange(client: SupabaseClient, event: any): Promise<H
     })
   )
   if (bookingId) {
-    await logBookingTimelineEvent(client, bookingId, statusId, config.label, event.pipeline_id)
+    await logBookingTimelineEvent(client, bookingId, statusId || "unknown", statusLabel, event.pipeline_id)
   }
 
-  return { leadId: event.id, processed: true, statusId, statusLabel: config.label }
+  return { leadId: event.id, processed: true, statusId: statusId || null, statusLabel }
 }
 
 function buildBookingOptions(
@@ -872,14 +967,17 @@ serve(async (req) => {
       } catch (error) {
         const errorMessage = formatError(error)
         console.error("Failed to process status event", errorMessage, error)
+        const pipelineId = event?.pipeline_id != null ? String(event.pipeline_id) : null
+        const statusId = event?.status_id != null ? String(event.status_id) : null
+        const fallbackLabel = await resolveStageLabelSafe(supabase, pipelineId, statusId)
         await supabase.from("kommo_webhook_events").insert({
           source_payload_id: String(event.id),
           payload,
           hmac_validated: true,
           status: "failed",
-          kommo_status_id: String(event.status_id ?? ""),
-          kommo_status_label: KOMMO_STATUS_CONFIG[String(event.status_id ?? "")]?.label ?? null,
-          error_message: errorMessage
+          kommo_status_id: statusId ?? "",
+          kommo_status_label: fallbackLabel,
+          error_message: errorMessage,
         })
         results.push({ leadId: event.id, error: errorMessage })
       }

@@ -1,5 +1,9 @@
 # Schema Changelog
 
+## 2025-11-13 — Client Document Metadata Alignment
+- Added `document_status` enum plus `original_name`, `status`, `source`, `expires_at`, and `metadata` columns to `public.documents`, ensuring Kommo uploads persist without column mismatches and allowing compliance expiries.
+- Updated the documents section in `docs/schemas/database-schema.md` to reflect the new metadata and clarify the storage bucket/file name expectations.
+
 ## 2025-11-13 — Sales Service Feedback Capture
 - Added `sales_service_rating`, `sales_service_feedback`, `sales_service_rated_by`, and `sales_service_rated_at` columns to `public.bookings` to store the CEO’s handoff assessment without relying on UI placeholders.
 - Documented the new fields inside `docs/schemas/database-schema.md` so the operations booking detail card can render live data and accept updates via server actions.

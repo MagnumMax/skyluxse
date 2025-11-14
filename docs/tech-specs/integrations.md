@@ -67,6 +67,9 @@ Kommo Webhook --> Supabase Edge Function (import-kommo)
 - Telemetry: `kommo_import_runs` REST view surfaces run status/counts for dashboards; staging tables remain for inspection on failure.
 - Latest run (10 Nov 2025) succeeded with **429 leads / 32 contacts / 26 vehicles** in ~110s, proving Kommo credentials + timestamp normalisation are production-ready.
 
+**Kommo status webhooks**
+- Payload минимум: `leads.status[].id` (lead id). Мы больше не полагаемся на `status_id`/`pipeline_id`, сразу делаем `GET /api/v4/leads/{id}?with=contacts,custom_fields` и определяем стадию по свежим данным. Это упрощает подписку — Kommo может триггерить функцию, передавая лишь id лида.
+
 ### Manual fallback (`POST /bookings`)
 - UI hides "New booking" for sales unless Kommo outage flag is set.
 - When fallback is used, backend still enqueues Zoho sync tasks identically, but marks booking `channel = 'manual'` and stores `manual_created_by` for auditing.

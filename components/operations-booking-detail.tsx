@@ -1,5 +1,4 @@
 import type { ReactNode } from "react"
-import Image from "next/image"
 import Link from "next/link"
 
 import type { Booking, Client, Driver } from "@/lib/domain/entities"
@@ -53,7 +52,7 @@ export function OperationsBookingDetail({
 
       <BookingActivitySection booking={booking} />
 
-      <BookingDocumentsSection booking={booking} />
+      <SalesServiceSection booking={booking} />
 
       <ExtensionsSection extensions={booking.extensions ?? []} />
 
@@ -64,10 +63,17 @@ export function OperationsBookingDetail({
 }
 
 function BookingOverviewSection({ booking, client, outstanding, advancePayment, statusTone, tags }: { booking: Booking; client?: Client; outstanding: number; advancePayment?: number | null; statusTone: string; tags: string[] }) {
+  const stageLabel = booking.pipelineStageName ?? null
   const advanceInvoice = findAdvanceInvoice(booking)
   const depositInvoiceStatus = advanceInvoice?.status
   const clientHref = booking.clientId ? toRoute(`/clients/${booking.clientId}`) : undefined
   const detailRows: Array<{ label: string; value?: ReactNode; helper?: ReactNode }> = [
+    stageLabel
+      ? {
+          label: "Stage",
+          value: stageLabel,
+        }
+      : null,
     {
       label: "Client",
       value:
@@ -106,7 +112,7 @@ function BookingOverviewSection({ booking, client, outstanding, advancePayment, 
       label: "Last updated",
       value: formatDateTime(booking.updatedAt),
     },
-  ]
+  ].filter(Boolean) as Array<{ label: string; value?: ReactNode; helper?: ReactNode }>
 
   return (
     <Card className="space-y-6 rounded-[32px] border-border/70 bg-card/80">
@@ -130,6 +136,9 @@ function BookingOverviewSection({ booking, client, outstanding, advancePayment, 
                 </Badge>
               ))}
             </div>
+          ) : null}
+          {stageLabel ? (
+            <p className="text-[0.62rem] uppercase tracking-[0.35em] text-muted-foreground">Stage · {stageLabel}</p>
           ) : null}
         </div>
       </CardHeader>
@@ -300,51 +309,15 @@ function BookingLogisticsFinancialSection({ booking, outstanding, locationChips,
 
 function BookingActivitySection({ booking }: { booking: Booking }) {
   return (
-    <section className="grid gap-4 lg:grid-cols-2">
-      <TimelineCard title="Timeline" description="Latest operational updates" entries={booking.timeline ?? []} />
+    <section className="grid gap-4">
       <HistoryCard title="History" entries={booking.history ?? []} />
     </section>
   )
 }
 
-function BookingDocumentsSection({ booking }: { booking: Booking }) {
+function SalesServiceSection({ booking }: { booking: Booking }) {
   return (
-    <section className="grid gap-4 lg:grid-cols-2">
-      <Card className="rounded-[26px] border-border/70 bg-card/80">
-        <CardHeader>
-          <CardTitle className="text-sm uppercase tracking-[0.35em] text-muted-foreground">Documents</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ul className="space-y-2 text-sm">
-            {(booking.documents ?? []).length === 0 ? (
-              <li className="text-muted-foreground">No documents uploaded</li>
-            ) : (
-              booking.documents!.map((doc, idx) => {
-                const url = doc.url ? doc.url.replace(/^\/public/, "") : undefined
-                return (
-                  <li key={`${doc.type}-${idx}`} className="flex items-center justify-between rounded-2xl border border-border/60 px-3 py-2">
-                    <div>
-                      <p className="font-semibold text-foreground">{doc.name ?? doc.type}</p>
-                      <p className="text-xs text-muted-foreground">Type {doc.type}</p>
-                    </div>
-                    <Badge
-                      className={cn(
-                        "px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.15em]",
-                        getDocumentStatusBadgeTone(doc.status)
-                      )}
-                    >
-                      {doc.status}
-                    </Badge>
-                    {url ? (
-                      <Image src={url} alt={doc.name ?? doc.type} width={120} height={80} className="ml-3 hidden h-16 w-24 rounded object-cover sm:block" />
-                    ) : null}
-                  </li>
-                )
-              })
-            )}
-          </ul>
-        </CardContent>
-      </Card>
+    <section className="grid gap-4">
       <SalesServiceCard booking={booking} />
     </section>
   )
@@ -379,36 +352,6 @@ function findAdvanceInvoice(booking: Booking) {
     const scope = invoice.scope?.toLowerCase() ?? ""
     return label.includes("deposit") || label.includes("advance") || scope.includes("deposit") || scope.includes("advance")
   })
-}
-
-function TimelineCard({ title, description, entries }: { title: string; description?: string; entries: NonNullable<Booking["timeline"]> }) {
-  const sorted = [...entries].sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime())
-  return (
-    <Card className="rounded-[26px] border-border/70 bg-card/80">
-      <CardHeader>
-        <CardTitle className="text-sm uppercase tracking-[0.35em] text-muted-foreground">{title}</CardTitle>
-        {description ? <CardDescription>{description}</CardDescription> : null}
-      </CardHeader>
-      <CardContent>
-        <ul className="space-y-3 text-sm">
-          {sorted.length === 0 ? (
-            <li className="text-muted-foreground">No entries yet</li>
-          ) : (
-            sorted.map((item, idx) => (
-              <li key={`${item.ts}-${idx}`} className="rounded-2xl border border-border/60 px-3 py-2">
-                <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span className="font-semibold text-foreground">{item.status}</span>
-                  <span>{formatDateTime(item.ts)}</span>
-                </div>
-                <p className="text-sm text-foreground">{item.note}</p>
-                <p className="text-xs text-muted-foreground">Actor: {item.actor}</p>
-              </li>
-            ))
-          )}
-        </ul>
-      </CardContent>
-    </Card>
-  )
 }
 
 function HistoryCard({ title, entries }: { title: string; entries: NonNullable<Booking["history"]> }) {
@@ -661,25 +604,6 @@ function getBookingStatusBadgeTone(status: Booking["status"], fallbackToneClass:
   if (status === "preparation") return "bg-violet-100 text-violet-700 border-violet-200"
   // fallback: переиспользуем старый класс, чтобы не ломать тональность
   return fallbackToneClass
-}
-
-/**
- * Маппинг статуса документа к цветам Badge.
- */
-function getDocumentStatusBadgeTone(status?: string) {
-  if (!status) return "bg-slate-100 text-slate-700 border-slate-200"
-  const normalized = status.toLowerCase()
-  if (normalized.includes("pending") || normalized.includes("warning")) {
-    return "bg-amber-100 text-amber-700 border-amber-200"
-  }
-  if (
-    normalized.includes("authorized") ||
-    normalized.includes("signed") ||
-    normalized.includes("active")
-  ) {
-    return "bg-emerald-100 text-emerald-700 border-emerald-200"
-  }
-  return "bg-slate-100 text-slate-700 border-slate-200"
 }
 
 function toRoute(href: string) {

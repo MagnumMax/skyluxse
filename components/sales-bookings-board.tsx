@@ -329,6 +329,9 @@ const KanbanCard = forwardRef<HTMLDivElement, KanbanCardProps>(
     new Date(booking.endDate)
   )}`
   const targetTime = booking.targetTime ? timeFormatter.format(new Date(booking.targetTime)) : null
+  const stageBucketId = normalizeStageId(booking.kommoStatusId)
+  const stageMeta = resolveStageMeta(stageBucketId)
+  const stageBadgeLabel = booking.pipelineStageName ?? stageMeta.label
   const handleClick = () => {
     if (isDragging) return
     const bookingId = String(booking.id)
@@ -361,7 +364,12 @@ const KanbanCard = forwardRef<HTMLDivElement, KanbanCardProps>(
           <p className="text-xs text-muted-foreground">{booking.code}</p>
           <p className="text-sm font-semibold text-foreground">{booking.carName}</p>
         </div>
-        <div className="flex flex-col items-end gap-1 text-xs">
+        <div className="flex flex-col items-end gap-1.5 text-xs">
+          {stageBadgeLabel ? (
+            <span className="rounded-full bg-slate-900/5 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.3em] text-slate-700">
+              {stageBadgeLabel}
+            </span>
+          ) : null}
           <span className="rounded-full px-3 py-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
             {typeLabel}
           </span>

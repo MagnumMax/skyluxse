@@ -4,15 +4,14 @@ import { Fragment, useCallback, useMemo, useState } from "react"
 
 import type { CalendarEvent, CalendarEventType, FleetCar } from "@/lib/domain/entities"
 import { calendarEventTypes } from "@/lib/constants/calendar"
+import {
+  DAY_IN_MS,
+  buildVisibleDates,
+  getEventGridPlacement,
+  getStartOfToday,
+} from "@/lib/fleet/calendar-grid"
+import type { EventPlacement } from "@/lib/fleet/calendar-grid"
 import { cn } from "@/lib/utils"
-
-const DAY_IN_MS = 86400000
-const HALF_DAY_IN_MS = DAY_IN_MS / 2
-
-function getStartOfToday() {
-  const now = new Date()
-  return new Date(now.getFullYear(), now.getMonth(), now.getDate())
-}
 
 export const calendarViewOptions = [
   { id: "3-day", label: "3 days", days: 3 },
@@ -81,10 +80,7 @@ export function FleetCalendarBoard({
   )
 
   // Рассчитываем из контроллера (baseDate + offset + view.days).
-  const visibleDates = useMemo(() => {
-    const rangeStart = new Date(baseDate.getTime() + offset * DAY_IN_MS)
-    return Array.from({ length: view.days }, (_, index) => new Date(rangeStart.getTime() + index * DAY_IN_MS))
-  }, [baseDate, offset, view.days])
+  const visibleDates = useMemo(() => buildVisibleDates(baseDate, offset, view.days), [baseDate, offset, view.days])
 
   const visibleEvents = useMemo(() => {
     if (visibleDates.length === 0) {
@@ -208,8 +204,6 @@ export function FleetCalendarBoard({
   )
 }
 
-type EventPlacement = Exclude<ReturnType<typeof getEventGridPlacement>, null>
-
 function CarRowRight({
   events,
   visibleDates,
@@ -260,30 +254,6 @@ function CarRowRight({
   )
 }
 
-function getEventGridPlacement(event: CalendarEvent, visibleDates: Date[]) {
-  if (visibleDates.length === 0) {
-    return null
-  }
-  const rangeStart = new Date(visibleDates[0].getFullYear(), visibleDates[0].getMonth(), visibleDates[0].getDate())
-  const rangeEnd = new Date(rangeStart.getTime() + visibleDates.length * DAY_IN_MS)
-  const eventStart = new Date(event.start)
-  const eventEnd = new Date(event.end)
-  const clampedStart = eventStart < rangeStart ? rangeStart : eventStart
-  const clampedEnd = eventEnd > rangeEnd ? rangeEnd : eventEnd
-  if (clampedEnd <= rangeStart || clampedStart >= rangeEnd) {
-    return null
-  }
-  const slotCount = visibleDates.length * 2
-  const startSlot = Math.max(
-    0,
-    Math.min(slotCount - 1, Math.floor((clampedStart.getTime() - rangeStart.getTime()) / HALF_DAY_IN_MS))
-  )
-  const rawEndSlot = Math.ceil((clampedEnd.getTime() - rangeStart.getTime()) / HALF_DAY_IN_MS)
-  const endSlot = Math.max(startSlot + 1, Math.min(slotCount, rawEndSlot))
-  const spanSlots = Math.max(1, endSlot - startSlot)
-  return { startSlot, spanSlots }
-}
-
 function CalendarEventPill({
   event,
   onClick,
@@ -299,6 +269,7 @@ function CalendarEventPill({
     <button type="button" onClick={() => onClick?.(event)} className="calendar-event-button">
       <div className={cn("calendar-event", meta.surface, meta.border)}>
         <div className="calendar-event-title">{event.title}</div>
+        {event.stageLabel ? <div className="calendar-event-stage">{event.stageLabel}</div> : null}
         <div className="calendar-event-meta">
           {start.toLocaleDateString("en-GB", {
             day: "2-digit",

@@ -25,6 +25,13 @@ const statusOptions = [
   { value: "succeeded", label: "Succeeded" },
 ] as const
 
+const STAT_CARD_VARIANTS = {
+  default: "border border-border/70 bg-background/90",
+  pending: "border border-amber-200 bg-amber-50 dark:border-amber-300/50 dark:bg-amber-400/15",
+  processing: "border border-indigo-200 bg-indigo-50 dark:border-indigo-400/50 dark:bg-indigo-400/15",
+  failed: "border border-rose-200 bg-rose-50 dark:border-rose-400/50 dark:bg-rose-400/15",
+} as const
+
 const zohoCredentialMeta = {
   status: "Connected",
   region: "EU",
@@ -82,6 +89,8 @@ export type KommoWebhookEventRow = {
   vehicleId: string | null
   vehicleName: string | null
   vehiclePlate: string | null
+  pipelineStageId: string | null
+  pipelineStageName: string | null
 }
 
 type IntegrationsOutboxDashboardProps = {
@@ -130,9 +139,9 @@ export function IntegrationsOutboxDashboard({
 
       <section className="grid gap-4 md:grid-cols-4">
         <StatCard label="Outbox jobs" value={stats.total} />
-        <StatCard label="Pending" value={stats.pending} tone="bg-amber-50 text-amber-700" />
-        <StatCard label="Processing" value={stats.processing} tone="bg-indigo-50 text-indigo-700" />
-        <StatCard label="Failed" value={stats.failed} tone="bg-rose-50 text-rose-700" />
+        <StatCard label="Pending" value={stats.pending} variant="pending" />
+        <StatCard label="Processing" value={stats.processing} variant="processing" />
+        <StatCard label="Failed" value={stats.failed} variant="failed" />
       </section>
 
       <section className="rounded-[28px] border border-border/70 bg-card/80 p-5 shadow-sm">
@@ -209,7 +218,9 @@ export function IntegrationsOutboxDashboard({
                       </p>
                     </td>
                     <td className="px-4 py-3">
-                      <p className="font-semibold text-foreground">{event.kommoStatusLabel ?? "—"}</p>
+                      <p className="font-semibold text-foreground">
+                        {event.pipelineStageName ?? event.kommoStatusLabel ?? "—"}
+                      </p>
                       <p className="text-xs text-muted-foreground">ID {event.kommoStatusId ?? "n/a"}</p>
                     </td>
                     <td className="px-4 py-3">
@@ -219,7 +230,7 @@ export function IntegrationsOutboxDashboard({
                       <div>{formatDate(event.receivedAt)}</div>
                       <div className="text-xs text-muted-foreground">{formatRelative(event.receivedAt)}</div>
                     </td>
-                    <td className="px-4 py-3 text-xs text-rose-600">{event.errorMessage ?? "—"}</td>
+                    <td className="px-4 py-3 text-xs text-rose-600 dark:text-rose-300">{event.errorMessage ?? "—"}</td>
                   </tr>
                 ))
               )}
@@ -359,7 +370,7 @@ export function IntegrationsOutboxDashboard({
                     <td className="px-4 py-3">
                       <StatusPill status={run.status} />
                     </td>
-                    <td className="px-4 py-3 text-rose-600 text-xs">{run.error ?? "—"}</td>
+                    <td className="px-4 py-3 text-rose-600 dark:text-rose-300 text-xs">{run.error ?? "—"}</td>
                   </tr>
                 ))
               )}
@@ -445,9 +456,11 @@ export function IntegrationsOutboxDashboard({
   )
 }
 
-function StatCard({ label, value, tone }: { label: string; value: number | string; tone?: string }) {
+type StatCardVariant = keyof typeof STAT_CARD_VARIANTS
+
+function StatCard({ label, value, variant = "default" }: { label: string; value: number | string; variant?: StatCardVariant }) {
   return (
-    <div className={cn("rounded-[24px] border border-border/70 bg-background/90 p-5 shadow-sm", tone)}>
+    <div className={cn("rounded-[24px] p-5 shadow-sm", STAT_CARD_VARIANTS[variant])}>
       <p className="text-xs font-semibold uppercase tracking-[0.35em] text-muted-foreground">{label}</p>
       <p className="mt-2 text-3xl font-semibold text-foreground">{value}</p>
     </div>
@@ -468,22 +481,22 @@ function StatusPill({ status }: { status: string }) {
     const normalized = status?.toLowerCase()
     switch (normalized) {
       case "failed":
-        return "bg-rose-100 text-rose-700"
+        return "border border-rose-200 bg-rose-100 text-rose-700 dark:border-rose-400/40 dark:bg-rose-400/20 dark:text-rose-50"
       case "pending":
-        return "bg-amber-100 text-amber-700"
+        return "border border-amber-200 bg-amber-100 text-amber-700 dark:border-amber-300/40 dark:bg-amber-400/20 dark:text-amber-50"
       case "processing":
       case "running":
-        return "bg-indigo-100 text-indigo-700"
+        return "border border-indigo-200 bg-indigo-100 text-indigo-700 dark:border-indigo-400/40 dark:bg-indigo-400/20 dark:text-indigo-50"
       case "needs_review":
-        return "bg-amber-100 text-amber-800"
+        return "border border-amber-200 bg-amber-100 text-amber-800 dark:border-amber-400/40 dark:bg-amber-400/20 dark:text-amber-50"
       case "completed":
       case "succeeded":
       case "processed":
-        return "bg-emerald-100 text-emerald-700"
+        return "border border-emerald-200 bg-emerald-100 text-emerald-700 dark:border-emerald-400/40 dark:bg-emerald-400/20 dark:text-emerald-50"
       case "skipped":
-        return "bg-slate-100 text-slate-700"
+        return "border border-slate-200 bg-slate-100 text-slate-700 dark:border-slate-500/40 dark:bg-slate-500/20 dark:text-slate-100"
       default:
-        return "bg-muted text-muted-foreground"
+        return "border border-border/60 bg-muted text-muted-foreground dark:bg-muted/30"
     }
   })()
   return <span className={cn("rounded-full px-3 py-1 text-xs font-semibold capitalize", tone)}>{status}</span>
@@ -492,8 +505,8 @@ function StatusPill({ status }: { status: string }) {
 function StatusChip({ status }: { status: string }) {
   const tone =
     status === "Connected"
-      ? "bg-emerald-100 text-emerald-700 border-emerald-200"
-      : "bg-amber-100 text-amber-800 border-amber-200"
+      ? "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-400/20 dark:text-emerald-50 dark:border-emerald-400/50"
+      : "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-400/20 dark:text-amber-50 dark:border-amber-400/50"
   return <span className={cn("rounded-full border px-3 py-1 text-xs font-semibold", tone)}>{status}</span>
 }
 

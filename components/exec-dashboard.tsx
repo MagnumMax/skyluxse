@@ -17,22 +17,22 @@ const slaCards = [
     key: "overdue" as const,
     label: "Overdue",
     description: "Requires immediate action",
-    surface: "border border-destructive/40 bg-destructive/10",
-    accent: "text-destructive",
+    surface: "border border-destructive/40 bg-destructive/10 dark:border-destructive/60 dark:bg-destructive/25",
+    accent: "text-destructive dark:text-destructive/80",
   },
   {
     key: "atRisk" as const,
     label: "SLA risk",
     description: "Check within next 3h",
-    surface: "border border-amber-200 bg-amber-50/80",
-    accent: "text-amber-600",
+    surface: "border border-amber-200 bg-amber-50/80 dark:border-amber-300/60 dark:bg-amber-400/15",
+    accent: "text-amber-600 dark:text-amber-300",
   },
   {
     key: "onTrack" as const,
     label: "On track",
     description: "Milestones are on schedule",
-    surface: "border border-emerald-200 bg-emerald-50/80",
-    accent: "text-emerald-600",
+    surface: "border border-emerald-200 bg-emerald-50/80 dark:border-emerald-300/60 dark:bg-emerald-400/15",
+    accent: "text-emerald-600 dark:text-emerald-300",
   },
 ]
 
@@ -168,7 +168,7 @@ function helperWithTrend(helper?: string, trend?: string) {
   return (
     <div className="space-y-0.5">
       {helper ? <p className="text-xs text-muted-foreground">{helper}</p> : null}
-      {trend ? <p className="text-[11px] text-emerald-600">{trend}</p> : null}
+      {trend ? <p className="text-[11px] text-emerald-600 dark:text-emerald-300">{trend}</p> : null}
     </div>
   )
 }

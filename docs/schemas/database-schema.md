@@ -180,7 +180,9 @@ This schema proposal is derived from the production requirements captured in `do
 | Column | Type | Notes |
 | --- | --- | --- |
 | id | uuid pk | References SPA registry IDs (`doc-*`). |
+| bucket | text | Supabase Storage bucket (`documents`, `client-documents`, ...). |
 | storage_path | text | Supabase Storage key. |
+| file_name | text | Sanitized stored file name. |
 | original_name | text | Human label. |
 | mime_type | text | |
 | size_bytes | bigint | |
@@ -188,6 +190,7 @@ This schema proposal is derived from the production requirements captured in `do
 | status | document_status enum | `verified`, `needs_review`, `expired`. |
 | source | text | `Kommo`, `Client upload`, etc. |
 | expires_at | date | For licenses/mulkiya. |
+| metadata | jsonb | Upstream descriptors (Kommo IDs, numbers, expiry overrides). |
 | created_by | uuid fk staff_accounts | Nullable (system imports). |
 
 **document_links** map each file to a domain entity with polymorphic fields: `document_id`, `entity_type` (`client`,`vehicle`,`booking`,`task`,`lead`), `entity_id`, `doc_type`, `notes`, `created_at`.
@@ -308,7 +311,7 @@ This schema proposal is derived from the production requirements captured in `do
 **task_media** simply references `documents` with entity_type = `task` for photos/videos.
 
 ### Sales pipeline
-**sales_pipeline_stages** keep the stage metadata now stored in `MOCK_DATA.salesPipeline.stages`: columns `id` (`new`), `name`, `probability`, `sla_days`, `badge_color`.
+**sales_pipeline_stages** keep the stage metadata now stored in `MOCK_DATA.salesPipeline.stages`: columns `id` (`new`), `name`, `probability`, `sla_days`, `badge_color`, plus Kommo linkage fields `kommo_pipeline_id`, `kommo_status_id`, `booking_status`. `(kommo_pipeline_id, kommo_status_id)` is unique (partial index) so Edge Functions can resolve a stage/booking status without hard-coded maps. `booking_status` is constrained to `lead`, `confirmed`, `delivery`, `in_progress`, `completed`, `cancelled` and feeds `bookings.status` during webhook ingestion.
 
 **sales_leads** mirror `LD-1201` etc.
 | Column | Type | Notes |

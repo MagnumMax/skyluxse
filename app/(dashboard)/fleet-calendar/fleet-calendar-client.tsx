@@ -122,7 +122,7 @@ export function OperationsFleetCalendarClient({
   )
 }
 
-const layerMeta: Record<CalendarLayer, { label: string; countLabel: (metrics: CalendarMetrics) => string }> = {
+export const layerMeta: Record<CalendarLayer, { label: string; countLabel: (metrics: CalendarMetrics) => string }> = {
   reservation: {
     label: "Reservations",
     countLabel: (metrics) => `${metrics.reservationEvents} pending`,
@@ -141,11 +141,11 @@ const layerMeta: Record<CalendarLayer, { label: string; countLabel: (metrics: Ca
   },
 }
 
-const EVENT_LAYER_ORDER: CalendarLayer[] = ["reservation", "rental", "maintenance", "repair"]
+export const EVENT_LAYER_ORDER: CalendarLayer[] = ["reservation", "rental", "maintenance", "repair"]
 
 type CalendarMetrics = ReturnType<typeof buildCalendarMetrics>
 
-function buildCalendarMetrics(vehicles: FleetCar[], bookings: Booking[], events: CalendarEvent[]) {
+export function buildCalendarMetrics(vehicles: FleetCar[], bookings: Booking[], events: CalendarEvent[]) {
   const totalVehicles = vehicles.length
   const bookingsByVehicle = new Map<string, Booking[]>()
   bookings.forEach((booking) => {
@@ -337,7 +337,7 @@ function LayerFilterPopover({
   )
 }
 
-function resetFilters(
+export function resetFilters(
   setLayerFilters: (value: Record<CalendarLayer, boolean>) => void,
   controller: ReturnType<typeof useFleetCalendarController>,
   setSearchQuery: (value: string) => void,
@@ -350,16 +350,16 @@ function resetFilters(
   setPinnedVehicleId(null)
 }
 
-function buildVehicleSearchLabel(vehicle: FleetCar) {
+export function buildVehicleSearchLabel(vehicle: FleetCar) {
   const parts = [vehicle.name?.trim(), vehicle.plate?.trim()].filter(Boolean)
   return parts.join(" · ")
 }
 
-function sortVehicles(a: FleetCar, b: FleetCar) {
+export function sortVehicles(a: FleetCar, b: FleetCar) {
   return (b.utilization ?? 0) - (a.utilization ?? 0)
 }
 
-function KpiCard({ label, value, trend, tone }: { label: string; value: string; trend?: string; tone?: string }) {
+export function KpiCard({ label, value, trend, tone }: { label: string; value: string; trend?: string; tone?: string }) {
   return (
     <Card className="rounded-2xl border-border/60 bg-card/90">
       <CardContent className="space-y-1.5 p-4">

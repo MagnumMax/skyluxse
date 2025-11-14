@@ -164,7 +164,9 @@
 
 @layer components {
   .fleet-calendar-shell {
-    @apply rounded-[32px] border border-border/70 bg-card/70 shadow-[0_25px_60px_rgba(15,23,42,0.08)];
+    --fleet-calendar-shell-bg: color-mix(in oklch, var(--color-card, var(--card)) 70%, transparent);
+    @apply rounded-[32px] border border-border/70 shadow-[0_25px_60px_rgba(15,23,42,0.08)];
+    background-color: var(--fleet-calendar-shell-bg);
     padding: 1.5rem;
   }
   .fleet-calendar-shell > * + * {

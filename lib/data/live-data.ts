@@ -3,6 +3,7 @@ import { unstable_noStore as noStore } from "next/cache"
 
 import type {
   Booking,
+  BookingDocument,
   BookingInvoice,
   CalendarEvent,
   Client,
@@ -155,7 +156,13 @@ type DocumentRow = {
   bucket: string | null
   storage_path: string | null
   file_name: string | null
+  original_name: string | null
   mime_type: string | null
+  size_bytes: number | null
+  status: string | null
+  source: string | null
+  expires_at: string | null
+  metadata: Record<string, unknown> | null
   created_at: string | null
 }
 
@@ -164,6 +171,8 @@ type DocumentLinkRow = {
   document_id: string
   scope: string
   entity_id: string
+  doc_type?: string | null
+  notes?: string | null
   metadata: Record<string, unknown> | null
   document: DocumentRow | null
 }
@@ -194,6 +203,12 @@ type CalendarEventRow = {
   maintenance_job_id?: string | null
 }
 
+type SalesPipelineStageRow = {
+  id: string
+  name: string | null
+  kommo_status_id: string | null
+}
+
 type MaintenanceJobRow = {
   id: string
   vehicle_id: string | null
@@ -221,6 +236,7 @@ const DEFAULT_CHANNEL = "Manual"
 const AED = "AED"
 const SUPABASE_PUBLIC_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL
 const KOMMO_BASE_URL = process.env.NEXT_PUBLIC_KOMMO_BASE_URL || process.env.KOMMO_BASE_URL || ""
+const DOCUMENT_URL_TTL_SECONDS = 60 * 60
 
 const fetchClientRows = cache(async (): Promise<ClientRow[]> => {
   const { data, error } = await serviceClient
@@ -329,6 +345,17 @@ const fetchBookingRows = cache(async (): Promise<BookingRow[]> => {
   return data ?? []
 })
 
+const fetchSalesPipelineStageRows = cache(async (): Promise<SalesPipelineStageRow[]> => {
+  const { data, error } = await serviceClient
+    .from("sales_pipeline_stages")
+    .select("id, name, kommo_status_id")
+    .limit(500)
+  if (error) {
+    throw new Error(`[supabase] Failed to load sales pipeline stages: ${error.message}`)
+  }
+  return data ?? []
+})
+
 async function fetchBookingRowsByClientId(clientId: string): Promise<BookingRow[]> {
   const { data, error } = await serviceClient
     .from("bookings")
@@ -394,7 +421,9 @@ export const getStaffAccounts = cache(async (): Promise<StaffRow[]> => {
 const fetchDocumentLinkRows = cache(async (): Promise<DocumentLinkRow[]> => {
   const { data, error } = await serviceClient
     .from("document_links")
-    .select("id, document_id, scope, entity_id, metadata, document:documents(id, bucket, storage_path, file_name, mime_type, created_at)")
+    .select(
+      "id, document_id, scope, entity_id, doc_type, notes, metadata, document:documents(id, bucket, storage_path, file_name, original_name, mime_type, size_bytes, status, source, expires_at, metadata, created_at)"
+    )
     .limit(2000)
   if (error) {
     throw new Error(`[supabase] Failed to load document links: ${error.message}`)
@@ -406,7 +435,9 @@ const fetchDocumentLinkRows = cache(async (): Promise<DocumentLinkRow[]> => {
 async function fetchDocumentLinkRowsByClientId(clientId: string): Promise<DocumentLinkRow[]> {
   const { data, error } = await serviceClient
     .from("document_links")
-    .select("id, document_id, scope, entity_id, metadata, document:documents(id, bucket, storage_path, file_name, mime_type, created_at)")
+    .select(
+      "id, document_id, scope, entity_id, doc_type, notes, metadata, document:documents(id, bucket, storage_path, file_name, original_name, mime_type, size_bytes, status, source, expires_at, metadata, created_at)"
+    )
     .eq("entity_id", clientId)
     .in("scope", ["client"])
   if (error) {
@@ -414,6 +445,27 @@ async function fetchDocumentLinkRowsByClientId(clientId: string): Promise<Docume
       return []
     }
     throw new Error(`[supabase] Failed to load document links for client ${clientId}: ${error.message}`)
+  }
+  const rows = (data ?? []) as RawDocumentLinkRow[]
+  return rows.map(normalizeDocumentLinkRow)
+}
+
+async function fetchDocumentLinkRowsByBookingId(bookingId: string): Promise<DocumentLinkRow[]> {
+  if (!bookingId) {
+    return []
+  }
+  const { data, error } = await serviceClient
+    .from("document_links")
+    .select(
+      "id, document_id, scope, entity_id, doc_type, notes, metadata, document:documents(id, bucket, storage_path, file_name, original_name, mime_type, size_bytes, status, source, expires_at, metadata, created_at)"
+    )
+    .eq("entity_id", bookingId)
+    .in("scope", ["booking"])
+  if (error) {
+    if (isMissingTableError(error, "document_links")) {
+      return []
+    }
+    throw new Error(`[supabase] Failed to load document links for booking ${bookingId}: ${error.message}`)
   }
   const rows = (data ?? []) as RawDocumentLinkRow[]
   return rows.map(normalizeDocumentLinkRow)
@@ -514,13 +566,12 @@ export const getLiveClients = cache(async (): Promise<Client[]> => {
   })
 
   const documentsByClient = new Map<string, ClientDocument[]>()
-  documentLinks.forEach((row) => {
-    if ((row.scope ?? "").toLowerCase() !== "client") return
-    const doc = mapDocumentLinkRow(row)
-    if (!doc) return
-    const list = documentsByClient.get(row.entity_id) ?? []
-    list.push(doc)
-    documentsByClient.set(row.entity_id, list)
+  const mappedDocuments = await mapDocumentEntries(documentLinks)
+  mappedDocuments.forEach(({ scope, entityId, document }) => {
+    if (scope !== "client") return
+    const list = documentsByClient.get(entityId) ?? []
+    list.push(document)
+    documentsByClient.set(entityId, list)
   })
 
   const notificationsByClient = new Map<string, ClientNotification[]>()
@@ -601,7 +652,7 @@ export const getLiveClientByIdFromDb = cache(async (clientId: string): Promise<C
   const rentals = buildClientRentals(bookingRows, vehiclesById, undefined)
   const lifetimeValue = bookingRows.reduce((sum, booking) => sum + numberOrZero(booking.total_amount), 0)
   const lastBookingDate = getLastBookingDate(bookingRows)
-  const documents = documentRows.map(mapDocumentLinkRow).filter(Boolean) as ClientDocument[]
+  const documents = (await Promise.all(documentRows.map(mapDocumentLinkRow))).filter(Boolean) as ClientDocument[]
   const payments = invoiceRows.map(mapInvoiceToPayment).sort((a, b) => (b.date ?? "").localeCompare(a.date ?? ""))
   const notifications = notificationRows.map(mapNotificationRow).sort((a, b) => (b.date ?? "").localeCompare(a.date ?? ""))
 
@@ -666,7 +717,7 @@ export const getDocumentRecordById = cache(async (documentId: string): Promise<D
     return null
   }
   const normalized = normalizeDocumentLinkRow({ ...data, document_id: documentId } as RawDocumentLinkRow)
-  const doc = mapDocumentLinkRow(normalized)
+  const doc = await mapDocumentLinkRow(normalized)
   if (!doc) {
     return null
   }
@@ -704,12 +755,13 @@ export async function getLiveFleetVehicleById(vehicleId: string): Promise<FleetC
 }
 
 export const getLiveBookings = cache(async (): Promise<Booking[]> => {
-  const [bookingRows, clientRows, vehicleRows, invoiceRows, staffRows] = await Promise.all([
+  const [bookingRows, clientRows, vehicleRows, invoiceRows, staffRows, pipelineStageRows] = await Promise.all([
     fetchBookingRows(),
     fetchClientRows(),
     fetchVehicleRows(),
     fetchBookingInvoiceRows(),
     fetchStaffRows(),
+    fetchSalesPipelineStageRows(),
   ])
 
   const clientsById = new Map<string, ClientRow>()
@@ -729,12 +781,29 @@ export const getLiveBookings = cache(async (): Promise<Booking[]> => {
     invoicesByBooking.set(row.booking_id, list)
   })
 
-  return bookingRows.map((row) => mapBookingRow(row, { clientsById, vehiclesById, staffById, invoicesByBooking }))
+  const stageByKommoStatusId = new Map<string, SalesPipelineStageRow>()
+  pipelineStageRows.forEach((row) => {
+    if (!row.kommo_status_id) return
+    stageByKommoStatusId.set(String(row.kommo_status_id), row)
+  })
+
+  return bookingRows.map((row) =>
+    mapBookingRow(row, { clientsById, vehiclesById, staffById, invoicesByBooking, stageByKommoStatusId })
+  )
 })
 
 export const getLiveBookingById = cache(async (bookingId: string): Promise<Booking | null> => {
   const bookings = await getLiveBookings()
   return bookings.find((booking) => String(booking.id) === bookingId) ?? null
+})
+
+export const getBookingDocuments = cache(async (bookingId: string): Promise<BookingDocument[]> => {
+  if (!bookingId) {
+    return []
+  }
+  const rows = await fetchDocumentLinkRowsByBookingId(bookingId)
+  const mapped = await Promise.all(rows.map((row) => mapBookingDocumentRow(row)))
+  return mapped.filter((doc): doc is BookingDocument => Boolean(doc))
 })
 
 export const getLiveDrivers = cache(async (): Promise<Driver[]> => {
@@ -822,6 +891,7 @@ function mapBookingRow(
     vehiclesById: Map<string, VehicleRow>
     staffById: Map<string, StaffRow>
     invoicesByBooking: Map<string, BookingInvoice[]>
+    stageByKommoStatusId: Map<string, SalesPipelineStageRow>
   }
 ): Booking {
   const start = row.start_at ?? new Date().toISOString()
@@ -833,6 +903,8 @@ function mapBookingRow(
   const createdBy = resolveAuditActor(row.created_by, owner?.full_name)
   const updatedBy = resolveAuditActor(undefined, owner?.full_name)
   const salesService = mapSalesService(row)
+  const stageEntry =
+    row.kommo_status_id != null ? context.stageByKommoStatusId.get(String(row.kommo_status_id)) : undefined
   return {
     id: row.id,
     code: row.external_code ?? formatFallbackCode(row.id),
@@ -892,6 +964,8 @@ function mapBookingRow(
     history: [],
     extensions: [],
     kommoStatusId: row.kommo_status_id ?? undefined,
+    pipelineStageId: stageEntry?.id ?? undefined,
+    pipelineStageName: stageEntry?.name ?? undefined,
     createdAt: row.created_at ?? undefined,
     updatedAt: row.updated_at ?? undefined,
     createdBy,
@@ -1139,19 +1213,76 @@ function formatFallbackCode(id: string): string {
   return `BK-${id.slice(0, 6).toUpperCase()}`
 }
 
-function mapDocumentLinkRow(row: DocumentLinkRow): ClientDocument | null {
+async function mapBookingDocumentRow(row: DocumentLinkRow): Promise<BookingDocument | null> {
+  const base = await mapDocumentLinkRow(row)
+  if (!base) return null
+  return {
+    type: base.type,
+    status: base.status ?? "active",
+    url: base.url,
+    name: base.name,
+  }
+}
+
+async function mapDocumentEntries(
+  rows: DocumentLinkRow[]
+): Promise<Array<{ scope: string; entityId: string; document: ClientDocument }>> {
+  const mapped = await Promise.all(
+    rows.map(async (row) => {
+      const document = await mapDocumentLinkRow(row)
+      if (!document) return null
+      return {
+        scope: (row.scope ?? "").toLowerCase(),
+        entityId: row.entity_id,
+        document,
+      }
+    })
+  )
+  return mapped.filter((entry): entry is { scope: string; entityId: string; document: ClientDocument } => Boolean(entry))
+}
+
+async function mapDocumentLinkRow(row: DocumentLinkRow): Promise<ClientDocument | null> {
   if (!row.document) return null
-  const metadata = (row.metadata ?? {}) as Record<string, any>
+  const linkMetadata = (row.metadata ?? {}) as Record<string, any>
+  const documentMetadata = (row.document.metadata ?? {}) as Record<string, any>
   const bucket = row.document.bucket ?? "documents"
   const storagePath = row.document.storage_path ?? row.document.file_name ?? undefined
+  const rawType =
+    (linkMetadata.type as string | undefined) ??
+    (linkMetadata.doc_type as string | undefined) ??
+    (row.doc_type as string | undefined) ??
+    (documentMetadata.type as string | undefined) ??
+    row.scope ??
+    "document"
+  const status =
+    (linkMetadata.status as string | undefined) ??
+    (documentMetadata.status as string | undefined) ??
+    row.document.status ??
+    "active"
+  const expiry =
+    (linkMetadata.expiry as string | undefined) ??
+    (linkMetadata.expires_at as string | undefined) ??
+    (documentMetadata.expiry as string | undefined) ??
+    (documentMetadata.expires_at as string | undefined) ??
+    row.document.expires_at ??
+    undefined
+  const name =
+    (linkMetadata.name as string | undefined) ??
+    row.document.original_name ??
+    row.document.file_name ??
+    rawType ??
+    "Document"
+  const docNumber =
+    (linkMetadata.number as string | undefined) ?? (documentMetadata.number as string | undefined) ?? undefined
+  const url = await buildStorageAccessUrl(bucket, storagePath)
   return {
     id: row.document.id,
-    type: metadata.type ?? metadata.doc_type ?? row.scope ?? "document",
-    name: metadata.name ?? row.document.file_name ?? metadata.type ?? "Document",
-    status: metadata.status ?? "active",
-    expiry: metadata.expiry ?? metadata.expires_at ?? undefined,
-    url: buildStoragePublicUrl(bucket, storagePath),
-    number: metadata.number ?? undefined,
+    type: titleCase(rawType),
+    name,
+    status,
+    expiry,
+    url,
+    number: docNumber,
   }
 }
 
@@ -1174,6 +1305,31 @@ export function buildStoragePublicUrl(bucket?: string | null, path?: string | nu
   if (!SUPABASE_PUBLIC_URL || !bucket || !path) return undefined
   const normalizedPath = path.replace(/^\/+/, "")
   return `${SUPABASE_PUBLIC_URL}/storage/v1/object/public/${bucket}/${normalizedPath}`
+}
+
+async function buildStorageAccessUrl(bucket?: string | null, path?: string | null): Promise<string | undefined> {
+  if (!bucket || !path) return undefined
+  const normalizedPath = path.replace(/^\/+/, "")
+  try {
+    const { data, error } = await serviceClient.storage
+      .from(bucket)
+      .createSignedUrl(normalizedPath, DOCUMENT_URL_TTL_SECONDS)
+    if (error) {
+      console.warn(`[supabase] Failed to sign document URL for ${bucket}/${normalizedPath}: ${error.message}`)
+      return buildStoragePublicUrl(bucket, normalizedPath)
+    }
+    const signedUrl = data?.signedUrl
+    if (!signedUrl) {
+      return buildStoragePublicUrl(bucket, normalizedPath)
+    }
+    if (signedUrl.startsWith("http") || !SUPABASE_PUBLIC_URL) {
+      return signedUrl
+    }
+    return `${SUPABASE_PUBLIC_URL}${signedUrl}`
+  } catch (error) {
+    console.warn("[supabase] Unexpected error while signing document URL", { bucket, path: normalizedPath, error })
+    return buildStoragePublicUrl(bucket, normalizedPath)
+  }
 }
 
 function buildFleetCalendarEvents(params: {
@@ -1220,6 +1376,7 @@ function mapCalendarEventRow(
     start,
     end,
     priority: booking?.priority ?? "medium",
+    stageLabel: booking?.pipelineStageName,
   }
 }
 

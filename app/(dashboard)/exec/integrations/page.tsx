@@ -21,6 +21,7 @@ type BookingLookupValue = {
   status: string | null
   client_id: string | null
   vehicle_id: string | null
+  kommo_status_id: string | null
 }
 
 export default async function ExecIntegrationsOutboxPage() {
@@ -83,11 +84,12 @@ export default async function ExecIntegrationsOutboxPage() {
   let bookingsLookup = new Map<string, BookingLookupValue>()
   const clientIds = new Set<string>()
   const vehicleIds = new Set<string>()
+  const kommoStatusIds = new Set<string>()
 
   if (payloadKeys.length > 0) {
     const bookingsRes = await supabase
       .from("bookings")
-      .select("id, external_code, status, source_payload_id, client_id, vehicle_id")
+      .select("id, external_code, status, source_payload_id, client_id, vehicle_id, kommo_status_id")
       .in("source_payload_id", payloadKeys)
 
     if (bookingsRes.error) {
@@ -106,6 +108,7 @@ export default async function ExecIntegrationsOutboxPage() {
                     status: booking.status ?? null,
                     client_id: booking.client_id ?? null,
                     vehicle_id: booking.vehicle_id ?? null,
+                    kommo_status_id: booking.kommo_status_id ? String(booking.kommo_status_id) : null,
                   },
                 ]
               : null
@@ -115,7 +118,26 @@ export default async function ExecIntegrationsOutboxPage() {
       ;(bookingsRes.data ?? []).forEach((booking) => {
         if (booking.client_id) clientIds.add(booking.client_id)
         if (booking.vehicle_id) vehicleIds.add(booking.vehicle_id)
+        if (booking.kommo_status_id != null) kommoStatusIds.add(String(booking.kommo_status_id))
       })
+    }
+  }
+
+  let stageByKommoStatusId = new Map<string, { id: string; name: string | null }>()
+  if (kommoStatusIds.size > 0) {
+    const stagesRes = await supabase
+      .from("sales_pipeline_stages")
+      .select("id, name, kommo_status_id")
+      .in("kommo_status_id", Array.from(kommoStatusIds))
+
+    if (stagesRes.error) {
+      console.error("Failed to fetch sales pipeline stages for webhook events", stagesRes.error)
+    } else {
+      stageByKommoStatusId = new Map(
+        (stagesRes.data ?? [])
+          .filter((stage) => stage.kommo_status_id != null)
+          .map((stage) => [String(stage.kommo_status_id), { id: stage.id, name: stage.name ?? null }])
+      )
     }
   }
 
@@ -152,6 +174,7 @@ export default async function ExecIntegrationsOutboxPage() {
     const booking = normalizedLeadId ? bookingsLookup.get(normalizedLeadId) : undefined
     const client = booking?.client_id ? clientsLookup.get(booking.client_id) : undefined
     const vehicle = booking?.vehicle_id ? vehiclesLookup.get(booking.vehicle_id) : undefined
+    const stage = booking?.kommo_status_id ? stageByKommoStatusId.get(String(booking.kommo_status_id)) : undefined
 
     return {
       id: event.id,
@@ -168,6 +191,8 @@ export default async function ExecIntegrationsOutboxPage() {
       vehicleId: booking?.vehicle_id ?? null,
       vehicleName: vehicle?.name ?? null,
       vehiclePlate: vehicle?.plate_number ?? null,
+      pipelineStageId: stage?.id ?? null,
+      pipelineStageName: stage?.name ?? null,
     }
   })
 

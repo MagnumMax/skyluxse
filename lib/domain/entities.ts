@@ -20,6 +20,8 @@ export interface Booking {
   driverId: EntityId | null
   status: BookingStatus
   kommoStatusId?: number | null
+  pipelineStageId?: string
+  pipelineStageName?: string
   totalAmount: number
   paidAmount: number
   deposit: number
@@ -350,6 +352,7 @@ export interface CalendarEvent {
   start: string
   end: string
   priority: BookingPriority
+  stageLabel?: string
 }
 
 export interface ExecReportDataPoint {

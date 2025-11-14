@@ -6,6 +6,7 @@ _Last updated: 10 Nov 2025 (Kommo account `infoskyluxsecom.kommo.com`, pipelines
 - Import Kommo leads created between **1 Jan 2025** and **31 Dec 2025**, но в букинги проходят только стадии `status_id ∈ {75440391, 75440395, 75440399, 76475495, 78486287, 75440643, 75440639, 142}`. Kommo API разрешает указывать лишь одну стадию в `filter[statuses]`, поэтому full refresh делает по одному проходу на каждый статус и дальше режет результат по датам уже на нашей стороне.
 - Alongside each lead we ingest its main contact (`_embedded.contacts[is_main=true]`) and the custom select field **Vehicle** so we can tie bookings to our fleet.
 - Target tables: `sales_leads`, `bookings`, `clients`, `vehicles`, `booking_vehicles`, `documents`, `sales_pipeline_stages`.
+- `sales_pipeline_stages` теперь хранит полный словарь Kommo → Supabase: для каждой стадии задаём `kommo_pipeline_id`, `kommo_status_id` и `booking_status` (одно из `lead`, `confirmed`, `delivery`, `in_progress`, `completed`, `cancelled`). Edge Function `kommo-status-webhook` читает эти столбцы, поэтому любые новые стадии нужно вносить сюда и миграциями.
 
 ## Leads → sales_leads & bookings
 | Kommo field | Example | Supabase column | Notes |
@@ -89,7 +90,7 @@ Kommo custom field **Source** (ID `823206`) maps to `bookings.source` and option
 | 958813 | Skyluxse.ae | `'Skyluxse.ae'` |
 
 ## Pipeline status mapping
-Create `sales_pipeline_stages` slugs following `pipelineName_statusName` (lowercase snake case). Example: `skyluxse_pipeline_incoming_leads`. Map to operational states as follows:
+Create `sales_pipeline_stages` slugs following `pipelineName_statusName` (lowercase snake case). Example: `skyluxse_pipeline_incoming_leads`. Map to operational states via the `booking_status` column — см. миграцию `0036_unify_kommo_stage_mapping.sql`, которая сидирует базовые стадии пайплайна `9815931`.
 
 | Pipeline ID / Name | Kommo status (ID) | Supabase `sales_pipeline_stages.id` | Suggested `bookings.status` |
 | --- | --- | --- | --- |
@@ -130,9 +131,9 @@ Create `sales_pipeline_stages` slugs following `pipelineName_statusName` (lowerc
 | 11527247 | 142 `Closed - won` | `danil_closed_won` | `settlement` |
 | 11527247 | 143 `Closed - lost` | (excluded) | — |
 
-> When inserting into `sales_pipeline_stages`, reuse the IDs above. `bookings.status` mapping is indicative; operations may choose to keep Kommo stage strictly within `sales_leads` while `bookings.status` follows operational lifecycle post-confirmation.
+> When inserting into `sales_pipeline_stages`, reuse the IDs above. `booking_status` переводит Kommo стадию в операционный статус букинга (`lead`, `confirmed`, `delivery`, `in_progress`, `completed`, `cancelled`). Эти значения читает вебхук, поэтому поддерживается ровно одно значение на комбинацию `kommo_pipeline_id + kommo_status_id`.
 
-`/app/(dashboard)/bookings` now renders the Kommo journey directly, pulling labels/colours/order from `KOMMO_PIPELINE_STAGE_META`. Keep this file as the source of truth whenever Kommo pipelines change so the UI definitions stay in sync.
+`/app/(dashboard)/bookings` и панель интеграций читают метаданные напрямую из `sales_pipeline_stages`, поэтому обновляйте таблицу и документы при каждом изменении пайплайна.
 
 ## Data quality rules
 - **Idempotency**: Use `lead.id` + `contact.id` to avoid duplicate rows. Any re-run must upsert (not append) when Kommo data changes.

@@ -8,9 +8,9 @@ const REQUIRE_SIGNATURE = false
 const KOMMO_BASE_URL = Deno.env.get("KOMMO_BASE_URL") ?? ""
 const KOMMO_ACCESS_TOKEN = Deno.env.get("KOMMO_ACCESS_TOKEN") ?? ""
 const KOMMO_WEBHOOK_SECRET = Deno.env.get("KOMMO_WEBHOOK_SECRET") ?? ""
-const DOCUMENTS_BUCKET = Deno.env.get("SUPABASE_STORAGE_DOCUMENTS_BUCKET") ?? ""
-const DEFAULT_KOMMO_VEHICLE_FIELD_ID = "1234163"
-const KOMMO_VEHICLE_FIELD_ID = Deno.env.get("KOMMO_VEHICLE_FIELD_ID") ?? DEFAULT_KOMMO_VEHICLE_FIELD_ID
+const DOCUMENTS_BUCKET =
+  Deno.env.get("SUPABASE_STORAGE_DOCUMENTS_BUCKET") ?? Deno.env.get("STORAGE_DOCUMENTS_BUCKET") ?? ""
+const KOMMO_VEHICLE_FIELD_ID = Deno.env.get("KOMMO_VEHICLE_FIELD_ID") ?? "1234163"
 const KOMMO_VEHICLE_FIELD_CODE = Deno.env.get("KOMMO_VEHICLE_FIELD_CODE")?.toLowerCase()
 const KOMMO_DELIVERY_FIELD_ID = Number(Deno.env.get("KOMMO_DELIVERY_FIELD_ID") ?? "1218176")
 const KOMMO_COLLECT_FIELD_ID = Number(Deno.env.get("KOMMO_COLLECT_FIELD_ID") ?? "1218178")
@@ -43,10 +43,7 @@ const KOMMO_RETRY_MAX_DELAY_MS = Math.max(
   Math.floor(coerceEnvNumber(Deno.env.get("KOMMO_RETRY_MAX_DELAY_MS"), 5000))
 )
 
-const KOMMO_STATUS_CONFIG: Record<
-  string,
-  { label: string; bookingStatus: "lead" | "confirmed" | "delivery" | "in_progress" | "completed" | "cancelled" }
-> = {
+const KOMMO_STATUS_CONFIG = {
   "75440383": { label: "Incoming leads", bookingStatus: "lead" },
   "79790631": { label: "Request bot answering", bookingStatus: "lead" },
   "91703923": { label: "Follow up", bookingStatus: "lead" },
@@ -62,7 +59,7 @@ const KOMMO_STATUS_CONFIG: Record<
   "143": { label: "lost", bookingStatus: "cancelled" },
 }
 
-const COUNTRY_MAP: Record<string, string> = {
+const COUNTRY_MAP = {
   uae: "AE",
   "united arab emirates": "AE",
   emirates: "AE",
@@ -350,12 +347,6 @@ async function upsertSalesLead(
   return data?.id ?? null
 }
 
-type BookingOptions = {
-  vehicleId?: string | null
-  startAt?: string | null
-  endAt?: string | null
-}
-
 async function upsertBooking(
   client: SupabaseClient,
   lead: any,
@@ -611,7 +602,7 @@ async function handleStatusChange(client: SupabaseClient, event: any): Promise<H
 
   const clientId = await upsertClient(client, contact, lead.name ?? `Lead ${event.id}`)
   if (clientId) {
-    await syncClientDocuments(client, contact, clientId).catch((error) =>
+    await syncClientDocuments(client, contact, clientId, lead).catch((error) =>
       console.error("Failed to sync Kommo documents", error)
     )
   }
@@ -670,32 +661,154 @@ function buildBookingOptions(
   }
 }
 
-async function syncClientDocuments(client: SupabaseClient, contact: any, clientId: string | null) {
-  if (!clientId || !contact?.id) return
+async function syncClientDocuments(client: SupabaseClient, contact: any, clientId: string | null, lead?: any) {
+  if (!clientId) return
   if (!DOCUMENTS_BUCKET) {
     console.warn("SUPABASE_STORAGE_DOCUMENTS_BUCKET not set, skipping Kommo document sync")
     return
   }
 
-  for (const mapping of DOCUMENT_FIELD_MAP) {
-    const field = findCustomField(contact, mapping.fieldId)
-    if (!field || !Array.isArray(field.values)) continue
-    for (const entry of field.values) {
-      const fileMeta = entry?.value
-      const fileUuid = fileMeta?.file_uuid
-      if (!fileUuid) continue
-      await ensureClientDocument(client, {
-        fileUuid: String(fileUuid),
-        fileName: fileMeta?.file_name ?? `${fileUuid}.bin`,
-        fileSize: fileMeta?.file_size ?? null,
-        versionUuid: fileMeta?.version_uuid ?? null,
-        docType: mapping.docType,
-        clientId,
-        contactId: String(contact.id),
-        fieldId: mapping.fieldId,
-      })
+  if (contact?.id) {
+    for (const mapping of DOCUMENT_FIELD_MAP) {
+      const field = findCustomField(contact, mapping.fieldId)
+      if (!field || !Array.isArray(field.values)) continue
+      for (const entry of field.values) {
+        const fileMeta = entry?.value
+        const fileUuid = fileMeta?.file_uuid
+        if (!fileUuid) continue
+        await ensureClientDocument(client, {
+          fileUuid: String(fileUuid),
+          fileName: fileMeta?.file_name ?? `${fileUuid}.bin`,
+          fileSize: fileMeta?.file_size ?? null,
+          versionUuid: fileMeta?.version_uuid ?? null,
+          docType: mapping.docType,
+          clientId,
+          contactId: String(contact.id),
+          fieldId: mapping.fieldId,
+          source: "custom_field",
+          kommoEntityType: "contacts",
+          kommoEntityId: String(contact.id),
+        })
+      }
     }
+
+    await syncKommoDriveFiles(client, {
+      clientId,
+      contactId: String(contact.id),
+      entityType: "contacts",
+      entityId: String(contact.id),
+    })
   }
+
+  if (lead?.id) {
+    await syncKommoDriveFiles(client, {
+      clientId,
+      contactId: contact?.id ? String(contact.id) : null,
+      entityType: "leads",
+      entityId: String(lead.id),
+    })
+  }
+}
+
+type DriveSyncParams = {
+  clientId: string
+  contactId?: string | null
+  entityType: "contacts" | "leads"
+  entityId: string
+}
+
+async function syncKommoDriveFiles(client: SupabaseClient, params: DriveSyncParams) {
+  if (!params.entityId) return
+  const files = await fetchKommoFilesForEntity(params.entityType, params.entityId)
+  if (!files.length) return
+  for (const file of files) {
+    const payload = buildPayloadFromKommoFile(file, params)
+    if (!payload) continue
+    await ensureClientDocument(client, payload)
+  }
+}
+
+async function fetchKommoFilesForEntity(entityType: "contacts" | "leads", entityId: string) {
+  try {
+    const response = await kommoGet(`/api/v4/${entityType}/${entityId}/files`)
+    const files = response?._embedded?.files
+    return Array.isArray(files) ? files : []
+  } catch (error) {
+    console.error("Failed to fetch Kommo files", {
+      entityType,
+      entityId,
+      error: formatError(error),
+    })
+    return []
+  }
+}
+
+function buildPayloadFromKommoFile(file: any, params: DriveSyncParams): DocumentSyncPayload | null {
+  if (!file?.uuid) return null
+  const fileName = buildFileNameFromKommoFile(file)
+  const docType = guessDocumentTypeFromKommoFile(fileName, file)
+  const size = typeof file?.size === "number" ? file.size : Number(file?.size ?? file?.metadata?.size ?? null)
+  return {
+    fileUuid: String(file.uuid),
+    fileName,
+    fileSize: Number.isFinite(size) ? Number(size) : null,
+    versionUuid: file?.version_uuid ? String(file.version_uuid) : null,
+    docType,
+    clientId: params.clientId,
+    contactId: params.contactId ?? null,
+    source: "attachment",
+    downloadUrl: file?._links?.download?.href ?? file?._links?.download_version?.href ?? null,
+    kommoEntityType: params.entityType,
+    kommoEntityId: params.entityId,
+  }
+}
+
+function buildFileNameFromKommoFile(file: any) {
+  const fallbackId =
+    file?.uuid ??
+    (typeof crypto?.randomUUID === "function" ? crypto.randomUUID() : `kommo-${Date.now().toString(36)}`)
+  const raw =
+    file?.sanitized_name ??
+    file?.name ??
+    file?._embedded?.file?.name ??
+    (file?.metadata?.original_name as string | undefined) ??
+    `kommo-file-${fallbackId}`
+  const normalized = raw.replace(/\s+/g, "_")
+  const extension = inferKommoExtension(file)
+  if (extension && !normalized.toLowerCase().endsWith(`.${extension}`)) {
+    return `${normalized}.${extension}`
+  }
+  return normalized
+}
+
+function inferKommoExtension(file: any) {
+  const metaExt = (file?.metadata?.extension ?? file?.metadata?.ext) as string | undefined
+  if (metaExt) return metaExt.toLowerCase()
+  const mime = (file?.metadata?.mime_type ?? file?.metadata?.mimetype ?? file?.mime_type) as string | undefined
+  if (!mime) return null
+  const map: Record<string, string> = {
+    "application/pdf": "pdf",
+    "image/jpeg": "jpg",
+    "image/png": "png",
+    "image/webp": "webp",
+  }
+  return map[mime.toLowerCase()] ?? null
+}
+
+function guessDocumentTypeFromKommoFile(fileName: string, file: any) {
+  const normalized = fileName.toLowerCase()
+  if (normalized.includes("passport")) return "passport_id"
+  if (normalized.includes("license") || normalized.includes("licence") || normalized.includes("driver")) {
+    return "driver_license"
+  }
+  if (normalized.includes("emirates")) return "emirates_id"
+  if (normalized.includes("mulkiya") || normalized.includes("mulkiyah")) return "mulkiya"
+  if (normalized.includes("insurance")) return "insurance"
+  const type = (file?.type ?? file?.metadata?.type) as string | undefined
+  if (type && typeof type === "string") {
+    return type.toLowerCase()
+  }
+  return "kommo_file"
 }
 
 type DocumentSyncPayload = {
@@ -705,8 +818,54 @@ type DocumentSyncPayload = {
   versionUuid: string | null
   docType: string
   clientId: string
-  contactId: string
-  fieldId: number
+  contactId?: string | null
+  fieldId?: number | null
+  source?: "custom_field" | "attachment"
+  downloadUrl?: string | null
+  kommoEntityType?: string | null
+  kommoEntityId?: string | null
+}
+
+let kommoDriveBaseUrl: string | null = null
+
+async function resolveKommoDriveBaseUrl(): Promise<string> {
+  if (kommoDriveBaseUrl) return kommoDriveBaseUrl
+  const configured =
+    Deno.env.get("KOMMO_FILES_BASE_URL") ??
+    Deno.env.get("KOMMO_DRIVE_BASE_URL") ??
+    Deno.env.get("KOMMO_DRIVE_URL") ??
+    null
+  if (configured) {
+    kommoDriveBaseUrl = configured.replace(/\/$/, "")
+    return kommoDriveBaseUrl
+  }
+  try {
+    const account = await kommoGet("/api/v4/account?with=drive_url")
+    const driveUrl = account?.drive_url
+    if (driveUrl) {
+      kommoDriveBaseUrl = String(driveUrl).replace(/\/$/, "")
+      return kommoDriveBaseUrl
+    }
+  } catch (error) {
+    console.error("Failed to fetch Kommo drive_url", formatError(error))
+  }
+  throw new Error("Unable to resolve Kommo drive_url. Set KOMMO_FILES_BASE_URL env var.")
+}
+
+async function downloadKommoFile(fileUuid: string) {
+  const driveBaseUrl = await resolveKommoDriveBaseUrl()
+  const url = `${driveBaseUrl}/v1.0/files/${fileUuid}`
+  const resp = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${KOMMO_ACCESS_TOKEN}`,
+    },
+  })
+  if (!resp.ok) {
+    throw new Error(`Kommo file download failed (${resp.status}) for ${fileUuid}`)
+  }
+  const arrayBuffer = await resp.arrayBuffer()
+  const mimeType = resp.headers.get("content-type") ?? "application/octet-stream"
+  return { arrayBuffer, mimeType }
 }
 
 async function ensureClientDocument(client: SupabaseClient, payload: DocumentSyncPayload) {
@@ -724,27 +883,23 @@ async function ensureClientDocument(client: SupabaseClient, payload: DocumentSyn
   let documentId = existingDoc?.id ?? null
 
   if (!documentId) {
-    const fileInfo = await kommoGet(`/api/v4/files/${payload.fileUuid}`).catch((error) => {
-      console.error("Failed to fetch Kommo file metadata", { fileUuid: payload.fileUuid, error })
-      return null
-    })
-    if (!fileInfo) return
-
-    const downloadLink = fileInfo?.download_link ?? fileInfo?.file?.download_link
-    if (!downloadLink) {
-      console.error("Kommo file metadata missing download link", { fileUuid: payload.fileUuid })
+    let fileBuffer: ArrayBuffer | null = null
+    let mimeType = "application/octet-stream"
+    try {
+      const downloadResult = await downloadKommoFile(payload.fileUuid)
+      fileBuffer = downloadResult.arrayBuffer
+      mimeType = downloadResult.mimeType
+    } catch (error) {
+      console.error("Failed to download Kommo file", {
+        fileUuid: payload.fileUuid,
+        error: formatError(error),
+      })
       return
     }
 
-    const fileResponse = await fetch(downloadLink)
-    if (!fileResponse.ok) {
-      console.error("Failed to download Kommo file", { fileUuid: payload.fileUuid, status: fileResponse.status })
-      return
-    }
-    const arrayBuffer = await fileResponse.arrayBuffer()
-    const mimeType = fileResponse.headers.get("content-type") ?? "application/octet-stream"
-    const blob = new Blob([arrayBuffer], { type: mimeType })
-    const storagePath = `clients/${payload.clientId}/${payload.docType}/${payload.fileUuid}-${payload.fileName}`
+    if (!fileBuffer) return
+    const blob = new Blob([fileBuffer], { type: mimeType })
+    const storagePath = buildStoragePathForDocument(payload, payload.fileName)
 
     const { error: uploadError } = await client.storage
       .from(DOCUMENTS_BUCKET)
@@ -757,18 +912,15 @@ async function ensureClientDocument(client: SupabaseClient, payload: DocumentSyn
     const { data: insertedDoc, error: insertDocError } = await client
       .from("documents")
       .insert({
+        bucket: DOCUMENTS_BUCKET,
         storage_path: storagePath,
+        file_name: payload.fileName,
         original_name: payload.fileName,
         mime_type: mimeType,
-        size_bytes: payload.fileSize ?? arrayBuffer.byteLength,
+        size_bytes: payload.fileSize ?? fileBuffer.byteLength,
         source: "Kommo",
         status: "needs_review",
-        metadata: {
-          kommo_file_uuid: payload.fileUuid,
-          kommo_field_id: payload.fieldId,
-          kommo_contact_id: payload.contactId,
-          kommo_version_uuid: payload.versionUuid,
-        },
+        metadata: buildDocumentMetadata(payload),
       })
       .select("id")
       .single()
@@ -787,7 +939,6 @@ async function ensureClientDocument(client: SupabaseClient, payload: DocumentSyn
     .select("id")
     .eq("document_id", documentId)
     .eq("entity_id", payload.clientId)
-    .eq("doc_type", payload.docType)
     .limit(1)
     .maybeSingle()
 
@@ -802,6 +953,29 @@ async function ensureClientDocument(client: SupabaseClient, payload: DocumentSyn
       console.error("Failed to create document link", linkError)
     }
   }
+}
+
+function sanitizeDocType(value: string) {
+  return value?.toLowerCase().replace(/[^a-z0-9_-]+/g, "-") || "document"
+}
+
+function buildStoragePathForDocument(payload: DocumentSyncPayload, fileName: string) {
+  const docTypeFolder = sanitizeDocType(payload.docType)
+  return `clients/${payload.clientId}/${docTypeFolder}/${payload.fileUuid}-${fileName}`
+}
+
+function buildDocumentMetadata(payload: DocumentSyncPayload) {
+  const metadata: Record<string, unknown> = {
+    kommo_file_uuid: payload.fileUuid,
+  }
+  if (payload.fieldId != null) metadata.kommo_field_id = payload.fieldId
+  if (payload.contactId) metadata.kommo_contact_id = payload.contactId
+  if (payload.versionUuid) metadata.kommo_version_uuid = payload.versionUuid
+  if (payload.source) metadata.kommo_source = payload.source
+  if (payload.downloadUrl) metadata.kommo_download_url = payload.downloadUrl
+  if (payload.kommoEntityType) metadata.kommo_entity_type = payload.kommoEntityType
+  if (payload.kommoEntityId) metadata.kommo_entity_id = payload.kommoEntityId
+  return metadata
 }
 
 serve(async (req) => {

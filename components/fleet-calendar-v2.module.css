@@ -1,0 +1,342 @@
+.board {
+  --fleet-v2-left-width: 280px;
+  --fleet-v2-left-bg: var(--color-card, var(--card));
+  --fleet-v2-left-border: color-mix(in oklch, var(--color-border, var(--border)) 65%, transparent);
+  --fleet-v2-grid-border: color-mix(in oklch, var(--color-border, var(--border)) 50%, transparent);
+  --fleet-v2-legend-border: color-mix(in oklch, var(--color-border, var(--border)) 50%, transparent);
+  --fleet-v2-today-accent: var(--color-primary, var(--primary));
+  --fleet-v2-event-shadow: 0 16px 24px -18px rgba(15, 23, 42, 0.5);
+  --fleet-v2-slot-width: 66px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.scrollArea {
+  position: relative;
+  overflow-x: auto;
+  border-radius: calc(var(--radius) + 2px);
+  border: 1px solid var(--fleet-v2-left-border);
+  background-color: var(--fleet-v2-left-bg);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.table {
+  min-width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: minmax(var(--fleet-v2-left-width), max-content) minmax(640px, 1fr);
+}
+
+.headerRow {
+  position: sticky;
+  top: var(--fleet-calendar-sticky-offset, var(--dashboard-header-height, 0px));
+  z-index: 18;
+  background: linear-gradient(180deg, var(--fleet-v2-left-bg), rgba(13, 18, 35, 0));
+}
+
+.leftCell {
+  position: sticky;
+  left: 0;
+  z-index: 10;
+  padding: 0.9rem 1.1rem;
+  background-color: var(--fleet-v2-left-bg);
+  border-right: 1px solid var(--fleet-v2-left-border);
+  border-bottom: 1px solid var(--fleet-v2-left-border);
+  box-shadow: inset -1px 0 0 rgba(15, 23, 42, 0.08);
+}
+
+.leftHeader {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.24em;
+  font-weight: 600;
+  color: hsl(var(--muted-foreground));
+}
+
+.rowGrid {
+  min-width: 560px;
+  padding: 0.4rem 0.6rem 0.4rem 0.4rem;
+}
+
+.grid {
+  display: grid;
+  width: 100%;
+  position: relative;
+}
+
+.gridHeader {
+  gap: 0.25rem;
+}
+
+.dayHeader {
+  position: sticky;
+  top: var(--fleet-calendar-sticky-offset, var(--dashboard-header-height, 0px));
+  display: flex;
+  flex-direction: column;
+  gap: 0.05rem;
+  padding: 0.35rem 0.35rem 0.25rem;
+  border-radius: 0.45rem;
+  background: hsl(var(--muted));
+  border: 1px solid var(--fleet-v2-grid-border);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  text-align: left;
+}
+
+.dayPrimary {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: hsl(var(--foreground));
+}
+
+.daySecondary {
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: hsl(var(--muted-foreground));
+}
+
+.dayIsToday {
+  outline: 2px solid var(--fleet-v2-today-accent);
+  outline-offset: 1px;
+  background: hsl(var(--background));
+}
+
+.groupRow .leftCell {
+  padding-top: 1.2rem;
+  padding-bottom: 0.45rem;
+  border-bottom: none;
+}
+
+.groupRow {
+  background: var(--fleet-v2-left-bg);
+}
+
+.groupCell {
+  font-size: 0.68rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: hsl(var(--muted-foreground));
+  background: var(--fleet-v2-left-bg);
+}
+
+.groupDivider {
+  border-bottom: 1px dashed var(--fleet-v2-grid-border);
+  margin-bottom: 0.5rem;
+}
+
+.vehicleTitle {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.vehicleMeta {
+  font-size: 0.78rem;
+  color: hsl(var(--muted-foreground));
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: 0.1rem;
+}
+
+.vehiclePlate {
+  font-family: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+}
+
+.vehicleMake {
+  font-size: 0.72rem;
+}
+
+.statusBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  margin-top: 0.45rem;
+  border: 1px solid transparent;
+}
+
+.statusAvailable {
+  background: rgba(34, 197, 94, 0.15);
+  border-color: rgba(34, 197, 94, 0.3);
+  color: rgb(18, 128, 64);
+}
+
+.statusInRent {
+  background: rgba(59, 130, 246, 0.15);
+  border-color: rgba(59, 130, 246, 0.3);
+  color: rgb(35, 99, 191);
+}
+
+.statusMaintenance {
+  background: rgba(251, 146, 60, 0.15);
+  border-color: rgba(251, 146, 60, 0.35);
+  color: rgb(194, 98, 13);
+}
+
+.gridBody {
+  min-height: 60px;
+  gap: 0.35rem;
+  grid-auto-rows: minmax(56px, auto);
+  align-items: start;
+}
+
+.dayCell {
+  min-height: 60px;
+  position: relative;
+  pointer-events: none;
+  background: transparent;
+}
+
+.dayCell::before {
+  content: "";
+  position: absolute;
+  top: 0.2rem;
+  bottom: 0.2rem;
+  left: 0;
+  width: 1px;
+  background-color: color-mix(in oklch, var(--color-border, var(--border)) 45%, transparent);
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.dayCell.dayIsToday::before {
+  background-color: var(--fleet-v2-today-accent);
+  opacity: 0.85;
+}
+
+.eventWrapper {
+  padding: 0.25rem 0.22rem;
+  position: relative;
+  z-index: 2;
+}
+
+.eventButton {
+  width: 100%;
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+}
+
+.eventCard {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.5rem 0.6rem;
+  border-radius: 0.85rem;
+  border: 1px solid transparent;
+  box-shadow: var(--fleet-v2-event-shadow);
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+.eventButton:focus-visible .eventCard {
+  outline: 2px solid var(--fleet-v2-today-accent);
+  outline-offset: 2px;
+}
+
+.eventButton:hover .eventCard {
+  transform: translateY(-1px);
+  box-shadow: 0 18px 32px -20px rgba(15, 23, 42, 0.6);
+}
+
+.eventIcon {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+}
+
+.eventContent {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.eventTitle {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: inherit;
+}
+
+.eventStage {
+  font-size: 0.66rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: inherit;
+  opacity: 0.85;
+}
+
+.eventMeta {
+  font-size: 0.68rem;
+  color: inherit;
+  opacity: 0.82;
+}
+
+.event-reservation {
+  background: linear-gradient(120deg, rgba(59, 130, 246, 0.9), rgba(37, 99, 235, 0.8));
+  border-color: rgba(37, 99, 235, 0.6);
+  color: #e9f2ff;
+}
+
+.event-rental {
+  background: linear-gradient(120deg, rgba(34, 197, 94, 0.94), rgba(16, 185, 129, 0.85));
+  border-color: rgba(21, 128, 61, 0.6);
+  color: #ecfff4;
+}
+
+.event-maintenance {
+  background: linear-gradient(120deg, rgba(251, 191, 36, 0.95), rgba(245, 158, 11, 0.85));
+  border-color: rgba(217, 119, 6, 0.6);
+  color: #2f1800;
+}
+
+.event-repair {
+  background: linear-gradient(120deg, rgba(248, 113, 113, 0.95), rgba(239, 68, 68, 0.85));
+  border-color: rgba(220, 38, 38, 0.7);
+  color: #fff5f5;
+}
+
+@media (max-width: 1024px) {
+  .row {
+    grid-template-columns: minmax(220px, max-content) minmax(540px, 1fr);
+  }
+
+  .leftCell {
+    padding: 0.75rem 0.85rem;
+  }
+
+  .rowGrid {
+    padding-right: 0.35rem;
+  }
+}
+
+@media (max-width: 720px) {
+  .row {
+    grid-template-columns: minmax(190px, max-content) minmax(420px, 1fr);
+  }
+
+  .vehicleTitle {
+    font-size: 0.85rem;
+  }
+
+  .scrollArea {
+    border-radius: calc(var(--radius));
+  }
+}
