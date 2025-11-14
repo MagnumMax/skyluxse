@@ -391,7 +391,10 @@
   width: var(--fleet-calendar-left-width, 200px);
   min-width: var(--fleet-calendar-left-width, 200px);
   height: 100%;
-  background-color: hsl(var(--card));
+  background-color: var(
+    --fleet-calendar-shell-bg,
+    color-mix(in oklch, var(--color-card, var(--card)) 70%, transparent)
+  );
   box-shadow: inset -1px 0 0 hsl(var(--border) / 0.35);
   z-index: 6; /* поверх скроллируемого таймлайна и событий */
   pointer-events: none;
@@ -429,7 +432,10 @@
   z-index: 7; /* выше overlay ::before и любых событий таймлайна */
   padding: 0.5rem 0.6rem 0.4rem 0.1rem;
   border-bottom: 1px solid hsl(var(--border) / 0.6);
-  background-color: hsl(var(--card));
+  background-color: var(
+    --fleet-calendar-shell-bg,
+    color-mix(in oklch, var(--color-card, var(--card)) 70%, transparent)
+  );
   box-shadow: inset -1px 0 0 hsl(var(--border) / 0.35);
 }
 
@@ -443,6 +449,10 @@
   position: sticky;
   top: var(--fleet-calendar-sticky-offset, var(--dashboard-header-height, 0px));
   z-index: 31;
+  background-color: var(
+    --fleet-calendar-shell-bg,
+    color-mix(in oklch, var(--color-card, var(--card)) 70%, transparent)
+  );
 }
 
 .fleet-calendar-left-cell--group {
@@ -454,6 +464,10 @@
   padding-top: 1rem;
   padding-bottom: 0.5rem;
   border-bottom: none;
+  background-color: var(
+    --fleet-calendar-shell-bg,
+    color-mix(in oklch, var(--color-card, var(--card)) 70%, transparent)
+  );
 }
 
 .fleet-calendar-grid-header {
