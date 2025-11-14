@@ -33,10 +33,6 @@ export function OperationsBookingDetail({
   const advancePayment = resolveAdvancePayment(booking)
   const tags = booking.tags ?? []
   const statusTone = getStatusTone(booking.status)
-  const locationChips = Array.from(
-    new Set([booking.pickupLocation, booking.dropoffLocation, booking.deliveryLocation, booking.collectLocation].filter(Boolean)),
-  ) as string[]
-
   return (
     <DashboardPageShell>
       <BookingOverviewSection
@@ -48,7 +44,7 @@ export function OperationsBookingDetail({
         tags={tags}
       />
 
-      <BookingLogisticsFinancialSection booking={booking} outstanding={outstanding} locationChips={locationChips} advancePayment={advancePayment} />
+      <BookingLogisticsFinancialSection booking={booking} outstanding={outstanding} advancePayment={advancePayment} />
 
       <BookingActivitySection booking={booking} />
 
@@ -68,12 +64,6 @@ function BookingOverviewSection({ booking, client, outstanding, advancePayment, 
   const depositInvoiceStatus = advanceInvoice?.status
   const clientHref = booking.clientId ? toRoute(`/clients/${booking.clientId}`) : undefined
   const detailRows: Array<{ label: string; value?: ReactNode; helper?: ReactNode }> = [
-    stageLabel
-      ? {
-          label: "Stage",
-          value: stageLabel,
-        }
-      : null,
     {
       label: "Client",
       value:
@@ -86,6 +76,12 @@ function BookingOverviewSection({ booking, client, outstanding, advancePayment, 
         ),
       helper: client?.status,
     },
+    stageLabel
+      ? {
+          label: "Stage",
+          value: stageLabel,
+        }
+      : null,
     {
       label: "Channel",
       value: booking.channel,
@@ -103,14 +99,6 @@ function BookingOverviewSection({ booking, client, outstanding, advancePayment, 
       label: "Advance payment",
       value: advancePayment != null ? currencyFormatter.format(advancePayment) : "—",
       helper: depositInvoiceStatus,
-    },
-    {
-      label: "Created",
-      value: formatDateTime(booking.createdAt),
-    },
-    {
-      label: "Last updated",
-      value: formatDateTime(booking.updatedAt),
     },
   ].filter(Boolean) as Array<{ label: string; value?: ReactNode; helper?: ReactNode }>
 
@@ -137,9 +125,6 @@ function BookingOverviewSection({ booking, client, outstanding, advancePayment, 
               ))}
             </div>
           ) : null}
-          {stageLabel ? (
-            <p className="text-[0.62rem] uppercase tracking-[0.35em] text-muted-foreground">Stage · {stageLabel}</p>
-          ) : null}
         </div>
       </CardHeader>
       <CardContent>
@@ -153,7 +138,7 @@ function BookingOverviewSection({ booking, client, outstanding, advancePayment, 
   )
 }
 
-function BookingLogisticsFinancialSection({ booking, outstanding, locationChips, advancePayment }: { booking: Booking; outstanding: number; locationChips: string[]; advancePayment?: number | null }) {
+function BookingLogisticsFinancialSection({ booking, outstanding, advancePayment }: { booking: Booking; outstanding: number; advancePayment?: number | null }) {
   const totalWithVat = computeTotalWithVat(booking)
   const pickupDate = formatShortDate(booking.startDate, booking.startTime)
   const pickupTime = formatTimeLabel(booking.startDate, booking.startTime)
@@ -192,11 +177,21 @@ function BookingLogisticsFinancialSection({ booking, outstanding, locationChips,
     },
   ]
   const logisticsParameters: ParameterListItem[] = []
+  const mapsLink = (location: string) => (
+    <a
+      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`}
+      target="_blank"
+      rel="noreferrer"
+      className="text-primary underline-offset-4 hover:underline"
+    >
+      {location}
+    </a>
+  )
   if (booking.deliveryLocation) {
-    logisticsParameters.push({ label: "Delivery location", value: booking.deliveryLocation })
+    logisticsParameters.push({ label: "Delivery location", value: mapsLink(booking.deliveryLocation) })
   }
   if (booking.collectLocation) {
-    logisticsParameters.push({ label: "Collect location", value: booking.collectLocation })
+    logisticsParameters.push({ label: "Collect location", value: mapsLink(booking.collectLocation) })
   }
   if (booking.deliveryFeeLabel) {
     logisticsParameters.push({ label: "Delivery fee", value: booking.deliveryFeeLabel })
@@ -214,7 +209,6 @@ function BookingLogisticsFinancialSection({ booking, outstanding, locationChips,
     {
       label: "Total with VAT",
       value: currencyFormatter.format(totalWithVat ?? 0),
-      helper: booking.channel?.toLowerCase() === "kommo" ? "Kommo quote" : undefined,
     },
     { label: "Advance payment", value: currencyFormatter.format((advancePayment ?? booking.deposit) ?? 0) },
     { label: "Paid", value: currencyFormatter.format(booking.paidAmount ?? 0) },
@@ -243,27 +237,7 @@ function BookingLogisticsFinancialSection({ booking, outstanding, locationChips,
         </CardHeader>
         <CardContent className="space-y-4 text-sm">
           <ParameterList items={scheduleParameters} columns={2} />
-          {logisticsParameters.length ? (
-            <div className="space-y-2">
-              <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">Logistics details</p>
-              <ParameterList items={logisticsParameters} columns={2} />
-            </div>
-          ) : null}
-          {locationChips.length ? (
-            <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-              {locationChips.map((loc) => (
-                <a
-                  key={loc}
-                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(loc)}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="rounded-full border border-border/60 px-3 py-1 hover:text-primary"
-                >
-                  {loc}
-                </a>
-              ))}
-            </div>
-          ) : null}
+          {logisticsParameters.length ? <ParameterList items={logisticsParameters} columns={2} /> : null}
         </CardContent>
       </Card>
       <Card className="rounded-[26px] border-border/70 bg-card/80">
@@ -272,12 +246,7 @@ function BookingLogisticsFinancialSection({ booking, outstanding, locationChips,
         </CardHeader>
         <CardContent className="space-y-4 text-sm">
           <ParameterList items={financialParameters} columns={2} />
-          {financialMeta.length ? (
-            <div className="space-y-2">
-              <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">References</p>
-              <ParameterList items={financialMeta} columns={2} />
-            </div>
-          ) : null}
+          {financialMeta.length ? <ParameterList items={financialMeta} columns={2} /> : null}
           <div>
             <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">Invoices</p>
             <ul className="mt-2 space-y-2 text-sm">
