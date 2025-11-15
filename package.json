@@ -4,7 +4,7 @@
   "description": "Современное веб-приложение для управления автопарком с интерактивным интерфейсом.",
   "main": "next.config.mjs",
   "scripts": {
-    "dev": "next dev",
+    "dev": "lsof -ti:3000 | xargs kill -9 || true && next dev",
     "dev:webpack": "NEXT_DISABLE_TURBOPACK=1 next dev",
     "build": "next build",
     "build:webpack": "next build --webpack",
@@ -38,6 +38,7 @@
     "eslint-config-next": "^16.0.1",
     "postcss": "^8.4.49",
     "prettier": "^3.6.2",
+    "puppeteer": "^24.30.0",
     "shadcn-ui": "^0.9.5",
     "tailwindcss": "^4.1.17",
     "tailwindcss-animate": "^1.0.7",
