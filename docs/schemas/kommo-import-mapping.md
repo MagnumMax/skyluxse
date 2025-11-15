@@ -94,18 +94,19 @@ Create `sales_pipeline_stages` slugs following `pipelineName_statusName` (lowerc
 
 | Pipeline ID / Name | Kommo status (ID) | Supabase `sales_pipeline_stages.id` | Suggested `bookings.status` |
 | --- | --- | --- | --- |
-| 9815931 `SkyLuxse Pipeline` | 75440383 `Incoming leads` | `skyluxse_incoming` | `new` |
-| 9815931 | 79790631 `Request bot answering` | `skyluxse_bot_answering` | `new` |
-| 9815931 | 91703923 `Follow up` | `skyluxse_follow_up` | `preparation` |
-| 9815931 | 75440391 `Confirmed bookings` | `skyluxse_confirmed` | `preparation` |
-| 9815931 | 75440395 `Delivery within 24 hours` | `skyluxse_delivery_24h` | `delivery` |
+| 9815931 `SkyLuxse Pipeline` | 75440383 `Incoming Leads` | `skyluxse_incoming` | `new` |
+| 9815931 | 79790631 `Request Bot Answering` | `skyluxse_bot_answering` | `new` |
+| 9815931 | 91703923 `Follow Up` | `skyluxse_follow_up` | `preparation` |
+| 9815931 | 96150292 `Waiting for Payment` | `skyluxse_waiting_payment` | `preparation` |
+| 9815931 | 75440391 `Confirmed Bookings` | `skyluxse_confirmed` | `preparation` |
+| 9815931 | 75440395 `Delivery Within 24 Hours` | `skyluxse_delivery_24h` | `delivery` |
 | 9815931 | 75440399 `Car with Customers` | `skyluxse_with_customer` | `in_rent` |
-| 9815931 | 76475495 `Pick up within 24 hours` | `skyluxse_pickup_24h` | `settlement` |
-| 9815931 | 78486287 `OBJECTIONS` | `skyluxse_objections` | `preparation` |
+| 9815931 | 76475495 `Pick Up Within 24 Hours` | `skyluxse_pickup_24h` | `settlement` |
+| 9815931 | 78486287 `Objections` | `skyluxse_objections` | `preparation` |
 | 9815931 | 75440643 `Refund Deposit` | `skyluxse_refund_deposit` | `settlement` |
-| 9815931 | 75440639 `Deal is Closed` | `skyluxse_deal_closed` | `settlement` |
-| 9815931 | 142 `Closed - won` | `skyluxse_closed_won` | `settlement` |
-| 9815931 | 143 `Closed - lost` | (excluded) | — |
+| 9815931 | 75440639 `Deal Is Closed` | `skyluxse_deal_closed` | `settlement` |
+| 9815931 | 142 `Closed · Won` | `skyluxse_closed_won` | `settlement` |
+| 9815931 | 143 `Closed · Lost` | (excluded) | — |
 | 9839071 `Aleksei` | 75590083 `Incoming leads` | `aleksei_incoming` | `new` |
 | 9839071 | 82164527 `Manager` | `aleksei_manager` | `preparation` |
 | 9839071 | 75590091 `pre-Confirmed booking` | `aleksei_preconfirmed` | `preparation` |

@@ -44,19 +44,19 @@ const KOMMO_RETRY_MAX_DELAY_MS = Math.max(
 )
 
 const KOMMO_STATUS_CONFIG = {
-  "75440383": { label: "Incoming leads", bookingStatus: "lead" },
-  "79790631": { label: "Request bot answering", bookingStatus: "lead" },
-  "91703923": { label: "Follow up", bookingStatus: "lead" },
-  "96150292": { label: "waiting for payment", bookingStatus: "lead" },
-  "75440391": { label: "Confirmed bookings", bookingStatus: "confirmed" },
-  "75440395": { label: "Delivery within 24 hours", bookingStatus: "delivery" },
+  "75440383": { label: "Incoming Leads", bookingStatus: "lead" },
+  "79790631": { label: "Request Bot Answering", bookingStatus: "lead" },
+  "91703923": { label: "Follow Up", bookingStatus: "lead" },
+  "96150292": { label: "Waiting for Payment", bookingStatus: "confirmed" },
+  "75440391": { label: "Confirmed Bookings", bookingStatus: "confirmed" },
+  "75440395": { label: "Delivery Within 24 Hours", bookingStatus: "delivery" },
   "75440399": { label: "Car with Customers", bookingStatus: "in_progress" },
-  "76475495": { label: "Pick up within 24 hours", bookingStatus: "in_progress" },
-  "78486287": { label: "OBJECTIONS", bookingStatus: "lead" },
+  "76475495": { label: "Pick Up Within 24 Hours", bookingStatus: "in_progress" },
+  "78486287": { label: "Objections", bookingStatus: "lead" },
   "75440643": { label: "Refund Deposit", bookingStatus: "completed" },
-  "75440639": { label: "Deal is Closed", bookingStatus: "completed" },
-  "142": { label: "Closed - won", bookingStatus: "completed" },
-  "143": { label: "lost", bookingStatus: "cancelled" },
+  "75440639": { label: "Deal Is Closed", bookingStatus: "completed" },
+  "142": { label: "Closed · Won", bookingStatus: "completed" },
+  "143": { label: "Closed · Lost", bookingStatus: "cancelled" },
 }
 
 const COUNTRY_MAP = {

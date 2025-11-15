@@ -184,8 +184,9 @@ export function SalesBookingsBoard({ bookings, drivers, readOnly = false }: Sale
       </div>
 
       <DragDropContext onDragEnd={handleDragEnd}>
-        <div className="grid gap-4 lg:grid-cols-5">
-          {([...stageOrder, ...(grouped.fallback.length ? ["fallback" as const] : [])] as StageBucketId[]).map((stageId) => {
+        <div className="lg:overflow-x-auto lg:pb-1">
+          <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:flex lg:min-w-max lg:gap-4">
+            {([...stageOrder, ...(grouped.fallback.length ? ["fallback" as const] : [])] as StageBucketId[]).map((stageId) => {
             const meta = resolveStageMeta(stageId)
             const columnBookings = grouped[stageId]
             return (
@@ -198,13 +199,12 @@ export function SalesBookingsBoard({ bookings, drivers, readOnly = false }: Sale
                   <section
                     ref={provided.innerRef}
                     {...provided.droppableProps}
-                    className="flex flex-col rounded-2xl border border-border/70 bg-background"
+                    className="flex flex-col rounded-2xl border border-border/70 bg-background lg:w-[320px] lg:flex-shrink-0"
                   >
                     <header
                       className="border-b px-4 py-3"
                       style={{ backgroundColor: meta.headerColor, borderColor: meta.borderColor }}
                     >
-                      <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-700">{meta.group}</p>
                       <div className="flex items-center justify-between">
                         <h2 className="text-base font-semibold text-slate-900">{meta.label}</h2>
                         <span className="text-sm text-muted-foreground">{columnBookings.length}</span>
@@ -242,7 +242,8 @@ export function SalesBookingsBoard({ bookings, drivers, readOnly = false }: Sale
                 )}
               </Droppable>
             )
-          })}
+            })}
+          </div>
         </div>
       </DragDropContext>
 

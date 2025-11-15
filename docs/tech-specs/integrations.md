@@ -34,7 +34,7 @@ Kommo Webhook --> Supabase Edge Function (import-kommo)
   1. Validate HMAC/secret to ensure payload authenticity.
   2. Upsert client: match by `kommo_contact_id` or email; update profile data (`clients.kommo_contact_id`).
   3. Resolve vehicle: extract `kommo_vehicle_id` from the Kommo dropdown field (field ID `1234163`, baked into the Edge Functions with an optional env override) and then lookup `vehicles.kommo_vehicle_id` to map bookings and calendar events. Payload logs and responses now include `{ kommoVehicleId, vehicleId }` for observability.
-  4. Принимаем только подтверждённые стадии Kommo: `75440391`, `75440395`, `75440399`, `76475495`, `78486287`, `75440643`, `75440639`, `142`. Payload’ы с другими статусами (включая `79790631`, `91703923`, `143`) помечаются `ignored_pending_status`, отвечают 202 и не дойдут до `bookings`/календаря; при этом их `status_id` продолжает записываться в `bookings.kommo_status_id` для аудита.
+  4. Принимаем только подтверждённые стадии Kommo: `96150292`, `75440391`, `75440395`, `75440399`, `76475495`, `78486287`, `75440643`, `75440639`, `142`. Payload’ы с другими статусами (включая `79790631`, `91703923`, `143`) помечаются `ignored_pending_status`, отвечают 202 и не дойдут до `bookings`/календаря; при этом их `status_id` продолжает записываться в `bookings.kommo_status_id` для аудита.
   4. Upsert booking:
      - Find by `source_payload_id` or `external_code`.
      - If new, insert into `bookings` with `channel = 'Kommo'`, `created_by = 'system-kommo'`, `owner_id` resolved via mapping table (Kommo manager -> staff_accounts).
@@ -47,7 +47,7 @@ Kommo Webhook --> Supabase Edge Function (import-kommo)
 
 ### Kommo status webhook (`kommo-status-webhook`)
 - Supabase Edge Function at `/functions/v1/kommo-status-webhook`; expects HMAC (`x-kommo-signature`) identical to the intake webhook and is gated by `enableKommoLive`.
-- Kommo fires `leads.status` whenever a lead hops between stages. Мы теперь обрабатываем не только "Confirmed bookings" (`status_id = 75440391`), но и следующие статусы пайплайна: `75440395` (“Delivery within 24 hours”) и `75440399` (“Car with customers”).
+- Kommo fires `leads.status` whenever a lead hops between stages. Мы теперь обрабатываем не только "Confirmed Bookings" (`status_id = 75440391`), но и "Waiting for Payment" (`96150292`), `75440395` (“Delivery Within 24 Hours”) и `75440399` (“Car with Customers”).
 - Processing steps:
   1. Validate signature + feature flag.
   2. Fetch full lead + contact payload (`GET /api/v4/leads/{id}?with=contacts,custom_fields` + contacts endpoint).
