@@ -4,6 +4,7 @@ const nextConfig = {
   typedRoutes: true,
   experimental: {
     optimizeCss: true,
+    testProxy: true,
   },
   async redirects() {
     return [

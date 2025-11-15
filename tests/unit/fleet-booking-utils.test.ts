@@ -1,8 +1,8 @@
 import test from "node:test"
 import assert from "node:assert/strict"
 
-import { deriveBookingHighlights } from "../lib/fleet/booking-utils"
-import type { Booking } from "../lib/domain/entities"
+import { deriveBookingHighlights } from "../../lib/fleet/booking-utils"
+import type { Booking } from "../../lib/domain/entities"
 
 const baseBooking: Booking = {
   id: "bk-base",
