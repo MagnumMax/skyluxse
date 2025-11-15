@@ -120,6 +120,7 @@ type BookingRow = {
   advance_payment?: number | null
   sales_order_url?: string | null
   agreement_number?: string | null
+  zoho_sales_order_id?: string | null
   sales_service_rating?: number | null
   sales_service_feedback?: string | null
   sales_service_rated_by?: string | null
@@ -335,7 +336,7 @@ const fetchBookingRows = cache(async (): Promise<BookingRow[]> => {
   const { data, error } = await serviceClient
     .from("bookings")
     .select(
-      "id, external_code, client_id, vehicle_id, driver_id, owner_id, status, booking_type, channel, priority, start_at, end_at, total_amount, deposit_amount, created_at, updated_at, created_by, kommo_status_id, delivery_fee_label, delivery_location, collect_location, rental_duration_days, price_daily, insurance_fee_label, advance_payment, sales_order_url, agreement_number, sales_service_rating, sales_service_feedback, sales_service_rated_by, sales_service_rated_at"
+      "id, external_code, client_id, vehicle_id, driver_id, owner_id, status, booking_type, channel, priority, start_at, end_at, total_amount, deposit_amount, created_at, updated_at, created_by, kommo_status_id, delivery_fee_label, delivery_location, collect_location, rental_duration_days, price_daily, insurance_fee_label, advance_payment, sales_order_url, agreement_number, zoho_sales_order_id, sales_service_rating, sales_service_feedback, sales_service_rated_by, sales_service_rated_at"
     )
     .order("start_at", { ascending: false })
     .limit(500)
@@ -360,7 +361,7 @@ async function fetchBookingRowsByClientId(clientId: string): Promise<BookingRow[
   const { data, error } = await serviceClient
     .from("bookings")
     .select(
-      "id, external_code, client_id, vehicle_id, driver_id, owner_id, status, booking_type, channel, priority, start_at, end_at, total_amount, deposit_amount, created_at, updated_at, created_by, kommo_status_id, delivery_fee_label, delivery_location, collect_location, rental_duration_days, price_daily, insurance_fee_label, advance_payment, sales_order_url, agreement_number, sales_service_rating, sales_service_feedback, sales_service_rated_by, sales_service_rated_at"
+      "id, external_code, client_id, vehicle_id, driver_id, owner_id, status, booking_type, channel, priority, start_at, end_at, total_amount, deposit_amount, created_at, updated_at, created_by, kommo_status_id, delivery_fee_label, delivery_location, collect_location, rental_duration_days, price_daily, insurance_fee_label, advance_payment, sales_order_url, agreement_number, zoho_sales_order_id, sales_service_rating, sales_service_feedback, sales_service_rated_by, sales_service_rated_at"
     )
     .eq("client_id", clientId)
     .order("start_at", { ascending: false })
@@ -912,6 +913,7 @@ function mapBookingRow(
     clientName: client?.name ?? "Unassigned",
     carId: row.vehicle_id ?? row.id,
     carName: vehicle?.name ?? "Unassigned vehicle",
+    carPlate: vehicle?.plate_number ?? undefined,
     startDate: start,
     endDate: end,
     startTime: start,
@@ -946,6 +948,7 @@ function mapBookingRow(
     advancePayment: row.advance_payment ?? undefined,
     salesOrderUrl: row.sales_order_url ?? undefined,
     agreementNumber: row.agreement_number ?? undefined,
+    zohoSalesOrderId: row.zoho_sales_order_id ?? undefined,
     timeline: [],
     salesService,
     billing: {

@@ -13,6 +13,7 @@ export interface Booking {
   clientName: string
   carId: EntityId
   carName: string
+  carPlate?: string | null
   startDate: string
   endDate: string
   startTime: string
@@ -51,6 +52,7 @@ export interface Booking {
   advancePayment?: number | null
   salesOrderUrl?: string | null
   agreementNumber?: string | null
+  zohoSalesOrderId?: string | null
   salesService?: {
     rating?: number
     feedback?: string

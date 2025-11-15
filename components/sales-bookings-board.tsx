@@ -29,6 +29,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 type StageBucketId = KommoPipelineStageId | "fallback"
 
 const stageOrder = KOMMO_PIPELINE_STAGE_ORDER
+const hiddenStageIds: KommoPipelineStageId[] = ["79790631", "91703923", "143"]
+const visibleStageOrder = stageOrder.filter((stageId) => !hiddenStageIds.includes(stageId))
 type RouterPushInput = Parameters<ReturnType<typeof useRouter>["push"]>[0]
 
 type SalesBookingsBoardProps = {
@@ -186,7 +188,9 @@ export function SalesBookingsBoard({ bookings, drivers, readOnly = false }: Sale
       <DragDropContext onDragEnd={handleDragEnd}>
         <div className="lg:overflow-x-auto lg:pb-1">
           <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:flex lg:min-w-max lg:gap-4">
-            {([...stageOrder, ...(grouped.fallback.length ? ["fallback" as const] : [])] as StageBucketId[]).map((stageId) => {
+            {(
+              [...visibleStageOrder, ...(grouped.fallback.length ? ["fallback" as const] : [])] as StageBucketId[]
+            ).map((stageId) => {
             const meta = resolveStageMeta(stageId)
             const columnBookings = grouped[stageId]
             return (
@@ -263,12 +267,9 @@ export function SalesBookingsBoard({ bookings, drivers, readOnly = false }: Sale
   )
 }
 
-const datelikeFormatter = new Intl.DateTimeFormat("en-CA", {
+const dateTimeFormatter = new Intl.DateTimeFormat("en-CA", {
   month: "short",
   day: "numeric",
-})
-
-const timeFormatter = new Intl.DateTimeFormat("en-CA", {
   hour: "2-digit",
   minute: "2-digit",
 })
@@ -324,15 +325,11 @@ type KanbanCardProps = {
 const KanbanCard = forwardRef<HTMLDivElement, KanbanCardProps>(
   ({ booking, dragHandleProps, draggableProps, isDragging }, ref) => {
   const router = useRouter()
-  const outstanding = Math.max(booking.totalAmount - booking.paidAmount, 0)
-  const typeLabel = BOOKING_TYPES[booking.type]
-  const dateRange = `${datelikeFormatter.format(new Date(booking.startDate))} – ${datelikeFormatter.format(
-    new Date(booking.endDate)
-  )}`
-  const targetTime = booking.targetTime ? timeFormatter.format(new Date(booking.targetTime)) : null
-  const stageBucketId = normalizeStageId(booking.kommoStatusId)
-  const stageMeta = resolveStageMeta(stageBucketId)
-  const stageBadgeLabel = booking.pipelineStageName ?? stageMeta.label
+  const startLabel = formatDateTimeLabel(booking.startTime ?? booking.startDate)
+  const endLabel = formatDateTimeLabel(booking.endTime ?? booking.endDate)
+  const dateRange = startLabel && endLabel ? `${startLabel} – ${endLabel}` : startLabel ?? endLabel ?? "—"
+  const plateLabel = booking.carPlate?.trim().length ? booking.carPlate : null
+  const agreementNumber = booking.agreementNumber?.trim().length ? booking.agreementNumber : null
   const handleClick = () => {
     if (isDragging) return
     const bookingId = String(booking.id)
@@ -360,42 +357,26 @@ const KanbanCard = forwardRef<HTMLDivElement, KanbanCardProps>(
       )}
       data-booking-id={booking.id}
     >
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-xs text-muted-foreground">{booking.code}</p>
+      <div className="flex items-start justify-between gap-4">
+        <div className="space-y-1">
           <p className="text-sm font-semibold text-foreground">{booking.carName}</p>
+          <p className="text-xs text-muted-foreground">{plateLabel ?? "—"}</p>
         </div>
-        <div className="flex flex-col items-end gap-1.5 text-xs">
-          {stageBadgeLabel ? (
-            <span className="rounded-full bg-slate-900/5 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.3em] text-slate-700">
-              {stageBadgeLabel}
-            </span>
-          ) : null}
-          <span className="rounded-full px-3 py-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-            {typeLabel}
+        <div className="flex flex-col items-end gap-1 text-right text-xs">
+          <span className="text-[11px] font-semibold uppercase tracking-[0.25em] text-slate-700">
+            {agreementNumber ?? "—"}
           </span>
         </div>
       </div>
       <div className="space-y-1 text-xs text-muted-foreground">
-        <p>
-          <span className="font-medium text-foreground">Client:</span> {booking.clientName}
-        </p>
-        <p>
-          <span className="font-medium text-foreground">Period:</span> {dateRange}
-        </p>
+        <p className="text-sm font-medium text-foreground">{booking.clientName}</p>
+        <p>{dateRange}</p>
         {booking.pickupLocation ? (
           <p>
             <span className="font-medium text-foreground">Route:</span> {booking.pickupLocation}
             {booking.dropoffLocation ? ` → ${booking.dropoffLocation}` : ""}
           </p>
         ) : null}
-      </div>
-      <div className="flex flex-wrap gap-2 text-xs">
-        <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-700">
-          Outstanding: {outstanding ? `AED ${outstanding.toLocaleString()}` : "0"}
-        </span>
-        <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-700">Deposit: AED {booking.deposit.toLocaleString()}</span>
-        {targetTime ? <span className="rounded-full bg-indigo-100 px-3 py-1 text-indigo-700">ETA {targetTime}</span> : null}
       </div>
       {booking.tags?.length ? (
         <div className="flex flex-wrap gap-1 text-[11px] text-muted-foreground">
@@ -412,3 +393,10 @@ const KanbanCard = forwardRef<HTMLDivElement, KanbanCardProps>(
 )
 
 KanbanCard.displayName = "KanbanCard"
+
+function formatDateTimeLabel(value?: string | null) {
+  if (!value) return null
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return null
+  return dateTimeFormatter.format(date)
+}
