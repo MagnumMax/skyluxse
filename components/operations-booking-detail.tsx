@@ -2,7 +2,7 @@ import type { ReactNode } from "react"
 import Link from "next/link"
 
 import type { Booking, Client, Driver } from "@/lib/domain/entities"
-import { DEFAULT_VAT_RATE } from "@/lib/pricing/booking-totals"
+import { resolveBookingTotalWithVat } from "@/lib/pricing/booking-totals"
 import { getClientSegmentLabel } from "@/lib/constants/client-segments"
 import { cn } from "@/lib/utils"
 import { rateSalesService } from "@/app/actions/rate-sales-service"
@@ -140,7 +140,7 @@ function BookingOverviewSection({ booking, client, outstanding, advancePayment, 
 }
 
 function BookingLogisticsFinancialSection({ booking, outstanding, advancePayment }: { booking: Booking; outstanding: number; advancePayment?: number | null }) {
-  const totalWithVat = computeTotalWithVat(booking)
+  const totalWithVat = resolveBookingTotalWithVat(booking)
   const pickupDate = formatShortDate(booking.startDate, booking.startTime)
   const pickupTime = formatTimeLabel(booking.startDate, booking.startTime)
   const returnDate = formatShortDate(booking.endDate, booking.endTime)
@@ -329,7 +329,7 @@ function findAdvanceInvoice(booking: Booking) {
 
 function computeOutstandingAmount(booking: Booking, advanceOverride?: number | null) {
   const advance = advanceOverride ?? resolveAdvancePayment(booking) ?? 0
-  const totalWithVat = computeTotalWithVat(booking) ?? booking.totalAmount ?? 0
+  const totalWithVat = resolveBookingTotalWithVat(booking) ?? booking.totalAmount ?? 0
   const outstanding = totalWithVat - advance
   return outstanding > 0 ? outstanding : 0
 }
@@ -501,23 +501,6 @@ function ExecHighlights({ booking, driver, outstanding }: { booking: Booking; dr
       </CardContent>
     </Card>
   )
-}
-
-function computeTotalWithVat(booking: Booking) {
-  const billing = booking.billing
-  if (!billing) {
-    return booking.totalAmount
-  }
-  const base = billing.base ?? 0
-  const addons = billing.addons ?? 0
-  const fees = billing.fees ?? 0
-  const discounts = billing.discounts ?? 0
-  const subtotal = base + addons + fees - discounts
-  if (subtotal <= 0) {
-    return booking.totalAmount
-  }
-  const vatRate = typeof billing.vatRate === "number" ? billing.vatRate : DEFAULT_VAT_RATE
-  return subtotal * (1 + vatRate)
 }
 
 function formatMileage(value?: number | null) {

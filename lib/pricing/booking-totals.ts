@@ -1,3 +1,5 @@
+import type { Booking } from "@/lib/domain/entities"
+
 export const DEFAULT_VAT_RATE = 0.05
 
 export type BookingPricingInputs = {
@@ -67,4 +69,21 @@ export function computeBookingTotals(
     vat,
     totalWithVat,
   }
+}
+
+export function resolveBookingTotalWithVat(booking: Booking) {
+  const billing = booking.billing
+  if (!billing) {
+    return booking.totalAmount
+  }
+  const base = billing.base ?? 0
+  const addons = billing.addons ?? 0
+  const fees = billing.fees ?? 0
+  const discounts = billing.discounts ?? 0
+  const subtotal = base + addons + fees - discounts
+  if (subtotal <= 0) {
+    return booking.totalAmount
+  }
+  const vatRate = typeof billing.vatRate === "number" ? billing.vatRate : DEFAULT_VAT_RATE
+  return subtotal * (1 + vatRate)
 }

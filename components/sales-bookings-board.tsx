@@ -13,6 +13,7 @@ import {
 } from "@hello-pangea/dnd"
 
 import type { Booking, Driver } from "@/lib/domain/entities"
+import { resolveBookingTotalWithVat } from "@/lib/pricing/booking-totals"
 import {
   BOOKING_TYPES,
   FALLBACK_KOMMO_STAGE_META,
@@ -273,6 +274,11 @@ const dateTimeFormatter = new Intl.DateTimeFormat("en-CA", {
   hour: "2-digit",
   minute: "2-digit",
 })
+const currencyFormatter = new Intl.NumberFormat("en-CA", {
+  style: "currency",
+  currency: "AED",
+  maximumFractionDigits: 0,
+})
 
 const applyAutomations = (booking: Booking, targetStage: KommoPipelineStageId, drivers: Driver[]) => {
   const stageMeta = KOMMO_PIPELINE_STAGE_META[targetStage]
@@ -330,6 +336,8 @@ const KanbanCard = forwardRef<HTMLDivElement, KanbanCardProps>(
   const dateRange = startLabel && endLabel ? `${startLabel} – ${endLabel}` : startLabel ?? endLabel ?? "—"
   const plateLabel = booking.carPlate?.trim().length ? booking.carPlate : null
   const agreementNumber = booking.agreementNumber?.trim().length ? booking.agreementNumber : null
+  const totalWithVat = resolveBookingTotalWithVat(booking)
+  const amountLabel = currencyFormatter.format(totalWithVat ?? booking.totalAmount ?? 0)
   const handleClick = () => {
     if (isDragging) return
     const bookingId = String(booking.id)
@@ -371,6 +379,7 @@ const KanbanCard = forwardRef<HTMLDivElement, KanbanCardProps>(
       <div className="space-y-1 text-xs text-muted-foreground">
         <p className="text-sm font-medium text-foreground">{booking.clientName}</p>
         <p>{dateRange}</p>
+        <p className="text-sm font-semibold text-foreground">{amountLabel}</p>
         {booking.pickupLocation ? (
           <p>
             <span className="font-medium text-foreground">Route:</span> {booking.pickupLocation}

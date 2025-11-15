@@ -866,7 +866,7 @@ async function resolveKommoDriveBaseUrl(): Promise<string> {
   throw new Error("Unable to resolve Kommo drive_url. Set KOMMO_FILES_BASE_URL env var.")
 }
 
-async function downloadKommoFile(fileUuid: string) {
+async function fetchKommoFileDescriptor(fileUuid: string) {
   const driveBaseUrl = await resolveKommoDriveBaseUrl()
   const url = `${driveBaseUrl}/v1.0/files/${fileUuid}`
   const resp = await fetch(url, {
@@ -875,11 +875,47 @@ async function downloadKommoFile(fileUuid: string) {
     },
   })
   if (!resp.ok) {
+    throw new Error(`Kommo file metadata request failed (${resp.status}) for ${fileUuid}`)
+  }
+  return resp.json()
+}
+
+function resolveDownloadUrlFromDescriptor(descriptor: any, versionUuid?: string | null) {
+  const links = descriptor?._links ?? {}
+  if (versionUuid && links?.download_version?.href) {
+    return String(links.download_version.href)
+  }
+  if (links?.download_version?.href) return String(links.download_version.href)
+  if (links?.download?.href) return String(links.download.href)
+  return null
+}
+
+async function downloadKommoFile(fileUuid: string, options?: { versionUuid?: string | null; downloadUrl?: string | null }) {
+  let targetUrl = options?.downloadUrl ?? null
+  if (!targetUrl) {
+    const descriptor = await fetchKommoFileDescriptor(fileUuid)
+    targetUrl = resolveDownloadUrlFromDescriptor(descriptor, options?.versionUuid)
+    if (!targetUrl) {
+      throw new Error(`Kommo file download URL missing for ${fileUuid}`)
+    }
+  }
+
+  const resp = await fetch(targetUrl, {
+    headers: {
+      Authorization: `Bearer ${KOMMO_ACCESS_TOKEN}`,
+    },
+  })
+  if (!resp.ok) {
     throw new Error(`Kommo file download failed (${resp.status}) for ${fileUuid}`)
   }
+  const contentType = resp.headers.get("content-type") ?? "application/octet-stream"
+  const normalized = contentType.toLowerCase()
+  if (normalized.includes("application/json")) {
+    const preview = (await resp.text()).slice(0, 200)
+    throw new Error(`Kommo file download returned JSON for ${fileUuid}: ${preview}`)
+  }
   const arrayBuffer = await resp.arrayBuffer()
-  const mimeType = resp.headers.get("content-type") ?? "application/octet-stream"
-  return { arrayBuffer, mimeType }
+  return { arrayBuffer, mimeType: contentType }
 }
 
 async function ensureClientDocument(client: SupabaseClient, payload: DocumentSyncPayload) {
@@ -900,7 +936,10 @@ async function ensureClientDocument(client: SupabaseClient, payload: DocumentSyn
     let fileBuffer: ArrayBuffer | null = null
     let mimeType = "application/octet-stream"
     try {
-      const downloadResult = await downloadKommoFile(payload.fileUuid)
+      const downloadResult = await downloadKommoFile(payload.fileUuid, {
+        versionUuid: payload.versionUuid,
+        downloadUrl: payload.downloadUrl ?? null,
+      })
       fileBuffer = downloadResult.arrayBuffer
       mimeType = downloadResult.mimeType
     } catch (error) {
