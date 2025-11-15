@@ -13,7 +13,7 @@ _Last updated: 10 Nov 2025 (Kommo account `infoskyluxsecom.kommo.com`, pipelines
 | --- | --- | --- | --- |
 | `lead.id` | `19627379` | `sales_leads.lead_code`, `bookings.source_payload_id` | Store as text; drives idempotent upsert. |
 | `lead.name` | `Lead #19627379` | `sales_leads.lead_code` (human), `bookings.external_code` (fallback) | Keep original label for traceability until ERP issues BK codes. |
-| `lead.price` | `0` | `sales_leads.value_amount`, `bookings.total_amount` | Value captured even if Kommo automation overwrote via `is_price_modified_by_robot`. |
+| `lead.price` | `0` | `sales_leads.value_amount` | Value captured even if Kommo automation overwrote via `is_price_modified_by_robot`; bookings totals теперь считаем сами. |
 | `lead.responsible_user_id` | `12157403` | `sales_leads.owner_id` | Map via `staff_accounts.external_crm_id`. |
 | `lead.pipeline_id` + `status_id` | `9815931` / `79790631` | `sales_leads.stage_id` | Use mapping table in section “Pipeline status mapping”. |
 | `lead.created_at` | `2025-11-10T07:51:21Z` | `sales_leads.created_at`, `bookings.created_at` | Keep UTC timestamps. |
@@ -24,8 +24,11 @@ _Last updated: 10 Nov 2025 (Kommo account `infoskyluxsecom.kommo.com`, pipelines
 | Custom field **Date/Time Collect** (ID 1218178) | `1736064000` | `bookings.end_at` | Same conversion; also used as fallback when delivery time is missing.
 | `lead.status_id` | `75440391` и др. | `bookings.kommo_status_id` (только whitelist) | В букинги попадают лишь статусы `75440391`, `75440395`, `75440399`, `76475495`, `78486287`, `75440643`, `75440639`, `142`; остальные стадии (включая `79790631`, `91703923`, `143`) игнорируются, но сохраняются в `kommo_status_id` для аудита. |
 | `lead.custom_fields_values[]` (`field_name="Vehicle"`, ID 1234163) | `enum_id: 958555` | `booking_vehicles.vehicle_id` (via mapping table), `vehicles.kommo_vehicle_id` | See “Vehicle select mapping”. |
+| Custom field **Full Insurance Fee** (ID 1234179) | `3500` | `bookings.full_insurance_fee` | Numeric input (AED) representing paid full insurance; используется в формулах Total/Total with VAT. |
 | `_embedded.contacts[].id` | `22190089` | `bookings.client_id`, `sales_leads.client_id` | Look up/insert client using contact mapping below. |
 | `is_deleted` | `false` | `bookings.is_active` flag / soft-delete logic | Skip deleted leads unless historically needed. |
+
+> **Booking totals.** `bookings.total_amount` = `Daily rate × Duration + Delivery fee + Full insurance fee + Deposit options`. Delivery fee и Deposit options по‑прежнему приходят строками (matching enum) — парсим числа из текстов, пока Kommo не начнёт отдавать отдельные numeric поля. **Full insurance fee** читаем из `bookings.full_insurance_fee`. В UI **Total with VAT** = `Total × 1.05`, outstanding = `Total with VAT − Advance payment`.
 
 ## Contacts → clients & documents
 | Kommo contact field | Supabase column / entity | Notes |

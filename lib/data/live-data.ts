@@ -14,6 +14,7 @@ import type {
   Driver,
   FleetCar,
 } from "@/lib/domain/entities"
+import { computeBookingTotals, DEFAULT_VAT_RATE } from "@/lib/pricing/booking-totals"
 import { serviceClient } from "@/lib/supabase/service-client"
 
 type ClientRow = {
@@ -117,6 +118,7 @@ type BookingRow = {
   rental_duration_days?: number | null
   price_daily?: number | null
   insurance_fee_label?: string | null
+  full_insurance_fee?: number | null
   advance_payment?: number | null
   sales_order_url?: string | null
   agreement_number?: string | null
@@ -336,7 +338,7 @@ const fetchBookingRows = cache(async (): Promise<BookingRow[]> => {
   const { data, error } = await serviceClient
     .from("bookings")
     .select(
-      "id, external_code, client_id, vehicle_id, driver_id, owner_id, status, booking_type, channel, priority, start_at, end_at, total_amount, deposit_amount, created_at, updated_at, created_by, kommo_status_id, delivery_fee_label, delivery_location, collect_location, rental_duration_days, price_daily, insurance_fee_label, advance_payment, sales_order_url, agreement_number, zoho_sales_order_id, sales_service_rating, sales_service_feedback, sales_service_rated_by, sales_service_rated_at"
+      "id, external_code, client_id, vehicle_id, driver_id, owner_id, status, booking_type, channel, priority, start_at, end_at, total_amount, deposit_amount, created_at, updated_at, created_by, kommo_status_id, delivery_fee_label, delivery_location, collect_location, rental_duration_days, price_daily, insurance_fee_label, full_insurance_fee, advance_payment, sales_order_url, agreement_number, zoho_sales_order_id, sales_service_rating, sales_service_feedback, sales_service_rated_by, sales_service_rated_at"
     )
     .order("start_at", { ascending: false })
     .limit(500)
@@ -361,7 +363,7 @@ async function fetchBookingRowsByClientId(clientId: string): Promise<BookingRow[
   const { data, error } = await serviceClient
     .from("bookings")
     .select(
-      "id, external_code, client_id, vehicle_id, driver_id, owner_id, status, booking_type, channel, priority, start_at, end_at, total_amount, deposit_amount, created_at, updated_at, created_by, kommo_status_id, delivery_fee_label, delivery_location, collect_location, rental_duration_days, price_daily, insurance_fee_label, advance_payment, sales_order_url, agreement_number, zoho_sales_order_id, sales_service_rating, sales_service_feedback, sales_service_rated_by, sales_service_rated_at"
+      "id, external_code, client_id, vehicle_id, driver_id, owner_id, status, booking_type, channel, priority, start_at, end_at, total_amount, deposit_amount, created_at, updated_at, created_by, kommo_status_id, delivery_fee_label, delivery_location, collect_location, rental_duration_days, price_daily, insurance_fee_label, full_insurance_fee, advance_payment, sales_order_url, agreement_number, zoho_sales_order_id, sales_service_rating, sales_service_feedback, sales_service_rated_by, sales_service_rated_at"
     )
     .eq("client_id", clientId)
     .order("start_at", { ascending: false })
@@ -906,6 +908,32 @@ function mapBookingRow(
   const salesService = mapSalesService(row)
   const stageEntry =
     row.kommo_status_id != null ? context.stageByKommoStatusId.get(String(row.kommo_status_id)) : undefined
+  const pricingTotals = computeBookingTotals({
+    dailyRate: row.price_daily,
+    durationDays: row.rental_duration_days,
+    deliveryFeeLabel: row.delivery_fee_label,
+    insuranceFeeLabel: row.insurance_fee_label,
+    insuranceFeeAmount: row.full_insurance_fee,
+    depositOptionLabel: row.insurance_fee_label,
+  })
+  const totalAmount = pricingTotals?.total ?? numberOrZero(row.total_amount)
+  const paidAmount = numberOrZero(row.advance_payment ?? row.deposit_amount ?? 0)
+  const billing = pricingTotals
+    ? {
+        base: pricingTotals.base,
+        addons: pricingTotals.insuranceFee,
+        fees: pricingTotals.deliveryFee + pricingTotals.depositFee,
+        discounts: 0,
+        currency: AED,
+        vatRate: DEFAULT_VAT_RATE,
+      }
+    : {
+        base: numberOrZero(row.total_amount),
+        addons: 0,
+        fees: 0,
+        discounts: 0,
+        currency: AED,
+      }
   return {
     id: row.id,
     code: row.external_code ?? formatFallbackCode(row.id),
@@ -920,8 +948,8 @@ function mapBookingRow(
     endTime: end,
     driverId: row.driver_id ?? null,
     status: mapBookingStatus(row.status),
-    totalAmount: numberOrZero(row.total_amount),
-    paidAmount: numberOrZero(row.total_amount),
+    totalAmount,
+    paidAmount,
     deposit: numberOrZero(row.deposit_amount),
     priority: mapPriority(row.priority),
     type: mapBookingType(row.booking_type),
@@ -945,19 +973,14 @@ function mapBookingRow(
     rentalDurationDays: row.rental_duration_days ?? undefined,
     priceDaily: row.price_daily ?? undefined,
     insuranceFeeLabel: row.insurance_fee_label ?? undefined,
+    fullInsuranceFee: row.full_insurance_fee ?? undefined,
     advancePayment: row.advance_payment ?? undefined,
     salesOrderUrl: row.sales_order_url ?? undefined,
     agreementNumber: row.agreement_number ?? undefined,
     zohoSalesOrderId: row.zoho_sales_order_id ?? undefined,
     timeline: [],
     salesService,
-    billing: {
-      base: numberOrZero(row.total_amount),
-      addons: 0,
-      fees: 0,
-      discounts: 0,
-      currency: AED,
-    },
+    billing,
     pickupMileage: undefined,
     pickupFuel: undefined,
     returnMileage: undefined,

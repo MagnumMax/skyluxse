@@ -2,6 +2,7 @@ import type { ReactNode } from "react"
 import Link from "next/link"
 
 import type { Booking, Client, Driver } from "@/lib/domain/entities"
+import { DEFAULT_VAT_RATE } from "@/lib/pricing/booking-totals"
 import { getClientSegmentLabel } from "@/lib/constants/client-segments"
 import { cn } from "@/lib/utils"
 import { rateSalesService } from "@/app/actions/rate-sales-service"
@@ -29,8 +30,8 @@ export function OperationsBookingDetail({
   driver?: Driver | null
   variant?: "operations" | "sales" | "exec"
 }) {
-  const outstanding = Math.max((booking.totalAmount ?? 0) - (booking.paidAmount ?? 0), 0)
   const advancePayment = resolveAdvancePayment(booking)
+  const outstanding = computeOutstandingAmount(booking, advancePayment)
   const tags = booking.tags ?? []
   const statusTone = getStatusTone(booking.status)
   return (
@@ -196,8 +197,11 @@ function BookingLogisticsFinancialSection({ booking, outstanding, advancePayment
   if (booking.deliveryFeeLabel) {
     logisticsParameters.push({ label: "Delivery fee", value: booking.deliveryFeeLabel })
   }
+  if (typeof booking.fullInsuranceFee === "number" && booking.fullInsuranceFee > 0) {
+    logisticsParameters.push({ label: "Full insurance fee", value: currencyFormatter.format(booking.fullInsuranceFee) })
+  }
   if (booking.insuranceFeeLabel) {
-    logisticsParameters.push({ label: "Insurance plan", value: booking.insuranceFeeLabel })
+    logisticsParameters.push({ label: "Deposit options", value: booking.insuranceFeeLabel })
   }
   if (booking.rentalDurationDays != null) {
     logisticsParameters.push({ label: "Duration", value: `${booking.rentalDurationDays} day${booking.rentalDurationDays === 1 ? "" : "s"}` })
@@ -211,7 +215,7 @@ function BookingLogisticsFinancialSection({ booking, outstanding, advancePayment
       value: currencyFormatter.format(totalWithVat ?? 0),
     },
     { label: "Advance payment", value: currencyFormatter.format((advancePayment ?? booking.deposit) ?? 0) },
-    { label: "Paid", value: currencyFormatter.format(booking.paidAmount ?? 0) },
+    { label: "Paid", value: currencyFormatter.format(advancePayment ?? booking.paidAmount ?? 0) },
     { label: "Outstanding", value: currencyFormatter.format(outstanding) },
   ]
   const financialMeta: ParameterListItem[] = []
@@ -321,6 +325,13 @@ function findAdvanceInvoice(booking: Booking) {
     const scope = invoice.scope?.toLowerCase() ?? ""
     return label.includes("deposit") || label.includes("advance") || scope.includes("deposit") || scope.includes("advance")
   })
+}
+
+function computeOutstandingAmount(booking: Booking, advanceOverride?: number | null) {
+  const advance = advanceOverride ?? resolveAdvancePayment(booking) ?? 0
+  const totalWithVat = computeTotalWithVat(booking) ?? booking.totalAmount ?? 0
+  const outstanding = totalWithVat - advance
+  return outstanding > 0 ? outstanding : 0
 }
 
 function HistoryCard({ title, entries }: { title: string; entries: NonNullable<Booking["history"]> }) {
@@ -501,8 +512,12 @@ function computeTotalWithVat(booking: Booking) {
   const addons = billing.addons ?? 0
   const fees = billing.fees ?? 0
   const discounts = billing.discounts ?? 0
-  const total = base + addons + fees - discounts
-  return total > 0 ? total : booking.totalAmount
+  const subtotal = base + addons + fees - discounts
+  if (subtotal <= 0) {
+    return booking.totalAmount
+  }
+  const vatRate = typeof billing.vatRate === "number" ? billing.vatRate : DEFAULT_VAT_RATE
+  return subtotal * (1 + vatRate)
 }
 
 function formatMileage(value?: number | null) {
@@ -581,9 +596,9 @@ function toRoute(href: string) {
 
 function getConflictSignals(booking: Booking) {
   const signals: { label: string; detail: string }[] = []
-  const outstanding = Math.max((booking.totalAmount ?? 0) - (booking.paidAmount ?? 0), 0)
+  const outstanding = computeOutstandingAmount(booking)
   if (outstanding > 0) {
-    signals.push({ label: "Outstanding balance", detail: `Collect AED ${outstanding.toLocaleString()} before release.` })
+    signals.push({ label: "Outstanding balance", detail: `Collect ${currencyFormatter.format(outstanding)} before release.` })
   }
   if (booking.targetTime && booking.status !== "in-rent") {
     const diff = booking.targetTime - referenceDate.getTime()

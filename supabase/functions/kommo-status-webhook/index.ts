@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.224.0/http/server.ts"
 import { timingSafeEqual } from "https://deno.land/std@0.224.0/crypto/timing_safe_equal.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.1"
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.45.1"
+import { computeBookingTotals } from "../../../lib/pricing/booking-totals.ts"
 
 const SIGNATURE_HEADER = "x-kommo-signature"
 const REQUIRE_SIGNATURE = false
@@ -22,6 +23,7 @@ const KOMMO_FIELD_IDS = {
   durationDays: 1234173,
   priceDaily: 1232960,
   insuranceFee: 1234175,
+  fullInsuranceFee: 1234179,
   advancePayment: 1233272,
   salesOrderUrl: 1224030,
   agreementNumber: 806190,
@@ -368,7 +370,6 @@ async function upsertBooking(
     source_payload_id: sourcePayloadId,
     client_id: clientId,
     status: bookingStatus,
-    total_amount: lead?.price ?? 0,
     external_code: `K-${lead.id}`,
     kommo_status_id: lead?.status_id ? Number(lead.status_id) : null,
   }
@@ -382,9 +383,20 @@ async function upsertBooking(
   if (options.rentalDurationDays !== undefined) payload.rental_duration_days = options.rentalDurationDays
   if (options.priceDaily !== undefined) payload.price_daily = options.priceDaily
   if (options.insuranceFeeLabel !== undefined) payload.insurance_fee_label = options.insuranceFeeLabel
+  if (options.fullInsuranceFee !== undefined) payload.full_insurance_fee = options.fullInsuranceFee
   if (options.advancePayment !== undefined) payload.advance_payment = options.advancePayment
   if (options.salesOrderUrl !== undefined) payload.sales_order_url = options.salesOrderUrl
   if (options.agreementNumber !== undefined) payload.agreement_number = options.agreementNumber
+
+  const computedTotals = computeBookingTotals({
+    dailyRate: options.priceDaily,
+    durationDays: options.rentalDurationDays,
+    deliveryFeeLabel: options.deliveryFeeLabel,
+    insuranceFeeLabel: options.insuranceFeeLabel,
+    insuranceFeeAmount: options.fullInsuranceFee,
+    depositOptionLabel: options.insuranceFeeLabel,
+  })
+  payload.total_amount = computedTotals?.total ?? 0
 
   if (existing) {
     const { error } = await client
@@ -531,6 +543,7 @@ type BookingOptions = {
   rentalDurationDays?: number | null
   priceDaily?: number | null
   insuranceFeeLabel?: string | null
+  fullInsuranceFee?: number | null
   advancePayment?: number | null
   salesOrderUrl?: string | null
   agreementNumber?: string | null
@@ -655,6 +668,7 @@ function buildBookingOptions(
     rentalDurationDays: extractIntegerField(lead, KOMMO_FIELD_IDS.durationDays),
     priceDaily: extractNumericField(lead, KOMMO_FIELD_IDS.priceDaily),
     insuranceFeeLabel: extractStringField(lead, KOMMO_FIELD_IDS.insuranceFee),
+    fullInsuranceFee: extractNumericField(lead, KOMMO_FIELD_IDS.fullInsuranceFee),
     advancePayment: extractNumericField(lead, KOMMO_FIELD_IDS.advancePayment),
     salesOrderUrl: extractStringField(lead, KOMMO_FIELD_IDS.salesOrderUrl),
     agreementNumber: extractStringField(lead, KOMMO_FIELD_IDS.agreementNumber),

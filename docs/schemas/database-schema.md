@@ -229,7 +229,8 @@ This schema proposal is derived from the production requirements captured in `do
 | sla_minutes | int | Default from KANBAN meta. |
 | promised_at | timestamptz | service level target. |
 | actual_at | timestamptz | actual delivery time. |
-| total_amount | numeric(12,2) | Billing base + addons. |
+| total_amount | numeric(12,2) | Calculated as `daily_rate × rental_duration_days + delivery_fee + full_insurance_fee + deposit_options` (pre-VAT). |
+| full_insurance_fee | numeric(12,2) | Value из поля Kommo **Full Insurance Fee** (AED); fallback по label возможен только для исторических данных. |
 | paid_amount | numeric(12,2) | |
 | deposit_amount | numeric(12,2) | |
 | currency | text | default `AED`. |

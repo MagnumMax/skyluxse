@@ -49,6 +49,7 @@ export interface Booking {
   rentalDurationDays?: number | null
   priceDaily?: number | null
   insuranceFeeLabel?: string | null
+  fullInsuranceFee?: number | null
   advancePayment?: number | null
   salesOrderUrl?: string | null
   agreementNumber?: string | null
@@ -65,6 +66,7 @@ export interface Booking {
     fees?: number
     discounts: number
     currency: string
+    vatRate?: number
   }
   pickupMileage?: number
   pickupFuel?: string
