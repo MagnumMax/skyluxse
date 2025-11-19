@@ -1,4 +1,4 @@
-export const revalidate = 300 // Executive analytics refresh on a 5-minute cadence.
+export const dynamic = "force-dynamic"
 
 import { ExecAnalyticsDashboard } from "@/components/exec-analytics-dashboard"
 

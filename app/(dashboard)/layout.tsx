@@ -129,6 +129,8 @@ const headerMeta: HeaderMeta[] = [
 
 const toRoute = (href: string) => href as Parameters<typeof Link>[0]["href"]
 
+export const dynamic = "force-dynamic"
+
 export const metadata: Metadata = {
   title: {
     default: "SkyLuxse ERP",

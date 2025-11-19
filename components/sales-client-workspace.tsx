@@ -1,4 +1,5 @@
 import type { Client, ClientDocument, ClientNotification, ClientPayment, ClientRental } from "@/lib/domain/entities"
+import type { ReactNode } from "react"
 import Link from "next/link"
 import { ArrowUpRight, Bell, Car, CreditCard, FileText, Sparkles } from "lucide-react"
 

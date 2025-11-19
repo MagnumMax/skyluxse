@@ -19,6 +19,23 @@ type RecognitionOptions = {
   allowProFallback?: boolean
 }
 
+type DocumentLinkRecord = {
+  document_id: string
+  doc_type?: string | null
+  metadata?: any
+  created_at?: string | null
+  document: {
+    id: string
+    bucket: string
+    storage_path: string | null
+    file_name?: string | null
+    mime_type: string | null
+    original_name: string | null
+    metadata: any
+    created_at?: string | null
+  } | null
+}
+
 export async function recognizeLatestClientDocument(clientId: string, opts: RecognitionOptions = {}): Promise<RecognitionResult> {
   if (!GEMINI_API_KEY) {
     throw new Error("GEMINI_API_KEY is not set")
@@ -26,7 +43,7 @@ export async function recognizeLatestClientDocument(clientId: string, opts: Reco
 
   const { data: clientRow, error: clientError } = await serviceClient
     .from("clients")
-    .select("doc_status, doc_processed_at")
+    .select("doc_status, doc_processed_at, doc_confidence")
     .eq("id", clientId)
     .maybeSingle()
   if (clientError) throw clientError
@@ -34,11 +51,12 @@ export async function recognizeLatestClientDocument(clientId: string, opts: Reco
   const { data: docLinks, error: linkError } = await serviceClient
     .from("document_links")
     .select(
-      "document_id, doc_type, metadata, created_at, document:documents(id, bucket, storage_path, mime_type, original_name, metadata)"
+      "document_id, doc_type, metadata, created_at, document:documents(id, bucket, storage_path, file_name, mime_type, original_name, metadata, created_at)"
     )
     .eq("entity_id", clientId)
     .eq("scope", "client")
     .order("created_at", { ascending: false })
+    .returns<DocumentLinkRecord[]>()
   if (linkError) throw linkError
   const links = (docLinks ?? []).filter((l) => l.document_id && l.document)
   if (!links.length) {

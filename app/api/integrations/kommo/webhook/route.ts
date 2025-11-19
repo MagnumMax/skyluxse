@@ -1031,7 +1031,7 @@ function parseFormEncodedPayload(rawBody: string) {
 export async function POST(req: Request) {
     try {
         const rawBody = await req.text()
-        const headerList = headers()
+        const headerList = await headers()
         const signature = headerList.get(SIGNATURE_HEADER)
 
         const validation = await validateSignature(rawBody, signature)

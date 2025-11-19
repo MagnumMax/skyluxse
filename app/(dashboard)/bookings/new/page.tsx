@@ -2,6 +2,8 @@ import { DashboardPageShell } from "@/components/dashboard-page-shell"
 import { BookingCreateForm } from "@/components/booking-create-form"
 import { getLiveClients, getLiveFleetVehicles } from "@/lib/data/live-data"
 
+export const dynamic = "force-dynamic"
+
 export default async function BookingCreatePage() {
   const [clients, vehicles] = await Promise.all([getLiveClients(), getLiveFleetVehicles()])
   const clientOptions = clients.map((client) => ({ id: String(client.id), label: client.name }))
