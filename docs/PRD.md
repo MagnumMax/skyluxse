@@ -33,7 +33,7 @@ Build a unified, automation-forward operations hub where premium car-rental team
 ### Features List
 | Feature | Module | Tags | Priority | Success Metrics | Primary Persona | Dependencies |
 | --- | --- | --- | --- | --- | --- | --- |
-| Kommo webhook intake & validation | M1 Kommo Intake & Client Auto-Provisioning | [B][I][A] | P1 | ≥95% bookings auto-created, webhook error rate <1% | Integration Engineer | Supabase Edge Functions, Kommo API |
+| Kommo webhook intake & validation | M1 Kommo Intake & Client Auto-Provisioning | [B][I][A] | P1 | ≥95% bookings auto-created, webhook error rate <1% | Integration Engineer | Next.js API route, Kommo API |
 | Booking lifecycle board & document orchestration | M2 Booking Lifecycle & Document Orchestration | [B][A] | P1 | SLA breach rate <5%, doc completion ≤2h | Fleet Manager | M1, Supabase tables |
 | Fleet calendar & maintenance automation | M3 Fleet Calendar & Maintenance Automation | [B][A][AI] | P1 | Maintenance conflicts auto-resolved within 15m; predictive alerts accuracy 80% | Fleet Manager | Vehicle telemetry, analytics views |
 | Sales workspace with AI lead intelligence | M4 Sales Workspace & AI Lead Intelligence | [B][AI] | P1 | Lead cycle time −30%, AI suggestion adoption ≥60% | Sales Manager | M1 data, AI services |
@@ -63,12 +63,12 @@ Build a unified, automation-forward operations hub where premium car-rental team
 ## 3. Module Specifications
 ### M1. Kommo Intake & Client Auto-Provisioning
 1. **Business Goal/Value**: Eliminate manual booking entry by ingesting Kommo events and normalising clients/leads/bookings.
-2. **Detailed Description**: Supabase Edge Function `/functions/v1/import-kommo` verifies HMAC, maps Kommo payloads to internal schema (`clients`, `bookings`, `sales_leads`), creates/updates invoices, marks booking source metadata, then enqueues Zoho tasks in `integrations_outbox`.
+2. **Detailed Description**: Next.js App Router endpoint `/api/integrations/kommo/webhook` verifies HMAC, maps Kommo payloads to internal schema (`clients`, `bookings`, `sales_leads`), creates/updates invoices, marks booking source metadata, then enqueues Zoho tasks in `integrations_outbox`.
 3. **User Stories**: 
    - *As an integration engineer, when Kommo emits `add_lead`, the system must create or update the booking without duplicates based on `source_payload_id`.*
    - *As a sales manager, I want outages flagged so I know when manual booking creation is allowed.*
 4. **Acceptance Criteria**: 200 response to Kommo within 2s; dedup by `source_payload_id`; failed validations logged with trace ID; manual override toggled via feature flag.
-5. **Technical Constraints/Notes**: Built on Supabase Edge Functions (Deno) referencing Supabase docs for structure and env secrets (see Reference Docs: /supabase/supabase). Max payload 1 MB; log to Supabase Logflare.
+5. **Technical Constraints/Notes**: Built on Next.js App Router (Vercel) referencing the shared server utilities and Supabase service client; Edge Function remains only as a proxy fallback until Kommo is reconfigured. Max payload 1 MB; log errors via Next.js logging / Sentry; Supabase logs cover fallback proxy invocations.
 6. **Dependencies**: Kommo webhook API (/websites/developers_kommo... for webhooks), Supabase Postgres tables, `integrations_outbox`.
 7. **Priority**: P1.
 8. **UX Flow**: N/A (backend). Ops console surfaces ingestion status in M6 dashboard.
@@ -76,7 +76,7 @@ Build a unified, automation-forward operations hub where premium car-rental team
 10. **Integration Matrix Row**:
 | Module | External System | Integration Type | Data Flow | Frequency/Event | Auth | Error Handling |
 | --- | --- | --- | --- | --- | --- | --- |
-| M1 | Kommo CRM | Webhook + REST | Kommo → Edge Function → Postgres | Event-driven (`add_lead`, `status_lead`) | HMAC + OAuth token | Retry on Kommo side; idempotent inserts; alert on >3 consecutive failures |
+| M1 | Kommo CRM | Webhook + REST | Kommo → Next.js API route → Postgres | Event-driven (`add_lead`, `status_lead`) | HMAC + OAuth token | Retry on Kommo side; idempotent inserts; alert on >3 consecutive failures |
 11. **Non-Functional**: Availability 99.9%; requests processed <1s avg; secrets stored in Supabase config.
 
 ### M2. Booking Lifecycle & Document Orchestration
@@ -205,7 +205,7 @@ AI components flagged: sales lead AI panel, analytics narrative cards.
 ### Backend API Routes (Supabase Edge + Next.js Route Handlers)
 | Route | Method | Auth | Description |
 | --- | --- | --- | --- |
-| `/functions/v1/import-kommo` | POST | Kommo HMAC | Intake webhook → Postgres |
+| `/api/integrations/kommo/webhook` | POST | Kommo HMAC | Intake webhook → Postgres |
 | `/functions/v1/process-outbox` | POST | Scheduler | Processes Zoho sync jobs |
 | `/api/v1/bookings` | GET/POST/PATCH | Supabase Auth (JWT) | Booking list/create/update |
 | `/api/v1/tasks` | GET/POST/PATCH | Role-scoped | Task board + driver updates |
@@ -229,7 +229,7 @@ AI components flagged: sales lead AI panel, analytics narrative cards.
 ### System Architecture Overview
 - **Frontend**: Next.js App Router (React Server Components) with Tailwind + shadcn components for modular UI (Ref: /vercel/next.js, /tailwindlabs/tailwindcss.com, /shadcn-ui/ui).
 - **Backend**: Supabase Postgres, Auth, Storage, Edge Functions. Supabase Realtime for UI updates (Ref: /supabase/supabase).
-- **Integrations**: Kommo webhooks feed Edge Function; Zoho CRM REST API consumes outbox.
+- **Integrations**: Kommo webhooks hit the Next.js API route (`/api/integrations/kommo/webhook`); Zoho CRM REST API consumes outbox.
 - **AI Services**: LLM provider via server actions; anomaly detection job in Supabase cron.
 
 ### Runtime Stack

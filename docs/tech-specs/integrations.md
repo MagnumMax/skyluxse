@@ -9,7 +9,7 @@ _Last updated: 10 Nov 2025_
 
 ## Architecture Overview
 ```
-Kommo Webhook --> Supabase Edge Function (import-kommo)
+Kommo Webhook --> Next.js API route (/api/integrations/kommo/webhook)
                      |  writes bookings/clients/leads
                      v
              integrations_outbox (Zoho tasks)
@@ -27,13 +27,14 @@ Kommo Webhook --> Supabase Edge Function (import-kommo)
   - `enableTelemetryPipelines`: powers `lib/integrations/telemetry.ts`.
 - Toggling a flag happens via Supabase dashboard/SQL without redeploys. Use this as a kill-switch if external providers misbehave.
 
-### Kommo webhook (`import-kommo`)
-- Hosted as a Supabase Edge Function exposed via `/functions/v1/import-kommo`.
+### Kommo webhook (`/api/integrations/kommo/webhook`)
+- Hosted inside Next.js App Router (Vercel) and exposed via `/api/integrations/kommo/webhook`.
+- Kommo CRM must point its webhook URL to `https://<APP_URL>/api/integrations/kommo/webhook` (using the same `x-kommo-signature` secret as before); there is no Supabase fallback anymore.
 - Receives Kommo payload (booking metadata, client docs, dates, source IDs).
 - Steps:
   1. Validate HMAC/secret to ensure payload authenticity.
   2. Upsert client: match by `kommo_contact_id` or email; update profile data (`clients.kommo_contact_id`).
-  3. Resolve vehicle: extract `kommo_vehicle_id` from the Kommo dropdown field (field ID `1234163`, baked into the Edge Functions with an optional env override) and then lookup `vehicles.kommo_vehicle_id` to map bookings and calendar events. Payload logs and responses now include `{ kommoVehicleId, vehicleId }` for observability.
+  3. Resolve vehicle: extract `kommo_vehicle_id` from the Kommo dropdown field (field ID `1234163`, baked into the handler configuration with an optional env override) and then lookup `vehicles.kommo_vehicle_id` to map bookings and calendar events. Payload logs and responses now include `{ kommoVehicleId, vehicleId }` for observability.
   4. Принимаем только подтверждённые стадии Kommo: `96150292`, `75440391`, `75440395`, `75440399`, `76475495`, `78486287`, `75440643`, `75440639`, `142`. Payload’ы с другими статусами (включая `79790631`, `91703923`, `143`) помечаются `ignored_pending_status`, отвечают 202 и не дойдут до `bookings`/календаря; при этом их `status_id` продолжает записываться в `bookings.kommo_status_id` для аудита.
   4. Upsert booking:
      - Find by `source_payload_id` or `external_code`.
@@ -41,12 +42,12 @@ Kommo Webhook --> Supabase Edge Function (import-kommo)
      - Create/refresh `booking_invoices`, `calendar_events`, `sales_leads` snapshot if needed.
   5. Enqueue Zoho tasks: insert rows into `integrations_outbox` for `contact.upsert` and `sales_order.create` (unless `zoho_contact_id`/`zoho_sales_order_id` already set).
   6. Respond 200 to Kommo; log structured event for observability.
-- MVP behaviour: when `enableKommoLive = false`, the function logs payloads + security metadata, then replies `202` with `{ mode: "stubbed" }` so upstream systems treat it as accepted but no DB writes occur.
+- MVP behaviour: when `enableKommoLive = false`, the handler logs payloads + security metadata, then replies `202` with `{ mode: "stubbed" }` so upstream systems treat it as accepted but no DB writes occur.
 - Post-MVP: flip the flag to true and enable actual upsert logic + Zoho enqueueing once dry-runs pass.
-- Retry strategy: Kommo retries requests; function must be idempotent (use `source_payload_id`). On DB conflicts, return 200 after confirming record exists.
+- Retry strategy: Kommo retries requests; the route must be idempotent (use `source_payload_id`). On DB conflicts, return 200 after confirming record exists.
 
-### Kommo status webhook (`kommo-status-webhook`)
-- Supabase Edge Function at `/functions/v1/kommo-status-webhook`; expects HMAC (`x-kommo-signature`) identical to the intake webhook and is gated by `enableKommoLive`.
+### Kommo status events (same route)
+- Используем тот же Next.js API маршрут (`/api/integrations/kommo/webhook`), который получает `leads.status` события, ожидает HMAC (`x-kommo-signature`) и по-прежнему завязан на фиче-флаг `enableKommoLive`.
 - Kommo fires `leads.status` whenever a lead hops between stages. Мы теперь обрабатываем не только "Confirmed Bookings" (`status_id = 75440391`), но и "Waiting for Payment" (`96150292`), `75440395` (“Delivery Within 24 Hours”) и `75440399` (“Car with Customers”).
 - Processing steps:
   1. Validate signature + feature flag.

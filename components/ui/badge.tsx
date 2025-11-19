@@ -1,4 +1,5 @@
 import * as React from "react"
+import { Slot } from "@radix-ui/react-slot"
 import { cva, type VariantProps } from "class-variance-authority"
 
 import { cn } from "@/lib/utils"
@@ -38,21 +39,25 @@ const badgeVariants = cva(
 )
 
 export interface BadgeProps
-  extends React.HTMLAttributes<HTMLDivElement>,
-    VariantProps<typeof badgeVariants> {}
+  extends React.ComponentPropsWithoutRef<"div">,
+    VariantProps<typeof badgeVariants> {
+  asChild?: boolean
+}
 
 /**
  * API: <Badge variant="default" | "secondary" | "destructive" | "outline" | "primary" />
  * Совместим с shadcn (div+className) и сохраняет визуальный язык продукта.
  */
 const Badge = React.forwardRef<HTMLDivElement, BadgeProps>(
-  ({ className, variant, ...props }, ref) => {
+  ({ className, variant, asChild = false, ...props }, ref) => {
     // Нормализуем алиасы на случай использования старых значений.
     const normalizedVariant =
       variant === "primary" ? "primary" : variant
 
+    const Comp = asChild ? Slot : "div"
+
     return (
-      <div
+      <Comp
         ref={ref}
         className={cn(badgeVariants({ variant: normalizedVariant }), className)}
         {...props}

@@ -1,6 +1,6 @@
 # Database Schema
 
-_Last updated: 9 Nov 2025_
+_Last updated: 18 Nov 2025_
 
 This schema proposal is derived from the production requirements captured in `docs/prd-foundations.md` and the live SPA prototype in `/beta`. It is designed for Supabase/PostgreSQL, keeps App Router friendly URL structures in mind, and documents the structure in a DBML-friendly way, following the Holistics DBML guidelines for table, column, and relationship definitions.
 
@@ -77,6 +77,28 @@ This schema proposal is derived from the production requirements captured in `do
 | preferred_channels | text[] | e.g., `{email,sms}`. |
 | preferred_language | text | `ru`, `en`, `ar`. |
 | timezone | text | |
+| doc_status | text | `pending`, `processing`, `done`, `failed`, `fallback_pro`. |
+| doc_confidence | numeric(5,2) | Gemini confidence (0–1). |
+| doc_model | text | Last successful model: `gemini-2.5-flash` or `gemini-2.5-pro`. |
+| doc_document_id | uuid fk documents(id) | Source document processed. |
+| doc_raw | jsonb | Full structured output from Gemini. |
+| doc_type | text | passport / id / driver_licence / idl. |
+| doc_full_name | text | Concatenated name as seen on the document. |
+| doc_first_name | text | Parsed name parts. |
+| doc_last_name | text | Parsed name parts. |
+| doc_middle_name | text | Optional. |
+| doc_date_of_birth | date | |
+| doc_nationality | text | Country code/string. |
+| doc_address | text | Full postal/residence address. |
+| doc_document_number | text | Passport/ID/licence number. |
+| doc_issue_date | date | |
+| doc_expiry_date | date | |
+| doc_issuing_country | text | |
+| doc_driver_class | text | Licence class/category. |
+| doc_driver_restrictions | text | Text block of restrictions. |
+| doc_driver_endorsements | text | Endorsements/permissions. |
+| doc_processed_at | timestamptz | Last recognition timestamp. |
+| doc_error | text | Last error message (if failed). |
 | created_by | uuid fk staff_accounts | Nullable; операции/боты могут оставлять `NULL`. |
 | updated_by | uuid fk staff_accounts | Nullable; фиксирует последнего редактора. |
 | created_at | timestamptz | Default `timezone('utc', now())`. |

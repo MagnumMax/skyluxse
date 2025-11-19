@@ -1,5 +1,9 @@
 # Schema Changelog
 
+## 2025-11-18 — Client Document Recognition
+- Added `doc_*` columns to `public.clients` to store raw Gemini output, parsed identity fields (names, DOB, document number, licence details), processing status/metadata, and the source `documents.id`.
+- Captured the change in `docs/schemas/database-schema.md` to keep UI and services aligned with the recognition pipeline.
+
 ## 2025-11-13 — Client Document Metadata Alignment
 - Added `document_status` enum plus `original_name`, `status`, `source`, `expires_at`, and `metadata` columns to `public.documents`, ensuring Kommo uploads persist without column mismatches and allowing compliance expiries.
 - Updated the documents section in `docs/schemas/database-schema.md` to reflect the new metadata and clarify the storage bucket/file name expectations.
@@ -59,7 +63,7 @@
 - Добавлена колонка `gender text` в `public.clients`, чтобы фиксировать нормализованный пол контакта из Kommo и использовать его в клиентском рабочем пространстве.
 - Обновлены `docs/schemas/database-schema.md` и `docs/schemas/kommo-import-mapping.md`, чтобы отразить новый атрибут и его назначение.
 - Kommo full refresh теперь извлекает телефоны, email, `residency_country` и `gender` напрямую из `stg_kommo_contacts`, нормализует значения и заполняет `clients` без пустых полей.
-- Realtime вебхук (`supabase/functions/kommo-status-webhook`) повторяет ту же нормализацию, чтобы инкрементальные обновления клиентов не перетирали новые столбцы.
+- Realtime вебхук (`/api/integrations/kommo/webhook`) повторяет ту же нормализацию, чтобы инкрементальные обновления клиентов не перетирали новые столбцы прямо в App Router.
 
 ## 2025-11-12 — Lifetime Value Derives From Bookings
 - Удалена колонка `clients.lifetime_value`, поскольку LTV теперь высчитывается на лету из суммарного оборота аренды (совпадает с прежней формулой Turnover).

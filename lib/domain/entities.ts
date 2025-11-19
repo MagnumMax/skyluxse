@@ -184,6 +184,31 @@ export interface ClientPreferences {
   timezone: string
 }
 
+export interface ClientDocumentRecognition {
+  status?: string
+  confidence?: number
+  model?: string
+  documentId?: string
+  docType?: string
+  fullName?: string
+  firstName?: string
+  lastName?: string
+  middleName?: string
+  dateOfBirth?: string
+  nationality?: string
+  address?: string
+  documentNumber?: string
+  issueDate?: string
+  expiryDate?: string
+  issuingCountry?: string
+  driverClass?: string
+  driverRestrictions?: string
+  driverEndorsements?: string
+  processedAt?: string
+  error?: string
+  raw?: Record<string, any>
+}
+
 export interface Client {
   id: EntityId
   name: string
@@ -203,6 +228,7 @@ export interface Client {
   payments: ClientPayment[]
   notifications: ClientNotification[]
   preferences: ClientPreferences
+  documentRecognition?: ClientDocumentRecognition
   createdAt?: string
   createdBy?: string
   updatedAt?: string

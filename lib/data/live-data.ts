@@ -32,6 +32,28 @@ type ClientRow = {
   preferred_channels: string[] | null
   preferred_language: string | null
   timezone: string | null
+  doc_status?: string | null
+  doc_confidence?: number | null
+  doc_model?: string | null
+  doc_document_id?: string | null
+  doc_raw?: Record<string, any> | null
+  doc_type?: string | null
+  doc_full_name?: string | null
+  doc_first_name?: string | null
+  doc_last_name?: string | null
+  doc_middle_name?: string | null
+  doc_date_of_birth?: string | null
+  doc_nationality?: string | null
+  doc_address?: string | null
+  doc_document_number?: string | null
+  doc_issue_date?: string | null
+  doc_expiry_date?: string | null
+  doc_issuing_country?: string | null
+  doc_driver_class?: string | null
+  doc_driver_restrictions?: string | null
+  doc_driver_endorsements?: string | null
+  doc_processed_at?: string | null
+  doc_error?: string | null
   created_at: string | null
   updated_at: string | null
   created_by: string | null
@@ -53,6 +75,28 @@ const CLIENT_SELECT_COLUMNS = [
   "preferred_channels",
   "preferred_language",
   "timezone",
+  "doc_status",
+  "doc_confidence",
+  "doc_model",
+  "doc_document_id",
+  "doc_raw",
+  "doc_type",
+  "doc_full_name",
+  "doc_first_name",
+  "doc_last_name",
+  "doc_middle_name",
+  "doc_date_of_birth",
+  "doc_nationality",
+  "doc_address",
+  "doc_document_number",
+  "doc_issue_date",
+  "doc_expiry_date",
+  "doc_issuing_country",
+  "doc_driver_class",
+  "doc_driver_restrictions",
+  "doc_driver_endorsements",
+  "doc_processed_at",
+  "doc_error",
   "created_by",
   "updated_by",
   "created_at",
@@ -621,6 +665,7 @@ export const getLiveClients = cache(async (): Promise<Client[]> => {
         language: row.preferred_language ?? "en",
         timezone: row.timezone ?? DEFAULT_TIMEZONE,
       },
+      documentRecognition: mapDocumentRecognition(row),
     }
   })
 })
@@ -690,6 +735,7 @@ export const getLiveClientByIdFromDb = cache(async (clientId: string): Promise<C
       language: clientRow.preferred_language ?? "en",
       timezone: clientRow.timezone ?? DEFAULT_TIMEZONE,
     },
+    documentRecognition: mapDocumentRecognition(clientRow),
   }
 })
 
@@ -1324,6 +1370,44 @@ function mapNotificationRow(row: ClientNotificationRow): ClientNotification {
     subject: row.subject ?? "Notification",
     date: row.sent_at ?? row.created_at ?? new Date().toISOString(),
     status: row.status ?? "sent",
+  }
+}
+
+function mapDocumentRecognition(row: ClientRow): Client["documentRecognition"] | undefined {
+  const hasData =
+    row.doc_status ||
+    row.doc_raw ||
+    row.doc_document_number ||
+    row.doc_document_id ||
+    row.doc_full_name ||
+    row.doc_first_name ||
+    row.doc_last_name
+
+  if (!hasData) return undefined
+
+  return {
+    status: row.doc_status ?? undefined,
+    confidence: row.doc_confidence ?? undefined,
+    model: row.doc_model ?? undefined,
+    documentId: row.doc_document_id ?? undefined,
+    docType: row.doc_type ?? undefined,
+    fullName: row.doc_full_name ?? undefined,
+    firstName: row.doc_first_name ?? undefined,
+    lastName: row.doc_last_name ?? undefined,
+    middleName: row.doc_middle_name ?? undefined,
+    dateOfBirth: row.doc_date_of_birth ?? undefined,
+    nationality: row.doc_nationality ?? undefined,
+    address: row.doc_address ?? undefined,
+    documentNumber: row.doc_document_number ?? undefined,
+    issueDate: row.doc_issue_date ?? undefined,
+    expiryDate: row.doc_expiry_date ?? undefined,
+    issuingCountry: row.doc_issuing_country ?? undefined,
+    driverClass: row.doc_driver_class ?? undefined,
+    driverRestrictions: row.doc_driver_restrictions ?? undefined,
+    driverEndorsements: row.doc_driver_endorsements ?? undefined,
+    processedAt: row.doc_processed_at ?? undefined,
+    error: row.doc_error ?? undefined,
+    raw: row.doc_raw ?? undefined,
   }
 }
 

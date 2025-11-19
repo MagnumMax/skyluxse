@@ -1,7 +1,6 @@
-import type { ReactNode } from "react"
 import type { Client, ClientDocument, ClientNotification, ClientPayment, ClientRental } from "@/lib/domain/entities"
 import Link from "next/link"
-import { ArrowUpRight, Bell, Car, CreditCard, FileText } from "lucide-react"
+import { ArrowUpRight, Bell, Car, CreditCard, FileText, Sparkles } from "lucide-react"
 
 import { DashboardPageShell } from "@/components/dashboard-page-shell"
 import { Badge } from "@/components/ui/badge"
@@ -11,6 +10,7 @@ import { getClientSegmentLabel } from "@/lib/constants/client-segments"
 import { cn } from "@/lib/utils"
 import { ClientAiPanel } from "./sales-client-ai-panel"
 import { ParameterList, type ParameterListItem } from "@/components/parameter-list"
+import { ClientDocumentRecognitionPanel } from "./client-document-recognition-panel"
 
 const AED_FORMATTER = new Intl.NumberFormat("en-CA", { style: "currency", currency: "AED", maximumFractionDigits: 0 })
 
@@ -32,23 +32,15 @@ export function SalesClientWorkspace({ client }: { client: Client }) {
         sinceLabel={sinceLabel}
       />
 
-      <section className="grid gap-4 lg:grid-cols-3">
-        <SectionCard
-          title="Documents"
-          subtitle="Compliance status"
-          icon={FileText}
-          className="lg:col-span-2"
-          actions={
-            client.id ? (
-              <Link href={`/clients/${client.id}/documents`} className="text-xs font-semibold text-primary hover:underline" prefetch={false}>
-                View all
-              </Link>
-            ) : null
-          }
-        >
-          <DocumentList documents={client.documents} compact />
-        </SectionCard>
+      <SectionCard title="Document Recognition" subtitle="Gemini parsed fields" icon={Sparkles}>
+        <ClientDocumentRecognitionPanel
+          recognition={client.documentRecognition}
+          documents={client.documents}
+          clientId={client.id}
+        />
+      </SectionCard>
 
+      <section className="grid gap-4 lg:grid-cols-3">
         <SectionCard title="Rentals" subtitle="Latest bookings" icon={Car} className="lg:col-span-2">
           <RentalList rentals={client.rentals} compact />
         </SectionCard>
@@ -417,4 +409,13 @@ function formatDateYear(value?: string): string {
 function normalizeContactValue(value: string | undefined, fallback: string): string {
   if (!value || value === "—") return fallback
   return value
+}
+
+function formatDocType(value?: string) {
+  if (!value) return "—"
+  return value
+    .replace(/[_-]/g, " ")
+    .split(" ")
+    .map((chunk) => chunk.charAt(0).toUpperCase() + chunk.slice(1))
+    .join(" ")
 }

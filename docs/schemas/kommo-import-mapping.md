@@ -6,7 +6,7 @@ _Last updated: 10 Nov 2025 (Kommo account `infoskyluxsecom.kommo.com`, pipelines
 - Import Kommo leads created between **1 Jan 2025** and **31 Dec 2025**, но в букинги проходят только стадии `status_id ∈ {75440391, 75440395, 75440399, 76475495, 78486287, 75440643, 75440639, 142}`. Kommo API разрешает указывать лишь одну стадию в `filter[statuses]`, поэтому full refresh делает по одному проходу на каждый статус и дальше режет результат по датам уже на нашей стороне.
 - Alongside each lead we ingest its main contact (`_embedded.contacts[is_main=true]`) and the custom select field **Vehicle** so we can tie bookings to our fleet.
 - Target tables: `sales_leads`, `bookings`, `clients`, `vehicles`, `booking_vehicles`, `documents`, `sales_pipeline_stages`.
-- `sales_pipeline_stages` теперь хранит полный словарь Kommo → Supabase: для каждой стадии задаём `kommo_pipeline_id`, `kommo_status_id` и `booking_status` (одно из `lead`, `confirmed`, `delivery`, `in_progress`, `completed`, `cancelled`). Edge Function `kommo-status-webhook` читает эти столбцы, поэтому любые новые стадии нужно вносить сюда и миграциями.
+- `sales_pipeline_stages` теперь хранит полный словарь Kommo → Supabase: для каждой стадии задаём `kommo_pipeline_id`, `kommo_status_id` и `booking_status` (одно из `lead`, `confirmed`, `delivery`, `in_progress`, `completed`, `cancelled`). Серверный маршрут Next.js `/api/integrations/kommo/webhook` читает эти столбцы, поэтому любые новые стадии нужно вносить сюда и миграциями.
 
 ## Leads → sales_leads & bookings
 | Kommo field | Example | Supabase column | Notes |

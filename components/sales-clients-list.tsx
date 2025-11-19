@@ -20,7 +20,7 @@ const statusFilterOptions = [
   { value: "Silver", label: "Silver" },
 ]
 const SORT_OPTIONS = [
-  { value: "freshness", label: "Newest" },
+  { value: "createdAt", label: "Newest" },
   { value: "lifetimeValue", label: "Lifetime value" },
   { value: "lastBooking", label: "Last booking" },
 ]
@@ -59,7 +59,7 @@ const DEFAULT_FILTERS: FilterState = {
 
 export function SalesClientsList({ clients }: { clients: Client[] }) {
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS)
-  const [sortBy, setSortBy] = useState<SortOption>("freshness")
+  const [sortBy, setSortBy] = useState<SortOption>("createdAt")
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc")
   const [referenceTimestamp] = useState(() => Date.now())
 
@@ -108,7 +108,7 @@ export function SalesClientsList({ clients }: { clients: Client[] }) {
 
   const handleReset = () => {
     setFilters(DEFAULT_FILTERS)
-    setSortBy("freshness")
+    setSortBy("createdAt")
     setSortDirection("desc")
   }
 
@@ -246,6 +246,10 @@ export function SalesClientsList({ clients }: { clients: Client[] }) {
 
 function ClientCell({ client }: { client: Client }) {
   const segmentLabel = getClientSegmentLabel(client.segment)
+  const isRecognitionComplete = ["done", "done_multi", "fallback_pro"].includes(
+    (client.documentRecognition?.status ?? "").toLowerCase()
+  )
+  const recognizedDocuments = isRecognitionComplete ? client.documents ?? [] : []
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
@@ -269,14 +273,6 @@ function ClientCell({ client }: { client: Client }) {
         >
           {segmentLabel}
         </Badge>
-        {client.residencyCountry ? (
-          <Badge
-            variant="outline"
-            className="border-border/60 px-2 py-0.5 text-[11px] font-semibold text-muted-foreground"
-          >
-            {client.residencyCountry}
-          </Badge>
-        ) : null}
       </div>
       <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
         <span>{client.phone}</span>
@@ -297,6 +293,18 @@ function ClientCell({ client }: { client: Client }) {
             Outstanding {formatCurrency(client.outstanding)}
           </Badge>
         ) : null}
+        {recognizedDocuments.length
+          ? recognizedDocuments.map((document) => (
+              <Badge
+                key={document.id}
+                variant="outline"
+                className="border-border/60 px-2 py-0.5 text-[11px] font-semibold text-muted-foreground"
+                title={document.name}
+              >
+                {document.type}
+              </Badge>
+            ))
+          : null}
       </div>
     </div>
   )
@@ -319,21 +327,9 @@ function EngagementCell({ client }: { client: Client }) {
             {formatCurrency(client.outstanding)}
           </p>
         </div>
-        <Badge
-          className={cn(
-            "px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em]",
-            client.outstanding > 0
-              ? "bg-rose-100 text-rose-700 border-rose-200"
-              : "bg-emerald-100 text-emerald-700 border-emerald-200"
-          )}
-        >
-          {client.outstanding > 0 ? "Requires action" : "Settled"}
-        </Badge>
       </div>
       <div className="grid gap-3 text-xs text-muted-foreground">
         <MetricRow label="Lifetime value" value={formatCurrency(client.lifetimeValue)} />
-        <MetricRow label="NPS" value={numberFormatter.format(client.nps)} />
-        <MetricRow label="Channels" value={client.preferences.notifications.join(", ")} />
       </div>
     </div>
   )
@@ -392,9 +388,6 @@ function DocumentsActivityCell({ client }: { client: Client }) {
   return (
     <div className="space-y-4">
       <div className="space-y-3">
-        <p className="text-[0.6rem] uppercase tracking-[0.35em] text-muted-foreground">
-          Recent rentals
-        </p>
         {rentals.map((rental) => (
           <RentalRow key={rental.bookingId} rental={rental} />
         ))}

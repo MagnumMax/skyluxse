@@ -1,5 +1,6 @@
 import 'server-only'
 import { createClient } from '@supabase/supabase-js'
+import { supabaseFetch } from '@/lib/supabase/fetch-with-retry'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -15,5 +16,8 @@ if (!serviceKey) {
 export const serviceClient = createClient(supabaseUrl, serviceKey, {
   auth: {
     persistSession: false,
+  },
+  global: {
+    fetch: supabaseFetch,
   },
 })

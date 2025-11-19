@@ -12,6 +12,3 @@ major_version = 15
 
 [studio]
 port = 54323
-
-[functions.kommo-status-webhook]
-verify_jwt = false

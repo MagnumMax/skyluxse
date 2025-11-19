@@ -29,7 +29,7 @@ _Last updated: 10 Nov 2025_
   - `/documents/[docId]` mirrors the SPA document lightbox with preview, metadata, and links back to the owning client/vehicle record.
   - `/exec/reports` mirrors `/beta#ceo/reports/main`: summary tiles for revenue/expenses/profit with 7-day totals, daily trend list, top vehicles ranking, and channel mix chips based on the same mocked dataset.
   - `/exec/integrations` (M7 outbox) now restates `/beta#ceo/integrations/outbox`: filters (`All/Pending/Processing/Failed/Completed`), stat cards, queue table columns, manual replay button, and status pill colours align exactly; **data now comes from Supabase** (`integrations_outbox` + `kommo_import_runs`). Release notes must mention this so ops know the page reflects production queues.
-  - Added Kommo status webhook (`/functions/v1/kommo-status-webhook`) to auto-create/update bookings when sales move лид в "Confirmed bookings". На данный момент статус букинга при импорте ставится как “New booking” (`bookings.status = 'new'`), чтобы пламя SLA шло из UI.
+  - Added Kommo status webhook (`/api/integrations/kommo/webhook`) to auto-create/update bookings when sales move лид в "Confirmed bookings". На данный момент статус букинга при импорте ставится как “New booking” (`bookings.status = 'new'`), чтобы пламя SLA шло из UI.
 
 ### 10 Nov 2025 — Hash route inventory → App Router targets
 
