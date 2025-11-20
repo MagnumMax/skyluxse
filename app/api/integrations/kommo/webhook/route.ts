@@ -349,6 +349,7 @@ type BookingOptions = {
     advancePayment?: number | null
     salesOrderUrl?: string | null
     agreementNumber?: string | null
+    kommoStatusId?: number | null
 }
 
 async function upsertBooking(
@@ -372,7 +373,7 @@ async function upsertBooking(
         client_id: clientId,
         status: bookingStatus,
         external_code: `K-${lead.id}`,
-        kommo_status_id: lead?.status_id ? Number(lead.status_id) : null,
+        kommo_status_id: options.kommoStatusId ?? (lead?.status_id ? Number(lead.status_id) : null),
     }
 
     if (options.vehicleId !== undefined) payload.vehicle_id = options.vehicleId
@@ -523,7 +524,7 @@ function formatError(error: unknown) {
 
 function buildBookingOptions(
     lead: any,
-    base: { vehicleId?: string | null; startAt?: string | null; endAt?: string | null }
+    base: BookingOptions
 ): BookingOptions {
     return {
         vehicleId: base.vehicleId ?? null,
@@ -539,6 +540,7 @@ function buildBookingOptions(
         advancePayment: extractNumericField(lead, KOMMO_FIELD_IDS.advancePayment),
         salesOrderUrl: extractStringField(lead, KOMMO_FIELD_IDS.salesOrderUrl),
         agreementNumber: extractStringField(lead, KOMMO_FIELD_IDS.agreementNumber),
+        kommoStatusId: base.kommoStatusId ?? null,
     }
 }
 
@@ -943,16 +945,13 @@ async function handleStatusChange(event: any): Promise<HandleResult> {
         extractKommoEpoch(lead, KOMMO_DELIVERY_FIELD_ID) ?? extractKommoEpoch(lead, KOMMO_COLLECT_FIELD_ID)
     const endAt = extractKommoEpoch(lead, KOMMO_COLLECT_FIELD_ID) ?? startAt ?? null
 
-    const bookingId = await upsertBooking(
-        lead,
-        clientId,
-        bookingStatus,
-        buildBookingOptions(lead, {
-            vehicleId: vehicleMatch?.id ?? null,
-            startAt: startAt ?? null,
-            endAt: endAt ?? null,
-        })
-    )
+    const bookingOptions = buildBookingOptions(lead, {
+        vehicleId: vehicleMatch?.id ?? null,
+        startAt: startAt ?? null,
+        endAt: endAt ?? null,
+        kommoStatusId: Number(event.status_id),
+    })
+    const bookingId = await upsertBooking(lead, clientId, bookingStatus, bookingOptions)
     if (bookingId) {
         await logBookingTimelineEvent(bookingId, statusId, statusLabel, event.pipeline_id)
     }
