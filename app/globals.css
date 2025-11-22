@@ -6,6 +6,7 @@
 
 @layer base {
   :root {
+    --font-sans: "Manrope", "Inter", "SF Pro Text", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
     --card: oklch(1 0 0);
     --card-foreground: oklch(0.129 0.042 264.695);
     --popover: oklch(1 0 0);
@@ -53,6 +54,10 @@
     --fleet-calendar-repair-border: #fecdd3;
     --fleet-calendar-neutral-surface: hsl(var(--muted));
     --fleet-calendar-neutral-border: hsl(var(--border));
+  }
+
+  .font-sans-root {
+    --font-sans: "Manrope", "Inter", "SF Pro Text", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
   }
 
   body {

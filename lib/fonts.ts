@@ -1,8 +1,6 @@
-import { Manrope } from "next/font/google"
+const fontSansClass = "font-sans-root"
 
-export const brandSans = Manrope({
-  subsets: ["latin", "latin-ext", "cyrillic"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-sans",
-  display: "swap",
-})
+export const brandSans = {
+  className: fontSansClass,
+  variable: fontSansClass,
+}

@@ -84,6 +84,13 @@ export async function recognizeLatestClientDocument(clientId: string, opts: Reco
   const primaryResult = results[0]
   const payloadArray = results.map((r) => r.payload)
 
+  const issuingCountry =
+    primaryResult.payload?.issuing_country ??
+    primaryResult.payload?.issuingCountry ??
+    primaryResult.payload?.issuing_country_code ??
+    primaryResult.payload?.issuingCountryCode ??
+    null
+
   const update: Record<string, any> = {
     doc_status: results.length > 1 ? "done_multi" : primaryResult.status,
     doc_model: primaryResult.model,
@@ -97,13 +104,13 @@ export async function recognizeLatestClientDocument(clientId: string, opts: Reco
     doc_first_name: primaryResult.payload?.first_name ?? null,
     doc_last_name: primaryResult.payload?.last_name ?? null,
     doc_middle_name: primaryResult.payload?.middle_name ?? null,
-    doc_date_of_birth: normalizeDate(primaryResult.payload?.date_of_birth),
+    doc_date_of_birth: normalizeDate(primaryResult.payload?.date_of_birth, issuingCountry),
     doc_nationality: primaryResult.payload?.nationality ?? null,
     doc_address: primaryResult.payload?.address ?? null,
     doc_document_number: primaryResult.payload?.document_number ?? null,
-    doc_issue_date: normalizeDate(primaryResult.payload?.issue_date),
-    doc_expiry_date: normalizeDate(primaryResult.payload?.expiry_date),
-    doc_issuing_country: primaryResult.payload?.issuing_country ?? null,
+    doc_issue_date: normalizeDate(primaryResult.payload?.issue_date, issuingCountry),
+    doc_expiry_date: normalizeDate(primaryResult.payload?.expiry_date, issuingCountry),
+    doc_issuing_country: issuingCountry,
     doc_driver_class: primaryResult.payload?.driver_class ?? null,
     doc_driver_restrictions: primaryResult.payload?.driver_restrictions ?? null,
     doc_driver_endorsements: primaryResult.payload?.driver_endorsements ?? null,
@@ -144,7 +151,13 @@ async function processSingleDocument(
   const mimeType = downloadResp.headers.get("content-type") ?? link.document.mime_type ?? "application/octet-stream"
   const base64Data = Buffer.from(arrayBuffer).toString("base64")
 
-  const prompt = buildPrompt(link.doc_type ?? link.document?.metadata?.doc_type)
+  const issuingCountry =
+    link.document?.metadata?.issuing_country ??
+    link.document?.metadata?.country ??
+    link.document?.metadata?.issuingCountry ??
+    null
+
+  const prompt = buildPrompt(link.doc_type ?? link.document?.metadata?.doc_type, issuingCountry)
   const schema = buildSchema()
 
   const primary = await callGemini({
@@ -180,9 +193,10 @@ async function processSingleDocument(
   }
 }
 
-function buildPrompt(docType?: string | null) {
+function buildPrompt(docType?: string | null, issuingCountry?: string | null) {
   const label = docType ? docType.replace(/[_-]/g, " ") : "identity document"
-  return `Extract identity fields for car rental compliance. Document type: ${label}. Return strict JSON per schema; set missing values to null; include licence classes/restrictions if present; prefer ISO country codes.`
+  const country = issuingCountry ? issuingCountry.toUpperCase() : "unknown"
+  return `Extract identity fields for car rental compliance. Document type: ${label}. Issuing country: ${country}. If the document shows dates in a local format, respect it (US-style uses MM/DD/YYYY; other countries typically use DD/MM/YYYY or DD.MM.YYYY); output all dates as ISO yyyy-mm-dd. Return strict JSON per schema; set missing values to null; include licence classes/restrictions if present; prefer ISO country codes.`
 }
 
 function buildSchema() {
@@ -289,13 +303,61 @@ function normalizeConfidence(value: any): number | undefined {
   return Number(numeric.toFixed(2))
 }
 
-function normalizeDate(value: any): string | null {
+function normalizeDate(value: any, issuingCountry?: string | null): string | null {
   if (!value) return null
   const str = String(value).trim()
   if (!str) return null
-  const parsed = Date.parse(str)
-  if (!Number.isNaN(parsed)) return new Date(parsed).toISOString().slice(0, 10)
-  const m = str.match(/(\\d{4}-\\d{2}-\\d{2})/)
-  if (m?.[1]) return m[1]
+
+  // Accept ISO-like first
+  const isoMatch = str.match(/^(\d{4})[./-](\d{1,2})[./-](\d{1,2})$/)
+  if (isoMatch) {
+    return buildIsoDate(isoMatch[1], isoMatch[2], isoMatch[3])
+  }
+
+  // Heuristic by country: US-style month-first, otherwise day-first.
+  const monthFirstCountries = new Set(["US"])
+  const countryCode = issuingCountry ? issuingCountry.toUpperCase() : null
+  const isMonthFirst = countryCode ? monthFirstCountries.has(countryCode) : false
+
+  const slashDotMatch = str.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{2,4})$/)
+  if (slashDotMatch) {
+    const [_, a, b, year] = slashDotMatch
+    if (year.length !== 4) return null // avoid yy ambiguity
+    const first = Number(a)
+    const second = Number(b)
+
+    // If one part is > 12, that one must be the day.
+    const forceDayFirst = first > 12 || second <= 12
+
+    if (isMonthFirst && first <= 12 && second <= 31) {
+      const iso = buildIsoDate(year, a, b) // MM/DD/YYYY expected
+      if (iso) return iso
+    }
+
+    if (forceDayFirst) {
+      return buildIsoDate(year, b, a) // DD/MM/YYYY or DD.MM.YYYY
+    }
+
+    // Ambiguous (both <=12, no country hint) -> return null to avoid swapping.
+    return null
+  }
+
   return null
+}
+
+function buildIsoDate(year: string | number, month: string | number, day: string | number): string | null {
+  const y = Number(year)
+  const m = Number(month)
+  const d = Number(day)
+  if (!Number.isInteger(y) || !Number.isInteger(m) || !Number.isInteger(d)) return null
+  if (y < 1900 || y > 2100) return null
+  if (m < 1 || m > 12) return null
+  if (d < 1 || d > 31) return null
+
+  const dt = new Date(Date.UTC(y, m - 1, d))
+  if (dt.getUTCFullYear() !== y || dt.getUTCMonth() + 1 !== m || dt.getUTCDate() !== d) return null
+
+  const mm = String(m).padStart(2, "0")
+  const dd = String(d).padStart(2, "0")
+  return `${y}-${mm}-${dd}`
 }
