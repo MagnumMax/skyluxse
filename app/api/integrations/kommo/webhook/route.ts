@@ -956,8 +956,9 @@ async function handleStatusChange(event: any): Promise<HandleResult> {
         await logBookingTimelineEvent(bookingId, statusId, statusLabel, event.pipeline_id)
     }
 
-    if (clientId) {
-        // Trigger recognition directly since we are on the server
+    const shouldRunRecognition = clientId && statusId === "75440395" // Delivery Within 24 Hours
+    if (shouldRunRecognition) {
+        // Trigger recognition only at the last editable stage
         await recognizeLatestClientDocument(clientId).catch((error) => {
             console.error("Document recognition failed", {
                 clientId,
