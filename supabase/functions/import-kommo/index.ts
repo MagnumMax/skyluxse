@@ -11,6 +11,22 @@ const DEFAULT_KOMMO_VEHICLE_FIELD_ID = "1234163"
 const KOMMO_VEHICLE_FIELD_ID = Deno.env.get("KOMMO_VEHICLE_FIELD_ID") ?? DEFAULT_KOMMO_VEHICLE_FIELD_ID
 const KOMMO_VEHICLE_FIELD_CODE = Deno.env.get("KOMMO_VEHICLE_FIELD_CODE")?.toLowerCase()
 
+const KOMMO_STATUS_LABELS: Record<number, string> = {
+  75440383: "Incoming Leads",
+  79790631: "Request Bot Answering",
+  91703923: "Follow Up",
+  96150292: "Waiting for Payment",
+  75440391: "Confirmed Bookings",
+  75440395: "Delivery Within 24 Hours",
+  75440399: "Car with Customers",
+  76475495: "Pick Up Within 24 Hours",
+  78486287: "Objections",
+  75440643: "Refund Deposit",
+  75440639: "Deal Is Closed",
+  142: "Closed · Won",
+  143: "Closed · Lost",
+}
+
 type KommoPayload = Record<string, unknown>
 
 function getServiceClient() {
@@ -123,9 +139,9 @@ function getStatusId(payload: KommoPayload): number | null {
   return Number.isFinite(parsed) ? parsed : null
 }
 
-function isExcludedStatus(payload: KommoPayload): boolean {
-  const statusId = getStatusId(payload)
-  return typeof statusId === "number" && EXCLUDED_STATUS_IDS.has(statusId)
+function resolveKommoStatusLabel(statusId: number | null): string {
+  if (statusId == null) return "Kommo status unknown"
+  return KOMMO_STATUS_LABELS[statusId] ?? `Kommo status ${statusId}`
 }
 
 async function findVehicleByKommoId(client: SupabaseClient, kommoVehicleId: string) {
@@ -165,16 +181,20 @@ serve(async (req) => {
     const supabase = getServiceClient()
 
     const sourcePayloadId: string = payload?.id?.toString?.() ?? crypto.randomUUID()
+    const statusId = getStatusId(payload)
+    const statusLabel = resolveKommoStatusLabel(statusId)
 
     const kommoVehicleId = extractKommoVehicleId(payload)
     const vehicleMatch = kommoVehicleId ? await findVehicleByKommoId(supabase, kommoVehicleId) : null
-    const excludedStatus = isExcludedStatus(payload)
+    const excludedStatus = typeof statusId === "number" && EXCLUDED_STATUS_IDS.has(statusId)
 
     const { error: logError } = await supabase.from("kommo_webhook_events").insert({
       source_payload_id: sourcePayloadId,
       payload,
       hmac_validated: true,
       status: excludedStatus ? "ignored_pending_status" : "received",
+      kommo_status_id: statusId != null ? String(statusId) : null,
+      kommo_status_label: statusLabel,
     })
 
     if (logError) {
