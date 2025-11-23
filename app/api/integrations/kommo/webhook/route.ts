@@ -913,13 +913,26 @@ async function ensureClientDocument(payload: DocumentSyncPayload) {
     }
 }
 
+function normalizeStatusId(value: any): string | null {
+    if (value === null || value === undefined) return null
+    const str = String(value).trim()
+    return str.length ? str : null
+}
+
 async function handleStatusChange(event: any): Promise<HandleResult> {
-    const statusId = String(event.status_id ?? "")
-    const statusLabel = resolveKommoStatusLabel(statusId)
+    let statusId = normalizeStatusId(event.status_id)
+    let pipelineId = normalizeStatusId(event.pipeline_id)
 
     const lead = await kommoGet(`/api/v4/leads/${event.id}?with=contacts,custom_fields`)
     const contactId = lead?._embedded?.contacts?.find((c: any) => c.is_main)?.id ?? lead?._embedded?.contacts?.[0]?.id
     const contact = contactId ? await kommoGet(`/api/v4/contacts/${contactId}?with=custom_fields`) : null
+    const leadStatusId = normalizeStatusId(lead?.status_id)
+    const leadPipelineId = normalizeStatusId(lead?.pipeline_id)
+
+    if (!statusId && leadStatusId) statusId = leadStatusId
+    if (!pipelineId && leadPipelineId) pipelineId = leadPipelineId
+
+    const statusLabel = resolveKommoStatusLabel(statusId ?? "")
 
     const clientId = await upsertClient(contact, lead.name ?? `Lead ${event.id}`)
     if (clientId) {
@@ -928,10 +941,9 @@ async function handleStatusChange(event: any): Promise<HandleResult> {
             console.error("Failed to sync Kommo documents", error)
         )
     }
-    const stageId =
-        mapPipelineStage(String(event.pipeline_id), String(event.status_id)) ?? String(event.status_id ?? "")
+    const stageId = mapPipelineStage(String(pipelineId ?? event.pipeline_id ?? ""), String(statusId ?? ""))
     await upsertSalesLead(lead, clientId, stageId)
-    const bookingStatus = mapBookingStatus(statusId)
+    const bookingStatus = mapBookingStatus(String(statusId ?? ""))
     const kommoVehicleId = extractKommoVehicleId(lead)
     let vehicleMatch: { id: string } | null = null
     if (kommoVehicleId) {
@@ -951,9 +963,11 @@ async function handleStatusChange(event: any): Promise<HandleResult> {
         endAt: endAt ?? null,
         kommoStatusId: Number(event.status_id),
     })
+    const statusIdForTimeline = statusId ?? "unknown"
+    const pipelineForTimeline = pipelineId ?? event.pipeline_id ?? "unknown"
     const bookingId = await upsertBooking(lead, clientId, bookingStatus, bookingOptions)
     if (bookingId) {
-        await logBookingTimelineEvent(bookingId, statusId, statusLabel, event.pipeline_id)
+        await logBookingTimelineEvent(bookingId, statusIdForTimeline, statusLabel, pipelineForTimeline)
     }
 
     const shouldRunRecognition = clientId && statusId === "75440395" // Delivery Within 24 Hours
