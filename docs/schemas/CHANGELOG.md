@@ -1,5 +1,9 @@
 # Schema Changelog
 
+## 2025-11-26 — Remove Vehicle Health Score
+- Dropped `vehicles.health_score` in favour of service scheduling data only; UI now relies on utilisation + upcoming service windows without a computed readiness score.
+- Updated `docs/schemas/database-schema.md` and fleet specs to reflect the removal and avoid stale references; migration `0042_remove_vehicle_health_score.sql` applied via Supabase MCP.
+
 ## 2025-11-24 — Vehicle Service Management
 - Added `location text` to `public.maintenance_jobs` to capture where maintenance/repair is performed; API enforces presence, nullable for backfill safety.
 - Extended `document_scope` enum with `maintenance_job` so service entries can store attachments in `document_links` while keeping vehicle documents unchanged.
@@ -81,7 +85,7 @@
 - Документация обновлена: записывать tier/segment вручную в импортах/Edge Functions больше не требуется.
 
 ## 2025-11-11 — Fleet Detail Data Surfaces
-- Расширили `vehicles` метаданными (`health_score`, `location`, `image_url`), чтобы UI мог отображать здоровье и точку базирования без моков.
+- Расширили `vehicles` метаданными (`location`, `image_url`), чтобы UI мог отображать точку базирования и фон hero без моков; прежний readiness score впоследствии удалён.
 - Таблица `vehicle_reminders` хранит напоминания по страховым, мулькия и сервису (тип, дедлайн, статус, severity, автор) с индексами по `vehicle_id`/`due_date` и RLS, совпадающим с существующими ролями.
 - Таблица `vehicle_inspections` фиксирует осмотры (дата, водитель/исполнитель, заметки, массив `photo_document_ids`), открывая путь к хранению медиа через `document_links`.
 - Таблица `maintenance_jobs` стандартизирует окна работ (расписание, фактическое время, пробеги, вендор, стоимость) и связывается с букингами/календарём.

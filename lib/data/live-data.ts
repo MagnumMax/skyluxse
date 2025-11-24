@@ -132,7 +132,6 @@ type VehicleRow = {
   created_at: string | null
   created_by: string | null
   updated_by: string | null
-  health_score?: number | null
   location?: string | null
   image_url?: string | null
 }
@@ -335,7 +334,6 @@ const VEHICLE_SELECT_COLUMNS = [
   "cylinders",
   "zero_to_hundred_sec",
   "transmission",
-  "health_score",
   "location",
   "image_url",
   "kommo_vehicle_id",
@@ -898,7 +896,6 @@ function mapVehicleRow(row: VehicleRow, options?: { staffById?: Map<string, Staf
   const updatedAt = row.updated_at ?? row.created_at ?? new Date().toISOString()
   const nextServiceDate = new Date(updatedAt)
   nextServiceDate.setDate(nextServiceDate.getDate() + 45)
-  const health = row.health_score != null ? normalizeRatio(row.health_score) : utilization || 0.75
   const location = row.location ?? "SkyLuxse HQ"
   const staffById = options?.staffById
   const createdBy = resolveStaffActorById(staffById, row.created_by) ?? (row.kommo_vehicle_id ? "Kommo import" : undefined)
@@ -929,8 +926,7 @@ function mapVehicleRow(row: VehicleRow, options?: { staffById?: Map<string, Staf
     mulkiyaExpiry: undefined,
     location,
     serviceStatus: {
-      label: "Fleet health",
-      health,
+      label: "Service schedule",
       lastService: updatedAt,
       nextService: nextServiceDate.toISOString(),
       mileageToService: Math.max(0, 10000 - ((row.mileage_km ?? 0) % 10000)),

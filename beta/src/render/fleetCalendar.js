@@ -428,11 +428,10 @@ const shiftFleetCalendarStart = (direction) => {
 
 const isAttentionCar = (car) => {
   if (!car) return false;
-  const lowHealth = typeof car.serviceStatus?.health === 'number' && car.serviceStatus.health < 0.85;
   const maintenanceStatus = car.status === 'Maintenance';
   const needsInspection = (car.serviceStatus?.label || '').toLowerCase().includes('need');
   const criticalReminder = (car.reminders || []).some(reminder => reminder.status === 'critical' || reminder.status === 'warning');
-  return lowHealth || maintenanceStatus || needsInspection || criticalReminder;
+  return maintenanceStatus || needsInspection || criticalReminder;
 };
 
 const renderCalendarSummary = ({

@@ -120,9 +120,6 @@ function VehicleYearCell({ car }: { car: FleetCar }) {
     <div className="space-y-2">
       <p className="text-sm font-semibold text-foreground">{car.year}</p>
       <p className="text-xs text-muted-foreground">
-        Health score <span className="font-semibold text-foreground">{Math.round(car.serviceStatus.health * 100)}%</span>
-      </p>
-      <p className="text-xs text-muted-foreground">
         Next service {formatDate(car.serviceStatus.nextService)} ({car.serviceStatus.mileageToService} km)
       </p>
     </div>

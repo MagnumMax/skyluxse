@@ -20,7 +20,6 @@ export const cars = [
     revenueYTD: 58200,
     serviceStatus: {
       label: 'Ready for delivery',
-      health: 0.92,
       lastService: '2024-08-12',
       nextService: '2024-10-12',
       mileageToService: 850
@@ -58,7 +57,6 @@ export const cars = [
     revenueYTD: 67450,
     serviceStatus: {
       label: 'In rental',
-      health: 0.88,
       lastService: '2024-07-30',
       nextService: '2024-09-28',
       mileageToService: 450
@@ -95,7 +93,6 @@ export const cars = [
     revenueYTD: 41200,
     serviceStatus: {
       label: 'Needs inspection',
-      health: 0.81,
       lastService: '2024-07-02',
       nextService: '2024-09-25',
       mileageToService: 350
@@ -131,7 +128,6 @@ export const cars = [
     revenueYTD: 38900,
     serviceStatus: {
       label: 'In maintenance',
-      health: 0.72,
       lastService: '2024-08-25',
       nextService: '2024-11-01',
       mileageToService: 1800
@@ -168,7 +164,6 @@ export const cars = [
     revenueYTD: 49800,
     serviceStatus: {
       label: 'Ready for delivery',
-      health: 0.9,
       lastService: '2024-08-05',
       nextService: '2024-11-05',
       mileageToService: 1600

@@ -33,9 +33,6 @@ export const renderFleetDetail = (id) => {
   const badgeClass = statusTone[String(car.status)] || 'bg-gray-100 text-gray-600 border border-gray-200';
   /** @type {any} */
   const service = car.serviceStatus || {};
-  const rawHealth = Math.round((service.health ?? 0) * 100);
-  const healthPercent = Number.isFinite(rawHealth) ? Math.min(Math.max(rawHealth, 0), 100) : 0;
-  const healthClass = healthPercent >= 80 ? 'bg-emerald-500' : healthPercent >= 60 ? 'bg-amber-500' : 'bg-rose-500';
   const mileageToService = service.mileageToService != null
     ? `${Number(service.mileageToService).toLocaleString('en-US')} km`
     : '—';
@@ -355,14 +352,7 @@ export const renderFleetDetail = (id) => {
                                                 <span>${escapeHtml(service.label || '—')}</span>
                                                 ${service.nextService ? `<span class="text-xs text-gray-500">Next service ${escapeHtml(service.nextService)}</span>` : ''}
                                             </div>
-                                            <div class="w-full rounded-full bg-gray-200 h-2">
-                                                <div class="h-2 rounded-full ${healthClass}" style="width: ${healthPercent}%"></div>
-                                            </div>
-                                            <div class="flex flex-wrap items-center gap-3 text-xs text-gray-500">
-                                                <span>Technical readiness ${healthPercent}%</span>
-                                                <span>·</span>
-                                                <span>Mileage to service ${escapeHtml(mileageToService)}</span>
-                                            </div>
+                                            <p class="text-xs text-gray-500">Mileage to service ${escapeHtml(mileageToService)}</p>
                                         </div>
                                         <div>
                                             <h3 class="font-semibold text-gray-900">Reminders</h3>
@@ -452,14 +442,7 @@ export const renderFleetDetail = (id) => {
                                                 <span>${escapeHtml(service.label || '—')}</span>
                                                 ${service.nextService ? `<span class="text-xs text-gray-500">Next service ${escapeHtml(service.nextService)}</span>` : ''}
                                             </div>
-                                            <div class="w-full rounded-full bg-gray-200 h-2">
-                                                <div class="h-2 rounded-full ${healthClass}" style="width: ${healthPercent}%"></div>
-                                            </div>
-                                            <div class="flex flex-wrap items-center gap-3 text-xs text-gray-500">
-                                                <span>Technical readiness ${healthPercent}%</span>
-                                                <span>·</span>
-                                                <span>Mileage to service ${escapeHtml(mileageToService)}</span>
-                                            </div>
+                                            <p class="text-xs text-gray-500">Mileage to service ${escapeHtml(mileageToService)}</p>
                                         </div>
                                         <div>
                                             <h3 class="font-semibold text-gray-900">Reminders</h3>

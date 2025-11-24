@@ -308,7 +308,6 @@ export interface VehicleReminder {
 
 export interface VehicleServiceStatus {
   label: string
-  health: number
   lastService: string
   nextService: string
   mileageToService: number

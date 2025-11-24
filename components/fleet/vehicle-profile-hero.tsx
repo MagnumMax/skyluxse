@@ -28,19 +28,6 @@ export function VehicleProfileHero({ vehicle }: VehicleProfileHeroProps) {
           <span className={cn("rounded-full border px-3 py-1 text-sm font-semibold", statusTone(vehicle.status))}>{vehicle.status}</span>
         </div>
 
-        <div>
-          <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <span className="font-semibold uppercase tracking-[0.35em]">Health score</span>
-            <span className="text-sm font-semibold text-foreground">{Math.round(vehicle.serviceStatus.health * 100)}%</span>
-          </div>
-          <div className="mt-2 h-2 w-full rounded-full bg-muted">
-            <div
-              className={cn("h-2 rounded-full", healthTone(vehicle.serviceStatus.health))}
-              style={{ width: `${Math.round(vehicle.serviceStatus.health * 100)}%` }}
-            />
-          </div>
-        </div>
-
         <AuditMetadata
           className="pt-1"
           createdAt={vehicle.createdAt}
@@ -57,10 +44,4 @@ function statusTone(status: FleetCar["status"]) {
   if (status === "In Rent") return "bg-indigo-100 text-indigo-700"
   if (status === "Maintenance") return "bg-amber-100 text-amber-700"
   return "bg-emerald-100 text-emerald-700"
-}
-
-function healthTone(value: number) {
-  if (value >= 0.8) return "bg-emerald-500"
-  if (value >= 0.6) return "bg-amber-500"
-  return "bg-rose-500"
 }

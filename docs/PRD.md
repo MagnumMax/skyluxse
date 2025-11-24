@@ -16,7 +16,7 @@ Build a unified, automation-forward operations hub where premium car-rental team
 - **Secondary**: Finance/compliance teams, integration engineers maintaining CRM/payment stacks.
 
 ### Key Value Propositions
-- Single source of truth for bookings, fleet health, and documents with Kommo + Zoho automation.
+- Single source of truth for bookings, fleet readiness, and documents with Kommo + Zoho automation.
 - AI-augmented workspace suggesting best-fit vehicles, risk flags, and summarised timelines.
 - Mobile-first driver workflow capturing odometer/fuel/media data tied to SLA timers.
 - Real-time dashboards of utilisation, channel ROI, and profitability with drill-down to raw events.

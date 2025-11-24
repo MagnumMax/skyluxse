@@ -146,7 +146,6 @@ This schema proposal is derived from the production requirements captured in `do
 | mileage_km | int | Current reading. |
 | utilization_pct | numeric(5,2) | Derived metric. |
 | revenue_ytd | numeric(12,2) | |
-| health_score | numeric(5,2) | Normalised 0–1 score used by fleet health bar. |
 | location | text | Base location / depot label for hero metadata. |
 | image_url | text | Optional hero background for vehicle profile. |
 | created_by | uuid fk staff_accounts | Nullable; `NULL` для Kommo импорта. |

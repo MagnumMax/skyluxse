@@ -5,7 +5,7 @@ _Last updated: 11 Nov 2025_
 ## Objectives
 - Achieve 1:1 parity with `/beta#operations/fleet-detail/<carId>` using live Supabase data.
 - Provide a reusable vehicle profile data contract for dashboard, maintenance intake, and future public catalog pages.
-- Unblock downstream KPIs (utilisation, health) by persisting reminders, inspections, and maintenance history in Postgres.
+- Unblock downstream KPIs (utilisation, service readiness) by persisting reminders, inspections, and maintenance history in Postgres.
 
 ## Scope
 1. **Database**: add missing fleet tables (`vehicle_reminders`, `vehicle_inspections`, `maintenance_jobs`) and extend `vehicles` + `document_links` columns needed by UI.
@@ -16,7 +16,7 @@ _Last updated: 11 Nov 2025_
 ## Data Model Changes
 | Object | Action | Notes |
 | --- | --- | --- |
-| `vehicles` | add `health_score numeric(5,2)`, `location text`, `image_url text` | defaults keep backwards compatibility; `health_score` drives hero & progress bar. |
+| `vehicles` | rely on existing `location text` and `image_url text`; remove dependency on the retired readiness score | readiness UI now leans on utilisation + service cadence. |
 | `vehicle_reminders` | new table | `id uuid`, `vehicle_id`, `reminder_type`, `due_date`, `status`, `severity`, `notes`, `created_by`, timestamps. Indexed by `vehicle_id`. |
 | `vehicle_inspections` | new table | `inspection_date date`, `driver_id`, `performed_by text`, `notes text`, `photo_document_ids uuid[]`. |
 | `maintenance_jobs` | new table | `job_type`, `status`, schedule + actual ranges, odometer start/end, vendor, cost estimate, description. |
@@ -37,7 +37,7 @@ lib/data/
 - Maintenance timeline: unify `maintenance_jobs` + `vehicle_reminders` critical statuses to show chronological entries.
 
 ## UI Composition
-- `VehicleProfileHero` (title, status pill, location, health bar, metadata chips)
+- `VehicleProfileHero` (title, status pill, location, metadata chips)
 - `VehicleAuditStrip` (created/updated with actor hints right below the hero metadata)
 - `VehicleStatsGrid` (utilisation, mileage, revenue, next service)
 - `VehicleBookingPanel` (active/next/last bookings)

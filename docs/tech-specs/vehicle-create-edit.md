@@ -5,7 +5,7 @@ We need unified pages for vehicle creation and editing that mirror the detail vi
 
 ## Goals & Scope
 - Add `/fleet/new` and `/fleet/[carId]/edit` pages sharing one form.
-- Capture the same data shown on vehicle detail (profile/specs) while keeping utilisation/health read-only.
+- Capture the same data shown on vehicle detail (profile/specs) while keeping utilisation read-only.
 - Manage vehicle documents (upload, list, delete) under `scope = 'vehicle'`.
 - Use signed URLs for all document downloads; never expose public URLs by default.
 
@@ -16,7 +16,7 @@ Out of scope:
 
 ## Data Model (read/write)
 - `vehicles`: editable fields — `name`, `make`, `model`, `vin`, `plate_number`, `status`, `body_style`, `model_year`, `exterior_color`, `interior_color`, `seating_capacity`, `engine_displacement_l`, `power_hp`, `cylinders`, `zero_to_hundred_sec`, `transmission`, `location`, `kommo_vehicle_id`, `mileage_km`. Audit fields (`created_at/by`, `updated_at/by`) read-only. `class`, `segment`, `image_url` are no longer editable or displayed in UI; `segment` is not used in data reads.
-- Read-only values on the form: `utilization_pct` (computed), `revenue_ytd` (derived), service metrics (`health_score`, next service, mileageToService), reminders/maintenance history/inspections (display-only on edit).
+- Read-only values on the form: `utilization_pct` (computed), `revenue_ytd` (derived), service metrics (next service, mileageToService), reminders/maintenance history/inspections (display-only on edit).
 - Documents: `documents` + `document_links` with `scope='vehicle'` and `entity_id=<vehicle_id>`. `doc_type` allowed: `insurance`, `mulkiya`, `registration`, `gallery`, `other`. Storage bucket: `vehicle-documents`. No custom metadata fields stored. Gallery items can be marked as hero image (stores `vehicles.image_url` as `bucket/storage_path`).
 
 ## UX Specification
@@ -25,7 +25,7 @@ Out of scope:
   - `/fleet/[carId]/edit`: prefilled from `getFleetVehicleProfile(carId)`, CTA “Save changes”.
 - Layout sections:
   - Unified form: display name (required), plate (required), status (select), location, Kommo vehicle ID (numeric string), mileage, VIN, make/model/year, body style, exterior/interior colour, seating, transmission, engine displacement (L), power (hp), cylinders, 0–100 km/h.
-  - Operational snapshot: mileage (editable), utilisation % (read-only), revenue YTD (read-only), service status (health, next service, mileage to service, read-only).
+  - Operational snapshot: mileage (editable), utilisation % (read-only), revenue YTD (read-only), service status (next service, mileage to service, read-only).
 - Documents: list existing, upload new, delete. Show doc name/type; previews via signed links. Gallery items managed in a separate photo block with thumbnails and “set as hero” (updates `vehicles.image_url` to the storage path).
 - States:
   - Loading: skeleton for edit load + document list placeholder.

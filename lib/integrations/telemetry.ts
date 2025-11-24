@@ -2,7 +2,7 @@ import 'server-only'
 import { isFeatureEnabled } from '@/lib/feature-flags'
 
 type TelemetryEvent = {
-  type: 'vehicle_health' | 'sla_breach' | 'integration_retry'
+  type: 'sla_breach' | 'integration_retry'
   payload: Record<string, unknown>
 }
 

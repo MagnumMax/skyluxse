@@ -13,7 +13,7 @@ _Last updated: 10 Nov 2025_
 - `/fleet-calendar` reflects `/beta#operations/fleet-calendar/main` grid: identical layer toggles (rental, maintenance, repair), same 7 sample events, chip colours, and tooltip copy; CTA order (assign driver, reschedule) preserved for both operations and sales teams.
 - `/exec/fleet-calendar` переиспользует тот же календарь, но остаётся read-only, как в `/beta#ceo/fleet-calendar/main`.
   - `/fleet` recreates `/beta#operations/fleet-table/main`: three-column table (Vehicle, Year, Compliance) with plate chips, status pills, tags, mileage/utilisation/revenue stats, and expiry badges for insurance + mulkiya using the same October 2025 snapshot.
-  - `/fleet/[carId]` mirrors `/beta#operations/fleet-detail/<carId>`: hero block with status + health bar, reminder chips, active/next/last booking cards, maintenance/documents/inspection sections, and gallery tiles populated from the original SPA car dataset.
+  - `/fleet/[carId]` mirrors `/beta#operations/fleet-detail/<carId>`: hero block with status, reminder chips, active/next/last booking cards, maintenance/documents/inspection sections, and gallery tiles populated from the original SPA car dataset.
   - `/bookings/[bookingId]?view=operations` recreates `/beta#operations/booking-detail/<bookingId>`: hero summary (status, priority, tags), schedule/logistics cards, financial summary (invoices, outstanding, deposit), timeline/history, documents, sales service score, and extension cards driven by the same mock dataset.
 - `/bookings/[bookingId]` reuses the booking detail shell but adds the AI copilot + conflict signals card from `/beta#sales/booking-detail/<bookingId>`, including outstanding prompts and extension alerts for sales reps.
 - `/bookings/[bookingId]?view=exec` leverages the same detail view but appends KPI highlights (outstanding, SLA state, driver) to match `/beta#ceo/booking-detail/<bookingId>` dashboard cards.
@@ -72,7 +72,7 @@ _Last updated: 10 Nov 2025_
 - **Mission**: keep 5-car fleet (Rolls-Royce Ghost to Ferrari 488) serviceable, scheduled, and staffed, reacting to 7 active calendar events between 14-22 Oct 2025.
 - **Daily surfaces**: Fleet Calendar filter set (layer toggles for `rental`, `maintenance`, `repair`), Tasks board segmented by SLA, Fleet table (generic table view) and vehicle detail panels with inspections, reminders, and document galleries.
 - **Key workflows**: assign drivers to bookings like `BK-1052` delivery (SLA 30 min), trigger maintenance forms (`/maintenance/new`) when reminders such as `RM-huracan-service` hit critical, open document viewer for insurance/mulkiya renewals, and update task checklists (fuel, odometer, photos) for logistics and maintenance jobs.
-- **Data dependencies**: needs booking status taxonomy (`new -> preparation -> delivery -> in-rent -> settlement`), task type templates (delivery/pickup/maintenance) with required inputs, driver availability states, and vehicle service metadata (`serviceStatus.health`, mileage to service).
+- **Data dependencies**: needs booking status taxonomy (`new -> preparation -> delivery -> in-rent -> settlement`), task type templates (delivery/pickup/maintenance) with required inputs, driver availability states, and vehicle service metadata (upcoming service window, mileage to service).
 
 ### 1.2 Sales manager
 - **Mission**: shepherd 5 live leads (`LD-1201` to `LD-1205`) through stages (`new`, `qualified`, `proposal`, `negotiation`, `won`) while watching fleet conflicts.
@@ -89,7 +89,7 @@ _Last updated: 10 Nov 2025_
 ### 1.4 Driver (mobile field ops)
 - **Mission**: execute assigned logistics/maintenance tasks (examples: deliver G-Wagen #1052, pick up Huracan #1053, detailing Huracan #1058) and feed evidence back in real time.
 - **Daily surfaces**: `/driver/tasks` list (chronology of today's assignments) and `/driver/tasks/[taskId]` detail page with checklists, required data capture (odometer, fuel level, photos), payment card (collect outstanding AED amounts with remainder auto-calculation), SLA timer, route info, and quick contact actions.
-- **Key workflows**: upload before/after media, confirm document bundles, capture odometer/fuel to unblock fleet health, and mark checklist items complete. Failsafe logic prevents completion until mandatory fields set (doc verification + odometer + fuel).
+- **Key workflows**: upload before/after media, confirm document bundles, capture odometer/fuel to keep service schedules accurate, and mark checklist items complete. Failsafe logic prevents completion until mandatory fields set (doc verification + odometer + fuel).
 - **Data dependencies**: task metadata (type, category, SLA timer, checklist, required inputs), booking cross-links (bookingId), geo waypoints, payment instructions, and driver-specific analytics (completion rate, NPS) for feedback loops.
 
 ## 2. Sitemap (App Router baseline)
@@ -160,11 +160,9 @@ Base path `/api/v1`. Each resource is grounded in existing mock data so we can v
 - `GET /fleet/{carId}`: full snapshot (documents array with expiry/reminder metadata, inspections (date, driver, notes, photos), maintenanceHistory entries with odometer, reminders with dueDate/status, documentGallery URIs).
 -  _Tables: `vehicles` (core profile), `vehicle_inspections` (date, driver, notes, photos via `documents`), `maintenance_jobs` (history), `vehicle_reminders`, `document_links` + `documents` (insurance, mulkiya, gallery)._
 - `POST /fleet`: create new vehicle (mirrors `/vehicle-create` form; fields: VIN/plate, class, insurance/mulkiya expiries, initial mileage, document uploads via document registry).
--  _Tables: insert into `vehicles` (plate, class, insurance_expires_on, mileage_km, health_score) and create `documents` + `document_links` records for mulkiya/insurance scans._
+-  _Tables: insert into `vehicles` (plate, class, insurance_expires_on, mileage_km) and create `documents` + `document_links` records for mulkiya/insurance scans._
 - `POST /fleet/{carId}/maintenance-events`: logs service/repair events referencing maintenance reminders (e.g., `RM-bentley-maint`).
 -  _Tables: `maintenance_jobs` (job_type, scheduled_start/end, odometer values) plus optional `vehicle_reminders.status` updates._
-- `GET /fleet/{carId}/health`: aggregated stats (serviceStatus.health, upcoming reminder windows) to power health badges on tables and detail cards.
--  _Tables: `vehicles.health_score`, `vehicle_reminders.due_date/status`, `maintenance_jobs` (latest job windows)._
 
 ### 3.3 Bookings & Lifecycle
 - `GET /bookings`: supports filters `status` (`new`, `preparation`, `delivery`, `in-rent`, `settlement`), `type` (`vip`, `short`, `corporate`), `driverId`, `priority`, `channel`; returns Kanban cards (code, clientName, carName, start/end, SLA data, driver assignment, payment state).

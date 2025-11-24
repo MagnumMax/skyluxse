@@ -9,7 +9,7 @@ Reference data: SPA prototype in `/beta`, PRD foundations (`docs/prd-foundations
 2. **Open Fleet Calendar** (`GET /calendar/events?layers=rental`) to view events `EVT-2` ... `EVT-10`. Filter by vehicle `Rolls-Royce Ghost` (id 1) to confirm no maintenance conflicts.
 3. **Drill into booking `BK-1052`** through `GET /bookings/BK-1052`. Validate status `delivery`, SLA (`sla_minutes = 30`), outstanding invoices, and assigned driver.
 4. **Assign driver if needed** by `PATCH /bookings/BK-1052/status` (no change) plus `POST /tasks` to create logistics task linked to booking and driver `Andriy Kovalenko`. Persist metadata in `tasks`, `task_checklist_items`, `task_required_inputs`.
-5. **Check vehicle health** via `GET /fleet/1/health` ensuring `health_score > 0.9`, and review reminders `vehicle_reminders` for mulkiya/insurance.
+5. **Confirm service readiness** via `GET /fleet/1` ensuring next service date/mileage are not breached and reviewing reminders `vehicle_reminders` for mulkiya/insurance.
 6. **Upload refreshed documents** (if inspection required) using `POST /clients/{clientId}/documents` or `/documents` with registry linking to `document_links` for booking.
 7. **Monitor SLA timers** in Tasks board `GET /tasks?status=inprogress` until checklist and required inputs are complete, then mark done (`PATCH /tasks/{taskId}`) and confirm booking timeline update.
 8. **Success criteria**: booking timeline shows "vehicle en route", driver task `status=done`, calendar event updated to `status=in_progress`, and `reports_vehicle_profitability` reflects revenue after nightly refresh.

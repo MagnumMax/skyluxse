@@ -8,6 +8,7 @@ type VehicleDocumentsCardProps = {
 }
 
 export function VehicleDocumentsCard({ documents }: VehicleDocumentsCardProps) {
+  // Exclude gallery/photo assets so the card height matches the actual list content
   const filtered = documents.filter((doc) => doc.type !== "gallery" && doc.type !== "photo")
   return (
     <Card className="rounded-[26px] border-border/70 bg-card/80">
