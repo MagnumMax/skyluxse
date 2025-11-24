@@ -3,7 +3,6 @@ import { notFound } from "next/navigation"
 
 import { getFleetVehicleProfile } from "@/lib/data/fleet-data"
 import { DashboardPageShell } from "@/components/dashboard-page-shell"
-import { VehicleProfileHero } from "@/components/fleet/vehicle-profile-hero"
 import { VehicleStatsGrid } from "@/components/fleet/vehicle-stats-grid"
 import { VehicleRemindersCard } from "@/components/fleet/vehicle-reminders-card"
 import { VehicleBookingsCard } from "@/components/fleet/vehicle-bookings-card"
@@ -34,14 +33,18 @@ export default async function OperationsFleetDetailPage({ params }: PageProps) {
         <div>
           <h1 className="text-3xl font-semibold tracking-tight">{car.name}</h1>
         </div>
-        <Link href={toRoute("/fleet")} className="text-sm font-semibold text-muted-foreground hover:text-primary">
-          ← Back to fleet
-        </Link>
+        <div className="flex items-center gap-3 text-sm font-semibold text-muted-foreground">
+          <Link href={toRoute(`/fleet/${carId}/edit`)} className="hover:text-primary">
+            ✎ Edit
+          </Link>
+          <Link href={toRoute("/fleet")} className="hover:text-primary">
+            ← Back to fleet
+          </Link>
+        </div>
       </div>
 
-      <VehicleProfileHero vehicle={car} />
-      <VehicleStatsGrid vehicle={car} />
       <VehicleSpecCard vehicle={car} />
+      <VehicleStatsGrid vehicle={car} />
 
       <section className="grid gap-4 lg:grid-cols-[0.8fr_1.2fr]">
         <VehicleRemindersCard reminders={car.reminders} />
