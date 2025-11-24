@@ -42,6 +42,7 @@ type MaintenanceJobRow = {
   job_type: string | null
   status: string | null
   scheduled_start: string | null
+  scheduled_end: string | null
   actual_start: string | null
   actual_end: string | null
   description: string | null
@@ -49,6 +50,7 @@ type MaintenanceJobRow = {
   odometer_end: number | null
   vendor: string | null
   cost_estimate: number | null
+  location: string | null
   created_at: string | null
 }
 
@@ -102,7 +104,7 @@ export async function getFleetVehicleProfile(vehicleId: string): Promise<FleetVe
   const [reminders, inspectionRows, maintenanceHistory, documentBundle, bookings] = await Promise.all([
     fetchVehicleReminders(vehicleId),
     fetchVehicleInspectionRows(vehicleId),
-    fetchMaintenanceHistory(vehicleId),
+    getVehicleServices(vehicleId),
     fetchVehicleDocuments(vehicleId),
     getLiveBookings(),
   ])
@@ -151,19 +153,117 @@ async function fetchVehicleInspectionRows(vehicleId: string): Promise<VehicleIns
   return data ?? []
 }
 
-async function fetchMaintenanceHistory(vehicleId: string): Promise<VehicleMaintenanceEntry[]> {
+export async function getVehicleServices(vehicleId: string): Promise<VehicleMaintenanceEntry[]> {
+  noStore()
+  if (!vehicleId) {
+    return []
+  }
+
+  const jobs = await fetchMaintenanceJobRows(vehicleId)
+  const documentsByJob = await fetchMaintenanceJobDocuments(jobs.map((job) => job.id))
+  return jobs.map((row) => mapMaintenanceRow(row, documentsByJob))
+}
+
+async function fetchMaintenanceJobRows(vehicleId: string): Promise<MaintenanceJobRow[]> {
+  const selectColumns =
+    "id, job_type, status, scheduled_start, scheduled_end, actual_start, actual_end, description, odometer_start, odometer_end, vendor, cost_estimate, location, created_at"
   const { data, error } = await serviceClient
     .from("maintenance_jobs")
-    .select(
-      "id, job_type, status, scheduled_start, actual_start, actual_end, description, odometer_start, odometer_end, vendor, cost_estimate, created_at"
-    )
+    .select(selectColumns)
     .eq("vehicle_id", vehicleId)
-    .order("actual_start", { ascending: false, nullsFirst: false })
     .order("scheduled_start", { ascending: false, nullsFirst: false })
+    .order("created_at", { ascending: false })
   if (error) {
+    if (isMissingColumnError(error, "maintenance_jobs", "location")) {
+      const fallback = await serviceClient
+        .from("maintenance_jobs")
+        .select(
+          "id, job_type, status, scheduled_start, scheduled_end, actual_start, actual_end, description, odometer_start, odometer_end, vendor, cost_estimate, created_at"
+        )
+        .eq("vehicle_id", vehicleId)
+        .order("scheduled_start", { ascending: false, nullsFirst: false })
+        .order("created_at", { ascending: false })
+      if (fallback.error) {
+        throw new Error(`[supabase] Failed to load maintenance jobs: ${fallback.error.message}`)
+      }
+      return (fallback.data ?? []) as MaintenanceJobRow[]
+    }
     throw new Error(`[supabase] Failed to load maintenance jobs: ${error.message}`)
   }
-  return (data ?? []).map(mapMaintenanceRow)
+  return (data ?? []) as MaintenanceJobRow[]
+}
+
+type MaintenanceJobDocumentLinkRow = {
+  id: string
+  entity_id: string
+  doc_type: string | null
+  metadata: Record<string, unknown> | null
+  document:
+    | {
+        id: string
+        bucket: string | null
+        storage_path: string | null
+        file_name: string | null
+        original_name?: string | null
+        mime_type: string | null
+        status?: string | null
+      }
+    | {
+        id: string
+        bucket: string | null
+        storage_path: string | null
+        file_name: string | null
+        original_name?: string | null
+        mime_type: string | null
+        status?: string | null
+      }[]
+    | null
+}
+
+async function fetchMaintenanceJobDocuments(jobIds: string[]): Promise<Map<string, VehicleDocument[]>> {
+  if (jobIds.length === 0) {
+    return new Map()
+  }
+
+  const { data, error } = await serviceClient
+    .from("document_links")
+    .select(
+      "id, entity_id, doc_type, metadata, created_at, document:documents(id, bucket, storage_path, file_name, original_name, mime_type, status)"
+    )
+    .eq("scope", "maintenance_job")
+    .in("entity_id", jobIds)
+    .order("created_at", { ascending: true })
+
+  if (error) {
+    throw new Error(`[supabase] Failed to load maintenance documents: ${error.message}`)
+  }
+
+  const documentsByJob = new Map<string, VehicleDocument[]>()
+  const rows = (data as MaintenanceJobDocumentLinkRow[] | null) ?? []
+  for (const row of rows) {
+    const doc = Array.isArray(row.document) ? row.document[0] : row.document
+    if (!doc) continue
+    const bucket = doc.bucket ?? "vehicle-documents"
+    const storagePath = doc.storage_path ?? doc.file_name ?? undefined
+    const url = await createSignedUrl(bucket, storagePath)
+    const rawType = row.doc_type ?? "document"
+    const name = doc.original_name ?? doc.file_name ?? rawType
+    const status = doc.status ?? "needs_review"
+    const entry: VehicleDocument = {
+      id: doc.id ?? row.id,
+      type: rawType,
+      name,
+      status,
+      url: url ?? undefined,
+      bucket,
+      storagePath,
+    }
+    const list = documentsByJob.get(row.entity_id) ?? []
+    list.push(entry)
+    documentsByJob.set(row.entity_id, list)
+  }
+
+  return documentsByJob
 }
 
 async function fetchVehicleDocuments(vehicleId: string): Promise<VehicleDocumentBundle> {
@@ -206,17 +306,25 @@ function mapInspectionRow(row: VehicleInspectionRow, assetById: Map<string, stri
   }
 }
 
-function mapMaintenanceRow(row: MaintenanceJobRow): VehicleMaintenanceEntry {
-  const date = row.actual_start ?? row.scheduled_start ?? row.created_at ?? new Date().toISOString()
+function mapMaintenanceRow(row: MaintenanceJobRow, documentsByJob: Map<string, VehicleDocument[]>): VehicleMaintenanceEntry {
+  const plannedStart = row.scheduled_start ?? row.actual_start ?? row.created_at ?? new Date().toISOString()
+  const plannedEnd = row.scheduled_end ?? row.actual_end ?? plannedStart
+  const date = plannedStart ?? plannedEnd ?? new Date().toISOString()
   return {
     id: row.id,
     date,
+    plannedStart,
+    plannedEnd,
+    actualStart: row.actual_start ?? undefined,
+    actualEnd: row.actual_end ?? undefined,
     type: row.job_type ?? "maintenance",
     odometer: row.odometer_end ?? row.odometer_start ?? undefined,
     notes: row.description ?? undefined,
     vendor: row.vendor ?? undefined,
     status: row.status ?? undefined,
     costEstimate: row.cost_estimate ?? undefined,
+    location: row.location ?? undefined,
+    documents: documentsByJob.get(row.id) ?? [],
   }
 }
 
@@ -271,6 +379,18 @@ async function resolveHeroImage(currentImageUrl: string | undefined, bundle: Veh
     if (signed) return signed
   }
   return bundle.gallery[0] ?? currentImageUrl
+}
+
+function isMissingColumnError(error: { message?: string }, table: string, column: string) {
+  const message = error.message?.toLowerCase() ?? ""
+  const col = column.toLowerCase()
+  const tbl = table.toLowerCase()
+  return (
+    message.includes(`column ${col} does not exist`) ||
+    message.includes(`column "${col}" does not exist`) ||
+    message.includes(`column ${tbl}.${col} does not exist`) ||
+    message.includes(`column "${tbl}.${col}" does not exist`)
+  )
 }
 
 function titleCase(value: string): string {

@@ -326,11 +326,17 @@ export interface VehicleMaintenanceEntry {
   id: string
   date: string
   type: string
+  plannedStart?: string
+  plannedEnd?: string
+  actualStart?: string
+  actualEnd?: string
+  location?: string
   odometer?: number
   notes?: string
   vendor?: string
   status?: string
   costEstimate?: number
+  documents?: VehicleDocument[]
 }
 
 export interface FleetCar {

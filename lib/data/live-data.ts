@@ -263,7 +263,10 @@ type MaintenanceJobRow = {
   status: string | null
   scheduled_start: string | null
   scheduled_end: string | null
+  actual_start: string | null
+  actual_end: string | null
   vendor: string | null
+  location: string | null
 }
 
 export type DocumentRecord = {
@@ -561,14 +564,27 @@ const fetchCalendarEventRows = cache(async (): Promise<CalendarEventRow[]> => {
 })
 
 const fetchMaintenanceJobRows = cache(async (): Promise<MaintenanceJobRow[]> => {
+  const selectColumns =
+    "id, vehicle_id, job_type, status, scheduled_start, scheduled_end, actual_start, actual_end, vendor, location"
   const { data, error } = await serviceClient
     .from("maintenance_jobs")
-    .select("id, vehicle_id, job_type, status, scheduled_start, scheduled_end, vendor")
+    .select(selectColumns)
     .order("scheduled_start", { ascending: false })
     .limit(1000)
   if (error) {
     if (isMissingTableError(error, "maintenance_jobs")) {
       return []
+    }
+    if (isMissingColumnError(error, "maintenance_jobs", "location")) {
+      const fallback = await serviceClient
+        .from("maintenance_jobs")
+        .select("id, vehicle_id, job_type, status, scheduled_start, scheduled_end, actual_start, actual_end, vendor")
+        .order("scheduled_start", { ascending: false })
+        .limit(1000)
+      if (fallback.error) {
+        throw new Error(`[supabase] Failed to load maintenance jobs: ${fallback.error.message}`)
+      }
+      return (fallback.data ?? []).map((row) => ({ ...row, location: null })) as MaintenanceJobRow[]
     }
     throw new Error(`[supabase] Failed to load maintenance jobs: ${error.message}`)
   }
@@ -1490,18 +1506,23 @@ function mapCalendarEventRow(
 }
 
 function mapMaintenanceJobRow(row: MaintenanceJobRow, vehiclesById: Map<string, FleetCar>): CalendarEvent | null {
-  if (!row.scheduled_start && !row.scheduled_end) return null
+  const start =
+    row.scheduled_start ?? row.actual_start ?? row.scheduled_end ?? row.actual_end
+  if (!start) return null
   const vehicle = row.vehicle_id ? vehiclesById.get(row.vehicle_id) : undefined
-  const start = row.scheduled_start ?? row.scheduled_end ?? new Date().toISOString()
-  const end = row.scheduled_end ?? start
+  const end = row.scheduled_end ?? row.actual_end ?? start
+  const typeLabel = titleCase(row.job_type) || "Maintenance"
+  const locationLabel = row.location?.trim()
+  const baseTitle = vehicle ? `${vehicle.name} · ${typeLabel}` : `${typeLabel} ${row.id}`
   return {
     id: `maintenance-job-${row.id}`,
     carId: row.vehicle_id ?? row.id,
     type: mapMaintenanceJobType(row.job_type),
-    title: vehicle ? `${vehicle.name} · ${titleCase(row.job_type) || "Maintenance"}` : `Maintenance ${row.id}`,
+    title: locationLabel ? `${typeLabel} · ${locationLabel}` : baseTitle,
     start,
     end,
     priority: "medium",
+    stageLabel: locationLabel ?? row.vendor ?? undefined,
   }
 }
 
@@ -1535,6 +1556,18 @@ function mapMaintenanceJobType(value: string | null | undefined): CalendarEvent[
   const normalized = (value ?? "maintenance").toLowerCase()
   if (normalized === "repair") return "repair"
   return "maintenance"
+}
+
+function isMissingColumnError(error: { message?: string }, table: string, column: string) {
+  const message = error.message?.toLowerCase() ?? ""
+  const col = column.toLowerCase()
+  const tbl = table.toLowerCase()
+  return (
+    message.includes(`column ${col} does not exist`) ||
+    message.includes(`column "${col}" does not exist`) ||
+    message.includes(`column ${tbl}.${col} does not exist`) ||
+    message.includes(`column "${tbl}.${col}" does not exist`)
+  )
 }
 
 function isMissingTableError(error: { message: string; code?: string | number }, table: string) {

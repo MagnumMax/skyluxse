@@ -1,7 +1,7 @@
 import type { ReactNode } from "react"
 import Link from "next/link"
 
-import type { Booking, Client, Driver } from "@/lib/domain/entities"
+import type { Booking, Client, Driver, VehicleMaintenanceEntry } from "@/lib/domain/entities"
 import { resolveBookingTotalWithVat } from "@/lib/pricing/booking-totals"
 import { getClientSegmentLabel } from "@/lib/constants/client-segments"
 import { cn } from "@/lib/utils"
@@ -23,11 +23,13 @@ export function OperationsBookingDetail({
   booking,
   client,
   driver,
+  services,
   variant = "operations",
 }: {
   booking: Booking
   client?: Client
   driver?: Driver | null
+  services?: VehicleMaintenanceEntry[]
   variant?: "operations" | "sales" | "exec"
 }) {
   const advancePayment = resolveAdvancePayment(booking)
@@ -46,6 +48,8 @@ export function OperationsBookingDetail({
       />
 
       <BookingLogisticsFinancialSection booking={booking} outstanding={outstanding} advancePayment={advancePayment} />
+
+      <BookingServiceConflicts booking={booking} services={services ?? []} />
 
       <BookingActivitySection booking={booking} />
 
@@ -280,6 +284,65 @@ function BookingLogisticsFinancialSection({ booking, outstanding, advancePayment
   )
 }
 
+function BookingServiceConflicts({ booking, services }: { booking: Booking; services: VehicleMaintenanceEntry[] }) {
+  if (!booking.carId) return null
+  const bookingStart = parseDate(booking.startDate || booking.startTime)
+  const bookingEnd = parseDate(booking.endDate || booking.endTime || booking.startDate)
+
+  const normalized = services
+    .map((service) => {
+      const start = parseDate(service.plannedStart ?? service.date)
+      const end = parseDate(service.plannedEnd ?? service.plannedStart ?? service.date ?? service.actualEnd)
+      const overlaps = bookingStart && bookingEnd && start && end ? rangesOverlap(bookingStart, bookingEnd, start, end) : false
+      return { service, start, end, overlaps }
+    })
+    .sort((a, b) => (b.start?.getTime() ?? 0) - (a.start?.getTime() ?? 0))
+
+  if (normalized.length === 0) {
+    return (
+      <Card className="rounded-[26px] border-border/70 bg-card/80">
+        <CardHeader>
+          <CardTitle className="text-sm uppercase tracking-[0.35em] text-muted-foreground">Service windows</CardTitle>
+          <CardDescription>No maintenance or repair windows for this vehicle.</CardDescription>
+        </CardHeader>
+      </Card>
+    )
+  }
+
+  return (
+    <Card className="rounded-[26px] border-border/70 bg-card/80">
+      <CardHeader>
+        <CardTitle className="text-sm uppercase tracking-[0.35em] text-muted-foreground">Service windows</CardTitle>
+        <CardDescription>Planned maintenance/repair that blocks the vehicle.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {normalized.map(({ service, overlaps }) => (
+          <div key={service.id} className="rounded-2xl border border-border/60 bg-background/60 px-4 py-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="uppercase tracking-[0.2em]">
+                  {service.type}
+                </Badge>
+                <span className="text-sm font-semibold text-foreground">{service.location ?? "Location not set"}</span>
+              </div>
+              {overlaps ? (
+                <Badge className="bg-rose-100 text-rose-700">Blocks booking</Badge>
+              ) : (
+                <span className="text-xs text-muted-foreground">Does not overlap</span>
+              )}
+            </div>
+            <div className="mt-1 text-sm text-muted-foreground">
+              {formatDateTime(service.plannedStart ?? service.date)} →{" "}
+              {formatDateTime(service.plannedEnd ?? service.plannedStart ?? service.date)}
+            </div>
+            {service.notes ? <p className="mt-1 text-xs text-muted-foreground">{service.notes}</p> : null}
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  )
+}
+
 function BookingActivitySection({ booking }: { booking: Booking }) {
   return (
     <section className="grid gap-4">
@@ -304,6 +367,17 @@ function DetailRow({ label, value, helper }: { label: string; value?: ReactNode;
       {helper ? <p className="text-xs text-muted-foreground">{helper}</p> : null}
     </div>
   )
+}
+
+function parseDate(value?: string | null) {
+  if (!value) return null
+  const timestamp = Date.parse(value)
+  if (Number.isNaN(timestamp)) return null
+  return new Date(timestamp)
+}
+
+function rangesOverlap(startA: Date, endA: Date, startB: Date, endB: Date) {
+  return endA > startB && startA < endB
 }
 
 function resolveAdvancePayment(booking: Booking) {

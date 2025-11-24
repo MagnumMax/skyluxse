@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils"
 import {
   Sheet,
   SheetContent,
+  SheetDescription,
   SheetHeader,
   SheetTitle,
   SheetTrigger,
@@ -132,6 +133,9 @@ function MobileNav({ navGroups }: { navGroups: DashboardNavGroup[] }) {
           <SheetTitle className="text-xs font-semibold uppercase tracking-[0.35em] text-muted-foreground">
             SkyLuxse ERP
           </SheetTitle>
+          <SheetDescription className="sr-only">
+            Dashboard navigation menu with quick access to fleet, clients, and tasks.
+          </SheetDescription>
         </SheetHeader>
         <div className="flex-1 space-y-6 overflow-y-auto px-6 py-6">
           {navGroups.map((group) => (

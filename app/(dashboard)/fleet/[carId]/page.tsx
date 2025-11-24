@@ -6,11 +6,11 @@ import { DashboardPageShell } from "@/components/dashboard-page-shell"
 import { VehicleStatsGrid } from "@/components/fleet/vehicle-stats-grid"
 import { VehicleRemindersCard } from "@/components/fleet/vehicle-reminders-card"
 import { VehicleBookingsCard } from "@/components/fleet/vehicle-bookings-card"
-import { VehicleMaintenanceCard } from "@/components/fleet/vehicle-maintenance-card"
 import { VehicleDocumentsCard } from "@/components/fleet/vehicle-documents-card"
 import { VehicleInspectionsCard } from "@/components/fleet/vehicle-inspections-card"
 import { VehicleGalleryCard } from "@/components/fleet/vehicle-gallery-card"
 import { VehicleSpecCard } from "@/components/fleet/vehicle-spec-card"
+import { VehicleServiceManager } from "@/components/fleet/vehicle-service-manager"
 import { deriveBookingHighlights } from "@/lib/fleet/booking-utils"
 
 const referenceDate = new Date()
@@ -50,7 +50,7 @@ export default async function OperationsFleetDetailPage({ params }: PageProps) {
       </section>
 
       <section className="grid gap-4 lg:grid-cols-2">
-        <VehicleMaintenanceCard entries={car.maintenanceHistory ?? []} />
+        <VehicleServiceManager vehicleId={String(car.id)} services={car.maintenanceHistory ?? []} />
         <VehicleDocumentsCard documents={car.documents ?? []} />
       </section>
 

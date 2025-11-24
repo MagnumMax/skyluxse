@@ -1,5 +1,10 @@
 # Schema Changelog
 
+## 2025-11-24 — Vehicle Service Management
+- Added `location text` to `public.maintenance_jobs` to capture where maintenance/repair is performed; API enforces presence, nullable for backfill safety.
+- Extended `document_scope` enum with `maintenance_job` so service entries can store attachments in `document_links` while keeping vehicle documents unchanged.
+- Documented the change in `docs/schemas/database-schema.md` and wired migrations for downstream UI (vehicle service manager, booking blockers, fleet calendar).
+
 ## 2025-11-18 — Client Document Recognition
 - Added `doc_*` columns to `public.clients` to store raw Gemini output, parsed identity fields (names, DOB, document number, licence details), processing status/metadata, and the source `documents.id`.
 - Captured the change in `docs/schemas/database-schema.md` to keep UI and services aligned with the recognition pipeline.

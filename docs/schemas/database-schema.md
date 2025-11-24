@@ -193,6 +193,7 @@ This schema proposal is derived from the production requirements captured in `do
 | actual_start / actual_end | timestamptz | actual window. |
 | odometer_start / odometer_end | integer | km readings. |
 | vendor | text | preferred supplier. |
+| location | text | service location (free text). |
 | cost_estimate | numeric(12,2) | optional. |
 | description | text | job summary. |
 | created_at/updated_at | timestamptz | |
@@ -220,7 +221,7 @@ This schema proposal is derived from the production requirements captured in `do
 | --- | --- | --- |
 | id | uuid pk | |
 | document_id | uuid fk `documents.id` | |
-| scope | document_scope enum | existing field. |
+| scope | document_scope enum | `client`, `vehicle`, `booking`, `task`, `lead`, `maintenance_job`. |
 | entity_id | uuid | |
 | doc_type | text | e.g., `insurance`, `mulkiya`, `gallery`, `inspection`. |
 | notes | text | optional description/tooltips. |
