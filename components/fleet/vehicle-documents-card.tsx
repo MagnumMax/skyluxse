@@ -8,21 +8,32 @@ type VehicleDocumentsCardProps = {
 }
 
 export function VehicleDocumentsCard({ documents }: VehicleDocumentsCardProps) {
+  const filtered = documents.filter((doc) => doc.type !== "gallery" && doc.type !== "photo")
   return (
     <Card className="rounded-[26px] border-border/70 bg-card/80">
       <CardHeader>
         <CardTitle className="text-sm uppercase tracking-[0.35em] text-muted-foreground">Documents</CardTitle>
-        <CardDescription>Insurance and registration statuses.</CardDescription>
       </CardHeader>
       <CardContent>
         <ul className="space-y-2 text-sm">
-          {documents.length === 0 ? (
+          {filtered.length === 0 ? (
             <li className="rounded-2xl border border-dashed border-border/60 px-3 py-2 text-muted-foreground">No documents</li>
           ) : (
-            documents.map((doc) => (
+            filtered.map((doc) => (
               <li key={doc.id} className="flex items-center justify-between rounded-2xl border border-border/60 px-3 py-2">
-                <div>
-                  <p className="font-semibold text-foreground">{doc.name}</p>
+                <div className="space-y-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    {doc.url ? (
+                      <a href={doc.url} target="_blank" rel="noreferrer" className="font-semibold text-foreground hover:underline">
+                        {doc.name}
+                      </a>
+                    ) : (
+                      <p className="font-semibold text-foreground">{doc.name}</p>
+                    )}
+                    <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      {doc.type}
+                    </span>
+                  </div>
                   <p className="text-xs text-muted-foreground">Expires {formatDate(doc.expiry)}</p>
                 </div>
                 <span className={cn("rounded-full px-3 py-1 text-xs font-semibold", documentTone(doc.status))}>{doc.status}</span>

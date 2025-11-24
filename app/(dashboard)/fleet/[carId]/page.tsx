@@ -37,14 +37,12 @@ export default async function OperationsFleetDetailPage({ params }: PageProps) {
           <Link href={toRoute(`/fleet/${carId}/edit`)} className="hover:text-primary">
             ✎ Edit
           </Link>
-          <Link href={toRoute("/fleet")} className="hover:text-primary">
-            ← Back to fleet
-          </Link>
         </div>
       </div>
 
       <VehicleSpecCard vehicle={car} />
       <VehicleStatsGrid vehicle={car} />
+      <VehicleGalleryCard images={car.documentGallery ?? []} />
 
       <section className="grid gap-4 lg:grid-cols-[0.8fr_1.2fr]">
         <VehicleRemindersCard reminders={car.reminders} />
@@ -58,7 +56,6 @@ export default async function OperationsFleetDetailPage({ params }: PageProps) {
 
       <section className="grid gap-4 lg:grid-cols-2">
         <VehicleInspectionsCard inspections={car.inspections ?? []} />
-        <VehicleGalleryCard images={car.documentGallery ?? []} />
       </section>
     </DashboardPageShell>
   )

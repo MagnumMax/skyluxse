@@ -897,7 +897,6 @@ function mapVehicleRow(row: VehicleRow, options?: { staffById?: Map<string, Staf
     status: mapVehicleStatus(row.status),
     class: row.class ?? "Class",
     bodyStyle: row.body_style ?? "Body type",
-    segment: row.segment ?? "Segment",
     color: row.exterior_color ?? "Black",
     year: row.model_year ?? new Date(updatedAt).getFullYear(),
     seatingCapacity: row.seating_capacity ?? undefined,

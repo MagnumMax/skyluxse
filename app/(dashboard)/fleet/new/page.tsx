@@ -1,7 +1,9 @@
 import { DashboardPageShell } from "@/components/dashboard-page-shell"
-import { VehicleIntakeForm } from "@/components/vehicle-intake-form"
+import { VehicleForm } from "@/components/fleet/vehicle-form"
+import { getVehicleOptions } from "@/lib/data/vehicle-options"
 
-export default function VehicleCreatePage() {
+export default async function VehicleCreatePage() {
+  const options = await getVehicleOptions()
   return (
     <DashboardPageShell>
       <header className="space-y-2">
@@ -9,7 +11,7 @@ export default function VehicleCreatePage() {
           <h1 className="text-3xl font-semibold tracking-tight">Onboard a vehicle</h1>
         </div>
       </header>
-      <VehicleIntakeForm />
+      <VehicleForm mode="create" options={options} />
     </DashboardPageShell>
   )
 }

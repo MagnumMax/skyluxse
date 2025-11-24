@@ -8,9 +8,10 @@ import type {
   VehicleMaintenanceEntry,
   VehicleReminder,
 } from "@/lib/domain/entities"
-import { getLiveBookings, getLiveFleetVehicleById, buildStoragePublicUrl } from "@/lib/data/live-data"
+import { getLiveBookings, getLiveFleetVehicleById } from "@/lib/data/live-data"
 import { calculateVehicleRuntimeMetrics } from "@/lib/fleet/runtime"
 import { serviceClient } from "@/lib/supabase/service-client"
+import { createSignedUrl } from "@/lib/storage/signed-url"
 
 export interface FleetVehicleProfile {
   vehicle: FleetCar
@@ -63,7 +64,9 @@ type VehicleDocumentLinkRow = {
         bucket: string | null
         storage_path: string | null
         file_name: string | null
+        original_name?: string | null
         mime_type: string | null
+        status?: string | null
         created_at: string | null
       }
     | {
@@ -71,7 +74,9 @@ type VehicleDocumentLinkRow = {
         bucket: string | null
         storage_path: string | null
         file_name: string | null
+        original_name?: string | null
         mime_type: string | null
+        status?: string | null
         created_at: string | null
       }[]
     | null
@@ -105,9 +110,11 @@ export async function getFleetVehicleProfile(vehicleId: string): Promise<FleetVe
   const vehicleBookings = bookings.filter((booking) => String(booking.carId) === String(vehicle.id))
   const inspections = inspectionRows.map((row) => mapInspectionRow(row, documentBundle.assetById))
   const { utilization, revenueYTD } = calculateVehicleRuntimeMetrics(vehicleBookings)
+  const heroImage = await resolveHeroImage(vehicle.imageUrl, documentBundle)
 
   const enrichedVehicle: FleetCar = {
     ...vehicle,
+    imageUrl: heroImage,
     utilization: vehicle.utilization || utilization,
     revenueYTD: vehicle.revenueYTD || revenueYTD,
     reminders,
@@ -171,7 +178,7 @@ async function fetchVehicleDocuments(vehicleId: string): Promise<VehicleDocument
   if (error) {
     throw new Error(`[supabase] Failed to load vehicle documents: ${error.message}`)
   }
-  return mapVehicleDocumentRows(data ?? [])
+  return await mapVehicleDocumentRows(data ?? [])
 }
 
 function mapReminderRow(row: VehicleReminderRow): VehicleReminder {
@@ -213,30 +220,30 @@ function mapMaintenanceRow(row: MaintenanceJobRow): VehicleMaintenanceEntry {
   }
 }
 
-function mapVehicleDocumentRows(rows: VehicleDocumentLinkRow[]): VehicleDocumentBundle {
+async function mapVehicleDocumentRows(rows: VehicleDocumentLinkRow[]): Promise<VehicleDocumentBundle> {
   const documents: VehicleDocument[] = []
   const gallery: string[] = []
   const assetById = new Map<string, string>()
 
-  rows.forEach((row) => {
-    const metadata = (row.metadata ?? {}) as Record<string, any>
+  for (const row of rows) {
     const doc = Array.isArray(row.document) ? row.document[0] : row.document
-    const url = buildStoragePublicUrl(doc?.bucket, doc?.storage_path ?? doc?.file_name ?? undefined)
+    const storagePath = doc?.storage_path ?? doc?.file_name ?? undefined
+    const bucket = doc?.bucket ?? "vehicle-documents"
+    const url = await createSignedUrl(bucket, storagePath)
     if (doc?.id && url) {
       assetById.set(doc.id, url)
     }
-    const rawType = row.doc_type ?? metadata.doc_type ?? metadata.type ?? "document"
+    const rawType = row.doc_type ?? "document"
     const docType = rawType.toString().toLowerCase()
     if (docType === "gallery" || docType === "photo") {
       if (url) {
         gallery.push(url)
       }
-      return
     }
 
-    const name = metadata.name ?? row.notes ?? titleCase(rawType)
-    const expiry = metadata.expiry ?? metadata.expires_at ?? undefined
-    const status = metadata.status ?? metadata.state ?? "active"
+    const name = doc?.original_name ?? doc?.file_name ?? titleCase(rawType)
+    const expiry = undefined
+    const status = doc?.status ?? "needs_review"
     documents.push({
       id: doc?.id ?? row.id,
       type: docType,
@@ -244,11 +251,26 @@ function mapVehicleDocumentRows(rows: VehicleDocumentLinkRow[]): VehicleDocument
       expiry,
       status,
       url,
-      notes: row.notes ?? undefined,
+      notes: undefined,
+      bucket,
+      storagePath,
     })
-  })
+  }
 
   return { documents, gallery, assetById }
+}
+
+async function resolveHeroImage(currentImageUrl: string | undefined, bundle: VehicleDocumentBundle) {
+  if (currentImageUrl) {
+    if (currentImageUrl.startsWith("http")) {
+      return currentImageUrl
+    }
+    const [bucket, ...rest] = currentImageUrl.split("/")
+    const path = rest.join("/")
+    const signed = await createSignedUrl(bucket, path)
+    if (signed) return signed
+  }
+  return bundle.gallery[0] ?? currentImageUrl
 }
 
 function titleCase(value: string): string {

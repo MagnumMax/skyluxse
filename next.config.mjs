@@ -6,6 +6,14 @@ const nextConfig = {
     optimizeCss: true,
     testProxy: true,
   },
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "**.supabase.co",
+      },
+    ],
+  },
   async redirects() {
     return [
       {

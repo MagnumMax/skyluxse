@@ -16,11 +16,10 @@ export function VehicleProfileHero({ vehicle }: VehicleProfileHeroProps) {
       <CardContent className="space-y-6 p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="space-y-2">
-            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-              <span className={metadataClass}>{titleCase(vehicle.class)}</span>
-              <span className={metadataClass}>{titleCase(vehicle.segment)}</span>
-              <span className={metadataClass}>{titleCase(vehicle.color)}</span>
-            </div>
+          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            <span className={metadataClass}>{titleCase(vehicle.class)}</span>
+            <span className={metadataClass}>{titleCase(vehicle.color)}</span>
+          </div>
             <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
               <span className="font-semibold text-foreground">Plate {vehicle.plate}</span>
               {vehicle.location ? <span>Location {vehicle.location}</span> : null}

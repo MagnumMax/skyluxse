@@ -293,6 +293,8 @@ export interface VehicleDocument {
   status: "active" | "warning" | "expired" | string
   url?: string
   notes?: string
+  bucket?: string
+  storagePath?: string
 }
 
 export interface VehicleReminder {
@@ -341,7 +343,6 @@ export interface FleetCar {
   status: FleetCarStatus
   class: string
   bodyStyle?: string
-  segment: string
   color: string
   interiorColor?: string
   year: number

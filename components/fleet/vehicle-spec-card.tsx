@@ -15,7 +15,6 @@ export function VehicleSpecCard({ vehicle }: VehicleSpecCardProps) {
     { label: "Plate", value: vehicle.plate },
     { label: "Year", value: vehicle.year },
     { label: "Body style", value: vehicle.bodyStyle },
-    { label: "Segment", value: vehicle.segment },
     { label: "Exterior colour", value: vehicle.color },
     { label: "Interior colour", value: vehicle.interiorColor },
     { label: "Seating", value: vehicle.seatingCapacity != null ? `${vehicle.seatingCapacity}` : undefined },
