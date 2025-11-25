@@ -13,7 +13,6 @@ import {
 } from "@/lib/fleet/calendar-grid"
 import type { EventPlacement } from "@/lib/fleet/calendar-grid"
 import { cn } from "@/lib/utils"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import type { DateRange } from "react-day-picker"
 
 function normalizeDate(value: Date) {
@@ -362,7 +361,7 @@ export function FleetCalendarBoard({
                           onEventClick={handleEventClick}
                           todayColumnIndex={todayColumnIndex}
                           isWeekend={isWeekend}
-                          onEventUpdate={handleLocalEventUpdate}
+                          onEventUpdate={onEventUpdate ? handleLocalEventUpdate : undefined}
                         />
                       </div>
                     </div>
@@ -431,6 +430,7 @@ function CarRowRight({
     if (!rect) return null
     return rect.width / slotCount
   }, [slotCount])
+  const isDraggable = Boolean(onEventUpdate)
 
   const startDrag = useCallback(
     (
@@ -502,9 +502,25 @@ function CarRowRight({
             gridRow: "1 / 2",
           }}
         >
-          <div className="calendar-event-handle calendar-event-handle--move" onMouseDown={(mouseEvent) => startDrag(mouseEvent, { event, placement, mode: "move" })} title="Drag to move" />
-          <div className="calendar-event-handle calendar-event-handle--resize-start" onMouseDown={(mouseEvent) => startDrag(mouseEvent, { event, placement, mode: "resize-start" })} title="Resize start" />
-          <div className="calendar-event-handle calendar-event-handle--resize-end" onMouseDown={(mouseEvent) => startDrag(mouseEvent, { event, placement, mode: "resize-end" })} title="Resize end" />
+          {isDraggable ? (
+            <>
+              <div
+                className="calendar-event-handle calendar-event-handle--move"
+                onMouseDown={(mouseEvent) => startDrag(mouseEvent, { event, placement, mode: "move" })}
+                title="Drag to move"
+              />
+              <div
+                className="calendar-event-handle calendar-event-handle--resize-start"
+                onMouseDown={(mouseEvent) => startDrag(mouseEvent, { event, placement, mode: "resize-start" })}
+                title="Resize start"
+              />
+              <div
+                className="calendar-event-handle calendar-event-handle--resize-end"
+                onMouseDown={(mouseEvent) => startDrag(mouseEvent, { event, placement, mode: "resize-end" })}
+                title="Resize end"
+              />
+            </>
+          ) : null}
           <CalendarEventPill event={event} onClick={onEventClick} hasConflict={conflictEventIds.has(String(event.id))} />
         </div>
       ))}
@@ -529,56 +545,39 @@ function CalendarEventPill({
   const end = new Date(event.end)
 
   return (
-    <TooltipProvider delayDuration={80}>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <button
-            type="button"
-            onClick={() => onClick?.(event)}
-            className="calendar-event-button"
-            aria-label={`Open event ${event.title}`}
-          >
-            <div
-              className={cn("calendar-event", meta.surface, meta.border, effectiveStatusTone ? `calendar-event-status-${effectiveStatusTone.tone}` : null, {
-                "calendar-event--conflict": hasConflict,
-              })}
-            >
-              <div className="calendar-event-title-row">
-                <div className="calendar-event-title">{event.title}</div>
-                {hasConflict ? <span className="calendar-event-conflict-dot" aria-hidden="true">!</span> : null}
-              </div>
-              {event.stageLabel ? <div className="calendar-event-stage">{event.stageLabel}</div> : null}
-              <div className="calendar-event-meta">
-                {start.toLocaleDateString("en-GB", {
-                  day: "2-digit",
-                  month: "short",
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
-                {" → "}
-                {end.toLocaleDateString("en-GB", {
-                  day: "2-digit",
-                  month: "short",
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
-              </div>
-              <div className="calendar-event-cta">
-                <span>{event.bookingId ? "Open booking" : "Open event"}</span>
-              </div>
-            </div>
-          </button>
-        </TooltipTrigger>
-        <TooltipContent side="top" align="start" className="max-w-xs">
-          <p className="text-sm font-semibold text-foreground">{event.title}</p>
-          <p className="text-xs text-muted-foreground">
-            {start.toLocaleDateString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })} →{" "}
-            {end.toLocaleDateString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
-          </p>
-          {hasConflict ? <p className="mt-1 text-xs text-destructive">Potential overlap for this vehicle.</p> : null}
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+    <button
+      type="button"
+      onClick={() => onClick?.(event)}
+      className="calendar-event-button"
+      aria-label={`Open event ${event.title}`}
+    >
+      <div
+        className={cn("calendar-event", meta.surface, meta.border, effectiveStatusTone ? `calendar-event-status-${effectiveStatusTone.tone}` : null, {
+          "calendar-event--conflict": hasConflict,
+        })}
+      >
+        <div className="calendar-event-title-row">
+          <div className="calendar-event-title">{event.title}</div>
+          {hasConflict ? <span className="calendar-event-conflict-dot" aria-hidden="true">!</span> : null}
+        </div>
+        {event.stageLabel ? <div className="calendar-event-stage">{event.stageLabel}</div> : null}
+        <div className="calendar-event-meta">
+          {start.toLocaleDateString("en-GB", {
+            day: "2-digit",
+            month: "short",
+            hour: "2-digit",
+            minute: "2-digit",
+          })}
+          {" → "}
+          {end.toLocaleDateString("en-GB", {
+            day: "2-digit",
+            month: "short",
+            hour: "2-digit",
+            minute: "2-digit",
+          })}
+        </div>
+      </div>
+    </button>
   )
 }
 

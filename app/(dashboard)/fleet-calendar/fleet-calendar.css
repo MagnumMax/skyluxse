@@ -145,6 +145,7 @@
 .calendar-today-marker {
   position: relative;
   z-index: 3;
+  pointer-events: none;
 }
 
 .calendar-today-marker::before {
