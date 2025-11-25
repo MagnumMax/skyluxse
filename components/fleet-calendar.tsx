@@ -19,6 +19,13 @@ function normalizeDate(value: Date) {
   return new Date(value.getFullYear(), value.getMonth(), value.getDate())
 }
 
+export function isLostCalendarEvent(event: CalendarEvent) {
+  const normalizedStatus = event.bookingStatus ? String(event.bookingStatus).trim().toLowerCase() : ""
+  if (normalizedStatus === "lost") return true
+  const normalizedStage = event.stageLabel?.toLowerCase() ?? ""
+  return normalizedStage.includes("lost")
+}
+
 export const calendarViewOptions = [
   { id: "3-day", label: "3 days", days: 3 },
   { id: "week", label: "Week", days: 7 },
@@ -164,6 +171,8 @@ export function FleetCalendarBoard({
     [baseDate, offset, rangeDays]
   )
 
+  const shouldHideEvent = useCallback((event: CalendarEvent) => isLostCalendarEvent(event), [])
+
   const visibleEvents = useMemo(() => {
     if (visibleDates.length === 0) {
       return []
@@ -177,11 +186,12 @@ export function FleetCalendarBoard({
     const rangeEndExclusive = new Date(rangeStart.getTime() + visibleDates.length * DAY_IN_MS)
 
     return events.filter((event) => {
+      if (shouldHideEvent(event)) return false
       const start = new Date(event.start)
       const end = new Date(event.end)
       return end > rangeStart && start < rangeEndExclusive
     })
-  }, [events, visibleDates])
+  }, [events, shouldHideEvent, visibleDates])
 
   const interactiveEvents = useMemo(() => {
     if (!eventAdjustments.size) return visibleEvents

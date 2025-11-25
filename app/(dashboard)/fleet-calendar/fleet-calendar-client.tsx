@@ -6,7 +6,12 @@ import { useRouter } from "next/navigation"
 import "./fleet-calendar.css"
 
 import { DashboardPageShell } from "@/components/dashboard-page-shell"
-import { FleetCalendarBoard, calendarViewOptions, useFleetCalendarController } from "@/components/fleet-calendar"
+import {
+  FleetCalendarBoard,
+  calendarViewOptions,
+  isLostCalendarEvent,
+  useFleetCalendarController,
+} from "@/components/fleet-calendar"
 import type { Booking, CalendarEvent, FleetCar } from "@/lib/domain/entities"
 import { calculateVehicleRuntimeMetrics } from "@/lib/fleet/runtime"
 import { calendarEventTypes } from "@/lib/constants/calendar"
@@ -38,8 +43,15 @@ export function OperationsFleetCalendarClient({
   initialVehicleId,
 }: OperationsFleetCalendarClientProps) {
   const router = useRouter()
-  const metrics = useMemo(() => buildCalendarMetrics(vehicles, bookings, events), [vehicles, bookings, events])
   const calendarController = useFleetCalendarController()
+  const sanitizedEvents = useMemo(
+    () => events.filter((event) => !isLostCalendarEvent(event)),
+    [events]
+  )
+  const metrics = useMemo(
+    () => buildCalendarMetrics(vehicles, bookings, sanitizedEvents),
+    [bookings, sanitizedEvents, vehicles]
+  )
   const normalizedInitialVehicleId = initialVehicleId ? String(initialVehicleId) : undefined
   const initialVehicle = normalizedInitialVehicleId
     ? vehicles.find((vehicle) => String(vehicle.id) === normalizedInitialVehicleId)
@@ -78,11 +90,11 @@ export function OperationsFleetCalendarClient({
 
   const filteredEvents = useMemo(
     () =>
-      events.filter((event) => {
+      sanitizedEvents.filter((event) => {
         if (!layerFilters[event.type as CalendarLayer]) return false
         return visibleVehicleIds.has(String(event.carId))
       }),
-    [events, layerFilters, visibleVehicleIds]
+    [layerFilters, sanitizedEvents, visibleVehicleIds]
   )
 
   return (
