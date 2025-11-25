@@ -12,6 +12,11 @@ import {
 } from "@/lib/fleet/calendar-grid"
 import type { EventPlacement } from "@/lib/fleet/calendar-grid"
 import { cn } from "@/lib/utils"
+import type { DateRange } from "react-day-picker"
+
+function normalizeDate(value: Date) {
+  return new Date(value.getFullYear(), value.getMonth(), value.getDate())
+}
 
 export const calendarViewOptions = [
   { id: "3-day", label: "3 days", days: 3 },
@@ -19,6 +24,7 @@ export const calendarViewOptions = [
   { id: "fortnight", label: "14 days", days: 14 },
   { id: "30-day", label: "30 days", days: 30 },
   { id: "90-day", label: "90 days", days: 90 },
+  { id: "custom", label: "Custom", days: 7 },
 ] as const
 
 type CalendarViewOption = (typeof calendarViewOptions)[number]
@@ -28,29 +34,97 @@ type GroupBy = "bodyStyle" | "manufacturer"
 
 export function useFleetCalendarController(initialViewId: CalendarViewOption["id"] = "week") {
   const fallback = calendarViewOptions.find((option) => option.id === initialViewId) ?? calendarViewOptions[1]
+  const customDefaultDays = calendarViewOptions.find((option) => option.id === "custom")?.days ?? 7
   const [viewId, setViewId] = useState<CalendarViewOption["id"]>(fallback.id)
   const [offset, setOffset] = useState(0)
   const [grouping, setGrouping] = useState<GroupBy>("bodyStyle")
   const [baseDate, setBaseDate] = useState(() => getStartOfToday())
+  const [customRange, setCustomRangeState] = useState<DateRange | null>(null)
+  const [lastPresetViewId, setLastPresetViewId] = useState<CalendarViewOption["id"]>(
+    fallback.id === "custom" ? calendarViewOptions[1].id : fallback.id
+  )
+
+  const customRangeDays = useMemo(() => {
+    if (!customRange?.from) return null
+    const start = normalizeDate(customRange.from)
+    const end = normalizeDate(customRange.to ?? customRange.from)
+    const rangeLength = Math.floor((end.getTime() - start.getTime()) / DAY_IN_MS) + 1
+    return Math.max(1, rangeLength)
+  }, [customRange])
 
   const view = useMemo(() => {
-    return calendarViewOptions.find((option) => option.id === viewId) ?? calendarViewOptions[1]
-  }, [viewId])
+    const option = calendarViewOptions.find((candidate) => candidate.id === viewId) ?? calendarViewOptions[1]
+    if (viewId === "custom" && customRangeDays) {
+      return { ...option, days: customRangeDays }
+    }
+    return option
+  }, [customRangeDays, viewId])
+  const rangeDays = customRangeDays ?? view.days
 
   const setView = (nextId: CalendarViewOption["id"]) => {
     setViewId(nextId)
     setOffset(0)
+    if (nextId === "custom") {
+      if (!customRange) {
+        const today = getStartOfToday()
+        const defaultEnd = new Date(today.getTime() + (customDefaultDays - 1) * DAY_IN_MS)
+        setCustomRangeState({ from: today, to: defaultEnd })
+        setBaseDate(today)
+      }
+      return
+    }
+    setCustomRangeState(null)
+    setLastPresetViewId(nextId)
   }
 
-  const goPrev = () => setOffset((value) => value - view.days)
-  const goNext = () => setOffset((value) => value + view.days)
+  const goPrev = () => setOffset((value) => value - rangeDays)
+  const goNext = () => setOffset((value) => value + rangeDays)
   const goToday = () => {
     const today = getStartOfToday()
     setBaseDate(today)
     setOffset(0)
+    if (customRangeDays) {
+      const updatedEnd = new Date(today.getTime() + (customRangeDays - 1) * DAY_IN_MS)
+      setCustomRangeState({ from: today, to: updatedEnd })
+      setViewId("custom")
+    }
   }
 
-  return { view, setView, offset, setOffset, goPrev, goNext, goToday, grouping, setGrouping, baseDate }
+  const setCustomRange = (range: DateRange | null) => {
+    if (!range?.from || !range.to) return
+    const start = normalizeDate(range.from)
+    const end = normalizeDate(range.to)
+    const [from, to] = start.getTime() <= end.getTime() ? [start, end] : [end, start]
+    setCustomRangeState({ from, to })
+    setBaseDate(from)
+    setOffset(0)
+    setViewId("custom")
+  }
+
+  const clearCustomRange = () => {
+    setCustomRangeState(null)
+    setViewId(lastPresetViewId)
+    setOffset(0)
+    const today = getStartOfToday()
+    setBaseDate(today)
+  }
+
+  return {
+    view,
+    setView,
+    offset,
+    setOffset,
+    goPrev,
+    goNext,
+    goToday,
+    grouping,
+    setGrouping,
+    baseDate,
+    customRange,
+    setCustomRange,
+    clearCustomRange,
+    rangeDays,
+  }
 }
 
 export interface FleetCalendarBoardProps {
@@ -67,7 +141,7 @@ export function FleetCalendarBoard({
   onEventClick,
 }: FleetCalendarBoardProps) {
   const internalController = useFleetCalendarController()
-  const { view, setView, offset, setOffset, grouping, baseDate } = controller ?? internalController
+  const { view, setView, offset, setOffset, grouping, baseDate, rangeDays } = controller ?? internalController
   const combinedEvents = useMemo(() => [...events], [events])
 
   const handleEventClick = useCallback(
@@ -80,7 +154,10 @@ export function FleetCalendarBoard({
   )
 
   // Рассчитываем из контроллера (baseDate + offset + view.days).
-  const visibleDates = useMemo(() => buildVisibleDates(baseDate, offset, view.days), [baseDate, offset, view.days])
+  const visibleDates = useMemo(
+    () => buildVisibleDates(baseDate, offset, rangeDays),
+    [baseDate, offset, rangeDays]
+  )
 
   const visibleEvents = useMemo(() => {
     if (visibleDates.length === 0) {

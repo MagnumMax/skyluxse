@@ -13,12 +13,14 @@ import { calendarEventTypes } from "@/lib/constants/calendar"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Calendar } from "@/components/ui/calendar"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ChevronLeft, ChevronRight, FilterIcon } from "lucide-react"
+import { CalendarRange, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, FilterIcon } from "lucide-react"
+import type { DateRange } from "react-day-picker"
 
 export type CalendarLayer = "reservation" | "rental" | "maintenance" | "repair"
 
@@ -90,13 +92,6 @@ export function OperationsFleetCalendarClient({
           <h1 className="text-3xl font-semibold tracking-tight">Calendar & load</h1>
         </div>
       </header>
-
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <KpiCard label="Vehicles tracked" value={metrics.totalVehicles.toString()} />
-        <KpiCard label="Avg utilisation (30D)" value={`${metrics.avgUtilization}%`} />
-        <KpiCard label="In maintenance" value={metrics.maintenanceVehicles.toString()} />
-        <KpiCard label="Repair conflicts" value={metrics.repairEvents.toString()} tone="text-rose-600" />
-      </section>
 
       <FleetCalendarToolbar
         controller={calendarController}
@@ -206,88 +201,114 @@ function FleetCalendarToolbar({
   onToggleLayer: (layer: CalendarLayer) => void
   onReset: () => void
 }) {
-  const activeCount = EVENT_LAYER_ORDER.filter((layer) => layerFilters[layer]).length
+  const [expanded, setExpanded] = useState(false)
+  const presetViewOptions = calendarViewOptions.filter((option) => option.id !== "custom")
 
   return (
     <Card className="rounded-[26px] border border-border/70 bg-card/80 shadow-sm">
-      <CardHeader className="pb-0">
-        <CardTitle className="text-sm font-semibold uppercase tracking-[0.3em] text-muted-foreground">
-          Controls
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4 p-5">
-        <div className="flex w-full flex-wrap items-end gap-3">
-          <div className="min-w-[220px] flex-1">
-            <Label htmlFor="calendar-search" className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
-              Search
-            </Label>
-            <Input
-              id="calendar-search"
-              placeholder="Search car, plate, booking…"
-              value={searchQuery}
-              onChange={(event) => onSearchChange(event.target.value)}
-              className="mt-1 w-full"
-            />
-          </div>
-          <Tabs
-            value={controller.view.id}
-            onValueChange={(value) => controller.setView((value as typeof calendarViewOptions[number]["id"]) ?? "week")}
-            className="w-full min-[480px]:w-auto"
-          >
-            <TabsList className="flex flex-wrap gap-2 bg-transparent p-0">
-              {calendarViewOptions.map((option) => (
-                <TabsTrigger
-                  key={option.id}
-                  value={option.id}
-                  className="rounded-full border border-border/60 px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.35em] text-muted-foreground data-[state=active]:border-primary data-[state=active]:bg-primary/10 data-[state=active]:text-primary"
-                >
-                  {option.label}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-          </Tabs>
-          <div className="flex gap-2">
-            <Button variant="ghost" size="sm" onClick={controller.goPrev} aria-label="Previous range">
-              <ChevronLeft className="mr-1 h-4 w-4" /> Prev
-            </Button>
-            <Button variant="ghost" size="sm" onClick={controller.goToday}>
-              Today
-            </Button>
-            <Button variant="ghost" size="sm" onClick={controller.goNext} aria-label="Next range">
-              Next <ChevronRight className="ml-1 h-4 w-4" />
-            </Button>
-          </div>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <div className="space-y-1">
+          <CardTitle className="text-sm font-semibold uppercase tracking-[0.3em] text-muted-foreground">
+            Filters & views
+          </CardTitle>
         </div>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex min-w-[180px] flex-1 flex-col gap-1">
-            <Label htmlFor="calendar-grouping" className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
-              Group by
-            </Label>
-            <Select value={controller.grouping} onValueChange={(value) => controller.setGrouping(value as any)}>
-              <SelectTrigger id="calendar-grouping">
-                <SelectValue placeholder="Group" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="bodyStyle">Body type</SelectItem>
-                <SelectItem value="manufacturer">Make</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <LayerFilterPopover
-              filters={layerFilters}
-              metrics={metrics}
-              onToggle={onToggleLayer}
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setExpanded((prev) => !prev)}
+          aria-expanded={expanded}
+          className="flex items-center gap-2 rounded-full border border-border/60 px-3"
+        >
+          {expanded ? (
+            <>
+              Hide panel
+              <ChevronUp className="h-4 w-4" />
+            </>
+          ) : (
+            <>
+              Show panel
+              <ChevronDown className="h-4 w-4" />
+            </>
+          )}
+        </Button>
+      </CardHeader>
+      {expanded ? (
+        <CardContent className="space-y-3 p-4 pt-0">
+          <div className="flex w-full flex-wrap items-center gap-2 md:gap-3">
+            <Tabs
+              value={controller.view.id}
+              onValueChange={(value) => controller.setView((value as typeof calendarViewOptions[number]["id"]) ?? "week")}
+              className="w-full min-[520px]:w-auto"
+            >
+              <TabsList className="flex flex-wrap gap-2 bg-transparent p-0">
+                {presetViewOptions.map((option) => (
+                  <TabsTrigger
+                    key={option.id}
+                    value={option.id}
+                    className="rounded-full border border-border/60 px-2.5 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.3em] text-muted-foreground data-[state=active]:border-primary data-[state=active]:bg-primary/10 data-[state=active]:text-primary"
+                  >
+                    {option.label}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            </Tabs>
+            <CustomRangePicker
+              value={controller.customRange}
+              onChange={(range) => controller.setCustomRange(range)}
+              onClear={() => controller.clearCustomRange()}
             />
-            <Button variant="ghost" size="sm" onClick={onReset}>
-              Reset
-            </Button>
-            <div className="text-[0.65rem] uppercase tracking-[0.3em] text-muted-foreground">
-              Active layers {activeCount}/{EVENT_LAYER_ORDER.length}
+            <div className="flex items-center gap-2">
+              <Button variant="ghost" size="sm" onClick={controller.goPrev} aria-label="Previous range" className="px-3">
+                <ChevronLeft className="mr-1 h-4 w-4" /> Prev
+              </Button>
+              <Button variant="ghost" size="sm" onClick={controller.goToday} className="px-3">
+                Today
+              </Button>
+              <Button variant="ghost" size="sm" onClick={controller.goNext} aria-label="Next range" className="px-3">
+                Next <ChevronRight className="ml-1 h-4 w-4" />
+              </Button>
             </div>
           </div>
-        </div>
-      </CardContent>
+          <div className="grid w-full gap-3 md:grid-cols-[minmax(240px,1.1fr)_minmax(180px,0.9fr)_minmax(200px,0.8fr)]">
+            <div className="flex flex-1 flex-col gap-1">
+              <Label htmlFor="calendar-search" className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
+                Search
+              </Label>
+              <Input
+                id="calendar-search"
+                placeholder="Search car, plate, booking…"
+                value={searchQuery}
+                onChange={(event) => onSearchChange(event.target.value)}
+                className="h-10"
+              />
+            </div>
+            <div className="flex min-w-[180px] flex-col gap-1">
+              <Label htmlFor="calendar-grouping" className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
+                Group by
+              </Label>
+              <Select value={controller.grouping} onValueChange={(value) => controller.setGrouping(value as any)}>
+                <SelectTrigger id="calendar-grouping" className="h-10">
+                  <SelectValue placeholder="Group" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="bodyStyle">Body type</SelectItem>
+                  <SelectItem value="manufacturer">Make</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex flex-wrap items-end justify-start gap-2 md:justify-end">
+              <LayerFilterPopover
+                filters={layerFilters}
+                metrics={metrics}
+                onToggle={onToggleLayer}
+              />
+              <Button variant="ghost" size="sm" onClick={onReset}>
+                Reset
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      ) : null}
     </Card>
   )
 }
@@ -337,6 +358,89 @@ function LayerFilterPopover({
   )
 }
 
+export function CustomRangePicker({
+  value,
+  onChange,
+  onClear,
+}: {
+  value: DateRange | null
+  onChange: (range: DateRange | null) => void
+  onClear: () => void
+}) {
+  const [draft, setDraft] = useState<DateRange | undefined>(() => value ?? undefined)
+  const [open, setOpen] = useState(false)
+  const hasSelection = Boolean(value?.from && value?.to)
+  const label = formatRangeLabel(value)
+
+  const handleSelect = (nextRange?: DateRange) => {
+    setDraft(nextRange ?? undefined)
+    if (nextRange?.from && nextRange?.to) {
+      onChange(nextRange)
+    }
+  }
+
+  const handleClear = () => {
+    setDraft(undefined)
+    onClear()
+  }
+
+  return (
+    <Popover
+      open={open}
+      onOpenChange={(nextOpen) => {
+        setOpen(nextOpen)
+        if (nextOpen) {
+          setDraft(value ?? undefined)
+        }
+      }}
+    >
+      <PopoverTrigger asChild>
+        <Button
+          variant="ghost"
+          size="sm"
+          className={`flex items-center gap-2 whitespace-nowrap rounded-full border px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.35em] ${
+            hasSelection ? "border-primary bg-primary/10 text-primary" : "border-border/60 text-muted-foreground"
+          }`}
+        >
+          <CalendarRange className="h-4 w-4" />
+          <span>{hasSelection ? label : "Custom dates"}</span>
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto space-y-4 rounded-2xl border border-border/70 bg-popover/95 p-4 shadow-lg" align="start">
+        <Calendar
+          mode="range"
+          numberOfMonths={2}
+          selected={draft}
+          onSelect={handleSelect}
+          defaultMonth={draft?.from ?? value?.from ?? new Date()}
+          initialFocus
+          className="gap-6 p-5 [--cell-size:2.4rem] [&_.rdp-months]:gap-7 [&_.rdp-months]:items-start [&_.rdp-month]:gap-4 [&_.rdp-month]:rounded-xl [&_.rdp-month]:border [&_.rdp-month]:border-border/60 [&_.rdp-month]:bg-background/70 [&_.rdp-month]:px-6 [&_.rdp-month]:py-4 [&_.rdp-head]:mb-2 [&_.rdp-head_cell]:text-[0.75rem] [&_.rdp-head_cell]:font-semibold [&_.rdp-head_cell]:text-muted-foreground [&_.rdp-table]:border-separate [&_.rdp-table]:border-spacing-x-5 [&_.rdp-table]:border-spacing-y-2 [&_.rdp-day]:text-[0.95rem] [&_.rdp-day]:leading-7 [&_.rdp-day]:mx-1 [&_.rdp-cell]:text-center"
+        />
+        <div className="mt-1 flex items-center justify-between gap-3 rounded-xl bg-muted/30 px-3 py-2 text-sm">
+          <p className="text-xs text-muted-foreground leading-5">
+            {hasSelection ? `Selected ${label}` : "Pick start and end dates"}
+          </p>
+          <Button variant="ghost" size="sm" onClick={handleClear} disabled={!hasSelection} className="h-8 px-3 font-medium">
+            Clear
+          </Button>
+        </div>
+      </PopoverContent>
+    </Popover>
+  )
+}
+
+function formatRangeLabel(range: DateRange | null) {
+  if (!range?.from || !range?.to) return "Custom dates"
+  const start = range.from
+  const end = range.to
+  const sameYear = start.getFullYear() === end.getFullYear()
+  const monthDayFormatter = new Intl.DateTimeFormat("en-GB", { month: "short", day: "2-digit" })
+  const monthDayYearFormatter = new Intl.DateTimeFormat("en-GB", { month: "short", day: "2-digit", year: "numeric" })
+  const startLabel = (sameYear ? monthDayFormatter : monthDayYearFormatter).format(start)
+  const endLabel = monthDayYearFormatter.format(end)
+  return `${startLabel} → ${endLabel}`
+}
+
 export function resetFilters(
   setLayerFilters: (value: Record<CalendarLayer, boolean>) => void,
   controller: ReturnType<typeof useFleetCalendarController>,
@@ -344,6 +448,7 @@ export function resetFilters(
   setPinnedVehicleId: (value: string | null) => void
 ) {
   setLayerFilters({ reservation: true, rental: true, maintenance: true, repair: true })
+  controller.clearCustomRange()
   controller.setView("week")
   controller.goToday()
   setSearchQuery("")
@@ -357,18 +462,4 @@ export function buildVehicleSearchLabel(vehicle: FleetCar) {
 
 export function sortVehicles(a: FleetCar, b: FleetCar) {
   return (b.utilization ?? 0) - (a.utilization ?? 0)
-}
-
-export function KpiCard({ label, value, trend, tone }: { label: string; value: string; trend?: string; tone?: string }) {
-  return (
-    <Card className="rounded-2xl border-border/60 bg-card/90">
-      <CardContent className="space-y-1.5 p-4">
-        <p className="text-[0.6rem] font-semibold uppercase tracking-[0.35em] text-muted-foreground">{label}</p>
-        <div className="flex items-baseline gap-2">
-          <p className={`text-2xl font-semibold text-foreground ${tone ?? ""}`}>{value}</p>
-          {trend ? <span className="text-xs font-medium text-emerald-600">{trend}</span> : null}
-        </div>
-      </CardContent>
-    </Card>
-  )
 }
