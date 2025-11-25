@@ -54,6 +54,18 @@
     --fleet-calendar-repair-border: #fecdd3;
     --fleet-calendar-neutral-surface: hsl(var(--muted));
     --fleet-calendar-neutral-border: hsl(var(--border));
+    --fleet-calendar-status-pre-issue-accent: #f59e0b;
+    --fleet-calendar-status-pre-issue-surface: #fff7ed;
+    --fleet-calendar-status-pre-issue-border: #fed7aa;
+    --fleet-calendar-status-pre-issue-text: #9a3412;
+    --fleet-calendar-status-active-accent: #4f46e5;
+    --fleet-calendar-status-active-surface: #eef2ff;
+    --fleet-calendar-status-active-border: #c7d2fe;
+    --fleet-calendar-status-active-text: #312e81;
+    --fleet-calendar-status-closing-accent: #059669;
+    --fleet-calendar-status-closing-surface: #ecfdf3;
+    --fleet-calendar-status-closing-border: #a7f3d0;
+    --fleet-calendar-status-closing-text: #064e3b;
   }
 
   .font-sans-root {
@@ -112,6 +124,18 @@
     --fleet-calendar-repair-border: rgba(255, 174, 190, 0.62);
     --fleet-calendar-neutral-surface: rgba(255, 255, 255, 0.06);
     --fleet-calendar-neutral-border: rgba(255, 255, 255, 0.16);
+    --fleet-calendar-status-pre-issue-accent: rgba(255, 183, 94, 0.9);
+    --fleet-calendar-status-pre-issue-surface: rgba(255, 183, 94, 0.14);
+    --fleet-calendar-status-pre-issue-border: rgba(255, 183, 94, 0.45);
+    --fleet-calendar-status-pre-issue-text: #fed7aa;
+    --fleet-calendar-status-active-accent: rgba(129, 140, 248, 0.95);
+    --fleet-calendar-status-active-surface: rgba(129, 140, 248, 0.18);
+    --fleet-calendar-status-active-border: rgba(129, 140, 248, 0.55);
+    --fleet-calendar-status-active-text: #e0e7ff;
+    --fleet-calendar-status-closing-accent: rgba(52, 211, 153, 0.95);
+    --fleet-calendar-status-closing-surface: rgba(52, 211, 153, 0.16);
+    --fleet-calendar-status-closing-border: rgba(52, 211, 153, 0.5);
+    --fleet-calendar-status-closing-text: #bbf7d0;
   }
 }
 

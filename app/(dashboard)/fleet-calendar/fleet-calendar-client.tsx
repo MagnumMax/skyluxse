@@ -87,12 +87,6 @@ export function OperationsFleetCalendarClient({
 
   return (
     <DashboardPageShell>
-      <header className="space-y-2">
-        <div className="flex flex-wrap items-baseline gap-3">
-          <h1 className="text-3xl font-semibold tracking-tight">Calendar & load</h1>
-        </div>
-      </header>
-
       <FleetCalendarToolbar
         controller={calendarController}
         searchQuery={searchQuery}
@@ -206,8 +200,8 @@ function FleetCalendarToolbar({
 
   return (
     <Card className="rounded-[26px] border border-border/70 bg-card/80 shadow-sm">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <div className="space-y-1">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 py-3">
+        <div className="space-y-0.5">
           <CardTitle className="text-sm font-semibold uppercase tracking-[0.3em] text-muted-foreground">
             Filters & views
           </CardTitle>

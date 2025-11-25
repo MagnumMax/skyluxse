@@ -1497,6 +1497,7 @@ function mapCalendarEventRow(
     start,
     end,
     priority: booking?.priority ?? "medium",
+    bookingStatus: booking?.status ?? null,
     stageLabel: booking?.pipelineStageName,
   }
 }
@@ -1518,6 +1519,7 @@ function mapMaintenanceJobRow(row: MaintenanceJobRow, vehiclesById: Map<string, 
     start,
     end,
     priority: "medium",
+    bookingStatus: null,
     stageLabel: locationLabel ?? row.vendor ?? undefined,
   }
 }

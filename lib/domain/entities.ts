@@ -388,6 +388,7 @@ export interface CalendarEvent {
   start: string
   end: string
   priority: BookingPriority
+  bookingStatus?: BookingStatus | null
   stageLabel?: string
 }
 

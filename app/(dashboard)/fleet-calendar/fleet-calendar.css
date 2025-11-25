@@ -86,17 +86,11 @@
 
 /*
   ВАЖНО: для exec / operations / sales fleet-calendar:
-  - горизонтальный скролл должен двигать только правую часть с таймлайном,
-    при этом левая колонка VEHICLES остаётся фиксированной.
-  - чтобы исключить наезд букингов поверх sticky-колонки,
+  - горизонтальный и вертикальный скролл должен двигать только правую часть с таймлайном,
+    при этом левая колонка VEHICLES остаётся полностью фиксированной.
+  - чтобы исключить наезд букингов поверх fixed левой колонки,
     скролл-контейнеру создаём новый контекст наложения.
 */
-.calendar-grid-scroll {
-  position: relative;
-  overflow-x: auto;
-  overflow-y: visible;
-  z-index: 0; /* базовый слой под sticky-левым блоком и событиями */
-}
 
 .calendar-grid {
   display: grid;
@@ -118,6 +112,16 @@
   backdrop-filter: blur(6px);
 }
 
+.calendar-day-header--weekend {
+  background-color: hsl(var(--muted) / 0.85);
+}
+
+.calendar-day-header--today {
+  background: linear-gradient(180deg, hsla(var(--primary), 0.12), hsl(var(--muted)));
+  color: hsl(var(--foreground));
+  border-bottom: 1px solid hsl(var(--primary));
+}
+
 .calendar-day-cell {
   position: relative;
   z-index: 0;
@@ -127,6 +131,29 @@
   min-height: 42px;
   padding: 0.1rem 0.13rem 0.2rem;
   pointer-events: none;
+}
+
+.calendar-day-cell--weekend {
+  background: linear-gradient(180deg, hsl(var(--muted) / 0.45), hsl(var(--card)));
+}
+
+.calendar-day-cell--today {
+  background: linear-gradient(180deg, hsl(var(--primary) / 0.08), hsl(var(--card)));
+  box-shadow: inset 0 0 0 1px hsl(var(--primary) / 0.35);
+}
+
+.calendar-today-marker {
+  position: relative;
+  z-index: 3;
+}
+
+.calendar-today-marker::before {
+  content: "";
+  position: absolute;
+  inset: 0.1rem 0;
+  border-radius: 12px;
+  background: linear-gradient(180deg, hsl(var(--primary) / 0.18), hsl(var(--primary) / 0.04));
+  box-shadow: inset 0 0 0 1px hsl(var(--primary) / 0.4);
 }
 
 /* Event blocks */
@@ -197,6 +224,125 @@
   text-transform: uppercase;
   color: currentColor;
   opacity: 0.78;
+}
+
+.calendar-event-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem;
+}
+
+.calendar-event-conflict-dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.1rem;
+  height: 1.1rem;
+  border-radius: 999px;
+  background: hsl(var(--destructive) / 0.12);
+  color: hsl(var(--destructive));
+  font-size: 0.7rem;
+  font-weight: 700;
+  box-shadow: inset 0 0 0 1px hsl(var(--destructive) / 0.6);
+}
+
+.calendar-event--conflict {
+  box-shadow: 0 12px 22px -14px rgba(190, 24, 93, 0.45), inset 0 0 0 1px hsl(var(--destructive) / 0.6);
+}
+
+.calendar-event-status-pre-issue {
+  background-color: var(--fleet-calendar-status-pre-issue-surface) !important;
+  border-color: var(--fleet-calendar-status-pre-issue-border) !important;
+}
+
+.calendar-event-status-active {
+  background-color: var(--fleet-calendar-status-active-surface) !important;
+  border-color: var(--fleet-calendar-status-active-border) !important;
+}
+
+.calendar-event-status-closing {
+  background-color: var(--fleet-calendar-status-closing-surface) !important;
+  border-color: var(--fleet-calendar-status-closing-border) !important;
+}
+
+.calendar-event-handle {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  width: 12px;
+  z-index: 3;
+  opacity: 0;
+  background: transparent;
+  cursor: grab;
+}
+
+.calendar-event-handle:hover {
+  opacity: 1;
+}
+
+.calendar-event-handle--move {
+  left: 14px;
+  right: 14px;
+  width: auto;
+  cursor: grab;
+  border-radius: 12px;
+}
+
+.calendar-event-handle--resize-start {
+  left: 0;
+  cursor: ew-resize;
+}
+
+.calendar-event-handle--resize-end {
+  right: 0;
+  cursor: ew-resize;
+}
+
+.calendar-event-cta {
+  margin-top: 0.35rem;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: hsl(var(--primary));
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.calendar-event-button:hover .calendar-event-cta {
+  opacity: 1;
+}
+
+.fleet-calendar-legend-inline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  align-items: center;
+  font-size: 0.7rem;
+  color: hsl(var(--muted-foreground));
+  padding: 0.1rem 0.25rem 0.1rem;
+}
+
+.fleet-calendar-legend-inline-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.fleet-calendar-legend-inline-dot {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 999px;
+  flex-shrink: 0;
+  border: 1px solid hsl(var(--border) / 0.5);
+}
+
+.fleet-calendar-legend-inline-dot-weekend {
+  background: linear-gradient(135deg, hsl(var(--muted) / 0.8), hsl(var(--card)));
+}
+
+.fleet-calendar-legend-inline-dot-today {
+  background: hsl(var(--primary) / 0.6);
+  box-shadow: 0 0 0 1px hsl(var(--primary) / 0.4);
 }
 
 .calendar-event-meta {
@@ -288,9 +434,12 @@
 .fleet-calendar-shell {
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: 0.75rem;
   --fleet-calendar-left-width: 200px;
   --fleet-calendar-sticky-gap: 0rem;
+  --fleet-calendar-header-height: 38px;
+  --fleet-calendar-group-sticky-offset: calc(var(--fleet-calendar-sticky-offset, var(--dashboard-header-height, 0px)) + var(--fleet-calendar-header-height, 38px) + 6px);
+  position: relative;
 }
 
 .fleet-calendar-group {
@@ -383,34 +532,60 @@
 
 .fleet-calendar-table {
   display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-  padding-bottom: 0.5rem;
   min-width: 100%;
   position: relative;
   isolation: isolate; /* гарантируем отдельный контекст для левой колонки и сетки */
 }
 
-.fleet-calendar-table::before {
-  content: "";
+.fleet-calendar-left-sidebar {
   position: sticky;
   left: 0;
   top: 0;
   width: var(--fleet-calendar-left-width, 200px);
   min-width: var(--fleet-calendar-left-width, 200px);
-  height: 100%;
-  background-color: var(
-    --fleet-calendar-shell-bg,
-    color-mix(in oklch, var(--color-card, var(--card)) 70%, transparent)
-  );
+  background-color: hsl(var(--card));
   box-shadow: inset -1px 0 0 hsl(var(--border) / 0.35);
-  z-index: 6; /* поверх скроллируемого таймлайна и событий */
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  align-self: flex-start;
+  flex-shrink: 0;
+}
+
+.fleet-calendar-right-content {
+  overflow-x: auto;
+  overflow-y: hidden;
+  height: calc(100vh - var(--fleet-calendar-sticky-offset, var(--dashboard-header-height, 0px)) - 2rem);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.fleet-calendar-right-content-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding-bottom: 0.5rem;
+  min-width: fit-content;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.fleet-calendar-right-content::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: var(--fleet-calendar-left-width, 200px);
+  height: 12px;
+  background: hsl(var(--card));
   pointer-events: none;
+  z-index: 50;
 }
 
 .fleet-calendar-table-row {
   display: grid;
-  grid-template-columns: var(--fleet-calendar-left-width, 200px) minmax(500px, 1fr);
+  grid-template-columns: var(--fleet-calendar-left-width, 200px) 1fr;
   align-items: stretch;
   gap: 0;
   position: relative;
@@ -419,10 +594,11 @@
 
 .fleet-calendar-table-row--header {
   position: sticky;
-  top: var(--fleet-calendar-sticky-offset, var(--dashboard-header-height, 0px));
+  top: 0;
   z-index: 30;
-  background: linear-gradient(180deg, hsl(var(--card)) 0%, hsl(var(--card) / 0.95) 100%);
+  background: hsl(var(--card));
   box-shadow: 0 12px 28px rgba(15, 23, 42, 0.16);
+  padding-top: 0.35rem;
 }
 
 .fleet-calendar-table-row--group {
@@ -434,10 +610,16 @@
   padding-left: 0.3rem;
 }
 
+.fleet-calendar-scroll-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: visible;
+  padding-right: 0.25rem;
+  position: relative;
+}
+
 .fleet-calendar-left-cell {
-  position: sticky;
-  left: 0;
-  z-index: 7; /* выше overlay ::before и любых событий таймлайна */
   padding: 0.5rem 0.6rem 0.4rem 0.1rem;
   border-bottom: 1px solid hsl(var(--border) / 0.6);
   background-color: hsl(var(--card));
@@ -451,9 +633,6 @@
   text-transform: uppercase;
   color: hsl(var(--muted-foreground));
   border-bottom: 1px solid hsl(var(--border));
-  position: sticky;
-  top: var(--fleet-calendar-sticky-offset, var(--dashboard-header-height, 0px));
-  z-index: 31;
   background-color: hsl(var(--card));
 }
 
@@ -467,11 +646,15 @@
   padding-bottom: 0.5rem;
   border-bottom: none;
   background-color: hsl(var(--card));
+  position: static;
+  top: auto;
+  z-index: auto;
 }
 
 .fleet-calendar-grid-header {
   border-bottom: 1px solid hsl(var(--border));
   margin-bottom: 0.4rem;
+  background: hsl(var(--card));
 }
 
 .fleet-calendar-group-divider {
@@ -480,18 +663,51 @@
   width: 100%;
 }
 
+.fleet-calendar-month-bar {
+  background: hsl(var(--card));
+  padding: 0.05rem 0 0.1rem;
+  border-bottom: 1px solid hsl(var(--border) / 0.7);
+}
+
+.fleet-calendar-month-segment {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 0.15rem 0.35rem;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: hsl(var(--muted-foreground));
+  border-right: 1px solid hsl(var(--border) / 0.6);
+}
+
+.fleet-calendar-month-segment:last-child {
+  border-right: none;
+}
+
+.fleet-calendar-month-segment-label {
+  font-weight: 600;
+  color: hsl(var(--foreground));
+}
+
+.fleet-calendar-month-segment-quarter {
+  font-size: 0.65rem;
+  color: hsl(var(--muted-foreground));
+}
+
 /* Compact scrollbar for dense timelines */
 
-.calendar-grid-scroll::-webkit-scrollbar {
+.fleet-calendar-right-content::-webkit-scrollbar {
+  width: 8px;
   height: 8px;
 }
 
-.calendar-grid-scroll::-webkit-scrollbar-track {
+.fleet-calendar-right-content::-webkit-scrollbar-track {
   background: rgba(233, 237, 255, 0.6);
   border-radius: 9999px;
 }
 
-.calendar-grid-scroll::-webkit-scrollbar-thumb {
+.fleet-calendar-right-content::-webkit-scrollbar-thumb {
   background: rgba(124, 144, 255, 0.45);
   border-radius: 9999px;
   border: 2px solid rgba(233, 237, 255, 0.8);

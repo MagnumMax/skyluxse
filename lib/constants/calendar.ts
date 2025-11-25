@@ -1,4 +1,4 @@
-import type { CalendarEventType } from "@/lib/domain/entities"
+import type { BookingStatus, CalendarEventType } from "@/lib/domain/entities"
 
 export type PeriodRange = {
   from: string
@@ -103,4 +103,28 @@ export const calendarEventTypes: Record<CalendarEventType, { label: string; surf
     surface: "calendar-event-surface-repair",
     border: "calendar-event-border-repair",
   },
+}
+
+export type CalendarBookingStatusGroup = "pre-issue" | "active" | "closing"
+
+const calendarBookingStatusGroups: Record<CalendarBookingStatusGroup, { label: string }> = {
+  "pre-issue": { label: "Pre-issue" },
+  active: { label: "Active" },
+  closing: { label: "Closing" },
+}
+
+const calendarBookingStatusGroupByStatus: Record<BookingStatus, CalendarBookingStatusGroup> = {
+  new: "pre-issue",
+  preparation: "pre-issue",
+  delivery: "pre-issue",
+  "in-rent": "active",
+  settlement: "closing",
+}
+
+export function getCalendarBookingStatusTone(status?: BookingStatus | null) {
+  if (!status) return null
+  const tone = calendarBookingStatusGroupByStatus[status]
+  if (!tone) return null
+  const meta = calendarBookingStatusGroups[tone]
+  return { tone, label: meta.label }
 }
