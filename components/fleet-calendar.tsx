@@ -150,6 +150,7 @@ export function FleetCalendarBoard({
   onEventClick,
   onEventUpdate,
 }: FleetCalendarBoardProps) {
+  const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
   const internalController = useFleetCalendarController()
   const { view, setView, offset, setOffset, grouping, baseDate, rangeDays } = controller ?? internalController
   const [eventAdjustments, setEventAdjustments] = useState<Map<string, { start: string; end: string }>>(
@@ -235,7 +236,7 @@ export function FleetCalendarBoard({
   }, [grouping, vehicles, visibleEvents])
 
   const gridTemplateColumns = useMemo(
-    () => `repeat(${visibleDates.length * 2}, minmax(65px, 1fr))`,
+    () => `repeat(${visibleDates.length * 2}, minmax(46px, 1fr))`,
     [visibleDates.length]
   )
 
@@ -257,37 +258,6 @@ export function FleetCalendarBoard({
     const day = date.getDay()
     return day === 0 || day === 6
   }, [])
-
-  const monthSegments = useMemo(() => {
-    if (visibleDates.length === 0) return []
-    const segments: { key: string; spanSlots: number; label: string; quarter: string }[] = []
-    let startIndex = 0
-    let currentMonth = visibleDates[0].getMonth()
-    let currentYear = visibleDates[0].getFullYear()
-    const pushSegment = (endIndex: number) => {
-      const spanDays = endIndex - startIndex + 1
-      const spanSlots = Math.max(1, spanDays * 2)
-      const date = new Date(currentYear, currentMonth, 1)
-      const label = date.toLocaleDateString("en-GB", { month: "short", year: "numeric" })
-      const quarter = `Q${Math.floor(currentMonth / 3) + 1}`
-      segments.push({
-        key: `${currentYear}-${currentMonth}`,
-        spanSlots,
-        label,
-        quarter,
-      })
-    }
-    visibleDates.forEach((date, index) => {
-      if (date.getMonth() !== currentMonth || date.getFullYear() !== currentYear) {
-        pushSegment(index - 1)
-        startIndex = index
-        currentMonth = date.getMonth()
-        currentYear = date.getFullYear()
-      }
-    })
-    pushSegment(visibleDates.length - 1)
-    return segments
-  }, [visibleDates])
 
   const handleLocalEventUpdate = useCallback(
     (eventId: CalendarEvent["id"], nextStart: Date, nextEnd: Date) => {
@@ -311,35 +281,27 @@ export function FleetCalendarBoard({
                 <div className="fleet-calendar-left-cell fleet-calendar-left-cell--header">Vehicles</div>
               </div>
               <div className="fleet-calendar-row-grid">
-                {monthSegments.length ? (
-                  <div className="fleet-calendar-month-bar">
-                    <div className="calendar-grid" style={{ gridTemplateColumns }}>
-                      {monthSegments.map((segment) => (
-                        <div
-                          key={segment.key}
-                          className="fleet-calendar-month-segment"
-                          style={{ gridColumn: `span ${segment.spanSlots}` }}
-                        >
-                          <span className="fleet-calendar-month-segment-label">{segment.label}</span>
-                          <span className="fleet-calendar-month-segment-quarter">{segment.quarter}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
                 <div className="calendar-grid fleet-calendar-grid-header" style={{ gridTemplateColumns }}>
-                  {visibleDates.map((date) => (
-                    <div
-                      key={`header-${date.toISOString()}`}
-                      className={cn("calendar-day-header", {
-                        "calendar-day-header--weekend": isWeekend(date),
-                        "calendar-day-header--today": todayColumnIndex !== -1 && visibleDates[todayColumnIndex]?.toDateString() === date.toDateString(),
-                      })}
-                      style={{ gridColumn: "span 2" }}
-                    >
-                      {date.toLocaleDateString("en-GB", { day: "2-digit", month: "short" })}
-                    </div>
-                  ))}
+                  {visibleDates.map((date) => {
+                    const dayLabel = date.toLocaleDateString("en-GB", { day: "2-digit" })
+                    const weekdayLabel = (WEEKDAY_LABELS[date.getDay()] ?? "").toUpperCase()
+
+                    return (
+                      <div
+                        key={`header-${date.toISOString()}`}
+                        className={cn("calendar-day-header", {
+                          "calendar-day-header--weekend": isWeekend(date),
+                          "calendar-day-header--today": todayColumnIndex !== -1 && visibleDates[todayColumnIndex]?.toDateString() === date.toDateString(),
+                        })}
+                        style={{ gridColumn: "span 2" }}
+                      >
+                        <span className="calendar-day-header-line">
+                          <span className="calendar-day-header-weekday">{weekdayLabel}</span>
+                          <span className="calendar-day-header-day">{dayLabel}</span>
+                        </span>
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
             </div>
@@ -420,6 +382,29 @@ function CarRowRight({
       .filter((item): item is { event: CalendarEvent; placement: EventPlacement } => Boolean(item))
   }, [events, visibleDates])
 
+  const laneAssignments = useMemo(() => {
+    if (!placements.length) {
+      return { assignments: [] as { event: CalendarEvent; placement: EventPlacement; lane: number }[], laneCount: 1 }
+    }
+
+    const sorted = [...placements].sort((a, b) => a.placement.startSlot - b.placement.startSlot)
+    const lanes: { end: number }[] = []
+    const assignments: { event: CalendarEvent; placement: EventPlacement; lane: number }[] = []
+
+    sorted.forEach((item) => {
+      const laneIndex = lanes.findIndex((lane) => item.placement.startSlot >= lane.end)
+      if (laneIndex === -1) {
+        lanes.push({ end: item.placement.startSlot + item.placement.spanSlots })
+        assignments.push({ ...item, lane: lanes.length - 1 })
+      } else {
+        lanes[laneIndex].end = item.placement.startSlot + item.placement.spanSlots
+        assignments.push({ ...item, lane: laneIndex })
+      }
+    })
+
+    return { assignments, laneCount: Math.max(1, lanes.length) }
+  }, [placements])
+
   const conflictEventIds = useMemo(() => findConflictingEventIds(events), [events])
   const todayStartColumn = todayColumnIndex === -1 ? null : todayColumnIndex * 2 + 1
 
@@ -441,6 +426,10 @@ function CarRowRight({
     return rect.width / slotCount
   }, [slotCount])
   const isDraggable = Boolean(onEventUpdate)
+  const gridTemplateRows = useMemo(
+    () => `repeat(${laneAssignments.laneCount}, minmax(48px, auto))`,
+    [laneAssignments.laneCount]
+  )
 
   const startDrag = useCallback(
     (
@@ -480,7 +469,11 @@ function CarRowRight({
   )
 
   return (
-    <div ref={gridRef} className="calendar-grid fleet-calendar-grid-body" style={{ gridTemplateColumns }}>
+    <div
+      ref={gridRef}
+      className="calendar-grid fleet-calendar-grid-body"
+      style={{ gridTemplateColumns, gridTemplateRows }}
+    >
       {visibleDates.map((date) => (
         <div
           key={`${rowKey}-${date.toISOString()}`}
@@ -488,7 +481,7 @@ function CarRowRight({
             "calendar-day-cell--weekend": isWeekend(date),
             "calendar-day-cell--today": todayStartColumn !== null && visibleDates[todayColumnIndex]?.toDateString() === date.toDateString(),
           })}
-          style={{ gridColumn: "span 2", gridRow: "1 / 2" }}
+          style={{ gridColumn: "span 2", gridRow: "1 / -1" }}
         />
       ))}
       {todayStartColumn !== null ? (
@@ -497,19 +490,19 @@ function CarRowRight({
           style={{
             gridColumnStart: todayStartColumn,
             gridColumnEnd: todayStartColumn + 2,
-            gridRow: "1 / 2",
+            gridRow: "1 / -1",
           }}
           aria-hidden="true"
         />
       ) : null}
-      {placements.map(({ event, placement }) => (
+      {laneAssignments.assignments.map(({ event, placement, lane }) => (
         <div
           key={`${rowKey}-event-${event.id}`}
           className="calendar-event-wrapper"
           style={{
             gridColumnStart: placement.startSlot + 1,
             gridColumnEnd: placement.startSlot + placement.spanSlots + 1,
-            gridRow: "1 / 2",
+            gridRow: lane + 1,
           }}
         >
           {isDraggable ? (
@@ -531,7 +524,11 @@ function CarRowRight({
               />
             </>
           ) : null}
-          <CalendarEventPill event={event} onClick={onEventClick} hasConflict={conflictEventIds.has(String(event.id))} />
+          <CalendarEventPill
+            event={event}
+            onClick={onEventClick}
+            hasConflict={conflictEventIds.has(String(event.id))}
+          />
         </div>
       ))}
     </div>

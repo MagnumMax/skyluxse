@@ -20,9 +20,10 @@ const payload = {
 
 async function main() {
   console.log('Sending webhook payload...');
+  const port = process.env.PORT || '6767';
 
   try {
-    const response = await fetch('http://localhost:3000/api/integrations/kommo/webhook', {
+    const response = await fetch(`http://localhost:${port}/api/integrations/kommo/webhook`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

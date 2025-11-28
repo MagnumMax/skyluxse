@@ -12,6 +12,7 @@ import {
   isLostCalendarEvent,
   useFleetCalendarController,
 } from "@/components/fleet-calendar"
+import { DashboardHeaderSearch } from "@/components/dashboard-header-search"
 import type { Booking, CalendarEvent, FleetCar } from "@/lib/domain/entities"
 import { calculateVehicleRuntimeMetrics } from "@/lib/fleet/runtime"
 import { calendarEventTypes } from "@/lib/constants/calendar"
@@ -19,8 +20,6 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Calendar } from "@/components/ui/calendar"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -99,10 +98,14 @@ export function OperationsFleetCalendarClient({
 
   return (
     <DashboardPageShell>
-      <FleetCalendarToolbar
-        controller={calendarController}
+      <FleetCalendarHeaderControls
         searchQuery={searchQuery}
         onSearchChange={handleSearchChange}
+        grouping={calendarController.grouping}
+        onGroupingChange={(value) => calendarController.setGrouping(value as any)}
+      />
+      <FleetCalendarToolbar
+        controller={calendarController}
         layerFilters={layerFilters}
         metrics={metrics}
         onToggleLayer={(layer) => setLayerFilters((prev) => ({ ...prev, [layer]: !prev[layer] }))}
@@ -192,16 +195,12 @@ export function buildCalendarMetrics(vehicles: FleetCar[], bookings: Booking[], 
 
 function FleetCalendarToolbar({
   controller,
-  searchQuery,
-  onSearchChange,
   layerFilters,
   metrics,
   onToggleLayer,
   onReset,
 }: {
   controller: ReturnType<typeof useFleetCalendarController>
-  searchQuery: string
-  onSearchChange: (value: string) => void
   layerFilters: Record<CalendarLayer, boolean>
   metrics: CalendarMetrics
   onToggleLayer: (layer: CalendarLayer) => void
@@ -275,47 +274,50 @@ function FleetCalendarToolbar({
               </Button>
             </div>
           </div>
-          <div className="grid w-full gap-3 md:grid-cols-[minmax(240px,1.1fr)_minmax(180px,0.9fr)_minmax(200px,0.8fr)]">
-            <div className="flex flex-1 flex-col gap-1">
-              <Label htmlFor="calendar-search" className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
-                Search
-              </Label>
-              <Input
-                id="calendar-search"
-                placeholder="Search car, plate, booking…"
-                value={searchQuery}
-                onChange={(event) => onSearchChange(event.target.value)}
-                className="h-10"
-              />
-            </div>
-            <div className="flex min-w-[180px] flex-col gap-1">
-              <Label htmlFor="calendar-grouping" className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
-                Group by
-              </Label>
-              <Select value={controller.grouping} onValueChange={(value) => controller.setGrouping(value as any)}>
-                <SelectTrigger id="calendar-grouping" className="h-10">
-                  <SelectValue placeholder="Group" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="bodyStyle">Body type</SelectItem>
-                  <SelectItem value="manufacturer">Make</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex flex-wrap items-end justify-start gap-2 md:justify-end">
-              <LayerFilterPopover
-                filters={layerFilters}
-                metrics={metrics}
-                onToggle={onToggleLayer}
-              />
-              <Button variant="ghost" size="sm" onClick={onReset}>
-                Reset
-              </Button>
-            </div>
+          <div className="flex flex-wrap items-end justify-start gap-2 md:justify-start">
+            <LayerFilterPopover
+              filters={layerFilters}
+              metrics={metrics}
+              onToggle={onToggleLayer}
+            />
+            <Button variant="ghost" size="sm" onClick={onReset}>
+              Reset
+            </Button>
           </div>
         </CardContent>
       ) : null}
     </Card>
+  )
+}
+
+function FleetCalendarHeaderControls({
+  searchQuery,
+  onSearchChange,
+  grouping,
+  onGroupingChange,
+}: {
+  searchQuery: string
+  onSearchChange: (value: string) => void
+  grouping: string
+  onGroupingChange: (value: string) => void
+}) {
+  return (
+    <DashboardHeaderSearch
+      value={searchQuery}
+      onChange={onSearchChange}
+      placeholder="Search car, plate, booking…"
+      actions={
+        <Select value={grouping} onValueChange={onGroupingChange}>
+          <SelectTrigger className="h-10 min-w-[160px] rounded-full border-white/20 bg-slate-900/70 text-xs font-semibold uppercase tracking-[0.28em] text-slate-100">
+            <SelectValue placeholder="Group" />
+          </SelectTrigger>
+          <SelectContent className="w-[220px]">
+            <SelectItem value="bodyStyle">Body type</SelectItem>
+            <SelectItem value="manufacturer">Make</SelectItem>
+          </SelectContent>
+        </Select>
+      }
+    />
   )
 }
 

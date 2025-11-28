@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic" // Kanban board relies on live drag/drop updates, so skip caching.
 
 import { DashboardPageShell } from "@/components/dashboard-page-shell"
-import { SalesBookingsBoard } from "@/components/sales-bookings-board"
+import { BookingsClient } from "@/app/(dashboard)/bookings/bookings-client"
 import { getLiveBookings, getLiveDrivers } from "@/lib/data/live-data"
 import { getBookingBoardHeading, resolveBookingBoardVariant } from "@/lib/utils"
 
@@ -20,7 +20,7 @@ export default async function BookingsPage({ searchParams }: PageProps) {
         </div>
       </header>
 
-      <SalesBookingsBoard bookings={bookings} drivers={drivers} readOnly={variant === "exec"} />
+      <BookingsClient bookings={bookings} drivers={drivers} readOnly={variant === "exec"} />
     </DashboardPageShell>
   )
 }

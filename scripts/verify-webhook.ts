@@ -40,8 +40,10 @@ async function verifyWebhook() {
     }
   }
 
+  const port = process.env.PORT || '6767'
+
   // Send POST request to webhook endpoint
-  const response = await fetch('http://localhost:3000/api/integrations/kommo/webhook', {
+  const response = await fetch(`http://localhost:${port}/api/integrations/kommo/webhook`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'

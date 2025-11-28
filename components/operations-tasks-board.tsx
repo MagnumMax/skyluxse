@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react"
 
+import { DashboardHeaderSearch } from "@/components/dashboard-header-search"
 import type { OperationsTask } from "@/lib/domain/entities"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -35,6 +36,7 @@ const statusColumns = [
 export function OperationsTasksBoard({ tasks }: { tasks: OperationsTask[] }) {
   const [typeFilter, setTypeFilter] = useState<(typeof typeFilters)[number]>("all")
   const [ownerFilter, setOwnerFilter] = useState<string>("all")
+  const [search, setSearch] = useState("")
 
   const ownerOptions = useMemo(() => {
     const unique = Array.from(new Set(tasks.map((task) => task.owner)))
@@ -45,12 +47,30 @@ export function OperationsTasksBoard({ tasks }: { tasks: OperationsTask[] }) {
     return tasks.filter((task) => {
       const matchesType = typeFilter === "all" ? true : task.type === typeFilter
       const matchesOwner = ownerFilter === "all" ? true : task.owner === ownerFilter
-      return matchesType && matchesOwner
+      if (!matchesType || !matchesOwner) return false
+      if (search.trim().length === 0) return true
+      const haystack = [
+        task.title,
+        task.description,
+        task.owner,
+        task.channel,
+        task.bookingCode ?? task.bookingId,
+        task.category,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+      return haystack.includes(search.toLowerCase())
     })
-  }, [tasks, typeFilter, ownerFilter])
+  }, [ownerFilter, search, tasks, typeFilter])
 
   return (
     <div className="space-y-6">
+      <DashboardHeaderSearch
+        value={search}
+        onChange={setSearch}
+        placeholder="Search tasks, owner, booking…"
+      />
       <div className="flex flex-wrap items-center gap-3">
         {typeFilters.map((filter) => (
           <Button

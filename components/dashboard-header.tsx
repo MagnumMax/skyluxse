@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { Menu } from "lucide-react"
 import { usePathname } from "next/navigation"
 
+import { useDashboardHeaderContext } from "@/components/dashboard-header-context"
 import { Icon, type NavIcon } from "@/components/icons"
 import { cn } from "@/lib/utils"
 import {
@@ -69,6 +70,8 @@ export function DashboardHeader({ navGroups, className, meta = [defaultMeta] }: 
     return meta.find((entry) => matchPattern(pathname, entry.pattern)) ?? defaultMeta
   }, [meta, pathname])
   const headerRef = useRef<HTMLElement | null>(null)
+  const headerContext = useDashboardHeaderContext()
+  const contextualContent = headerContext?.contextualContent
 
   useEffect(() => {
     const node = headerRef.current
@@ -98,15 +101,26 @@ export function DashboardHeader({ navGroups, className, meta = [defaultMeta] }: 
     <header
       ref={headerRef}
       className={cn(
-        "flex flex-wrap items-center justify-between gap-4 border-b border-border/60 bg-background/95 px-4 py-3 lg:px-10",
+        "flex flex-wrap items-center justify-between gap-4 border-b border-slate-800/80 bg-slate-950 px-4 py-3 text-slate-50 shadow-[0_16px_50px_-28px_rgba(0,0,0,0.6)] lg:px-10",
         className
       )}
     >
       <div className="flex items-center gap-3">
         <MobileNav navGroups={navGroups} />
-        <div>
-          <h1 className="text-lg font-semibold tracking-tight text-foreground">{currentMeta.title}</h1>
+        <div className="flex flex-col gap-1">
+          <span className="text-[0.65rem] font-semibold uppercase tracking-[0.34em] text-slate-400">
+            SkyLuxse ERP
+          </span>
+          <h1 className="text-xl font-semibold tracking-tight text-slate-50 lg:text-2xl">{currentMeta.title}</h1>
         </div>
+      </div>
+      <div className="flex flex-1 flex-wrap items-center justify-end gap-3 min-w-0">
+        {contextualContent ? (
+          <div className="flex w-full min-w-[240px] flex-1 flex-wrap items-center justify-end gap-2 md:w-auto md:justify-center lg:justify-end">
+            {contextualContent}
+          </div>
+        ) : null}
+        <ProfileMenu placement="bottom-end" />
       </div>
     </header>
   )

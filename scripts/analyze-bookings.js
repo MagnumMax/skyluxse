@@ -2,6 +2,7 @@ import puppeteer from 'puppeteer';
 import fs from 'fs';
 
 async function analyzeBookingsPage() {
+  const port = process.env.PORT || '6767';
   let browser;
   try {
     // Создание директории для скриншотов
@@ -11,8 +12,8 @@ async function analyzeBookingsPage() {
     browser = await puppeteer.launch({ headless: true });
     const page = await browser.newPage();
 
-    // 2. Переход на главную страницу http://localhost:3000
-    await page.goto('http://localhost:3000', { waitUntil: 'networkidle2' });
+    // 2. Переход на главную страницу http://localhost:6767 (по умолчанию)
+    await page.goto(`http://localhost:${port}`, { waitUntil: 'networkidle2' });
 
     // 3. Выполнение авторизации как Sales manager
     // Выбор роли "sales"
@@ -25,7 +26,7 @@ async function analyzeBookingsPage() {
     await page.waitForNavigation({ waitUntil: 'networkidle2' });
 
     // 4. Переход на /bookings после авторизации
-    await page.goto('http://localhost:3000/bookings', { waitUntil: 'networkidle2' });
+    await page.goto(`http://localhost:${port}/bookings`, { waitUntil: 'networkidle2' });
 
     // 5. Ожидание полной загрузки страницы
     await page.waitForSelector('body', { timeout: 10000 });

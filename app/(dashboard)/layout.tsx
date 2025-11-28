@@ -1,16 +1,9 @@
 import type { Metadata } from "next"
-import Link from "next/link"
 import { ReactNode } from "react"
 
-import { Icon, type NavIcon } from "@/components/icons"
 import { DashboardHeader, type DashboardNavGroup, type HeaderMeta } from "@/components/dashboard-header"
-import { ProfileMenu } from "@/components/profile-menu"
-
-type NavLink = {
-  href: string
-  label: string
-  icon: NavIcon
-}
+import { DashboardHeaderProvider } from "@/components/dashboard-header-context"
+import { DashboardSidebar } from "@/components/dashboard-sidebar"
 
 const navGroups: DashboardNavGroup[] = [
   {
@@ -127,8 +120,6 @@ const headerMeta: HeaderMeta[] = [
   },
 ]
 
-const toRoute = (href: string) => href as Parameters<typeof Link>[0]["href"]
-
 export const dynamic = "force-dynamic"
 
 export const metadata: Metadata = {
@@ -140,53 +131,19 @@ export const metadata: Metadata = {
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-muted/40 text-foreground">
-      <DesktopSidebar />
-      <div className="flex flex-1 flex-col overflow-hidden bg-background">
-        <DashboardHeader navGroups={navGroups} className="sticky top-0 z-30" meta={headerMeta} />
-        <main className="flex-1 overflow-y-auto px-4 py-6 lg:px-10">{children}</main>
-      </div>
-    </div>
-  )
-}
-
-function DesktopSidebar() {
-  return (
-    <aside className="sticky top-0 hidden h-screen w-64 flex-shrink-0 flex-col overflow-hidden border-r border-border/60 bg-card/90 backdrop-blur lg:flex">
-      <div className="flex items-center justify-between border-b border-border/60 px-5 py-4">
-        <div>
-          <p className="text-[0.55rem] font-semibold uppercase tracking-[0.35em] text-muted-foreground">
-            SkyLuxse
-          </p>
-          <p className="text-xl font-semibold tracking-tight">ERP 2.0</p>
+    <DashboardHeaderProvider>
+      <div className="relative flex min-h-screen w-full flex-col overflow-x-hidden bg-slate-50 text-slate-900">
+        <DashboardHeader navGroups={navGroups} className="fixed inset-x-0 top-0 z-40 w-full" meta={headerMeta} />
+        <div className="flex flex-1 min-h-0 overflow-hidden lg:pl-20">
+          <DashboardSidebar navGroups={navGroups} />
+          <main
+            className="relative flex-1 min-h-0 overflow-y-auto border-l border-white/70 bg-white px-4 py-8 lg:px-12"
+            style={{ paddingTop: "var(--dashboard-header-height, 64px)" }}
+          >
+            {children}
+          </main>
         </div>
       </div>
-      <nav className="flex flex-1 flex-col gap-5 overflow-y-auto px-4 py-6">
-        {navGroups.map((group) => (
-          <div key={group.label} className="space-y-2">
-            <p className="text-[0.55rem] font-semibold uppercase tracking-[0.45em] text-muted-foreground">
-              {group.label}
-            </p>
-            <div className="space-y-1">
-              {group.links.map((link) => (
-                <Link
-                  key={link.href}
-                  href={toRoute(link.href)}
-                  className="group flex items-center gap-3 rounded-2xl border border-transparent px-3 py-2 text-sm font-medium text-muted-foreground transition hover:border-border/70 hover:bg-muted/50 hover:text-foreground"
-                >
-                  <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-muted/60 text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary">
-                    <Icon name={link.icon} className="h-4 w-4" />
-                  </span>
-                  {link.label}
-                </Link>
-              ))}
-            </div>
-          </div>
-        ))}
-      </nav>
-      <div className="border-t border-border/60 px-4 py-5">
-        <ProfileMenu placement="top" />
-      </div>
-    </aside>
+    </DashboardHeaderProvider>
   )
 }

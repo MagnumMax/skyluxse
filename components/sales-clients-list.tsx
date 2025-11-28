@@ -8,9 +8,9 @@ import type { Client } from "@/lib/domain/entities"
 import { clientSegmentFilterOptions, clientSegmentLabels, getClientSegmentLabel } from "@/lib/constants/client-segments"
 import { cn } from "@/lib/utils"
 import { DashboardPageHeader, DashboardPageShell } from "@/components/dashboard-page-shell"
+import { DashboardHeaderSearch } from "@/components/dashboard-header-search"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
@@ -112,8 +112,17 @@ export function SalesClientsList({ clients }: { clients: Client[] }) {
     setSortDirection("desc")
   }
 
+  const handleSearchChange = (value: string) => {
+    setFilters((prev) => ({ ...prev, search: value }))
+  }
+
   return (
     <DashboardPageShell>
+      <DashboardHeaderSearch
+        value={filters.search}
+        onChange={handleSearchChange}
+        placeholder="Search by name, email, phone"
+      />
       <DashboardPageHeader title="Client workspace" />
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
@@ -139,37 +148,23 @@ export function SalesClientsList({ clients }: { clients: Client[] }) {
             Reset
           </Button>
         </div>
-        <div className="mt-4 grid gap-4 lg:grid-cols-2">
-          <div>
-            <Label htmlFor="client-search" className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
-              Search
-            </Label>
-            <Input
-              id="client-search"
-              placeholder="Search by name, email, phone"
-              value={filters.search}
-              onChange={(event) => setFilters((prev) => ({ ...prev, search: event.target.value }))}
-              className="mt-1"
-            />
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <FilterSelect
-              id="status-filter"
-              label="Status"
-              allLabel="All statuses"
-              value={filters.status}
-              options={statusFilterOptions}
-              onValueChange={(value) => setFilters((prev) => ({ ...prev, status: value }))}
-            />
-            <FilterSelect
-              id="segment-filter"
-              label="Segment"
-              allLabel="Все сегменты"
-              value={filters.segment}
-              options={clientSegmentFilterOptions}
-              onValueChange={(value) => setFilters((prev) => ({ ...prev, segment: value }))}
-            />
-          </div>
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <FilterSelect
+            id="status-filter"
+            label="Status"
+            allLabel="All statuses"
+            value={filters.status}
+            options={statusFilterOptions}
+            onValueChange={(value) => setFilters((prev) => ({ ...prev, status: value }))}
+          />
+          <FilterSelect
+            id="segment-filter"
+            label="Segment"
+            allLabel="Все сегменты"
+            value={filters.segment}
+            options={clientSegmentFilterOptions}
+            onValueChange={(value) => setFilters((prev) => ({ ...prev, segment: value }))}
+          />
         </div>
         <div className="mt-4">
           <Label className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Sort by</Label>

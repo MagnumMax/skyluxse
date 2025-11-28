@@ -38,14 +38,26 @@ type SalesBookingsBoardProps = {
   bookings: Booking[]
   drivers: Driver[]
   readOnly?: boolean
+  searchTerm?: string
+  onSearchTermChange?: (value: string) => void
+  showSearchInput?: boolean
 }
 
-export function SalesBookingsBoard({ bookings, drivers, readOnly = false }: SalesBookingsBoardProps) {
+export function SalesBookingsBoard({
+  bookings,
+  drivers,
+  readOnly = false,
+  searchTerm,
+  onSearchTermChange,
+  showSearchInput = true,
+}: SalesBookingsBoardProps) {
   const [boardBookings, setBoardBookings] = useState<Booking[]>(bookings)
   const [activityLog, setActivityLog] = useState<string[]>([])
   const [typeFilter, setTypeFilter] = useState<string>("all")
   const [driverFilter, setDriverFilter] = useState<string>("all")
-  const [searchTerm, setSearchTerm] = useState("")
+  const [localSearchTerm, setLocalSearchTerm] = useState("")
+  const resolvedSearchTerm = searchTerm ?? localSearchTerm
+  const handleSearchChange = onSearchTermChange ?? setLocalSearchTerm
 
   const filtered = useMemo(() => {
     return boardBookings.filter((booking) => {
@@ -60,7 +72,7 @@ export function SalesBookingsBoard({ bookings, drivers, readOnly = false }: Sale
           return false
         }
       }
-      if (searchTerm.trim()) {
+      if (resolvedSearchTerm.trim()) {
         const haystack = [
           booking.code,
           booking.clientName,
@@ -71,13 +83,13 @@ export function SalesBookingsBoard({ bookings, drivers, readOnly = false }: Sale
         ]
           .join(" ")
           .toLowerCase()
-        if (!haystack.includes(searchTerm.toLowerCase())) {
+        if (!haystack.includes(resolvedSearchTerm.toLowerCase())) {
           return false
         }
       }
       return true
     })
-  }, [boardBookings, driverFilter, searchTerm, typeFilter])
+  }, [boardBookings, driverFilter, resolvedSearchTerm, typeFilter])
 
   const grouped = useMemo(() => {
     const initialEntries = [...stageOrder, "fallback" as const].map((stageId) => [stageId, [] as Booking[]])
@@ -161,15 +173,17 @@ export function SalesBookingsBoard({ bookings, drivers, readOnly = false }: Sale
               </SelectContent>
             </Select>
           </div>
-          <div className="flex-1 space-y-1 min-w-[200px]">
-            <Label htmlFor="kanban-search">Search</Label>
-            <Input
-              id="kanban-search"
-              placeholder="Search booking, client, vehicle"
-              value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
-            />
-          </div>
+          {showSearchInput ? (
+            <div className="flex-1 space-y-1 min-w-[200px]">
+              <Label htmlFor="kanban-search">Search</Label>
+              <Input
+                id="kanban-search"
+                placeholder="Search booking, client, vehicle"
+                value={resolvedSearchTerm}
+                onChange={(event) => handleSearchChange(event.target.value)}
+              />
+            </div>
+          ) : null}
           <div className="flex items-end">
             <Button
               type="button"
@@ -177,7 +191,7 @@ export function SalesBookingsBoard({ bookings, drivers, readOnly = false }: Sale
               onClick={() => {
                 setTypeFilter("all")
                 setDriverFilter("all")
-                setSearchTerm("")
+                handleSearchChange("")
               }}
             >
               Reset filters

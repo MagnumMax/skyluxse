@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event"
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { DashboardHeader, type DashboardNavGroup } from "@/components/dashboard-header"
+import { DashboardHeaderProvider, DashboardHeaderSlot } from "@/components/dashboard-header-context"
 
 const navGroups: DashboardNavGroup[] = [
   {
@@ -69,5 +70,18 @@ describe("DashboardHeader", () => {
 
     expect(navToggle).toHaveAttribute("aria-expanded", "true")
     expect(await screen.findByRole("link", { name: "Fleet calendar" })).toBeVisible()
+  })
+
+  it("renders contextual controls from header slot", async () => {
+    render(
+      <DashboardHeaderProvider>
+        <DashboardHeader navGroups={navGroups} />
+        <DashboardHeaderSlot>
+          <button type="button">Context search</button>
+        </DashboardHeaderSlot>
+      </DashboardHeaderProvider>
+    )
+
+    expect(await screen.findByRole("button", { name: "Context search" })).toBeVisible()
   })
 })

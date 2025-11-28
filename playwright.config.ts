@@ -2,7 +2,7 @@ import nextPlaywright from "next/experimental/testmode/playwright.js"
 
 const { defineConfig } = nextPlaywright
 
-const PORT = process.env.PORT ?? "3000"
+const PORT = process.env.PORT ?? "6767"
 const BASE_URL = `http://localhost:${PORT}`
 const SUPABASE_URL = process.env.SUPABASE_TEST_URL ?? "http://supabase.local"
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "test-service-key"
