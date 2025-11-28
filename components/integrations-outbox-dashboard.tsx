@@ -27,9 +27,9 @@ const statusOptions = [
 
 const STAT_CARD_VARIANTS = {
   default: "border border-border/70 bg-background/90",
-  pending: "border border-amber-200 bg-amber-50 dark:border-amber-300/50 dark:bg-amber-400/15",
-  processing: "border border-indigo-200 bg-indigo-50 dark:border-indigo-400/50 dark:bg-indigo-400/15",
-  failed: "border border-rose-200 bg-rose-50 dark:border-rose-400/50 dark:bg-rose-400/15",
+  pending: "border border-amber-200 bg-amber-50",
+  processing: "border border-indigo-200 bg-indigo-50",
+  failed: "border border-rose-200 bg-rose-50",
 } as const
 
 const zohoCredentialMeta = {
@@ -230,7 +230,7 @@ export function IntegrationsOutboxDashboard({
                       <div>{formatDate(event.receivedAt)}</div>
                       <div className="text-xs text-muted-foreground">{formatRelative(event.receivedAt)}</div>
                     </td>
-                    <td className="px-4 py-3 text-xs text-rose-600 dark:text-rose-300">{event.errorMessage ?? "—"}</td>
+                    <td className="px-4 py-3 text-xs text-rose-600">{event.errorMessage ?? "—"}</td>
                   </tr>
                 ))
               )}
@@ -370,7 +370,7 @@ export function IntegrationsOutboxDashboard({
                     <td className="px-4 py-3">
                       <StatusPill status={run.status} />
                     </td>
-                    <td className="px-4 py-3 text-rose-600 dark:text-rose-300 text-xs">{run.error ?? "—"}</td>
+                    <td className="px-4 py-3 text-rose-600 text-xs">{run.error ?? "—"}</td>
                   </tr>
                 ))
               )}
@@ -481,22 +481,22 @@ function StatusPill({ status }: { status: string }) {
     const normalized = status?.toLowerCase()
     switch (normalized) {
       case "failed":
-        return "border border-rose-200 bg-rose-100 text-rose-700 dark:border-rose-400/40 dark:bg-rose-400/20 dark:text-rose-50"
+        return "border border-rose-200 bg-rose-100 text-rose-700"
       case "pending":
-        return "border border-amber-200 bg-amber-100 text-amber-700 dark:border-amber-300/40 dark:bg-amber-400/20 dark:text-amber-50"
+        return "border border-amber-200 bg-amber-100 text-amber-700"
       case "processing":
       case "running":
-        return "border border-indigo-200 bg-indigo-100 text-indigo-700 dark:border-indigo-400/40 dark:bg-indigo-400/20 dark:text-indigo-50"
+        return "border border-indigo-200 bg-indigo-100 text-indigo-700"
       case "needs_review":
-        return "border border-amber-200 bg-amber-100 text-amber-800 dark:border-amber-400/40 dark:bg-amber-400/20 dark:text-amber-50"
+        return "border border-amber-200 bg-amber-100 text-amber-800"
       case "completed":
       case "succeeded":
       case "processed":
-        return "border border-emerald-200 bg-emerald-100 text-emerald-700 dark:border-emerald-400/40 dark:bg-emerald-400/20 dark:text-emerald-50"
+        return "border border-emerald-200 bg-emerald-100 text-emerald-700"
       case "skipped":
-        return "border border-slate-200 bg-slate-100 text-slate-700 dark:border-slate-500/40 dark:bg-slate-500/20 dark:text-slate-100"
+        return "border border-slate-200 bg-slate-100 text-slate-700"
       default:
-        return "border border-border/60 bg-muted text-muted-foreground dark:bg-muted/30"
+        return "border border-border/60 bg-muted text-muted-foreground"
     }
   })()
   return <span className={cn("rounded-full px-3 py-1 text-xs font-semibold capitalize", tone)}>{status}</span>
@@ -505,8 +505,8 @@ function StatusPill({ status }: { status: string }) {
 function StatusChip({ status }: { status: string }) {
   const tone =
     status === "Connected"
-      ? "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-400/20 dark:text-emerald-50 dark:border-emerald-400/50"
-      : "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-400/20 dark:text-amber-50 dark:border-amber-400/50"
+      ? "bg-emerald-100 text-emerald-700 border-emerald-200"
+      : "bg-amber-100 text-amber-800 border-amber-200"
   return <span className={cn("rounded-full border px-3 py-1 text-xs font-semibold", tone)}>{status}</span>
 }
 

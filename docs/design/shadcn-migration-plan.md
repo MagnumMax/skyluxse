@@ -28,7 +28,7 @@
 ## Inventory Snapshot
 | Area | Files | Already Using shadcn | Notes |
 | --- | --- | --- | --- |
-| `components/` (excluding `ui`) | 42 | 30 | Missing: `theme-provider`, `web-vitals`, `audit-metadata`, `fleet-calendar`, `dashboard-page-shell`, `app-surface-placeholder`, `driver-*`, `parameter-list`, `sales-client-ai-panel`, `icons`. |
+| `components/` (excluding `ui`) | 42 | 30 | Missing: `web-vitals`, `audit-metadata`, `fleet-calendar`, `dashboard-page-shell`, `app-surface-placeholder`, `driver-*`, `parameter-list`, `sales-client-ai-panel`, `icons`. |
 | `app/` routes/layouts | 35 | 8 | Core dashboard layout, driver pages, booking/analytics routes still rely on bespoke wrappers. |
 | Global styles | `app/globals.css` | n/a | Contains ~200 lines of component-specific CSS that should collapse once calendar/filters move to shadcn primitives. |
 
@@ -51,7 +51,7 @@
 
 4. **Global Styles Cleanup**
    - [ ] After each component refactor, prune corresponding selectors from `app/globals.css`, keeping only tokens and critical layout helpers.
-   - [ ] Validate in both light/dark themes via `next-themes`.
+   - [ ] Validate visuals in the light theme (no alternative theme modes).
 
 5. **Verification & Documentation**
    - [ ] Update `docs/ui-gaps.md` (or add a new entry) after each refactor to track remaining bespoke UI.
@@ -88,7 +88,7 @@
 ## Implementation Checkpoints
 1. **Dashboard Shell Refresh**
    - Deliverables: new shadcn-based page header, shell wrapper, and breadcrumb utilities; update `app/(dashboard)` pages to the new shell; snapshot comparison for `/bookings` and `/clients`.
-   - Acceptance: zero visual regressions in light/dark themes; lint/test/typecheck all green.
+   - Acceptance: zero visual regressions in the light theme; lint/test/typecheck all green.
 2. **Driver Experience Upgrade**
    - Deliverables: `DriverPageShell`, `DriverTaskList`, `DriverTaskDetail` rebuilt on `Card`, `ToggleGroup`, `Badge`, `Checkbox`; add story or screenshot for `/driver/tasks`.
    - Acceptance: keyboard navigation for filter toggles and checklist items; no custom CSS in these components.

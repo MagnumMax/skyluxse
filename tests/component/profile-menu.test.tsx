@@ -5,10 +5,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import { ProfileMenu } from "@/components/profile-menu"
 
 const pushMock = vi.fn()
-const setThemeMock = vi.fn()
-let forcedTheme: string | undefined
-let activeTheme = "light"
-let resolvedTheme = "light"
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
@@ -16,22 +12,9 @@ vi.mock("next/navigation", () => ({
   }),
 }))
 
-vi.mock("next-themes", () => ({
-  useTheme: () => ({
-    theme: activeTheme,
-    resolvedTheme,
-    forcedTheme,
-    setTheme: setThemeMock,
-  }),
-}))
-
 describe("ProfileMenu", () => {
   beforeEach(() => {
     pushMock.mockReset()
-    setThemeMock.mockReset()
-    forcedTheme = undefined
-    activeTheme = "light"
-    resolvedTheme = "light"
   })
 
   it("navigates to profile settings and notifies parent", async () => {
@@ -40,7 +23,7 @@ describe("ProfileMenu", () => {
 
     render(<ProfileMenu onNavigate={onNavigate} />)
 
-    await user.click(screen.getByRole("button", { name: /anna koval/i }))
+    await user.click(screen.getByRole("button", { name: /open profile menu/i }))
     const profileButton = await screen.findByRole("button", { name: /profile settings/i })
     await user.click(profileButton)
 
@@ -48,29 +31,15 @@ describe("ProfileMenu", () => {
     expect(onNavigate).toHaveBeenCalledTimes(1)
   })
 
-  it("switches theme when selecting a non-active option", async () => {
+  it("navigates to logout", async () => {
     const user = userEvent.setup()
 
     render(<ProfileMenu />)
 
-    await user.click(screen.getByRole("button", { name: /anna koval/i }))
-    const darkButton = await screen.findByRole("button", { name: "Dark" })
-    await user.click(darkButton)
+    await user.click(screen.getByRole("button", { name: /open profile menu/i }))
+    const logoutButton = await screen.findByRole("button", { name: /log out/i })
+    await user.click(logoutButton)
 
-    expect(setThemeMock).toHaveBeenCalledWith("dark")
-  })
-
-  it("disables theme toggles when a forced theme is set", async () => {
-    forcedTheme = "system"
-    const user = userEvent.setup()
-
-    render(<ProfileMenu />)
-
-    await user.click(screen.getByRole("button", { name: /anna koval/i }))
-    const autoButton = await screen.findByRole("button", { name: "Auto" })
-
-    expect(autoButton).toBeDisabled()
-    await user.click(autoButton)
-    expect(setThemeMock).not.toHaveBeenCalled()
+    expect(pushMock).toHaveBeenCalledWith("/login")
   })
 })

@@ -133,6 +133,8 @@ export function OperationsFleetCalendarClient({
     stageFilters,
     vehicles,
     visibleDates,
+    calendarController.baseDate,
+    calendarController.rangeDays,
   ])
 
   const visibleVehicleIds = useMemo(

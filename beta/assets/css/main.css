@@ -113,11 +113,6 @@
     color: hsl(var(--sl-color-rose-700));
     border-color: hsl(var(--sl-color-rose-200));
 }
-.sl-pill-dark {
-    background-color: hsl(var(--sl-color-gray-900));
-    color: hsl(var(--sl-color-white));
-    border-color: hsl(var(--sl-color-gray-900));
-}
 
 .sl-tag {
     display: inline-flex;

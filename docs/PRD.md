@@ -219,7 +219,7 @@ AI components flagged: sales lead AI panel, analytics narrative cards.
 
 ## 5. User Experience & Design Requirements
 - **Design Philosophy**: automation-first, AI-assisted decisions, low cognitive load. Layouts use shadcn/ui building blocks with Tailwind tokens for consistent spacing/colour (Ref: /shadcn-ui/ui, /tailwindlabs/tailwindcss.com).
-- **Visual Identity**: adopt Linear-inspired palette (midnight, slate, accent indigo). Light/dark modes via Tailwind theme tokens; typography Inter/Geist.
+- **Visual Identity**: adopt Linear-inspired palette (midnight, slate, accent indigo) with a light-only theme via Tailwind tokens; typography Inter/Geist.
 - **Layout & Navigation**: Desktop split panes for boards/detail drawers; mobile-first driver screens; persistent sidebar for ops & sales.
 - **Core UI Components**: KPI cards, Kanban columns, calendar grid, AI insight panel, document checklist, media gallery, task forms.
 - **Micro-Interactions**: tailwindcss-animate for hover/focus; Framer Motion for drawer transitions; AI panel displays typing indicator.

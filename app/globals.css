@@ -2,8 +2,6 @@
 
 @plugin "tailwindcss-animate";
 
-@custom-variant dark (&:is(.dark *));
-
 @layer base {
   :root {
     --font-sans: "Manrope", "Inter", "SF Pro Text", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
@@ -80,63 +78,6 @@
   * {
     border-color: hsl(var(--border));
   }
-
-  .dark {
-    --background: oklch(0.129 0.042 264.695);
-    --foreground: oklch(0.984 0.003 247.858);
-    --card: oklch(0.208 0.042 265.755);
-    --card-foreground: oklch(0.984 0.003 247.858);
-    --popover: oklch(0.208 0.042 265.755);
-    --popover-foreground: oklch(0.984 0.003 247.858);
-    --primary: oklch(0.929 0.013 255.508);
-    --primary-foreground: oklch(0.208 0.042 265.755);
-    --secondary: oklch(0.279 0.041 260.031);
-    --secondary-foreground: oklch(0.984 0.003 247.858);
-    --muted: oklch(0.279 0.041 260.031);
-    --muted-foreground: oklch(0.704 0.04 256.788);
-    --accent: oklch(0.279 0.041 260.031);
-    --accent-foreground: oklch(0.984 0.003 247.858);
-    --destructive: oklch(0.704 0.191 22.216);
-    --border: oklch(1 0 0 / 10%);
-    --input: oklch(1 0 0 / 15%);
-    --ring: oklch(0.551 0.027 264.364);
-    --chart-1: oklch(0.488 0.243 264.376);
-    --chart-2: oklch(0.696 0.17 162.48);
-    --chart-3: oklch(0.769 0.188 70.08);
-    --chart-4: oklch(0.627 0.265 303.9);
-    --chart-5: oklch(0.645 0.246 16.439);
-    --sidebar: oklch(0.208 0.042 265.755);
-    --sidebar-foreground: oklch(0.984 0.003 247.858);
-    --sidebar-primary: oklch(0.488 0.243 264.376);
-    --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
-    --sidebar-accent: oklch(0.279 0.041 260.031);
-    --sidebar-accent-foreground: oklch(0.984 0.003 247.858);
-    --sidebar-border: oklch(1 0 0 / 10%);
-    --sidebar-ring: oklch(0.551 0.027 264.364);
-    --fleet-calendar-event-text: #f7f8ff;
-    --fleet-calendar-reservation-surface: rgba(82, 155, 255, 0.2);
-    --fleet-calendar-reservation-border: rgba(138, 191, 255, 0.55);
-    --fleet-calendar-rental-surface: rgba(168, 132, 255, 0.22);
-    --fleet-calendar-rental-border: rgba(197, 164, 255, 0.6);
-    --fleet-calendar-maintenance-surface: rgba(255, 192, 120, 0.24);
-    --fleet-calendar-maintenance-border: rgba(255, 210, 150, 0.6);
-    --fleet-calendar-repair-surface: rgba(255, 134, 160, 0.24);
-    --fleet-calendar-repair-border: rgba(255, 174, 190, 0.62);
-    --fleet-calendar-neutral-surface: rgba(255, 255, 255, 0.06);
-    --fleet-calendar-neutral-border: rgba(255, 255, 255, 0.16);
-    --fleet-calendar-status-pre-issue-accent: rgba(255, 183, 94, 0.9);
-    --fleet-calendar-status-pre-issue-surface: rgba(255, 183, 94, 0.14);
-    --fleet-calendar-status-pre-issue-border: rgba(255, 183, 94, 0.45);
-    --fleet-calendar-status-pre-issue-text: #fed7aa;
-    --fleet-calendar-status-active-accent: rgba(129, 140, 248, 0.95);
-    --fleet-calendar-status-active-surface: rgba(129, 140, 248, 0.18);
-    --fleet-calendar-status-active-border: rgba(129, 140, 248, 0.55);
-    --fleet-calendar-status-active-text: #e0e7ff;
-    --fleet-calendar-status-closing-accent: rgba(52, 211, 153, 0.95);
-    --fleet-calendar-status-closing-surface: rgba(52, 211, 153, 0.16);
-    --fleet-calendar-status-closing-border: rgba(52, 211, 153, 0.5);
-    --fleet-calendar-status-closing-text: #bbf7d0;
-  }
 }
 
 @theme inline {
@@ -193,7 +134,7 @@
 
 @layer components {
   .fleet-calendar-shell {
-    --fleet-calendar-shell-bg: color-mix(in oklch, var(--color-card, var(--card)) 70%, transparent);
+    --fleet-calendar-shell-bg: color-mix(in oklch, var(--color-card, var(--card)) 88%, transparent);
     @apply rounded-[32px] border border-border/70 shadow-[0_25px_60px_rgba(15,23,42,0.08)];
     background-color: var(--fleet-calendar-shell-bg);
     padding: 1.5rem;
