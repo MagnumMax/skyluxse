@@ -41,12 +41,12 @@ function HeaderSearchInput({
   placeholder: string
 }) {
   return (
-    <div className="relative min-w-[240px] flex-1">
+    <div className="relative min-w-[180px] max-w-[420px] flex-1">
       <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
       <input
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="h-10 w-full rounded-full border border-white/15 bg-slate-900/80 pl-10 pr-10 text-sm text-slate-50 placeholder:text-slate-400 shadow-inner transition focus:border-primary focus:outline-none focus:ring-0"
+        className="h-9 w-full rounded-full border border-white/15 bg-slate-900/80 pl-10 pr-9 text-[13px] text-slate-50 placeholder:text-slate-400 shadow-inner transition focus:border-primary focus:outline-none focus:ring-0"
         placeholder={placeholder}
         aria-label={placeholder}
       />

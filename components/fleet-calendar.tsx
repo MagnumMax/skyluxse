@@ -38,14 +38,17 @@ export const calendarViewOptions = [
 type CalendarViewOption = (typeof calendarViewOptions)[number]
 
 export type FleetCalendarController = ReturnType<typeof useFleetCalendarController>
-type GroupBy = "bodyStyle" | "manufacturer"
+type GroupBy = "none" | "bodyStyle" | "manufacturer"
 
-export function useFleetCalendarController(initialViewId: CalendarViewOption["id"] = "week") {
+export function useFleetCalendarController(
+  initialViewId: CalendarViewOption["id"] = "week",
+  initialGrouping: GroupBy = "bodyStyle"
+) {
   const fallback = calendarViewOptions.find((option) => option.id === initialViewId) ?? calendarViewOptions[1]
   const customDefaultDays = calendarViewOptions.find((option) => option.id === "custom")?.days ?? 7
   const [viewId, setViewId] = useState<CalendarViewOption["id"]>(fallback.id)
   const [offset, setOffset] = useState(0)
-  const [grouping, setGrouping] = useState<GroupBy>("bodyStyle")
+  const [grouping, setGrouping] = useState<GroupBy>(initialGrouping)
   const [baseDate, setBaseDate] = useState(() => getStartOfToday())
   const [customRange, setCustomRangeState] = useState<DateRange | null>(null)
   const [lastPresetViewId, setLastPresetViewId] = useState<CalendarViewOption["id"]>(
@@ -206,10 +209,27 @@ export function FleetCalendarBoard({
   const groupedRows = useMemo(() => {
     const bodyStyleFor = (car: FleetCar) => car.bodyStyle?.trim() || "Unspecified"
     const brandNameFor = (car: FleetCar) => car.make?.trim() || car.name.split(" ")[0] || car.name
-    const groupKeyFor = (car: FleetCar) =>
-      grouping === "manufacturer" ? brandNameFor(car) : bodyStyleFor(car)
-    const labelFor = (key: string) =>
-      grouping === "manufacturer" ? `${key} · Make` : `${key} · Body type`
+    const groupKeyFor = (car: FleetCar) => {
+      if (grouping === "manufacturer") return brandNameFor(car)
+      if (grouping === "bodyStyle") return bodyStyleFor(car)
+      return "General"
+    }
+    const labelFor = (key: string) => {
+      if (grouping === "manufacturer") return `${key} · Make`
+      if (grouping === "bodyStyle") return `${key} · Body type`
+      return "General"
+    }
+
+    // Без группировки возвращаем одну группу в том порядке, который пришел извне.
+    if (grouping === "none") {
+      const rows = vehicles.map((car) => ({
+        car,
+        events: visibleEvents
+          .filter((event) => String(event.carId) === String(car.id))
+          .sort((a, b) => a.start.localeCompare(b.start)),
+      }))
+      return [{ label: "General", rows }]
+    }
 
     const map = new Map<string, { label: string; rows: { car: FleetCar; events: CalendarEvent[] }[] }>()
     vehicles.forEach((car) => {

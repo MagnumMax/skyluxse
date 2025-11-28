@@ -16,17 +16,28 @@ import { DashboardHeaderSearch } from "@/components/dashboard-header-search"
 import type { Booking, CalendarEvent, FleetCar } from "@/lib/domain/entities"
 import { calculateVehicleRuntimeMetrics } from "@/lib/fleet/runtime"
 import { calendarEventTypes } from "@/lib/constants/calendar"
+import { buildVisibleDates, DAY_IN_MS } from "@/lib/fleet/calendar-grid"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { CalendarRange, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, FilterIcon } from "lucide-react"
+import { ArrowUpDown, CalendarDays, ChevronLeft, ChevronRight, Layers, ListFilter, RotateCcw } from "lucide-react"
 import type { DateRange } from "react-day-picker"
 
 export type CalendarLayer = "reservation" | "rental" | "maintenance" | "repair"
+
+type StageKey = "confirmed" | "delivery" | "car_with_customer" | "pickup" | "other"
+const DEFAULT_STAGE_FILTERS: Record<StageKey, boolean> = {
+  confirmed: true,
+  delivery: true,
+  car_with_customer: true,
+  pickup: true,
+  other: false,
+}
+const createDefaultStageFilters = () => ({ ...DEFAULT_STAGE_FILTERS })
+
+type SortOption = "utilization" | "price" | "name"
 
 interface OperationsFleetCalendarClientProps {
   vehicles: FleetCar[]
@@ -42,7 +53,7 @@ export function OperationsFleetCalendarClient({
   initialVehicleId,
 }: OperationsFleetCalendarClientProps) {
   const router = useRouter()
-  const calendarController = useFleetCalendarController()
+  const calendarController = useFleetCalendarController("week", "none")
   const sanitizedEvents = useMemo(
     () => events.filter((event) => !isLostCalendarEvent(event)),
     [events]
@@ -64,6 +75,8 @@ export function OperationsFleetCalendarClient({
   })
   const [searchQuery, setSearchQuery] = useState(() => initialSearchPrefill)
   const [pinnedVehicleId, setPinnedVehicleId] = useState<string | null>(() => (initialVehicle ? String(initialVehicle.id) : null))
+  const [stageFilters, setStageFilters] = useState<Record<StageKey, boolean>>(() => createDefaultStageFilters())
+  const [sortOption, setSortOption] = useState<SortOption>("utilization")
 
   const handleSearchChange = (value: string) => {
     setSearchQuery(value)
@@ -72,49 +85,91 @@ export function OperationsFleetCalendarClient({
     }
   }
 
+  const visibleDates = useMemo(
+    () => buildVisibleDates(calendarController.baseDate, calendarController.offset, calendarController.rangeDays),
+    [calendarController.baseDate, calendarController.offset, calendarController.rangeDays]
+  )
+
   const filteredVehicles = useMemo(() => {
-    const sorted = [...vehicles].sort(sortVehicles)
-    if (pinnedVehicleId) {
-      return sorted.filter((vehicle) => String(vehicle.id) === pinnedVehicleId)
-    }
-    const query = searchQuery.trim().toLowerCase()
-    if (!query) return sorted
-    return sorted.filter((vehicle) => {
+    const baseFiltered = vehicles.filter((vehicle) => {
+      if (pinnedVehicleId && String(vehicle.id) !== pinnedVehicleId) return false
+      const query = searchQuery.trim().toLowerCase()
+      if (!query) return true
       const haystack = `${vehicle.name} ${vehicle.plate}`.toLowerCase()
       return haystack.includes(query)
     })
-  }, [pinnedVehicleId, searchQuery, vehicles])
 
-  const visibleVehicleIds = useMemo(() => new Set(filteredVehicles.map((vehicle) => String(vehicle.id))), [filteredVehicles])
+    const visibleVehicleIds = new Set(baseFiltered.map((vehicle) => String(vehicle.id)))
 
-  const filteredEvents = useMemo(
-    () =>
-      sanitizedEvents.filter((event) => {
+    const rangeStart = visibleDates[0] ?? calendarController.baseDate
+    const rangeEnd = visibleDates.length
+      ? new Date(visibleDates[visibleDates.length - 1].getTime() + DAY_IN_MS)
+      : new Date(rangeStart.getTime() + calendarController.rangeDays * DAY_IN_MS)
+
+    const filteredEvents = sanitizedEvents
+      .filter((event) => {
         if (!layerFilters[event.type as CalendarLayer]) return false
-        return visibleVehicleIds.has(String(event.carId))
-      }),
-    [layerFilters, sanitizedEvents, visibleVehicleIds]
+        if (!visibleVehicleIds.has(String(event.carId))) return false
+        const stageKey = resolveStageKey(event)
+        if (!stageFilters[stageKey]) return false
+        return true
+      })
+      .filter((event) => {
+        const eventStart = new Date(event.start).getTime()
+        const eventEnd = new Date(event.end).getTime()
+        return eventEnd > rangeStart.getTime() && eventStart < rangeEnd.getTime()
+      })
+
+    const utilizationMap = buildUtilizationMap(filteredEvents, rangeStart, rangeEnd)
+
+    const sorted = [...baseFiltered].sort((a, b) => sortVehicles(a, b, sortOption, utilizationMap))
+    return { vehicles: sorted, events: filteredEvents, utilizationMap }
+  }, [
+    layerFilters,
+    pinnedVehicleId,
+    sanitizedEvents,
+    searchQuery,
+    sortOption,
+    stageFilters,
+    vehicles,
+    visibleDates,
+  ])
+
+  const visibleVehicleIds = useMemo(
+    () => new Set(filteredVehicles.vehicles.map((vehicle) => String(vehicle.id))),
+    [filteredVehicles.vehicles]
   )
+
+  const filteredEvents = filteredVehicles.events
 
   return (
     <DashboardPageShell>
       <FleetCalendarHeaderControls
+        controller={calendarController}
         searchQuery={searchQuery}
         onSearchChange={handleSearchChange}
-        grouping={calendarController.grouping}
-        onGroupingChange={(value) => calendarController.setGrouping(value as any)}
-      />
-      <FleetCalendarToolbar
-        controller={calendarController}
         layerFilters={layerFilters}
+        stageFilters={stageFilters}
         metrics={metrics}
         onToggleLayer={(layer) => setLayerFilters((prev) => ({ ...prev, [layer]: !prev[layer] }))}
-        onReset={() => resetFilters(setLayerFilters, calendarController, setSearchQuery, setPinnedVehicleId)}
+        onToggleStage={(key) => setStageFilters((prev) => ({ ...prev, [key]: !prev[key] }))}
+        sortOption={sortOption}
+        onSortChange={setSortOption}
+        onReset={() =>
+          resetFilters(
+            setLayerFilters,
+            calendarController,
+            setSearchQuery,
+            setPinnedVehicleId,
+            setStageFilters,
+            setSortOption
+          )
+        }
       />
 
       <FleetCalendarBoard
         controller={calendarController}
-        vehicles={filteredVehicles}
+        vehicles={filteredVehicles.vehicles}
         events={filteredEvents}
         onEventClick={(event) => {
           if (!event.bookingId) return
@@ -193,131 +248,109 @@ export function buildCalendarMetrics(vehicles: FleetCar[], bookings: Booking[], 
   }
 }
 
-function FleetCalendarToolbar({
+function FleetCalendarHeaderControls({
   controller,
+  searchQuery,
+  onSearchChange,
   layerFilters,
+  stageFilters,
   metrics,
   onToggleLayer,
+  onToggleStage,
+  sortOption,
+  onSortChange,
   onReset,
 }: {
   controller: ReturnType<typeof useFleetCalendarController>
-  layerFilters: Record<CalendarLayer, boolean>
-  metrics: CalendarMetrics
-  onToggleLayer: (layer: CalendarLayer) => void
-  onReset: () => void
-}) {
-  const [expanded, setExpanded] = useState(false)
-  const presetViewOptions = calendarViewOptions.filter((option) => option.id !== "custom")
-
-  return (
-    <Card className="rounded-[26px] border border-border/70 bg-card/80 shadow-sm">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 py-3">
-        <div className="space-y-0.5">
-          <CardTitle className="text-sm font-semibold uppercase tracking-[0.3em] text-muted-foreground">
-            Filters & views
-          </CardTitle>
-        </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setExpanded((prev) => !prev)}
-          aria-expanded={expanded}
-          className="flex items-center gap-2 rounded-full border border-border/60 px-3"
-        >
-          {expanded ? (
-            <>
-              Hide panel
-              <ChevronUp className="h-4 w-4" />
-            </>
-          ) : (
-            <>
-              Show panel
-              <ChevronDown className="h-4 w-4" />
-            </>
-          )}
-        </Button>
-      </CardHeader>
-      {expanded ? (
-        <CardContent className="space-y-3 p-4 pt-0">
-          <div className="flex w-full flex-wrap items-center gap-2 md:gap-3">
-            <Tabs
-              value={controller.view.id}
-              onValueChange={(value) => controller.setView((value as typeof calendarViewOptions[number]["id"]) ?? "week")}
-              className="w-full min-[520px]:w-auto"
-            >
-              <TabsList className="flex flex-wrap gap-2 bg-transparent p-0">
-                {presetViewOptions.map((option) => (
-                  <TabsTrigger
-                    key={option.id}
-                    value={option.id}
-                    className="rounded-full border border-border/60 px-2.5 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.3em] text-muted-foreground data-[state=active]:border-primary data-[state=active]:bg-primary/10 data-[state=active]:text-primary"
-                  >
-                    {option.label}
-                  </TabsTrigger>
-                ))}
-              </TabsList>
-            </Tabs>
-            <CustomRangePicker
-              value={controller.customRange}
-              onChange={(range) => controller.setCustomRange(range)}
-              onClear={() => controller.clearCustomRange()}
-            />
-            <div className="flex items-center gap-2">
-              <Button variant="ghost" size="sm" onClick={controller.goPrev} aria-label="Previous range" className="px-3">
-                <ChevronLeft className="mr-1 h-4 w-4" /> Prev
-              </Button>
-              <Button variant="ghost" size="sm" onClick={controller.goToday} className="px-3">
-                Today
-              </Button>
-              <Button variant="ghost" size="sm" onClick={controller.goNext} aria-label="Next range" className="px-3">
-                Next <ChevronRight className="ml-1 h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-          <div className="flex flex-wrap items-end justify-start gap-2 md:justify-start">
-            <LayerFilterPopover
-              filters={layerFilters}
-              metrics={metrics}
-              onToggle={onToggleLayer}
-            />
-            <Button variant="ghost" size="sm" onClick={onReset}>
-              Reset
-            </Button>
-          </div>
-        </CardContent>
-      ) : null}
-    </Card>
-  )
-}
-
-function FleetCalendarHeaderControls({
-  searchQuery,
-  onSearchChange,
-  grouping,
-  onGroupingChange,
-}: {
   searchQuery: string
   onSearchChange: (value: string) => void
-  grouping: string
-  onGroupingChange: (value: string) => void
+  layerFilters: Record<CalendarLayer, boolean>
+  stageFilters: Record<StageKey, boolean>
+  metrics: CalendarMetrics
+  onToggleLayer: (layer: CalendarLayer) => void
+  onToggleStage: (key: StageKey) => void
+  sortOption: SortOption
+  onSortChange: (value: SortOption) => void
+  onReset: () => void
 }) {
+  const compactPeriodOptions = calendarViewOptions.filter((option) => option.id === "week" || option.id === "fortnight")
+
   return (
     <DashboardHeaderSearch
       value={searchQuery}
       onChange={onSearchChange}
       placeholder="Search car, plate, booking…"
       actions={
-        <Select value={grouping} onValueChange={onGroupingChange}>
-          <SelectTrigger className="h-10 min-w-[160px] rounded-full border-white/20 bg-slate-900/70 text-xs font-semibold uppercase tracking-[0.28em] text-slate-100">
-            <SelectValue placeholder="Group" />
-          </SelectTrigger>
-          <SelectContent className="w-[220px]">
-            <SelectItem value="bodyStyle">Body type</SelectItem>
-            <SelectItem value="manufacturer">Make</SelectItem>
-          </SelectContent>
-        </Select>
+        <div className="flex flex-wrap items-center gap-1.5 md:gap-2">
+          <PeriodDropdown controller={controller} compactPeriodOptions={compactPeriodOptions} />
+          <GroupingButton value={controller.grouping} onValueChange={(value) => controller.setGrouping(value as any)} />
+          <StageFilterPopover filters={stageFilters} onToggle={onToggleStage} />
+          <LayerFilterPopover filters={layerFilters} metrics={metrics} onToggle={onToggleLayer} />
+          <SortButton value={sortOption} onValueChange={onSortChange} />
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-9 w-9 rounded-full border border-white/20 bg-slate-900/60 text-slate-100"
+            onClick={onReset}
+            aria-label="Reset filters"
+          >
+            <RotateCcw className="h-4 w-4" />
+          </Button>
+        </div>
       }
     />
+  )
+}
+
+function StageFilterPopover({
+  filters,
+  onToggle,
+}: {
+  filters: Record<StageKey, boolean>
+  onToggle: (key: StageKey) => void
+}) {
+  const stageMeta: Record<StageKey, { label: string; description: string }> = {
+    confirmed: { label: "Confirmed", description: "Payment received" },
+    delivery: { label: "Delivery", description: "On the way" },
+    car_with_customer: { label: "Car with customer", description: "Active rental" },
+    pickup: { label: "Pickup", description: "Return scheduled" },
+    other: { label: "Other", description: "Unmapped stages" },
+  }
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          size="icon"
+          className="h-9 w-9 rounded-full border-white/20 bg-slate-900/60 text-slate-100"
+          aria-label="Filter by stage"
+        >
+          <ListFilter className="h-4 w-4" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-72 space-y-2 rounded-2xl border border-border/70 bg-card/95 p-3 text-sm shadow-lg" align="end">
+        {Object.keys(stageMeta).map((key) => {
+          const stageKey = key as StageKey
+          const meta = stageMeta[stageKey]
+          return (
+            <label
+              key={stageKey}
+              className="flex cursor-pointer items-start gap-3 rounded-xl p-2 hover:bg-background/40"
+            >
+              <Checkbox
+                checked={filters[stageKey]}
+                onCheckedChange={() => onToggle(stageKey)}
+              />
+              <div className="flex flex-col">
+                <span className="font-semibold text-foreground">{meta.label}</span>
+                <span className="text-xs text-muted-foreground">{meta.description}</span>
+              </div>
+            </label>
+          )
+        })}
+      </PopoverContent>
+    </Popover>
   )
 }
 
@@ -333,9 +366,13 @@ function LayerFilterPopover({
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant="outline" size="sm" className="flex items-center gap-2">
-          <FilterIcon className="h-4 w-4" />
-          Events
+        <Button
+          variant="outline"
+          size="icon"
+          className="h-9 w-9 rounded-full border-white/20 bg-slate-900/60 text-slate-100"
+          aria-label="Toggle event layers"
+        >
+          <Layers className="h-4 w-4" />
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-64 space-y-2 rounded-2xl border border-border/70 bg-card/95 p-3 text-sm shadow-lg" align="end">
@@ -366,7 +403,7 @@ function LayerFilterPopover({
   )
 }
 
-export function CustomRangePicker({
+function CompactRangePicker({
   value,
   onChange,
   onClear,
@@ -405,13 +442,11 @@ export function CustomRangePicker({
       <PopoverTrigger asChild>
         <Button
           variant="ghost"
-          size="sm"
-          className={`flex items-center gap-2 whitespace-nowrap rounded-full border px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.35em] ${
-            hasSelection ? "border-primary bg-primary/10 text-primary" : "border-border/60 text-muted-foreground"
-          }`}
+          size="icon"
+          className={`h-8 w-8 rounded-full border ${hasSelection ? "border-primary bg-primary/10 text-primary" : "border-white/20 bg-slate-900/60 text-slate-100"}`}
+          aria-label="Custom range"
         >
-          <CalendarRange className="h-4 w-4" />
-          <span>{hasSelection ? label : "Custom dates"}</span>
+          <CalendarDays className="h-4 w-4" />
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-auto space-y-4 rounded-2xl border border-border/70 bg-popover/95 p-4 shadow-lg" align="start">
@@ -437,6 +472,156 @@ export function CustomRangePicker({
   )
 }
 
+function PeriodDropdown({
+  controller,
+  compactPeriodOptions,
+}: {
+  controller: ReturnType<typeof useFleetCalendarController>
+  compactPeriodOptions: (typeof calendarViewOptions)[number][]
+}) {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-9 w-9 rounded-full border border-white/20 bg-slate-900/60 text-slate-100"
+          aria-label="Period presets"
+        >
+          <CalendarDays className="h-4 w-4" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-60 space-y-3 rounded-2xl border border-border/70 bg-card/95 p-3 shadow-lg" align="start">
+        <div className="flex items-center justify-between gap-2">
+          {compactPeriodOptions.map((option) => (
+            <Button
+              key={option.id}
+              variant={controller.view.id === option.id ? "default" : "outline"}
+              size="sm"
+              className="h-8 flex-1 rounded-full text-[12px] font-semibold uppercase tracking-[0.25em]"
+              onClick={() => controller.setView(option.id)}
+            >
+              {option.days}d
+            </Button>
+          ))}
+          <Button
+            variant={controller.view.id === "custom" ? "default" : "outline"}
+            size="sm"
+            className="h-8 flex-[1.2] rounded-full text-[12px] font-semibold uppercase tracking-[0.25em]"
+            onClick={() => controller.setView("custom")}
+          >
+            Custom
+          </Button>
+        </div>
+        <div className="flex items-center justify-between gap-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 rounded-full text-foreground hover:bg-muted"
+            onClick={controller.goPrev}
+            aria-label="Previous period"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 rounded-full text-foreground hover:bg-muted"
+            onClick={controller.goToday}
+            aria-label="Today"
+          >
+            <CalendarDays className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 rounded-full text-foreground hover:bg-muted"
+            onClick={controller.goNext}
+            aria-label="Next period"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+          <CompactRangePicker
+            value={controller.customRange}
+            onChange={(range) => controller.setCustomRange(range)}
+            onClear={() => controller.clearCustomRange()}
+          />
+        </div>
+      </PopoverContent>
+    </Popover>
+  )
+}
+
+function GroupingButton({
+  value,
+  onValueChange,
+}: {
+  value: string
+  onValueChange: (value: string) => void
+}) {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-9 w-9 rounded-full border border-white/20 bg-slate-900/60 text-slate-100"
+          aria-label="Group by"
+        >
+          <span className="text-xs font-semibold">G</span>
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-44 space-y-1 rounded-2xl border border-border/70 bg-card/95 p-2 shadow-lg" align="end">
+        <Select value={value} onValueChange={onValueChange}>
+          <SelectTrigger className="h-10 w-full rounded-xl">
+            <SelectValue placeholder="Group" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="none">General</SelectItem>
+            <SelectItem value="manufacturer">Make</SelectItem>
+            <SelectItem value="bodyStyle">Body type</SelectItem>
+          </SelectContent>
+        </Select>
+      </PopoverContent>
+    </Popover>
+  )
+}
+
+function SortButton({
+  value,
+  onValueChange,
+}: {
+  value: SortOption
+  onValueChange: (value: SortOption) => void
+}) {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-9 w-9 rounded-full border border-white/20 bg-slate-900/60 text-slate-100"
+          aria-label="Sort"
+        >
+          <ArrowUpDown className="h-4 w-4" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-48 space-y-1 rounded-2xl border border-border/70 bg-card/95 p-2 shadow-lg" align="end">
+        <Select value={value} onValueChange={(v) => onValueChange(v as SortOption)}>
+          <SelectTrigger className="h-10 w-full rounded-xl">
+            <SelectValue placeholder="Sort" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="utilization">Utilisation</SelectItem>
+            <SelectItem value="price">Price</SelectItem>
+            <SelectItem value="name">Vehicle</SelectItem>
+          </SelectContent>
+        </Select>
+      </PopoverContent>
+    </Popover>
+  )
+}
+
 function formatRangeLabel(range: DateRange | null) {
   if (!range?.from || !range?.to) return "Custom dates"
   const start = range.from
@@ -453,10 +638,15 @@ export function resetFilters(
   setLayerFilters: (value: Record<CalendarLayer, boolean>) => void,
   controller: ReturnType<typeof useFleetCalendarController>,
   setSearchQuery: (value: string) => void,
-  setPinnedVehicleId: (value: string | null) => void
+  setPinnedVehicleId: (value: string | null) => void,
+  setStageFilters: (value: Record<StageKey, boolean>) => void,
+  setSortOption: (value: SortOption) => void
 ) {
   setLayerFilters({ reservation: true, rental: true, maintenance: true, repair: true })
+  setStageFilters(createDefaultStageFilters())
+  setSortOption("utilization")
   controller.clearCustomRange()
+  controller.setGrouping("none")
   controller.setView("week")
   controller.goToday()
   setSearchQuery("")
@@ -468,6 +658,55 @@ export function buildVehicleSearchLabel(vehicle: FleetCar) {
   return parts.join(" · ")
 }
 
-export function sortVehicles(a: FleetCar, b: FleetCar) {
-  return (b.utilization ?? 0) - (a.utilization ?? 0)
+export function sortVehicles(a: FleetCar, b: FleetCar, option: SortOption, utilizationMap?: Map<string, number>) {
+  if (option === "price") {
+    const diff = (b.revenueYTD ?? 0) - (a.revenueYTD ?? 0)
+    if (diff !== 0) return diff
+  }
+  if (option === "name") {
+    return (a.name ?? "").localeCompare(b.name ?? "")
+  }
+  const utilA = utilizationMap?.get(String(a.id)) ?? a.utilization ?? 0
+  const utilB = utilizationMap?.get(String(b.id)) ?? b.utilization ?? 0
+  if (utilB !== utilA) return utilB - utilA
+  // Тай-брейк: выше ревенью и затем название.
+  const revenueDiff = (b.revenueYTD ?? 0) - (a.revenueYTD ?? 0)
+  if (revenueDiff !== 0) return revenueDiff
+  return (a.name ?? "").localeCompare(b.name ?? "")
+}
+
+function buildUtilizationMap(events: CalendarEvent[], rangeStart: Date, rangeEnd: Date) {
+  const map = new Map<string, number>()
+  const rangeMs = Math.max(1, rangeEnd.getTime() - rangeStart.getTime())
+
+  events.forEach((event) => {
+    const carId = String(event.carId)
+    const start = Math.max(rangeStart.getTime(), new Date(event.start).getTime())
+    const end = Math.min(rangeEnd.getTime(), new Date(event.end).getTime())
+    if (end <= start) return
+    const duration = end - start
+    map.set(carId, (map.get(carId) ?? 0) + duration)
+  })
+
+  Array.from(map.entries()).forEach(([carId, durationMs]) => {
+    // Храним положительные проценты; сортировка использует utilB - utilA, поэтому большие значения окажутся выше.
+    map.set(carId, Math.round((durationMs / rangeMs) * 100))
+  })
+
+  return map
+}
+
+function resolveStageKey(event: CalendarEvent): StageKey {
+  const normalizedStage = event.stageLabel?.toLowerCase() ?? ""
+  if (normalizedStage.includes("car with customer")) return "car_with_customer"
+  if (normalizedStage.includes("pickup") || normalizedStage.includes("pick up")) return "pickup"
+  if (normalizedStage.includes("delivery")) return "delivery"
+  if (normalizedStage.includes("confirm")) return "confirmed"
+
+  const normalizedStatus = (event.bookingStatus ?? "").toLowerCase()
+  if (normalizedStatus.includes("confirm")) return "confirmed"
+  if (normalizedStatus.includes("delivery")) return "delivery"
+  if (normalizedStatus === "in-rent" || normalizedStatus === "in_rent" || normalizedStatus === "active") return "car_with_customer"
+  if (normalizedStatus.includes("settlement") || normalizedStatus.includes("pickup") || normalizedStatus.includes("pick up")) return "pickup"
+  return "other"
 }

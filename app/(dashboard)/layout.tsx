@@ -134,11 +134,14 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     <DashboardHeaderProvider>
       <div className="relative flex min-h-screen w-full flex-col overflow-x-hidden bg-slate-50 text-slate-900">
         <DashboardHeader navGroups={navGroups} className="fixed inset-x-0 top-0 z-40 w-full" meta={headerMeta} />
-        <div className="flex flex-1 min-h-0 overflow-hidden lg:pl-20">
+        <div className="flex flex-1 min-h-0 overflow-hidden lg:pl-16">
           <DashboardSidebar navGroups={navGroups} />
           <main
-            className="relative flex-1 min-h-0 overflow-y-auto border-l border-white/70 bg-white px-4 py-8 lg:px-12"
-            style={{ paddingTop: "var(--dashboard-header-height, 64px)" }}
+            className="relative flex-1 min-h-0 overflow-y-auto border-l border-white/70 bg-white pb-8 [--dashboard-gutter:0.35rem] lg:[--dashboard-gutter:1rem]"
+            style={{
+              paddingTop: "calc(var(--dashboard-header-height, 64px) + var(--dashboard-gutter, 0.35rem))",
+              paddingInline: "var(--dashboard-gutter, 0.35rem)",
+            }}
           >
             {children}
           </main>
