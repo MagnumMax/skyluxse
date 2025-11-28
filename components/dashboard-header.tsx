@@ -101,7 +101,7 @@ export function DashboardHeader({ navGroups, className, meta = [defaultMeta] }: 
     <header
       ref={headerRef}
       className={cn(
-        "flex flex-wrap items-center justify-between gap-4 border-b border-slate-800/80 bg-slate-950 px-4 py-3 text-slate-50 shadow-[0_16px_50px_-28px_rgba(0,0,0,0.6)] lg:px-10",
+        "flex flex-wrap items-center justify-between gap-4 border-b border-slate-800/80 bg-slate-950 px-4 py-3 text-slate-50 shadow-[0_16px_50px_-28px_rgba(0,0,0,0.6)] lg:px-4",
         className
       )}
     >
@@ -116,7 +116,7 @@ export function DashboardHeader({ navGroups, className, meta = [defaultMeta] }: 
       </div>
       <div className="flex flex-1 flex-wrap items-center justify-end gap-3 min-w-0">
         {contextualContent ? (
-          <div className="flex w-full min-w-[240px] flex-1 flex-wrap items-center justify-end gap-2 md:w-auto md:justify-center lg:justify-end">
+          <div className="flex w-full min-w-[240px] flex-1 flex-wrap items-center justify-end gap-2 lg:justify-end">
             {contextualContent}
           </div>
         ) : null}

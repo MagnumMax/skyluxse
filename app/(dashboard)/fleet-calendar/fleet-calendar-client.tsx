@@ -33,7 +33,7 @@ const DEFAULT_STAGE_FILTERS: Record<StageKey, boolean> = {
   delivery: true,
   car_with_customer: true,
   pickup: true,
-  other: false,
+  other: true,
 }
 const createDefaultStageFilters = () => ({ ...DEFAULT_STAGE_FILTERS })
 
@@ -279,6 +279,7 @@ function FleetCalendarHeaderControls({
 
   return (
     <DashboardHeaderSearch
+      className="ml-4"
       value={searchQuery}
       onChange={onSearchChange}
       placeholder="Search car, plate, booking…"

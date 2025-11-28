@@ -46,8 +46,8 @@
     --fleet-calendar-reservation-border: #bae6fd;
     --fleet-calendar-rental-surface: #e0e7ff;
     --fleet-calendar-rental-border: #c7d2fe;
-    --fleet-calendar-maintenance-surface: #fffbeb;
-    --fleet-calendar-maintenance-border: #fde68a;
+    --fleet-calendar-maintenance-surface: #fef2f2;
+    --fleet-calendar-maintenance-border: #fecaca;
     --fleet-calendar-repair-surface: #ffe4e6;
     --fleet-calendar-repair-border: #fecdd3;
     --fleet-calendar-neutral-surface: hsl(var(--muted));
@@ -135,20 +135,23 @@
 @layer components {
   .fleet-calendar-shell {
     --fleet-calendar-shell-bg: color-mix(in oklch, var(--color-card, var(--card)) 88%, transparent);
-    @apply rounded-[32px] border border-border/70 shadow-[0_25px_60px_rgba(15,23,42,0.08)];
+    @apply rounded-[32px] border border-border/70;
+    box-shadow: 0 25px 60px rgba(15, 23, 42, 0.08);
     background-color: var(--fleet-calendar-shell-bg);
     padding: 1.5rem;
   }
-  .fleet-calendar-shell > * + * {
+
+  .fleet-calendar-shell>*+* {
     margin-top: 2rem;
   }
 
   .fleet-calendar-header-card {
     @apply rounded-[28px] border border-border bg-gradient-to-br from-background via-background/90 to-muted/40;
     padding: 1.5rem;
-    box-shadow: 0 1px 2px 0 rgba(15,23,42,0.05);
+    box-shadow: 0 1px 2px 0 rgba(15, 23, 42, 0.05);
   }
-  .fleet-calendar-header-card > * + * {
+
+  .fleet-calendar-header-card>*+* {
     margin-top: 1.5rem;
   }
 
@@ -214,9 +217,11 @@
   .calendar-legend-dot-rental {
     @apply bg-indigo-500;
   }
+
   .calendar-legend-dot-maintenance {
     @apply bg-amber-500;
   }
+
   .calendar-legend-dot-repair {
     @apply bg-rose-500;
   }
@@ -227,7 +232,7 @@
 
   .fleet-calendar-summary-card {
     @apply rounded-[26px] border border-border/60 bg-background/90 p-5;
-    box-shadow: 0 1px 2px 0 rgba(15,23,42,0.05);
+    box-shadow: 0 1px 2px 0 rgba(15, 23, 42, 0.05);
   }
 
   .fleet-calendar-summary-label {
@@ -244,7 +249,7 @@
 
   .fleet-calendar-car-row {
     @apply mb-4 rounded-[28px] border border-border/70 bg-card/80 overflow-hidden;
-    box-shadow: 0 1px 2px 0 rgba(15,23,42,0.05);
+    box-shadow: 0 1px 2px 0 rgba(15, 23, 42, 0.05);
   }
 
   .fleet-calendar-car-header {
@@ -283,13 +288,13 @@
     @apply border border-border/40 px-3 py-3 text-xs text-muted-foreground;
   }
 
-  .calendar-row > * + * {
+  .calendar-row>*+* {
     margin-top: 0.5rem;
   }
 
   .calendar-event {
     @apply rounded-xl border px-3 py-2 text-[11px] backdrop-blur;
-    box-shadow: 0 1px 2px 0 rgba(15,23,42,0.05);
+    box-shadow: 0 1px 2px 0 rgba(15, 23, 42, 0.05);
   }
 
   .calendar-event-title {
@@ -304,6 +309,7 @@
   .calendar-grid-scroll::-webkit-scrollbar {
     height: 6px;
   }
+
   .calendar-grid-scroll::-webkit-scrollbar-thumb {
     @apply rounded-full bg-slate-300;
   }

@@ -228,7 +228,8 @@
   height: 100%;
   padding: 0.25rem;
   position: relative;
-  z-index: 2; /* события внутри своей сетки, но ниже fixed/sticky левой колонки */
+  z-index: 2;
+  /* события внутри своей сетки, но ниже fixed/sticky левой колонки */
 }
 
 .calendar-event-button:hover .calendar-event {
@@ -456,7 +457,7 @@
 }
 
 .calendar-legend-dot-maintenance {
-  background-color: hsl(43 94% 62%);
+  background-color: #ef4444;
 }
 
 .calendar-legend-dot-repair {
@@ -568,7 +569,8 @@
   display: flex;
   min-width: 100%;
   position: relative;
-  isolation: isolate; /* гарантируем отдельный контекст для левой колонки и сетки */
+  isolation: isolate;
+  /* гарантируем отдельный контекст для левой колонки и сетки */
 }
 
 .fleet-calendar-left-sidebar {
@@ -577,12 +579,11 @@
   top: 0;
   width: var(--fleet-calendar-left-width, 200px);
   min-width: var(--fleet-calendar-left-width, 200px);
-  background-color: hsl(var(--card));
+  background-color: #ffffff;
   box-shadow: inset -1px 0 0 hsl(var(--border) / 0.35);
   z-index: 40;
   display: flex;
   flex-direction: column;
-  align-self: flex-start;
   flex-shrink: 0;
 }
 
@@ -630,7 +631,7 @@
   position: sticky;
   top: 0;
   z-index: 30;
-  background: hsl(var(--card));
+  background: #ffffff;
   box-shadow: none;
   padding-top: 0.35rem;
   border-bottom: none;
@@ -657,8 +658,12 @@
 .fleet-calendar-left-cell {
   padding: 0.5rem 0.6rem 0.4rem 0.1rem;
   border-bottom: 1px solid hsl(var(--border) / 0.6);
-  background-color: hsl(var(--card));
+  background-color: #ffffff;
   box-shadow: inset -1px 0 0 hsl(var(--border) / 0.35);
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
 .fleet-calendar-left-cell--header {
@@ -668,7 +673,7 @@
   text-transform: uppercase;
   color: hsl(var(--muted-foreground));
   border-bottom: 1px solid hsl(var(--border));
-  background-color: hsl(var(--card));
+  background-color: #ffffff;
 }
 
 .fleet-calendar-left-cell--group {
@@ -680,7 +685,7 @@
   padding-top: 1rem;
   padding-bottom: 0.5rem;
   border-bottom: none;
-  background-color: hsl(var(--card));
+  background-color: #ffffff;
   position: static;
   top: auto;
   z-index: auto;
@@ -689,7 +694,7 @@
 .fleet-calendar-grid-header {
   border-bottom: none;
   margin-bottom: 0.4rem;
-  background: hsl(var(--card));
+  background: #ffffff;
 }
 
 .fleet-calendar-group-divider {
