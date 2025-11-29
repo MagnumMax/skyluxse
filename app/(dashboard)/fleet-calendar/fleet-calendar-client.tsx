@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import React, { useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 
 import "./fleet-calendar.css"
@@ -13,9 +13,10 @@ import {
   useFleetCalendarController,
 } from "@/components/fleet-calendar"
 import { DashboardHeaderSearch } from "@/components/dashboard-header-search"
-import type { Booking, CalendarEvent, FleetCar } from "@/lib/domain/entities"
+import type { Booking, BookingStatus, CalendarEvent, FleetCar } from "@/lib/domain/entities"
 import { calculateVehicleRuntimeMetrics } from "@/lib/fleet/runtime"
 import { calendarEventTypes } from "@/lib/constants/calendar"
+import { KOMMO_PIPELINE_STAGE_META, type KommoPipelineStageId } from "@/lib/constants/bookings"
 import { buildVisibleDates, DAY_IN_MS } from "@/lib/fleet/calendar-grid"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -27,13 +28,14 @@ import type { DateRange } from "react-day-picker"
 
 export type CalendarLayer = "reservation" | "rental" | "maintenance" | "repair"
 
-type StageKey = "confirmed" | "delivery" | "car_with_customer" | "pickup" | "other"
+type StageKey = "confirmed" | "delivery" | "in-rent" | "pickup" | "closed" | "other"
 const DEFAULT_STAGE_FILTERS: Record<StageKey, boolean> = {
   confirmed: true,
   delivery: true,
-  car_with_customer: true,
+  "in-rent": true,
   pickup: true,
-  other: true,
+  closed: true,
+  other: false,
 }
 const createDefaultStageFilters = () => ({ ...DEFAULT_STAGE_FILTERS })
 
@@ -108,10 +110,27 @@ export function OperationsFleetCalendarClient({
 
     const filteredEvents = sanitizedEvents
       .filter((event) => {
-        if (!layerFilters[event.type as CalendarLayer]) return false
+        // Special handling for maintenance events - show if maintenance layer is enabled OR "Car with customer" stage is enabled
+        const isMaintenanceEvent = event.type === "maintenance"
+        const shouldShowMaintenance = layerFilters.maintenance || stageFilters["in-rent"]
+
+        if (isMaintenanceEvent) {
+          if (!shouldShowMaintenance) return false
+        } else {
+          if (!layerFilters[event.type as CalendarLayer]) return false
+        }
+
         if (!visibleVehicleIds.has(String(event.carId))) return false
+
         const stageKey = resolveStageKey(event)
-        if (!stageFilters[stageKey]) return false
+
+        // Skip stage filtering for maintenance events when shown due to "Car with customer"
+        if (isMaintenanceEvent && stageFilters["in-rent"] && !layerFilters.maintenance) {
+          // Maintenance shown due to "Car with customer" - skip stage filter
+          return true
+        }
+
+        if (stageKey && !stageFilters[stageKey]) return false
         return true
       })
       .filter((event) => {
@@ -313,11 +332,12 @@ function StageFilterPopover({
   onToggle: (key: StageKey) => void
 }) {
   const stageMeta: Record<StageKey, { label: string; description: string }> = {
-    confirmed: { label: "Confirmed", description: "Payment received" },
-    delivery: { label: "Delivery", description: "On the way" },
-    car_with_customer: { label: "Car with customer", description: "Active rental" },
-    pickup: { label: "Pickup", description: "Return scheduled" },
-    other: { label: "Other", description: "Unmapped stages" },
+    confirmed: { label: "Confirmed Bookings", description: "Docs ready; assign vehicle and driver" },
+    delivery: { label: "Delivery Within 24 Hours", description: "Prep delivery run for the upcoming day" },
+    "in-rent": { label: "Car with Customers", description: "Vehicle with client; monitor trip and SLA" },
+    pickup: { label: "Pick Up Within 24 Hours", description: "Schedule pickup and closing logistics" },
+    closed: { label: "Closed", description: "Deal completed or cancelled" },
+    other: { label: "Other", description: "Waiting for payment or other statuses" },
   }
 
   return (
@@ -336,18 +356,19 @@ function StageFilterPopover({
         {Object.keys(stageMeta).map((key) => {
           const stageKey = key as StageKey
           const meta = stageMeta[stageKey]
+          if (!meta) return null
           return (
             <label
               key={stageKey}
               className="flex cursor-pointer items-start gap-3 rounded-xl p-2 hover:bg-background/40"
             >
               <Checkbox
-                checked={filters[stageKey]}
+                checked={filters[stageKey] ?? false}
                 onCheckedChange={() => onToggle(stageKey)}
               />
               <div className="flex flex-col">
-                <span className="font-semibold text-foreground">{meta.label}</span>
-                <span className="text-xs text-muted-foreground">{meta.description}</span>
+                <span className="font-semibold text-foreground">{meta!.label}</span>
+                <span className="text-xs text-muted-foreground">{meta!.description}</span>
               </div>
             </label>
           )
@@ -642,7 +663,7 @@ export function resetFilters(
   controller: ReturnType<typeof useFleetCalendarController>,
   setSearchQuery: (value: string) => void,
   setPinnedVehicleId: (value: string | null) => void,
-  setStageFilters: (value: Record<StageKey, boolean>) => void,
+  setStageFilters: React.Dispatch<React.SetStateAction<Record<StageKey, boolean>>>,
   setSortOption: (value: SortOption) => void
 ) {
   setLayerFilters({ reservation: true, rental: true, maintenance: true, repair: true })
@@ -700,16 +721,27 @@ function buildUtilizationMap(events: CalendarEvent[], rangeStart: Date, rangeEnd
 }
 
 function resolveStageKey(event: CalendarEvent): StageKey {
-  const normalizedStage = event.stageLabel?.toLowerCase() ?? ""
-  if (normalizedStage.includes("car with customer")) return "car_with_customer"
-  if (normalizedStage.includes("pickup") || normalizedStage.includes("pick up")) return "pickup"
-  if (normalizedStage.includes("delivery")) return "delivery"
-  if (normalizedStage.includes("confirm")) return "confirmed"
+  if (event.type === "maintenance") {
+    return "in-rent"
+  }
+  const kommoId = event.kommoStatusId ? String(event.kommoStatusId) : null
+  if (!kommoId) return "other"
 
-  const normalizedStatus = (event.bookingStatus ?? "").toLowerCase()
-  if (normalizedStatus.includes("confirm")) return "confirmed"
-  if (normalizedStatus.includes("delivery")) return "delivery"
-  if (normalizedStatus === "in-rent" || normalizedStatus === "in_rent" || normalizedStatus === "active") return "car_with_customer"
-  if (normalizedStatus.includes("settlement") || normalizedStatus.includes("pickup") || normalizedStatus.includes("pick up")) return "pickup"
-  return "other"
+  switch (kommoId) {
+    case "75440391": // Confirmed Bookings
+      return "confirmed"
+    case "75440395": // Delivery Within 24 Hours
+      return "delivery"
+    case "75440399": // Car with Customers
+      return "in-rent"
+    case "76475495": // Pick Up Within 24 Hours
+      return "pickup"
+    case "142": // Closed · Won
+    case "75440643": // Refund Deposit
+    case "78486287": // Objections
+      return "closed"
+    case "96150292": // Waiting for Payment
+    default:
+      return "other"
+  }
 }

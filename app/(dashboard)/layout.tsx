@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import { ReactNode } from "react"
 
-import { DashboardHeader, type DashboardNavGroup, type HeaderMeta } from "@/components/dashboard-header"
+import { DashboardHeader, type DashboardNavGroup } from "@/components/dashboard-header"
 import { DashboardHeaderProvider } from "@/components/dashboard-header-context"
 import { DashboardSidebar } from "@/components/dashboard-sidebar"
 
@@ -37,89 +37,6 @@ const navGroups: DashboardNavGroup[] = [
   },
 ]
 
-const headerMeta: HeaderMeta[] = [
-  {
-    pattern: "/fleet-calendar",
-    title: "Fleet calendar",
-  },
-  {
-    pattern: "/tasks",
-    title: "Operations tasks",
-  },
-  {
-    pattern: "/tasks/[taskId]",
-    title: "Task detail",
-  },
-  {
-    pattern: "/fleet",
-    title: "Fleet overview",
-  },
-  {
-    pattern: "/fleet/[carId]",
-    title: "Vehicle profile",
-  },
-  {
-    pattern: "/fleet/new",
-    title: "Vehicle intake",
-  },
-  {
-    pattern: "/maintenance/new",
-    title: "Maintenance automation",
-  },
-  {
-    pattern: "/bookings/new",
-    title: "Manual booking",
-  },
-  {
-    pattern: "/documents/[docId]",
-    title: "Document viewer",
-  },
-  {
-    pattern: "/bookings",
-    title: "Sales bookings",
-  },
-  {
-    pattern: "/bookings/[bookingId]",
-    title: "Sales booking detail",
-  },
-  {
-    pattern: "/clients",
-    title: "Clients",
-  },
-  {
-    pattern: "/clients/[clientId]",
-    title: "Client workspace",
-  },
-  {
-    pattern: "/analytics",
-    title: "Sales analytics",
-  },
-  {
-    pattern: "/exec/dashboard",
-    title: "Executive dashboard",
-  },
-  {
-    pattern: "/exec/analytics",
-    title: "Executive analytics",
-  },
-  {
-    pattern: "/exec/reports",
-    title: "Executive reports",
-  },
-  {
-    pattern: "/exec/fleet-calendar",
-    title: "Executive fleet calendar",
-  },
-  {
-    pattern: "/exec/integrations",
-    title: "Integrations outbox",
-  },
-  {
-    pattern: "*",
-    title: "SkyLuxse ERP",
-  },
-]
-
 export const dynamic = "force-dynamic"
 
 export const metadata: Metadata = {
@@ -133,7 +50,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   return (
     <DashboardHeaderProvider>
       <div className="relative flex min-h-screen w-full flex-col overflow-x-hidden bg-slate-50 text-slate-900">
-        <DashboardHeader navGroups={navGroups} className="fixed inset-x-0 top-0 z-40 w-full" meta={headerMeta} />
+        <DashboardHeader navGroups={navGroups} className="fixed inset-x-0 top-0 z-40 w-full" />
         <div className="flex flex-1 min-h-0 overflow-hidden lg:pl-16">
           <DashboardSidebar navGroups={navGroups} />
           <main

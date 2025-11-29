@@ -45,20 +45,6 @@ describe("DashboardHeader", () => {
     document.documentElement.style.removeProperty("--dashboard-header-height")
   })
 
-  it("renders title from meta pattern", () => {
-    render(
-      <DashboardHeader
-        navGroups={navGroups}
-        meta={[
-          { pattern: "/fleet-calendar", title: "Operations Control" },
-          { pattern: "*", title: "Fallback" },
-        ]}
-      />
-    )
-
-    expect(screen.getByRole("heading", { name: "Operations Control" })).toBeInTheDocument()
-  })
-
   it("toggles mobile navigation sheet", async () => {
     const user = userEvent.setup()
     render(<DashboardHeader navGroups={navGroups} />)
@@ -83,5 +69,12 @@ describe("DashboardHeader", () => {
     )
 
     expect(await screen.findByRole("button", { name: "Context search" })).toBeVisible()
+  })
+
+  it("shows only the brand without a page title", () => {
+    render(<DashboardHeader navGroups={navGroups} />)
+
+    expect(screen.getAllByText(/skyluxse erp/i)[0]).toBeVisible()
+    expect(screen.queryByRole("heading", { level: 1 })).not.toBeInTheDocument()
   })
 })

@@ -390,6 +390,7 @@ export interface CalendarEvent {
   priority: BookingPriority
   bookingStatus?: BookingStatus | null
   stageLabel?: string
+  kommoStatusId?: number | null
 }
 
 export interface ExecReportDataPoint {

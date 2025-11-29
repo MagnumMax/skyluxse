@@ -1499,6 +1499,7 @@ function mapCalendarEventRow(
     priority: booking?.priority ?? "medium",
     bookingStatus: booking?.status ?? null,
     stageLabel: booking?.pipelineStageName,
+    kommoStatusId: booking?.kommoStatusId ?? null,
   }
 }
 

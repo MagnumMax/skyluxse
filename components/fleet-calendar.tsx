@@ -1,6 +1,7 @@
 "use client"
 
 import { Fragment, useCallback, useMemo, useRef, useState } from "react"
+import Link from "next/link"
 
 import type { CalendarEvent, CalendarEventType, FleetCar } from "@/lib/domain/entities"
 import { calendarEventTypes, getCalendarBookingStatusTone } from "@/lib/constants/calendar"
@@ -303,7 +304,7 @@ export function FleetCalendarBoard({
               <div className="fleet-calendar-row-grid">
                 <div className="calendar-grid fleet-calendar-grid-header" style={{ gridTemplateColumns }}>
                   {visibleDates.map((date) => {
-                    const dayLabel = date.toLocaleDateString("en-GB", { day: "2-digit" })
+                    const dayLabel = `${date.getDate().toString().padStart(2, '0')}.${(date.getMonth() + 1).toString().padStart(2, '0')}`
                     const weekdayLabel = (WEEKDAY_LABELS[date.getDay()] ?? "").toUpperCase()
 
                     return (
@@ -340,7 +341,7 @@ export function FleetCalendarBoard({
                     <div key={`row-${group.label}-${car.id}`} className="fleet-calendar-table-row">
                       <div className="fleet-calendar-left-sidebar">
                         <div className="fleet-calendar-left-cell">
-                          <p className="fleet-calendar-car-title">{car.name}</p>
+                          <Link href={`/fleet/${car.id}`} className="fleet-calendar-car-title">{car.name}</Link>
                           <p className="fleet-calendar-car-meta">{car.plate}</p>
                         </div>
                       </div>

@@ -6,18 +6,11 @@ import { usePathname } from "next/navigation"
 
 import { Icon, type NavIcon } from "@/components/icons"
 import { cn } from "@/lib/utils"
+import { isActiveLink, toRoute } from "@/lib/navigation"
 import type { DashboardNavGroup } from "@/components/dashboard-header"
 
 type SidebarProps = {
   navGroups: DashboardNavGroup[]
-}
-
-const toRoute = (href: string) => href as Parameters<typeof Link>[0]["href"]
-
-function isActiveLink(pathname: string, href: string) {
-  if (href === "/") return pathname === "/"
-  if (pathname === href) return true
-  return pathname.startsWith(`${href}/`)
 }
 
 export function DashboardSidebar({ navGroups }: SidebarProps) {
