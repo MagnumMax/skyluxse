@@ -1,4 +1,4 @@
-import type { BookingPriority, BookingStatus, BookingType } from "@/lib/domain/entities"
+import type { Booking, BookingPriority, BookingStatus, BookingType } from "@/lib/domain/entities"
 
 export const BOOKING_TYPES: Record<BookingType, string> = {
   vip: "VIP",
@@ -170,4 +170,55 @@ export const FALLBACK_KOMMO_STAGE_META: FallbackKommoStageMeta = {
   headerColor: "#e5e7eb",
   borderColor: "#cbd5f5",
   bookingStatus: "settlement",
+}
+
+export type BookingStageKey = "confirmed" | "delivery" | "in-rent" | "pickup" | "closed" | "other"
+
+export const BOOKING_STAGE_FILTER_DEFAULTS: Record<BookingStageKey, boolean> = {
+  confirmed: true,
+  delivery: true,
+  "in-rent": true,
+  pickup: true,
+  closed: true,
+  other: false,
+}
+
+export function createDefaultBookingStageFilters() {
+  return { ...BOOKING_STAGE_FILTER_DEFAULTS }
+}
+
+export function resolveStageKeyFromKommoStatus(kommoStatusId?: string | number | null): BookingStageKey {
+  const normalizedId = kommoStatusId ? String(kommoStatusId) : null
+  switch (normalizedId) {
+    case "75440391": // Confirmed Bookings
+      return "confirmed"
+    case "75440395": // Delivery Within 24 Hours
+      return "delivery"
+    case "75440399": // Car with Customers
+      return "in-rent"
+    case "76475495": // Pick Up Within 24 Hours
+      return "pickup"
+    case "142": // Closed · Won
+    case "75440643": // Refund Deposit
+    case "78486287": // Objections
+      return "closed"
+    default:
+      return "other"
+  }
+}
+
+export function resolveBookingStageKey(booking: Pick<Booking, "kommoStatusId" | "status">): BookingStageKey {
+  const fromKommo = resolveStageKeyFromKommoStatus(booking.kommoStatusId)
+  if (fromKommo !== "other") return fromKommo
+
+  switch (booking.status) {
+    case "delivery":
+      return "delivery"
+    case "in-rent":
+      return "in-rent"
+    case "settlement":
+      return "closed"
+    default:
+      return "other"
+  }
 }

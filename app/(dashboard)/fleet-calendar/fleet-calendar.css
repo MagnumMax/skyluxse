@@ -475,7 +475,7 @@
   --fleet-calendar-header-height: 38px;
   --fleet-calendar-group-sticky-offset: calc(var(--fleet-calendar-sticky-offset, var(--dashboard-header-height, 0px)) + var(--fleet-calendar-header-height, 38px) + 6px);
   position: relative;
-  padding: clamp(1rem, 4vw, 1.5rem);
+  padding: 1.5rem;
 }
 
 .fleet-calendar-group {

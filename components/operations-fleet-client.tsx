@@ -224,7 +224,7 @@ function FilterSelect({
   label: string
   value: string
   onValueChange: (value: string) => void
-  options: { value: string; label: string }[]
+  options: ReadonlyArray<{ value: string; label: string }>
   icon: LucideIcon
   ariaLabel: string
 }) {

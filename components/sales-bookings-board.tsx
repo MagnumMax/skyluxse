@@ -17,8 +17,11 @@ import { resolveBookingTotalWithVat } from "@/lib/pricing/booking-totals"
 import {
   BOOKING_TYPES,
   FALLBACK_KOMMO_STAGE_META,
+  BOOKING_STAGE_FILTER_DEFAULTS,
   KOMMO_PIPELINE_STAGE_META,
   KOMMO_PIPELINE_STAGE_ORDER,
+  resolveBookingStageKey,
+  type BookingStageKey,
   type KommoPipelineStageId,
 } from "@/lib/constants/bookings"
 import { cn } from "@/lib/utils"
@@ -33,6 +36,7 @@ const stageOrder = KOMMO_PIPELINE_STAGE_ORDER
 const hiddenStageIds: KommoPipelineStageId[] = ["79790631", "91703923", "143"]
 const visibleStageOrder = stageOrder.filter((stageId) => !hiddenStageIds.includes(stageId))
 type RouterPushInput = Parameters<ReturnType<typeof useRouter>["push"]>[0]
+export type BookingSortOption = "start-date" | "priority" | "value" | "code"
 
 type SalesBookingsBoardProps = {
   bookings: Booking[]
@@ -41,6 +45,9 @@ type SalesBookingsBoardProps = {
   searchTerm?: string
   onSearchTermChange?: (value: string) => void
   showSearchInput?: boolean
+  stageFilters?: Record<BookingStageKey, boolean>
+  sortOption?: BookingSortOption
+  showFilters?: boolean
 }
 
 export function SalesBookingsBoard({
@@ -50,6 +57,9 @@ export function SalesBookingsBoard({
   searchTerm,
   onSearchTermChange,
   showSearchInput = true,
+  stageFilters,
+  sortOption,
+  showFilters = true,
 }: SalesBookingsBoardProps) {
   const [boardBookings, setBoardBookings] = useState<Booking[]>(bookings)
   const [activityLog, setActivityLog] = useState<string[]>([])
@@ -58,9 +68,14 @@ export function SalesBookingsBoard({
   const [localSearchTerm, setLocalSearchTerm] = useState("")
   const resolvedSearchTerm = searchTerm ?? localSearchTerm
   const handleSearchChange = onSearchTermChange ?? setLocalSearchTerm
+  const activeStageFilters = stageFilters ?? BOOKING_STAGE_FILTER_DEFAULTS
 
   const filtered = useMemo(() => {
     return boardBookings.filter((booking) => {
+      const stageKey = resolveBookingStageKey(booking)
+      if (activeStageFilters && !activeStageFilters[stageKey]) {
+        return false
+      }
       if (typeFilter !== "all" && booking.type !== typeFilter) {
         return false
       }
@@ -89,7 +104,7 @@ export function SalesBookingsBoard({
       }
       return true
     })
-  }, [boardBookings, driverFilter, resolvedSearchTerm, typeFilter])
+  }, [activeStageFilters, boardBookings, driverFilter, resolvedSearchTerm, typeFilter])
 
   const grouped = useMemo(() => {
     const initialEntries = [...stageOrder, "fallback" as const].map((stageId) => [stageId, [] as Booking[]])
@@ -100,8 +115,16 @@ export function SalesBookingsBoard({
       buckets[key].push(booking)
     })
 
+    if (sortOption) {
+      const comparator = buildBookingComparator(sortOption)
+      Object.keys(buckets).forEach((key) => {
+        const bucketKey = key as StageBucketId
+        buckets[bucketKey] = [...buckets[bucketKey]].sort(comparator)
+      })
+    }
+
     return buckets
-  }, [filtered])
+  }, [filtered, sortOption])
 
   const uniqueTypes = useMemo(() => {
     const set = new Set<Booking["type"]>()
@@ -138,67 +161,69 @@ export function SalesBookingsBoard({
 
   return (
     <div className="space-y-6">
-      <div className="rounded-2xl border border-border/60 bg-card/60 p-4 shadow-sm">
-        <div className="flex flex-wrap gap-4">
-          <div className="space-y-1">
-            <Label htmlFor="kanban-filter-type">Type</Label>
-            <Select value={typeFilter} onValueChange={setTypeFilter}>
-              <SelectTrigger id="kanban-filter-type" className="w-[180px]">
-                <SelectValue placeholder="All types" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All types</SelectItem>
-                {uniqueTypes.map((type) => (
-                  <SelectItem key={type} value={type}>
-                    {BOOKING_TYPES[type]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1">
-            <Label htmlFor="kanban-filter-driver">Driver</Label>
-            <Select value={driverFilter} onValueChange={setDriverFilter}>
-              <SelectTrigger id="kanban-filter-driver" className="w-[200px]">
-                <SelectValue placeholder="All drivers" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All drivers</SelectItem>
-                <SelectItem value="unassigned">Unassigned</SelectItem>
-                {drivers.map((driver) => (
-                  <SelectItem key={driver.id} value={driver.id.toString()}>
-                    {driver.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          {showSearchInput ? (
-            <div className="flex-1 space-y-1 min-w-[200px]">
-              <Label htmlFor="kanban-search">Search</Label>
-              <Input
-                id="kanban-search"
-                placeholder="Search booking, client, vehicle"
-                value={resolvedSearchTerm}
-                onChange={(event) => handleSearchChange(event.target.value)}
-              />
+      {showFilters ? (
+        <div className="rounded-2xl border border-border/60 bg-card/60 p-4 shadow-sm">
+          <div className="flex flex-wrap gap-4">
+            <div className="space-y-1">
+              <Label htmlFor="kanban-filter-type">Type</Label>
+              <Select value={typeFilter} onValueChange={setTypeFilter}>
+                <SelectTrigger id="kanban-filter-type" className="w-[180px]">
+                  <SelectValue placeholder="All types" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All types</SelectItem>
+                  {uniqueTypes.map((type) => (
+                    <SelectItem key={type} value={type}>
+                      {BOOKING_TYPES[type]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-          ) : null}
-          <div className="flex items-end">
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => {
-                setTypeFilter("all")
-                setDriverFilter("all")
-                handleSearchChange("")
-              }}
-            >
-              Reset filters
-            </Button>
+            <div className="space-y-1">
+              <Label htmlFor="kanban-filter-driver">Driver</Label>
+              <Select value={driverFilter} onValueChange={setDriverFilter}>
+                <SelectTrigger id="kanban-filter-driver" className="w-[200px]">
+                  <SelectValue placeholder="All drivers" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All drivers</SelectItem>
+                  <SelectItem value="unassigned">Unassigned</SelectItem>
+                  {drivers.map((driver) => (
+                    <SelectItem key={driver.id} value={driver.id.toString()}>
+                      {driver.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {showSearchInput ? (
+              <div className="flex-1 space-y-1 min-w-[200px]">
+                <Label htmlFor="kanban-search">Search</Label>
+                <Input
+                  id="kanban-search"
+                  placeholder="Search booking, client, vehicle"
+                  value={resolvedSearchTerm}
+                  onChange={(event) => handleSearchChange(event.target.value)}
+                />
+              </div>
+            ) : null}
+            <div className="flex items-end">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => {
+                  setTypeFilter("all")
+                  setDriverFilter("all")
+                  handleSearchChange("")
+                }}
+              >
+                Reset filters
+              </Button>
+            </div>
           </div>
         </div>
-      </div>
+      ) : null}
 
       <DragDropContext onDragEnd={handleDragEnd}>
         <div className="lg:overflow-x-auto lg:pb-1">
@@ -280,6 +305,34 @@ export function SalesBookingsBoard({
       ) : null}
     </div>
   )
+}
+
+function buildBookingComparator(sortOption: BookingSortOption) {
+  const priorityWeight: Record<Booking["priority"], number> = { high: 3, medium: 2, low: 1 }
+
+  return (a: Booking, b: Booking) => {
+    switch (sortOption) {
+      case "start-date": {
+        const aStart = Date.parse(a.startDate)
+        const bStart = Date.parse(b.startDate)
+        if (!Number.isNaN(aStart) && !Number.isNaN(bStart)) return aStart - bStart
+        return 0
+      }
+      case "priority": {
+        const aScore = priorityWeight[a.priority] ?? 0
+        const bScore = priorityWeight[b.priority] ?? 0
+        return bScore - aScore
+      }
+      case "value": {
+        const aValue = Number.isFinite(a.totalAmount) ? (a.totalAmount as number) : 0
+        const bValue = Number.isFinite(b.totalAmount) ? (b.totalAmount as number) : 0
+        return bValue - aValue
+      }
+      case "code":
+      default:
+        return a.code.localeCompare(b.code)
+    }
+  }
 }
 
 const dateTimeFormatter = new Intl.DateTimeFormat("en-CA", {

@@ -54,10 +54,10 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         <div className="flex flex-1 min-h-0 overflow-hidden lg:pl-16">
           <DashboardSidebar navGroups={navGroups} />
           <main
-            className="relative flex-1 min-h-0 overflow-y-auto border-l border-white/70 bg-white pb-8 [--dashboard-gutter:0.35rem] lg:[--dashboard-gutter:1rem]"
+            className="relative flex-1 min-h-0 overflow-y-auto border-l border-white/70 bg-white pb-8 [--dashboard-gutter:1rem]"
             style={{
-              paddingTop: "calc(var(--dashboard-header-height, 64px) + var(--dashboard-gutter, 0.35rem))",
-              paddingInline: "var(--dashboard-gutter, 0.35rem)",
+              paddingTop: "calc(var(--dashboard-header-height, 64px) + var(--dashboard-gutter, 1rem))",
+              paddingInline: "var(--dashboard-gutter, 1rem)",
             }}
           >
             {children}
