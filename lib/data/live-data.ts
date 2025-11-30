@@ -880,6 +880,8 @@ export const getLiveDrivers = cache(async (): Promise<Driver[]> => {
   }))
 })
 
+const FLEET_CALENDAR_EXCLUDED_STATUSES = new Set<FleetCar["status"]>(["Sold", "Service Car"])
+
 export const getFleetCalendarData = cache(async (): Promise<{ vehicles: FleetCar[]; bookings: Booking[]; events: CalendarEvent[] }> => {
   const [vehicles, bookings, calendarRows, maintenanceRows] = await Promise.all([
     getLiveFleetVehicles(),
@@ -887,9 +889,24 @@ export const getFleetCalendarData = cache(async (): Promise<{ vehicles: FleetCar
     fetchCalendarEventRows(),
     fetchMaintenanceJobRows(),
   ])
-  const events = buildFleetCalendarEvents({ vehicles, bookings, calendarRows, maintenanceRows })
-  return { vehicles, bookings, events }
+
+  const filteredVehicles = vehicles.filter((vehicle) => !FLEET_CALENDAR_EXCLUDED_STATUSES.has(vehicle.status))
+  const allowedVehicleIds = new Set(filteredVehicles.map((vehicle) => String(vehicle.id)))
+  const filteredBookings = bookings.filter((booking) => allowedVehicleIds.has(String(booking.carId)))
+  const events = buildFleetCalendarEvents({
+    vehicles: filteredVehicles,
+    bookings: filteredBookings,
+    calendarRows,
+    maintenanceRows,
+  }).filter((event) => allowedVehicleIds.has(String(event.carId)))
+
+  return { vehicles: filteredVehicles, bookings: filteredBookings, events }
 })
+
+export async function getFleetDirectoryData(): Promise<{ vehicles: FleetCar[]; bookings: Booking[] }> {
+  const [vehicles, bookings] = await Promise.all([getLiveFleetVehicles(), getLiveBookings()])
+  return { vehicles, bookings }
+}
 
 function mapVehicleRow(row: VehicleRow, options?: { staffById?: Map<string, StaffRow> }): FleetCar {
   const utilization = normalizeRatio(row.utilization_pct)
@@ -1182,14 +1199,13 @@ function mapDriverStatus(value: string | null): Driver["status"] {
 }
 
 function mapVehicleStatus(value: string | null): FleetCar["status"] {
-  switch ((value ?? "available").toLowerCase()) {
-    case "maintenance":
-      return "Maintenance"
-    case "in_rent":
-      return "In Rent"
-    default:
-      return "Available"
-  }
+  const normalized = (value ?? "available").trim().toLowerCase().replace(/[-\s]+/g, "_")
+  if (normalized === "maintenance") return "Maintenance"
+  if (normalized === "in_rent") return "In Rent"
+  if (normalized === "reserved") return "Reserved"
+  if (normalized === "sold") return "Sold"
+  if (normalized === "service_car" || normalized === "service_cars") return "Service Car"
+  return "Available"
 }
 
 function deriveClientAuditActor(row: ClientRow, staffById: Map<string, StaffRow> | undefined, kind: "created" | "updated"): string | undefined {

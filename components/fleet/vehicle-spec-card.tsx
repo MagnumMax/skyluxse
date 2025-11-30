@@ -9,6 +9,7 @@ interface VehicleSpecCardProps {
 
 export function VehicleSpecCard({ vehicle }: VehicleSpecCardProps) {
   const specs: ParameterListItem[] = [
+    { label: "Status", value: vehicle.status },
     { label: "Make", value: vehicle.make },
     { label: "Model", value: vehicle.model },
     { label: "VIN", value: vehicle.vin },

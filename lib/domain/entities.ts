@@ -283,7 +283,7 @@ export interface OperationsTask extends Task {
   channel: string
 }
 
-export type FleetCarStatus = "Available" | "In Rent" | "Maintenance"
+export type FleetCarStatus = "Available" | "In Rent" | "Maintenance" | "Reserved" | "Sold" | "Service Car"
 
 export interface VehicleDocument {
   id: string

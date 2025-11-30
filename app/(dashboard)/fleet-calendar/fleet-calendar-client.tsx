@@ -64,6 +64,7 @@ export function OperationsFleetCalendarClient({
     () => buildCalendarMetrics(vehicles, bookings, sanitizedEvents),
     [bookings, sanitizedEvents, vehicles]
   )
+  const vehiclePriceMap = useMemo(() => buildVehiclePriceMap(bookings), [bookings])
   const normalizedInitialVehicleId = initialVehicleId ? String(initialVehicleId) : undefined
   const initialVehicle = normalizedInitialVehicleId
     ? vehicles.find((vehicle) => String(vehicle.id) === normalizedInitialVehicleId)
@@ -140,8 +141,8 @@ export function OperationsFleetCalendarClient({
       })
 
     const utilizationMap = buildUtilizationMap(filteredEvents, rangeStart, rangeEnd)
+    const sorted = [...baseFiltered].sort((a, b) => sortVehicles(a, b, sortOption, utilizationMap, vehiclePriceMap))
 
-    const sorted = [...baseFiltered].sort((a, b) => sortVehicles(a, b, sortOption, utilizationMap))
     return { vehicles: sorted, events: filteredEvents, utilizationMap }
   }, [
     layerFilters,
@@ -154,6 +155,7 @@ export function OperationsFleetCalendarClient({
     visibleDates,
     calendarController.baseDate,
     calendarController.rangeDays,
+    vehiclePriceMap,
   ])
 
   const visibleVehicleIds = useMemo(
@@ -682,10 +684,62 @@ export function buildVehicleSearchLabel(vehicle: FleetCar) {
   return parts.join(" · ")
 }
 
-export function sortVehicles(a: FleetCar, b: FleetCar, option: SortOption, utilizationMap?: Map<string, number>) {
+function buildVehiclePriceMap(bookings: Booking[]) {
+  const latestPriceByVehicle = new Map<string, { price: number; timestamp: number }>()
+
+  bookings.forEach((booking) => {
+    if (!booking.carId) return
+    const price = resolveBookingDailyRate(booking)
+    if (price == null) return
+
+    const bookingTs = Date.parse(booking.startDate)
+    const carId = String(booking.carId)
+    const current = latestPriceByVehicle.get(carId)
+    const normalizedTs = Number.isFinite(bookingTs) ? bookingTs : 0
+
+    if (!current || normalizedTs > current.timestamp) {
+      latestPriceByVehicle.set(carId, { price, timestamp: normalizedTs })
+    }
+  })
+
+  const priceMap = new Map<string, number>()
+  latestPriceByVehicle.forEach(({ price }, carId) => priceMap.set(carId, price))
+  return priceMap
+}
+
+function resolveBookingDailyRate(booking: Booking) {
+  const daily = booking.priceDaily
+  if (Number.isFinite(daily)) return daily as number
+
+  const total = booking.totalAmount
+  if (!Number.isFinite(total)) return null
+
+  const durationDays = booking.rentalDurationDays ?? computeBookingDurationDays(booking.startDate, booking.endDate)
+  if (!Number.isFinite(durationDays) || (durationDays as number) <= 0) return null
+
+  return total / (durationDays as number)
+}
+
+function computeBookingDurationDays(startDate: string, endDate: string) {
+  const start = Date.parse(startDate)
+  const end = Date.parse(endDate)
+  if (Number.isNaN(start) || Number.isNaN(end)) return null
+  const diffMs = end - start
+  if (diffMs <= 0) return null
+  return Math.max(1, Math.ceil(diffMs / DAY_IN_MS))
+}
+
+export function sortVehicles(
+  a: FleetCar,
+  b: FleetCar,
+  option: SortOption,
+  utilizationMap?: Map<string, number>,
+  priceMap?: Map<string, number>
+) {
   if (option === "price") {
-    const diff = (b.revenueYTD ?? 0) - (a.revenueYTD ?? 0)
-    if (diff !== 0) return diff
+    const priceA = priceMap?.get(String(a.id)) ?? 0
+    const priceB = priceMap?.get(String(b.id)) ?? 0
+    if (priceB !== priceA) return priceB - priceA
   }
   if (option === "name") {
     return (a.name ?? "").localeCompare(b.name ?? "")

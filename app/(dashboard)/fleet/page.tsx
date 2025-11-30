@@ -1,12 +1,12 @@
 import { DashboardPageShell } from "@/components/dashboard-page-shell"
 import { OperationsFleetClient } from "@/components/operations-fleet-client"
-import { getFleetCalendarData } from "@/lib/data/live-data"
+import { getFleetDirectoryData } from "@/lib/data/live-data"
 
 export default async function OperationsFleetPage() {
-  const { vehicles, bookings, events } = await getFleetCalendarData()
+  const { vehicles, bookings } = await getFleetDirectoryData()
   return (
     <DashboardPageShell>
-      <OperationsFleetClient vehicles={vehicles} bookings={bookings} events={events} />
+      <OperationsFleetClient vehicles={vehicles} bookings={bookings} />
     </DashboardPageShell>
   )
 }

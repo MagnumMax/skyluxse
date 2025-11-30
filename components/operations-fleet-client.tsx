@@ -1,142 +1,109 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { ArrowDown, ArrowUp } from "lucide-react"
+import { Car, Filter, Layers, RotateCcw, ShieldCheck, type LucideIcon } from "lucide-react"
 
-import { OperationsFleetTable } from "@/components/operations-fleet-table"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import type { Booking, CalendarEvent, FleetCar } from "@/lib/domain/entities"
+import type { Booking, FleetCar } from "@/lib/domain/entities"
 import { calculateVehicleRuntimeMetrics } from "@/lib/fleet/runtime"
+import { OperationsFleetTable } from "@/components/operations-fleet-table"
+import { DashboardHeaderSearch } from "@/components/dashboard-header-search"
+import { Button } from "@/components/ui/button"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
 interface OperationsFleetClientProps {
   vehicles: FleetCar[]
   bookings: Booking[]
-  events: CalendarEvent[]
 }
 
 type FleetFilterState = {
   search: string
   bodyStyle: string
-  minSeats?: number
-  yearFrom?: number
-  yearTo?: number
+  status: string
 }
 
-type SortOption = "year" | "revenue" | "utilization"
-type SortDirection = "asc" | "desc"
+const STATUS_FILTER_OPTIONS = [
+  { value: "all", label: "All" },
+  { value: "available", label: "Available" },
+  { value: "in_rent", label: "In Rent" },
+  { value: "maintenance", label: "Maintenance" },
+  { value: "reserved", label: "Reserved" },
+  { value: "sold", label: "Sold" },
+  { value: "service_car", label: "Service Car" },
+] as const
 
 const DEFAULT_FILTERS: FleetFilterState = {
   search: "",
   bodyStyle: "all",
+  status: "all",
 }
 
-export function OperationsFleetClient({ vehicles, bookings, events }: OperationsFleetClientProps) {
+export function OperationsFleetClient({ vehicles, bookings }: OperationsFleetClientProps) {
   const [filters, setFilters] = useState<FleetFilterState>(DEFAULT_FILTERS)
-  const [sortBy, setSortBy] = useState<SortOption>("year")
-  const [sortDirection, setSortDirection] = useState<SortDirection>("desc")
 
-  const nextEventsMap = useMemo(() => buildNextEventMap(events), [events])
   const runtimeByVehicle = useMemo(() => buildVehicleRuntimeMap(vehicles, bookings), [vehicles, bookings])
-  const filteredVehicles = useMemo(() => {
-    const base = filterVehicles(vehicles, filters)
-    return sortFleetCars(base, sortBy, sortDirection, runtimeByVehicle)
-  }, [vehicles, filters, sortBy, sortDirection, runtimeByVehicle])
+  const filteredVehicles = useMemo(
+    () => filterVehicles(vehicles, filters),
+    [vehicles, filters]
+  )
 
-  const bodyStyleOptions = useMemo(() => buildUniqueOptions(vehicles, (vehicle) => vehicle.bodyStyle ?? "—"), [vehicles])
+  const bodyStyleOptions = useMemo(
+    () => buildUniqueOptions(vehicles, (vehicle) => vehicle.bodyStyle ?? "—").map((value) => ({ value, label: value === "all" ? "All" : value })),
+    [vehicles]
+  )
+  const statusOptions = STATUS_FILTER_OPTIONS
 
   return (
     <div className="space-y-8">
+      <DashboardHeaderSearch
+        value={filters.search}
+        onChange={(value) => setFilters((prev) => ({ ...prev, search: value }))}
+        placeholder="Search car, plate, VIN…"
+        actions={
+          <TooltipProvider delayDuration={100}>
+            <div className="flex flex-wrap items-center gap-1.5 rounded-full bg-slate-950/80 px-2 py-1.5 text-slate-100 shadow-[0_10px_40px_-28px_rgba(0,0,0,0.6)] md:gap-2.5">
+              <FilterSelect
+                label="Body type"
+                value={filters.bodyStyle}
+                onValueChange={(value) => setFilters((prev) => ({ ...prev, bodyStyle: value }))}
+                options={bodyStyleOptions}
+                icon={Car}
+                ariaLabel="Filter by body type"
+              />
+              <FilterSelect
+                label="Status"
+                value={filters.status}
+                onValueChange={(value) => setFilters((prev) => ({ ...prev, status: value }))}
+                options={statusOptions}
+                icon={ShieldCheck}
+                ariaLabel="Filter by status"
+              />
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-9 w-9 rounded-full border border-white/15 bg-white/5 p-0 text-slate-100 hover:bg-white/10"
+                    onClick={() => setFilters(DEFAULT_FILTERS)}
+                    aria-label="Reset filters"
+                  >
+                    <RotateCcw className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Reset filters</TooltipContent>
+              </Tooltip>
+            </div>
+          </TooltipProvider>
+        }
+      />
+
       <header className="space-y-2">
         <div className="flex flex-wrap items-center gap-3">
           <h1 className="text-3xl font-semibold tracking-tight">Fleet Directory</h1>
         </div>
       </header>
 
-      <section className="rounded-[26px] border border-border/70 bg-card/80 p-5 shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-muted-foreground">Filters & search</p>
-          </div>
-          <Button variant="ghost" size="sm" onClick={() => setFilters(DEFAULT_FILTERS)}>
-            Reset
-          </Button>
-        </div>
-        <div className="mt-4 grid gap-4 lg:grid-cols-2">
-          <div>
-            <Label htmlFor="fleet-search" className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
-              Search
-            </Label>
-            <Input
-              id="fleet-search"
-              placeholder="Search make, model, plate, VIN"
-              value={filters.search}
-              onChange={(event) => setFilters((prev) => ({ ...prev, search: event.target.value }))}
-              className="mt-1"
-            />
-          </div>
-          <div className="grid gap-4 sm:grid-cols-3">
-            <FilterSelect
-              label="Body type"
-              value={filters.bodyStyle}
-              onValueChange={(value) => setFilters((prev) => ({ ...prev, bodyStyle: value }))}
-              options={bodyStyleOptions}
-            />
-            <div>
-              <Label className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Sort by</Label>
-              <div className="mt-1 flex items-center gap-2">
-                <Select value={sortBy} onValueChange={(value) => setSortBy(value as SortOption)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Sort" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="year">Year</SelectItem>
-                    <SelectItem value="revenue">Revenue YTD</SelectItem>
-                    <SelectItem value="utilization">Utilisation</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  onClick={() => setSortDirection((prev) => (prev === "desc" ? "asc" : "desc"))}
-                  aria-label="Toggle sort direction"
-                  title={sortDirection === "desc" ? "Descending" : "Ascending"}
-                >
-                  {sortDirection === "desc" ? <ArrowDown className="h-4 w-4" /> : <ArrowUp className="h-4 w-4" />}
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div className="mt-4 grid gap-4 md:grid-cols-4">
-          <NumberFilter
-            id="fleet-min-seats"
-            label="Min seats"
-            placeholder="5"
-            value={filters.minSeats}
-            onChange={(value) => setFilters((prev) => ({ ...prev, minSeats: value }))}
-          />
-          <NumberFilter
-            id="fleet-year-from"
-            label="Year from"
-            placeholder="2022"
-            value={filters.yearFrom}
-            onChange={(value) => setFilters((prev) => ({ ...prev, yearFrom: value }))}
-          />
-          <NumberFilter
-            id="fleet-year-to"
-            label="Year to"
-            placeholder="2025"
-            value={filters.yearTo}
-            onChange={(value) => setFilters((prev) => ({ ...prev, yearTo: value }))}
-          />
-        </div>
-      </section>
-
-      <OperationsFleetTable cars={filteredVehicles} nextEvents={nextEventsMap} runtime={runtimeByVehicle} />
+      <OperationsFleetTable cars={filteredVehicles} runtime={runtimeByVehicle} />
     </div>
   )
 }
@@ -150,29 +117,6 @@ function buildUniqueOptions(vehicles: FleetCar[], getter: (vehicle: FleetCar) =>
     }
   })
   return ["all", ...Array.from(set)]
-}
-
-function buildNextEventMap(events: CalendarEvent[]) {
-  const now = Date.now()
-  const byVehicle = new Map<string, CalendarEvent[]>()
-  events.forEach((event) => {
-    if (!event.carId) return
-    const list = byVehicle.get(String(event.carId)) ?? []
-    list.push(event)
-    byVehicle.set(String(event.carId), list)
-  })
-
-  const entries: [string, CalendarEvent][] = []
-  byVehicle.forEach((list, vehicleId) => {
-    const upcoming = list
-      .filter((event) => new Date(event.end).getTime() >= now)
-      .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime())[0]
-    if (upcoming) {
-      entries.push([vehicleId, upcoming])
-    }
-  })
-
-  return Object.fromEntries(entries) as Record<string, CalendarEvent>
 }
 
 type VehicleRuntimeSnapshot = {
@@ -218,44 +162,6 @@ function buildVehicleRuntimeMap(vehicles: FleetCar[], bookings: Booking[]): Reco
   return runtime
 }
 
-function sortFleetCars(
-  cars: FleetCar[],
-  sortBy: SortOption,
-  direction: SortDirection,
-  runtime: Record<string, VehicleRuntimeSnapshot>
-) {
-  const list = [...cars]
-  const multiplier = direction === "asc" ? 1 : -1
-  if (sortBy === "year") {
-    return list.sort((a, b) => ((a.year ?? 0) - (b.year ?? 0)) * multiplier)
-  }
-  if (sortBy === "revenue") {
-    return list.sort(
-      (a, b) => (getRuntimeValue(a, runtime, "revenueYTD") - getRuntimeValue(b, runtime, "revenueYTD")) * multiplier
-    )
-  }
-  if (sortBy === "utilization") {
-    return list.sort(
-      (a, b) => (getRuntimeValue(a, runtime, "utilization") - getRuntimeValue(b, runtime, "utilization")) * multiplier
-    )
-  }
-  return list
-}
-
-function getRuntimeValue(vehicle: FleetCar, runtime: Record<string, VehicleRuntimeSnapshot>, key: "revenueYTD" | "utilization") {
-  const entry = runtime[String(vehicle.id)]
-  if (entry) {
-    return entry[key]
-  }
-  if (key === "revenueYTD") {
-    return vehicle.revenueYTD ?? 0
-  }
-  if (key === "utilization") {
-    return vehicle.utilization ?? 0
-  }
-  return 0
-}
-
 function isActiveBooking(booking: Booking, nowMs: number) {
   const start = Date.parse(booking.startDate)
   const end = Date.parse(booking.endDate)
@@ -283,6 +189,7 @@ function formatBookingStatusLabel(status?: Booking["status"]) {
 
 function filterVehicles(vehicles: FleetCar[], filters: FleetFilterState) {
   const query = filters.search.trim().toLowerCase()
+  const normalizedFilterStatusValue = filters.status.trim().toLowerCase().replace(/[-\s]+/g, "_")
   return vehicles.filter((vehicle) => {
     if (query) {
       const haystack = [vehicle.make, vehicle.model, vehicle.name, vehicle.plate, vehicle.vin].filter(Boolean).join(" ").toLowerCase()
@@ -295,60 +202,52 @@ function filterVehicles(vehicles: FleetCar[], filters: FleetFilterState) {
       return false
     }
 
-    if (filters.minSeats && (vehicle.seatingCapacity ?? 0) < filters.minSeats) {
-      return false
-    }
-
-    if (filters.yearFrom && vehicle.year < filters.yearFrom) {
-      return false
-    }
-
-    if (filters.yearTo && vehicle.year > filters.yearTo) {
-      return false
+    if (normalizedFilterStatusValue !== "all") {
+      const normalizedVehicleStatus = (vehicle.status ?? "").trim().toLowerCase().replace(/[-\s]+/g, "_")
+      if (normalizedVehicleStatus !== normalizedFilterStatusValue) {
+        return false
+      }
     }
 
     return true
   })
 }
 
-function FilterSelect({ label, value, onValueChange, options }: { label: string; value: string; onValueChange: (value: string) => void; options: string[] }) {
+function FilterSelect({
+  label,
+  value,
+  onValueChange,
+  options,
+  icon: Icon,
+  ariaLabel,
+}: {
+  label: string
+  value: string
+  onValueChange: (value: string) => void
+  options: { value: string; label: string }[]
+  icon: LucideIcon
+  ariaLabel: string
+}) {
   return (
-    <div>
-      <Label className="text-xs uppercase tracking-[0.3em] text-muted-foreground">{label}</Label>
+    <Tooltip>
       <Select value={value} onValueChange={onValueChange}>
-        <SelectTrigger className="mt-1">
-          <SelectValue placeholder="Select" />
-        </SelectTrigger>
+        <TooltipTrigger asChild>
+          <SelectTrigger
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-slate-900/70 p-0 text-slate-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] hover:bg-white/5 [&>svg:last-of-type]:hidden"
+            aria-label={ariaLabel}
+          >
+            <Icon className="mx-auto h-4 w-4" />
+          </SelectTrigger>
+        </TooltipTrigger>
         <SelectContent>
           {options.map((option) => (
-            <SelectItem key={option} value={option} className="capitalize">
-              {option === "all" ? "All" : option}
+            <SelectItem key={option.value} value={option.value} className="capitalize">
+              {option.label}
             </SelectItem>
           ))}
         </SelectContent>
       </Select>
-    </div>
-  )
-}
-
-function NumberFilter({ id, label, placeholder, value, onChange }: { id: string; label: string; placeholder: string; value?: number; onChange: (value?: number) => void }) {
-  return (
-    <div>
-      <Label htmlFor={id} className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
-        {label}
-      </Label>
-      <Input
-        id={id}
-        type="number"
-        inputMode="numeric"
-        placeholder={placeholder}
-        value={value ? String(value) : ""}
-        onChange={(event) => {
-          const next = event.target.value
-          onChange(next ? Number(next) : undefined)
-        }}
-        className="mt-1"
-      />
-    </div>
+      <TooltipContent>{label}</TooltipContent>
+    </Tooltip>
   )
 }

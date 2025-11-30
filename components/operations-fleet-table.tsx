@@ -1,22 +1,18 @@
 import Link from "next/link"
-import { CalendarDays } from "lucide-react"
 
-import type { CalendarEvent, FleetCar } from "@/lib/domain/entities"
+import type { FleetCar } from "@/lib/domain/entities"
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 
 const referenceDate = new Date()
 
-type NextEventMap = Record<string, CalendarEvent | undefined>
 type RuntimeMap = Record<string, { status: string; utilization: number; revenueYTD: number }>
 
 export function OperationsFleetTable({
   cars,
-  nextEvents,
   runtime,
 }: {
   cars: FleetCar[]
-  nextEvents?: NextEventMap
   runtime?: RuntimeMap
 }) {
   return (
@@ -25,7 +21,7 @@ export function OperationsFleetTable({
         <thead>
           <tr className="text-left text-xs font-semibold uppercase tracking-[0.35em] text-muted-foreground">
             <th className="px-6 py-4">Vehicle</th>
-            <th className="px-6 py-4">Year</th>
+            <th className="px-6 py-4">Next service</th>
             <th className="px-6 py-4">Compliance</th>
           </tr>
         </thead>
@@ -33,10 +29,10 @@ export function OperationsFleetTable({
           {cars.map((car) => (
             <tr key={car.id} className="align-top">
               <td className="px-6 py-5">
-                <VehicleCell car={car} nextEvent={nextEvents?.[String(car.id)]} runtime={runtime?.[String(car.id)]} />
+                <VehicleCell car={car} runtime={runtime?.[String(car.id)]} />
               </td>
               <td className="px-6 py-5">
-                <VehicleYearCell car={car} />
+                <NextServiceCell car={car} />
               </td>
               <td className="px-6 py-5">
                 <ComplianceCell car={car} />
@@ -51,25 +47,27 @@ export function OperationsFleetTable({
 
 function VehicleCell({
   car,
-  nextEvent,
   runtime,
 }: {
   car: FleetCar
-  nextEvent?: CalendarEvent
   runtime?: { status: string; utilization: number; revenueYTD: number }
 }) {
   const displayName = car.name || [car.make, car.model].filter(Boolean).join(" ") || "Unnamed vehicle"
-  const statusLabel = runtime?.status ?? car.status ?? "Available"
+  const displayNameWithYear = car.year ? `${displayName}, ${car.year}` : displayName
+  const statusLabel = car.status ?? runtime?.status ?? "Available"
   const utilization = runtime?.utilization ?? car.utilization ?? 0
-  const revenueYtd = runtime?.revenueYTD ?? car.revenueYTD ?? 0
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
         <Link href={toRoute(`/fleet/${car.id}`)} className="text-base font-semibold text-primary hover:underline">
-          {displayName}
+          {displayNameWithYear}
         </Link>
-        <span className="text-xs font-semibold uppercase tracking-[0.25em] text-muted-foreground">{car.plate}</span>
-        <CalendarLink carId={String(car.id)} nextEvent={nextEvent} />
+        <Badge
+          variant="outline"
+          className="rounded-[10px] border-slate-500 bg-slate-900/70 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
+        >
+          {car.plate || "—"}
+        </Badge>
       </div>
       <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
         <Badge
@@ -82,7 +80,6 @@ function VehicleCell({
         </Badge>
         <span>Mileage {formatNumber(car.mileage)} km</span>
         <span>Utilisation {(utilization * 100).toFixed(0)}%</span>
-        <span>Revenue YTD {formatCurrency(revenueYtd)}</span>
       </div>
       <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
         <Badge
@@ -96,31 +93,14 @@ function VehicleCell({
   )
 }
 
-function CalendarLink({ carId, nextEvent }: { carId: string; nextEvent?: CalendarEvent }) {
-  const label = nextEvent ? `${formatEventType(nextEvent.type)} · ${formatDate(nextEvent.start)} → ${formatDate(nextEvent.end)}` : "Fleet calendar"
-  return (
-    <Link
-      href={toRoute(`/fleet-calendar?vehicleId=${encodeURIComponent(carId)}`)}
-      className="inline-flex items-center gap-1 rounded-full border border-border/40 px-2 py-0.5 text-[11px] font-semibold text-muted-foreground hover:text-primary"
-      title={label}
-    >
-      <CalendarDays className="h-3 w-3" />
-      <span>{nextEvent ? "Next slot" : "Calendar"}</span>
-    </Link>
-  )
-}
-
-function formatEventType(value?: string) {
-  if (!value) return "Event"
-  return value.charAt(0).toUpperCase() + value.slice(1)
-}
-
-function VehicleYearCell({ car }: { car: FleetCar }) {
+function NextServiceCell({ car }: { car: FleetCar }) {
   return (
     <div className="space-y-2">
-      <p className="text-sm font-semibold text-foreground">{car.year}</p>
+      <p className="text-sm font-semibold text-foreground">{formatDate(car.serviceStatus?.nextService)}</p>
       <p className="text-xs text-muted-foreground">
-        Next service {formatDate(car.serviceStatus.nextService)} ({car.serviceStatus.mileageToService} km)
+        {Number.isFinite(car.serviceStatus?.mileageToService)
+          ? `${formatNumber(car.serviceStatus?.mileageToService)} km to service`
+          : "Mileage —"}
       </p>
     </div>
   )
@@ -225,6 +205,12 @@ function getVehicleStatusBadgeTone(status: string) {
   if (normalized.includes("offline") || normalized.includes("inactive")) {
     return "bg-slate-100 text-slate-600 border-slate-200"
   }
+  if (normalized.includes("reserved")) {
+    return "bg-sky-50 text-sky-700 border-sky-200"
+  }
+  if (normalized.includes("sold")) {
+    return "bg-rose-50 text-rose-700 border-rose-200"
+  }
   return "bg-slate-50 text-slate-700 border-slate-200"
 }
 
@@ -240,11 +226,6 @@ function formatDate(value?: string) {
 function formatNumber(value?: number) {
   if (!value && value !== 0) return "—"
   return new Intl.NumberFormat("en-CA", { maximumFractionDigits: 0 }).format(value)
-}
-
-function formatCurrency(value?: number) {
-  if (!value && value !== 0) return "—"
-  return new Intl.NumberFormat("en-CA", { style: "currency", currency: "AED", maximumFractionDigits: 0 }).format(value)
 }
 
 function toRoute(href: string) {
