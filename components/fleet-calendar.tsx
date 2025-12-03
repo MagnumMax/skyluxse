@@ -297,36 +297,37 @@ export function FleetCalendarBoard({
       <div className="fleet-calendar-table">
         <div className="fleet-calendar-right-content">
           <div className="fleet-calendar-right-content-inner">
-            <div className="fleet-calendar-table-row fleet-calendar-table-row--header">
-              <div className="fleet-calendar-left-sidebar">
-                <div className="fleet-calendar-left-cell fleet-calendar-left-cell--header">Vehicles</div>
-              </div>
-              <div className="fleet-calendar-row-grid">
-                <div className="calendar-grid fleet-calendar-grid-header" style={{ gridTemplateColumns }}>
-                  {visibleDates.map((date) => {
-                    const dayLabel = `${date.getDate().toString().padStart(2, '0')}.${(date.getMonth() + 1).toString().padStart(2, '0')}`
-                    const weekdayLabel = (WEEKDAY_LABELS[date.getDay()] ?? "").toUpperCase()
 
-                    return (
-                      <div
-                        key={`header-${date.toISOString()}`}
-                        className={cn("calendar-day-header", {
-                          "calendar-day-header--weekend": isWeekend(date),
-                          "calendar-day-header--today": todayColumnIndex !== -1 && visibleDates[todayColumnIndex]?.toDateString() === date.toDateString(),
-                        })}
-                        style={{ gridColumn: "span 2" }}
-                      >
-                        <span className="calendar-day-header-line">
-                          <span className="calendar-day-header-weekday">{weekdayLabel}</span>
-                          <span className="calendar-day-header-day">{dayLabel}</span>
-                        </span>
-                      </div>
-                    )
-                  })}
+            <div className="fleet-calendar-scroll-body">
+              <div className="fleet-calendar-table-row fleet-calendar-table-row--header">
+                <div className="fleet-calendar-left-sidebar">
+                  <div className="fleet-calendar-left-cell fleet-calendar-left-cell--header">Vehicles</div>
+                </div>
+                <div className="fleet-calendar-row-grid">
+                  <div className="calendar-grid fleet-calendar-grid-header" style={{ gridTemplateColumns }}>
+                    {visibleDates.map((date) => {
+                      const dayLabel = `${date.getDate().toString().padStart(2, '0')}.${(date.getMonth() + 1).toString().padStart(2, '0')}`
+                      const weekdayLabel = (WEEKDAY_LABELS[date.getDay()] ?? "").toUpperCase()
+
+                      return (
+                        <div
+                          key={`header-${date.toISOString()}`}
+                          className={cn("calendar-day-header", {
+                            "calendar-day-header--weekend": isWeekend(date),
+                            "calendar-day-header--today": todayColumnIndex !== -1 && visibleDates[todayColumnIndex]?.toDateString() === date.toDateString(),
+                          })}
+                          style={{ gridColumn: "span 2" }}
+                        >
+                          <span className="calendar-day-header-line">
+                            <span className="calendar-day-header-weekday">{weekdayLabel}</span>
+                            <span className="calendar-day-header-day">{dayLabel}</span>
+                          </span>
+                        </div>
+                      )
+                    })}
+                  </div>
                 </div>
               </div>
-            </div>
-            <div className="fleet-calendar-scroll-body">
               {groupedRows.map((group) => (
                 <Fragment key={`group-${group.label}`}>
                   <div className="fleet-calendar-table-row fleet-calendar-table-row--group">
