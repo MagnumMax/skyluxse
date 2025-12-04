@@ -29,6 +29,9 @@
     "incremental": true,
     "baseUrl": ".",
     "paths": {
+      "@zohocrm/nodejs-sdk-7.0": [
+        "./types/zohocrm-nodejs-sdk-7.0.d.ts"
+      ],
       "@/*": [
         "./*"
       ]
@@ -43,7 +46,8 @@
     "**/*.cts",
     "**/*.mts",
     ".next/types/**/*.ts",
-    ".next/dev/types/**/*.ts"
+    ".next/dev/types/**/*.ts",
+    "types/**/*.d.ts"
   ],
   "exclude": [
     "node_modules",
