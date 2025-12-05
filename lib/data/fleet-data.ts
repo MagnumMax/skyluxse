@@ -8,7 +8,7 @@ import type {
   VehicleMaintenanceEntry,
   VehicleReminder,
 } from "@/lib/domain/entities"
-import { getLiveBookings, getLiveFleetVehicleById } from "@/lib/data/live-data"
+import { getLiveBookingsByVehicleId, getLiveFleetVehicleById } from "@/lib/data/live-data"
 import { calculateVehicleRuntimeMetrics } from "@/lib/fleet/runtime"
 import { serviceClient } from "@/lib/supabase/service-client"
 import { createSignedUrl } from "@/lib/storage/signed-url"
@@ -106,12 +106,11 @@ export async function getFleetVehicleProfile(vehicleId: string): Promise<FleetVe
     fetchVehicleInspectionRows(vehicleId),
     getVehicleServices(vehicleId),
     fetchVehicleDocuments(vehicleId),
-    getLiveBookings(),
+    getLiveBookingsByVehicleId(vehicleId),
   ])
 
-  const vehicleBookings = bookings.filter((booking) => String(booking.carId) === String(vehicle.id))
   const inspections = inspectionRows.map((row) => mapInspectionRow(row, documentBundle.assetById))
-  const { utilization, revenueYTD } = calculateVehicleRuntimeMetrics(vehicleBookings)
+  const { utilization, revenueYTD } = calculateVehicleRuntimeMetrics(bookings)
   const heroImage = await resolveHeroImage(vehicle.imageUrl, documentBundle)
 
   const enrichedVehicle: FleetCar = {
@@ -126,7 +125,7 @@ export async function getFleetVehicleProfile(vehicleId: string): Promise<FleetVe
     documentGallery: documentBundle.gallery,
   }
 
-  return { vehicle: enrichedVehicle, bookings: vehicleBookings }
+  return { vehicle: enrichedVehicle, bookings }
 }
 
 async function fetchVehicleReminders(vehicleId: string): Promise<VehicleReminder[]> {

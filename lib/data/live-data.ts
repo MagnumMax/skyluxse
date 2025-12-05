@@ -286,6 +286,8 @@ const AED = "AED"
 const SUPABASE_PUBLIC_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL
 const KOMMO_BASE_URL = process.env.NEXT_PUBLIC_KOMMO_BASE_URL || process.env.KOMMO_BASE_URL || ""
 const DOCUMENT_URL_TTL_SECONDS = 60 * 60
+const BOOKING_SELECT_COLUMNS =
+  "id, external_code, client_id, vehicle_id, driver_id, owner_id, status, booking_type, channel, priority, start_at, end_at, total_amount, deposit_amount, created_at, updated_at, created_by, kommo_status_id, delivery_fee_label, delivery_location, collect_location, rental_duration_days, price_daily, insurance_fee_label, full_insurance_fee, advance_payment, sales_order_url, agreement_number, zoho_sales_order_id, sales_service_rating, sales_service_feedback, sales_service_rated_by, sales_service_rated_at"
 
 const fetchClientRows = cache(async (): Promise<ClientRow[]> => {
   const { data, error } = await serviceClient
@@ -298,6 +300,16 @@ const fetchClientRows = cache(async (): Promise<ClientRow[]> => {
   }
   return coerceRows<ClientRow>(data)
 })
+
+async function fetchClientRowsByIds(clientIds: string[]): Promise<ClientRow[]> {
+  const uniqueIds = Array.from(new Set(clientIds.filter((id) => isUuidLike(id))))
+  if (!uniqueIds.length) return []
+  const { data, error } = await serviceClient.from("clients").select(CLIENT_SELECT_COLUMNS).in("id", uniqueIds)
+  if (error) {
+    throw new Error(`[supabase] Failed to load clients by id: ${error.message}`)
+  }
+  return coerceRows<ClientRow>(data)
+}
 
 async function fetchClientRowById(clientId: string): Promise<ClientRow | null> {
   const { data, error } = await serviceClient.from("clients").select(CLIENT_SELECT_COLUMNS).eq("id", clientId).maybeSingle()
@@ -382,9 +394,7 @@ async function fetchVehicleRowById(vehicleId: string): Promise<VehicleRow | null
 const fetchBookingRows = cache(async (): Promise<BookingRow[]> => {
   const { data, error } = await serviceClient
     .from("bookings")
-    .select(
-      "id, external_code, client_id, vehicle_id, driver_id, owner_id, status, booking_type, channel, priority, start_at, end_at, total_amount, deposit_amount, created_at, updated_at, created_by, kommo_status_id, delivery_fee_label, delivery_location, collect_location, rental_duration_days, price_daily, insurance_fee_label, full_insurance_fee, advance_payment, sales_order_url, agreement_number, zoho_sales_order_id, sales_service_rating, sales_service_feedback, sales_service_rated_by, sales_service_rated_at"
-    )
+    .select(BOOKING_SELECT_COLUMNS)
     .order("start_at", { ascending: false })
     .limit(500)
   if (error) {
@@ -392,6 +402,20 @@ const fetchBookingRows = cache(async (): Promise<BookingRow[]> => {
   }
   return data ?? []
 })
+
+async function fetchBookingRowsByVehicleId(vehicleId: string): Promise<BookingRow[]> {
+  if (!vehicleId) return []
+  const { data, error } = await serviceClient
+    .from("bookings")
+    .select(BOOKING_SELECT_COLUMNS)
+    .eq("vehicle_id", vehicleId)
+    .order("start_at", { ascending: false })
+    .limit(200)
+  if (error) {
+    throw new Error(`[supabase] Failed to load bookings for vehicle ${vehicleId}: ${error.message}`)
+  }
+  return data ?? []
+}
 
 const fetchSalesPipelineStageRows = cache(async (): Promise<SalesPipelineStageRow[]> => {
   const { data, error } = await serviceClient
@@ -407,9 +431,7 @@ const fetchSalesPipelineStageRows = cache(async (): Promise<SalesPipelineStageRo
 async function fetchBookingRowsByClientId(clientId: string): Promise<BookingRow[]> {
   const { data, error } = await serviceClient
     .from("bookings")
-    .select(
-      "id, external_code, client_id, vehicle_id, driver_id, owner_id, status, booking_type, channel, priority, start_at, end_at, total_amount, deposit_amount, created_at, updated_at, created_by, kommo_status_id, delivery_fee_label, delivery_location, collect_location, rental_duration_days, price_daily, insurance_fee_label, full_insurance_fee, advance_payment, sales_order_url, agreement_number, zoho_sales_order_id, sales_service_rating, sales_service_feedback, sales_service_rated_by, sales_service_rated_at"
-    )
+    .select(BOOKING_SELECT_COLUMNS)
     .eq("client_id", clientId)
     .order("start_at", { ascending: false })
   if (error) {
@@ -461,6 +483,16 @@ const fetchStaffRows = cache(async (): Promise<StaffRow[]> => {
   }
   return data ?? []
 })
+
+async function fetchStaffRowsByIds(staffIds: string[]): Promise<StaffRow[]> {
+  const uniqueIds = Array.from(new Set(staffIds.filter((id) => isUuidLike(id))))
+  if (!uniqueIds.length) return []
+  const { data, error } = await serviceClient.from("staff_accounts").select("id, full_name, role").in("id", uniqueIds)
+  if (error) {
+    throw new Error(`[supabase] Failed to load staff accounts by id: ${error.message}`)
+  }
+  return coerceRows<StaffRow>(data)
+}
 
 export const getStaffAccounts = cache(async (): Promise<StaffRow[]> => {
   return fetchStaffRows()
@@ -815,6 +847,64 @@ export async function getLiveFleetVehicleById(vehicleId: string): Promise<FleetC
   const staffById = new Map<string, StaffRow>()
   staffRows.forEach((staff) => staffById.set(staff.id, staff))
   return mapVehicleRow(row, { staffById })
+}
+
+export async function getLiveBookingsByVehicleId(vehicleId: string): Promise<Booking[]> {
+  noStore()
+  if (!vehicleId) {
+    return []
+  }
+
+  const bookingRows = await fetchBookingRowsByVehicleId(vehicleId)
+  if (!bookingRows.length) {
+    return []
+  }
+
+  const clientIds = new Set<string>()
+  const staffIds = new Set<string>()
+  bookingRows.forEach((row) => {
+    if (row.client_id) clientIds.add(row.client_id)
+    if (row.owner_id) staffIds.add(row.owner_id)
+    if (row.created_by) staffIds.add(row.created_by)
+  })
+
+  const bookingIds = bookingRows.map((row) => row.id)
+  const [clientRows, vehicleRow, invoiceRows, staffRows, pipelineStageRows] = await Promise.all([
+    fetchClientRowsByIds(Array.from(clientIds)),
+    fetchVehicleRowById(vehicleId),
+    fetchBookingInvoiceRowsByBookingIds(bookingIds),
+    fetchStaffRowsByIds(Array.from(staffIds)),
+    fetchSalesPipelineStageRows(),
+  ])
+
+  const clientsById = new Map<string, ClientRow>()
+  clientRows.forEach((row) => clientsById.set(row.id, row))
+
+  const vehiclesById = new Map<string, VehicleRow>()
+  if (vehicleRow) {
+    vehiclesById.set(vehicleRow.id, vehicleRow)
+  }
+
+  const staffById = new Map<string, StaffRow>()
+  staffRows.forEach((row) => staffById.set(row.id, row))
+
+  const invoicesByBooking = new Map<string, BookingInvoice[]>()
+  invoiceRows.forEach((row) => {
+    if (!row.booking_id) return
+    const list = invoicesByBooking.get(row.booking_id) ?? []
+    list.push(mapInvoiceRow(row))
+    invoicesByBooking.set(row.booking_id, list)
+  })
+
+  const stageByKommoStatusId = new Map<string, SalesPipelineStageRow>()
+  pipelineStageRows.forEach((row) => {
+    if (!row.kommo_status_id) return
+    stageByKommoStatusId.set(String(row.kommo_status_id), row)
+  })
+
+  return bookingRows.map((row) =>
+    mapBookingRow(row, { clientsById, vehiclesById, staffById, invoicesByBooking, stageByKommoStatusId })
+  )
 }
 
 export const getLiveBookings = cache(async (): Promise<Booking[]> => {
@@ -1268,6 +1358,12 @@ function buildPreferredChannels(values: string[] | null): string[] {
 function numberOrZero(value: number | string | null | undefined): number {
   const parsed = Number(value)
   return Number.isFinite(parsed) ? parsed : 0
+}
+
+function isUuidLike(value: string | null | undefined): boolean {
+  if (!value) return false
+  const normalized = value.trim()
+  return /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(normalized)
 }
 
 function buildKommoContactUrl(contactId?: string | null): string | undefined {
