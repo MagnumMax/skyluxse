@@ -1,4 +1,5 @@
-import * as ZOHOCRMSDK from "@zohocrm/nodejs-sdk-7.0";
+// @ts-ignore
+import * as ZOHOCRMSDK from "@zohocrm/nodejs-sdk-7.0/lib/zohocrmsdk.js";
 import { SupabaseTokenStore } from "./store";
 
 export const initializeZoho = async () => {

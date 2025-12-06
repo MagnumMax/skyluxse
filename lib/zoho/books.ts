@@ -125,3 +125,14 @@ export async function createSalesOrder(orderData: any) {
     const client = await getBooksClient();
     return client.post("/salesorders", orderData, orgId);
 }
+
+export async function findContactByEmail(email: string) {
+    const orgId = await getOrganizationId();
+    const client = await getBooksClient();
+    const response = await client.get(`/contacts?email=${encodeURIComponent(email)}`, orgId);
+
+    if (response.code === 0 && response.contacts.length > 0) {
+        return response.contacts[0];
+    }
+    return null;
+}

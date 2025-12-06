@@ -18,6 +18,8 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ ok: true, result })
   } catch (error) {
-    return NextResponse.json({ ok: false, error: String(error) }, { status: 500 })
+    console.error("Recognition API error:", error)
+    const message = error instanceof Error ? error.message : typeof error === "string" ? error : JSON.stringify(error)
+    return NextResponse.json({ ok: false, error: message }, { status: 500 })
   }
 }

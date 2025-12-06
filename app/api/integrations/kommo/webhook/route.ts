@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { headers } from "next/headers"
 import { serviceClient } from "@/lib/supabase/service-client"
 import { recognizeLatestClientDocument } from "@/lib/ai/document-recognition"
+import { createSalesOrderForBooking } from "@/app/actions/zoho"
 
 const SIGNATURE_HEADER = "x-kommo-signature"
 const REQUIRE_SIGNATURE = false
@@ -27,6 +28,7 @@ const KOMMO_FIELD_IDS = {
     advancePayment: 1233272,
     salesOrderUrl: 1224030,
     agreementNumber: 806190,
+    kmLimit: 1235349,
 }
 
 const DOCUMENT_FIELD_MAP = [
@@ -284,6 +286,15 @@ function leadSourcePayloadId(leadId: number | string) {
     return `kommo:${leadId}`
 }
 
+async function findStaffByKommoId(kommoUserId: string | number) {
+    const { data } = await serviceClient
+        .from("staff_accounts")
+        .select("id")
+        .eq("external_crm_id", String(kommoUserId))
+        .maybeSingle()
+    return data?.id ?? null
+}
+
 async function upsertClient(contact: any, fallbackName: string) {
     const kommoContactId = contact?.id ? String(contact.id) : null
     const phone = extractFieldValue(contact, "PHONE")
@@ -301,6 +312,9 @@ async function upsertClient(contact: any, fallbackName: string) {
     if (nationality) payload.residency_country = nationality
     if (gender) payload.gender = gender
 
+    // Note: We don't map owner for clients yet, as they are shared global entities usually.
+    // If needed, we could map responsible_user_id here too, but prioritized for leads/bookings.
+
     const { data, error } = await serviceClient
         .from("clients")
         .upsert(payload, { onConflict: "kommo_contact_id" })
@@ -317,6 +331,10 @@ async function upsertSalesLead(
     stageId: string | null
 ) {
     const leadCode = leadSourcePayloadId(lead.id)
+    const ownerId = lead.responsible_user_id
+        ? await findStaffByKommoId(lead.responsible_user_id)
+        : null
+
     const payload: Record<string, any> = {
         lead_code: leadCode,
         client_id: clientId,
@@ -324,6 +342,7 @@ async function upsertSalesLead(
         updated_at: new Date().toISOString(),
     }
     if (stageId) payload.stage_id = stageId
+    if (ownerId) payload.owner_id = ownerId
 
     const { data, error } = await serviceClient
         .from("sales_leads")
@@ -350,6 +369,8 @@ type BookingOptions = {
     salesOrderUrl?: string | null
     agreementNumber?: string | null
     kommoStatusId?: number | null
+    ownerId?: string | null
+    mileageLimit?: string | null
 }
 
 async function upsertBooking(
@@ -390,6 +411,10 @@ async function upsertBooking(
     if (options.salesOrderUrl !== undefined) payload.sales_order_url = options.salesOrderUrl
     if (options.agreementNumber !== undefined) payload.agreement_number = options.agreementNumber
 
+    // Only update owner if explicitly provided (found via mapping)
+    if (options.ownerId) payload.owner_id = options.ownerId
+    if (options.mileageLimit !== undefined) payload.mileage_limit = options.mileageLimit
+
     if (existing) {
         const { error } = await serviceClient
             .from("bookings")
@@ -416,20 +441,16 @@ async function upsertBooking(
 async function logBookingTimelineEvent(
     bookingId: string,
     statusId: string,
-    label: string,
-    pipelineId: string | number
+    statusLabel: string,
+    pipelineId: string
 ) {
-    const { error } = await serviceClient.from("booking_timeline_events").insert({
+    const message = `Kommo status changed to "${statusLabel}" (${statusId}) in pipeline ${pipelineId}`
+    await serviceClient.from("booking_timeline_events").insert({
         booking_id: bookingId,
-        event_type: "kommo_status_sync",
-        message: `Kommo stage updated: ${label}`,
-        payload: {
-            status_id: statusId,
-            stage_label: label,
-            pipeline_id: pipelineId,
-        },
+        event_type: "status_change",
+        message,
+        payload: { kommoStatusId: statusId, kommoPipelineId: pipelineId },
     })
-    if (error) throw error
 }
 
 type HandleResult = {
@@ -540,6 +561,7 @@ function buildBookingOptions(
         advancePayment: extractNumericField(lead, KOMMO_FIELD_IDS.advancePayment),
         salesOrderUrl: extractStringField(lead, KOMMO_FIELD_IDS.salesOrderUrl),
         agreementNumber: extractStringField(lead, KOMMO_FIELD_IDS.agreementNumber),
+        mileageLimit: extractStringField(lead, KOMMO_FIELD_IDS.kmLimit),
         kommoStatusId: base.kommoStatusId ?? null,
     }
 }
@@ -953,6 +975,11 @@ async function handleStatusChange(event: any): Promise<HandleResult> {
         }
     }
 
+    // Resolve owner
+    const ownerId = lead.responsible_user_id
+        ? await findStaffByKommoId(lead.responsible_user_id)
+        : null
+
     const startAt =
         extractKommoEpoch(lead, KOMMO_DELIVERY_FIELD_ID) ?? extractKommoEpoch(lead, KOMMO_COLLECT_FIELD_ID)
     const endAt = extractKommoEpoch(lead, KOMMO_COLLECT_FIELD_ID) ?? startAt ?? null
@@ -962,12 +989,39 @@ async function handleStatusChange(event: any): Promise<HandleResult> {
         startAt: startAt ?? null,
         endAt: endAt ?? null,
         kommoStatusId: Number(event.status_id),
+        ownerId,
     })
     const statusIdForTimeline = statusId ?? "unknown"
     const pipelineForTimeline = pipelineId ?? event.pipeline_id ?? "unknown"
     const bookingId = await upsertBooking(lead, clientId, bookingStatus, bookingOptions)
     if (bookingId) {
         await logBookingTimelineEvent(bookingId, statusIdForTimeline, statusLabel, pipelineForTimeline)
+
+        // Trigger Zoho Sales Order creation if status is "Confirmed Bookings"
+        if (statusId === "75440391") {
+            try {
+                console.log(`Trigering Zoho Sales Order for booking ${bookingId} (Kommo status: ${statusId})`)
+                const result = await createSalesOrderForBooking(bookingId)
+                if (result.success) {
+                    await logBookingTimelineEvent(
+                        bookingId,
+                        statusIdForTimeline,
+                        `Created Zoho Sales Order: ${result.data?.salesOrderUrl ?? "Success"}`,
+                        pipelineForTimeline
+                    )
+                } else {
+                    console.error("Failed to create Zoho Sales Order from webhook", result.error)
+                    await logBookingTimelineEvent(
+                        bookingId,
+                        statusIdForTimeline,
+                        `Failed to create Zoho Sales Order: ${result.error}`,
+                        pipelineForTimeline
+                    )
+                }
+            } catch (error) {
+                console.error("Error executing createSalesOrderForBooking", error)
+            }
+        }
     }
 
     const shouldRunRecognition = clientId && statusId === "75440395" // Delivery Within 24 Hours

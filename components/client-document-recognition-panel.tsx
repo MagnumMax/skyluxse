@@ -5,13 +5,11 @@ import { ExternalLink, Loader2, RefreshCw, Sparkles } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import type { ClientDocument, ClientDocumentRecognition } from "@/lib/domain/entities"
+import type { Client, ClientDocument, ClientDocumentRecognition } from "@/lib/domain/entities"
 import { cn } from "@/lib/utils"
 
 type Props = {
-  recognition?: ClientDocumentRecognition
-  documents: ClientDocument[]
-  clientId: string | number
+  client: Client
 }
 
 type RecognitionRunResult = {
@@ -22,14 +20,17 @@ type RecognitionRunResult = {
   payload?: any
 }
 
-export function ClientDocumentRecognitionPanel({ recognition, documents, clientId }: Props) {
-  const [localRecognition, setLocalRecognition] = useState<ClientDocumentRecognition | undefined>(recognition)
+export function ClientDocumentRecognitionPanel({ client }: Props) {
+  const [localRecognition, setLocalRecognition] = useState<ClientDocumentRecognition | undefined>(client.documentRecognition)
   const [isRunning, setIsRunning] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  const documents = client.documents
+  const clientId = client.id
+
   useEffect(() => {
-    setLocalRecognition(recognition)
-  }, [recognition])
+    setLocalRecognition(client.documentRecognition)
+  }, [client.documentRecognition])
 
   const statusLabel = useMemo(() => {
     const status = localRecognition?.status ?? "not_started"
@@ -58,28 +59,27 @@ export function ClientDocumentRecognitionPanel({ recognition, documents, clientI
 
   const derivedItems = rawItems.length
     ? rawItems
-    : localRecognition
-      ? [
-          {
-            doc_type: localRecognition.docType,
-            document_number: localRecognition.documentNumber,
-            full_name: localRecognition.fullName,
-            first_name: localRecognition.firstName,
-            last_name: localRecognition.lastName,
-            middle_name: localRecognition.middleName,
-            date_of_birth: localRecognition.dateOfBirth,
-            nationality: localRecognition.nationality,
-            address: localRecognition.address,
-            issue_date: localRecognition.issueDate,
-            expiry_date: localRecognition.expiryDate,
-            issuing_country: localRecognition.issuingCountry,
-            driver_class: localRecognition.driverClass,
-            driver_restrictions: localRecognition.driverRestrictions,
-            driver_endorsements: localRecognition.driverEndorsements,
-            rawDocId: localRecognition.documentId,
-          },
-        ]
-      : []
+    : [
+      {
+        doc_type: localRecognition?.docType,
+        // Fallback to client data if no raw data items, simulating the "parsed" view from current state
+        full_name: client.name,
+        first_name: client.firstName,
+        last_name: client.lastName,
+        middle_name: client.middleName,
+        date_of_birth: client.dateOfBirth,
+        nationality: client.nationality,
+        address: client.address,
+        document_number: client.documentNumber,
+        issue_date: client.issueDate,
+        expiry_date: client.expiryDate,
+        issuing_country: client.issuingCountry,
+        driver_class: client.driverClass,
+        driver_restrictions: client.driverRestrictions,
+        driver_endorsements: client.driverEndorsements,
+        rawDocId: localRecognition?.documentId,
+      },
+    ]
 
   async function handleRun(force = true) {
     setIsRunning(true)
@@ -258,20 +258,6 @@ function mergeRecognition(
     processedAt: new Date().toISOString(),
     raw: payloadArray.length ? payloadArray : result.payload ?? current?.raw,
     docType: primaryPayload.doc_type ?? current?.docType,
-    fullName: primaryPayload.full_name ?? current?.fullName,
-    firstName: primaryPayload.first_name ?? current?.firstName,
-    lastName: primaryPayload.last_name ?? current?.lastName,
-    middleName: primaryPayload.middle_name ?? current?.middleName,
-    dateOfBirth: primaryPayload.date_of_birth ?? current?.dateOfBirth,
-    nationality: primaryPayload.nationality ?? current?.nationality,
-    address: primaryPayload.address ?? current?.address,
-    documentNumber: primaryPayload.document_number ?? current?.documentNumber,
-    issueDate: primaryPayload.issue_date ?? current?.issueDate,
-    expiryDate: primaryPayload.expiry_date ?? current?.expiryDate,
-    issuingCountry: primaryPayload.issuing_country ?? current?.issuingCountry,
-    driverClass: primaryPayload.driver_class ?? current?.driverClass,
-    driverRestrictions: primaryPayload.driver_restrictions ?? current?.driverRestrictions,
-    driverEndorsements: primaryPayload.driver_endorsements ?? current?.driverEndorsements,
   }
 }
 

@@ -12,6 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { ClientAiPanel } from "@/components/sales-client-ai-panel"
 import { ParameterList, type ParameterListItem } from "@/components/parameter-list"
+import { CreateSalesOrderButton } from "@/components/zoho/create-sales-order-button"
 
 const currencyFormatter = new Intl.NumberFormat("en-CA", { style: "currency", currency: "AED", maximumFractionDigits: 0 })
 const dateFormatter = new Intl.DateTimeFormat("en-CA", { month: "short", day: "numeric" })
@@ -83,9 +84,9 @@ function BookingOverviewSection({ booking, client, outstanding, advancePayment, 
     },
     stageLabel
       ? {
-          label: "Stage",
-          value: stageLabel,
-        }
+        label: "Stage",
+        value: stageLabel,
+      }
       : null,
     {
       label: "Channel",
@@ -198,6 +199,9 @@ function BookingLogisticsFinancialSection({ booking, outstanding, advancePayment
   if (booking.collectLocation) {
     logisticsParameters.push({ label: "Collect location", value: mapsLink(booking.collectLocation) })
   }
+  if (booking.mileageLimit) {
+    logisticsParameters.push({ label: "Mileage limit", value: booking.mileageLimit })
+  }
   if (booking.deliveryFeeLabel) {
     logisticsParameters.push({ label: "Delivery fee", value: booking.deliveryFeeLabel })
   }
@@ -226,7 +230,10 @@ function BookingLogisticsFinancialSection({ booking, outstanding, advancePayment
   if (booking.agreementNumber) {
     financialMeta.push({ label: "Agreement #", value: booking.agreementNumber })
   }
-  if (booking.salesOrderUrl) {
+  const isZohoIntegrated =
+    !!booking.zohoSalesOrderId || (typeof booking.salesOrderUrl === "string" && booking.salesOrderUrl.includes("zoho.com"))
+
+  if (isZohoIntegrated && booking.salesOrderUrl) {
     financialMeta.push({
       label: "Sales order",
       value: (
@@ -235,6 +242,11 @@ function BookingLogisticsFinancialSection({ booking, outstanding, advancePayment
         </a>
       ),
       helper: booking.salesOrderUrl,
+    })
+  } else {
+    financialMeta.push({
+      label: "Sales order",
+      value: <CreateSalesOrderButton bookingId={String(booking.id)} />,
     })
   }
   return (

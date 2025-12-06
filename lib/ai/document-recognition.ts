@@ -100,21 +100,31 @@ export async function recognizeLatestClientDocument(clientId: string, opts: Reco
     doc_processed_at: new Date().toISOString(),
     doc_error: primaryResult.error ?? null,
     doc_type: primaryResult.payload?.doc_type ?? primaryResult.docType ?? null,
-    doc_full_name: primaryResult.payload?.full_name ?? null,
-    doc_first_name: primaryResult.payload?.first_name ?? null,
-    doc_last_name: primaryResult.payload?.last_name ?? null,
-    doc_middle_name: primaryResult.payload?.middle_name ?? null,
-    doc_date_of_birth: normalizeDate(primaryResult.payload?.date_of_birth, issuingCountry),
-    doc_nationality: primaryResult.payload?.nationality ?? null,
-    doc_address: primaryResult.payload?.address ?? null,
-    doc_document_number: primaryResult.payload?.document_number ?? null,
-    doc_issue_date: normalizeDate(primaryResult.payload?.issue_date, issuingCountry),
-    doc_expiry_date: normalizeDate(primaryResult.payload?.expiry_date, issuingCountry),
-    doc_issuing_country: issuingCountry,
-    doc_driver_class: primaryResult.payload?.driver_class ?? null,
-    doc_driver_restrictions: primaryResult.payload?.driver_restrictions ?? null,
-    doc_driver_endorsements: primaryResult.payload?.driver_endorsements ?? null,
   }
+
+  // Map document fields to standard client fields
+  if (primaryResult.payload?.full_name) update.name = primaryResult.payload.full_name
+  if (primaryResult.payload?.first_name) update.first_name = primaryResult.payload.first_name
+  if (primaryResult.payload?.last_name) update.last_name = primaryResult.payload.last_name
+  if (primaryResult.payload?.middle_name) update.middle_name = primaryResult.payload.middle_name
+
+  const dob = normalizeDate(primaryResult.payload?.date_of_birth, issuingCountry)
+  if (dob) update.date_of_birth = dob
+
+  if (primaryResult.payload?.nationality) update.nationality = primaryResult.payload.nationality
+  if (primaryResult.payload?.address) update.address = primaryResult.payload.address
+  if (primaryResult.payload?.document_number) update.document_number = primaryResult.payload.document_number
+
+  const issueDate = normalizeDate(primaryResult.payload?.issue_date, issuingCountry)
+  if (issueDate) update.issue_date = issueDate
+
+  const expiryDate = normalizeDate(primaryResult.payload?.expiry_date, issuingCountry)
+  if (expiryDate) update.expiry_date = expiryDate
+
+  if (issuingCountry) update.issuing_country = issuingCountry
+  if (primaryResult.payload?.driver_class) update.driver_license_class = primaryResult.payload.driver_class
+  if (primaryResult.payload?.driver_restrictions) update.driver_license_restrictions = primaryResult.payload.driver_restrictions
+  if (primaryResult.payload?.driver_endorsements) update.driver_license_endorsements = primaryResult.payload.driver_endorsements
 
   const { error: updateError } = await serviceClient.from("clients").update(update).eq("id", clientId)
   if (updateError) throw updateError

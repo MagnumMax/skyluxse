@@ -38,20 +38,19 @@ type ClientRow = {
   doc_document_id?: string | null
   doc_raw?: Record<string, any> | null
   doc_type?: string | null
-  doc_full_name?: string | null
-  doc_first_name?: string | null
-  doc_last_name?: string | null
-  doc_middle_name?: string | null
-  doc_date_of_birth?: string | null
-  doc_nationality?: string | null
-  doc_address?: string | null
-  doc_document_number?: string | null
-  doc_issue_date?: string | null
-  doc_expiry_date?: string | null
-  doc_issuing_country?: string | null
-  doc_driver_class?: string | null
-  doc_driver_restrictions?: string | null
-  doc_driver_endorsements?: string | null
+  first_name?: string | null
+  last_name?: string | null
+  middle_name?: string | null
+  date_of_birth?: string | null
+  nationality?: string | null
+  address?: string | null
+  document_number?: string | null
+  issue_date?: string | null
+  expiry_date?: string | null
+  issuing_country?: string | null
+  driver_license_class?: string | null
+  driver_license_restrictions?: string | null
+  driver_license_endorsements?: string | null
   doc_processed_at?: string | null
   doc_error?: string | null
   created_at: string | null
@@ -81,20 +80,19 @@ const CLIENT_SELECT_COLUMNS = [
   "doc_document_id",
   "doc_raw",
   "doc_type",
-  "doc_full_name",
-  "doc_first_name",
-  "doc_last_name",
-  "doc_middle_name",
-  "doc_date_of_birth",
-  "doc_nationality",
-  "doc_address",
-  "doc_document_number",
-  "doc_issue_date",
-  "doc_expiry_date",
-  "doc_issuing_country",
-  "doc_driver_class",
-  "doc_driver_restrictions",
-  "doc_driver_endorsements",
+  "first_name",
+  "last_name",
+  "middle_name",
+  "date_of_birth",
+  "nationality",
+  "address",
+  "document_number",
+  "issue_date",
+  "expiry_date",
+  "issuing_country",
+  "driver_license_class",
+  "driver_license_restrictions",
+  "driver_license_endorsements",
   "doc_processed_at",
   "doc_error",
   "created_by",
@@ -170,6 +168,7 @@ type BookingRow = {
   sales_service_feedback?: string | null
   sales_service_rated_by?: string | null
   sales_service_rated_at?: string | null
+  mileage_limit?: string | null
 }
 
 type BookingInvoiceRow = {
@@ -287,7 +286,7 @@ const SUPABASE_PUBLIC_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.
 const KOMMO_BASE_URL = process.env.NEXT_PUBLIC_KOMMO_BASE_URL || process.env.KOMMO_BASE_URL || ""
 const DOCUMENT_URL_TTL_SECONDS = 60 * 60
 const BOOKING_SELECT_COLUMNS =
-  "id, external_code, client_id, vehicle_id, driver_id, owner_id, status, booking_type, channel, priority, start_at, end_at, total_amount, deposit_amount, created_at, updated_at, created_by, kommo_status_id, delivery_fee_label, delivery_location, collect_location, rental_duration_days, price_daily, insurance_fee_label, full_insurance_fee, advance_payment, sales_order_url, agreement_number, zoho_sales_order_id, sales_service_rating, sales_service_feedback, sales_service_rated_by, sales_service_rated_at"
+  "id, external_code, client_id, vehicle_id, driver_id, owner_id, status, booking_type, channel, priority, start_at, end_at, total_amount, deposit_amount, created_at, updated_at, created_by, kommo_status_id, delivery_fee_label, delivery_location, collect_location, rental_duration_days, price_daily, insurance_fee_label, full_insurance_fee, advance_payment, sales_order_url, agreement_number, zoho_sales_order_id, sales_service_rating, sales_service_feedback, sales_service_rated_by, sales_service_rated_at, mileage_limit"
 
 const fetchClientRows = cache(async (): Promise<ClientRow[]> => {
   const { data, error } = await serviceClient
@@ -686,6 +685,19 @@ export const getLiveClients = cache(async (): Promise<Client[]> => {
     return {
       id: row.id,
       name: row.name ?? "Unnamed client",
+      firstName: row.first_name ?? undefined,
+      lastName: row.last_name ?? undefined,
+      middleName: row.middle_name ?? undefined,
+      dateOfBirth: row.date_of_birth ?? undefined,
+      nationality: row.nationality ?? undefined,
+      address: row.address ?? undefined,
+      documentNumber: row.document_number ?? undefined,
+      issueDate: row.issue_date ?? undefined,
+      expiryDate: row.expiry_date ?? undefined,
+      issuingCountry: row.issuing_country ?? undefined,
+      driverClass: row.driver_license_class ?? undefined,
+      driverRestrictions: row.driver_license_restrictions ?? undefined,
+      driverEndorsements: row.driver_license_endorsements ?? undefined,
       phone: row.phone ?? "—",
       email: row.email ?? "—",
       status: formatTier(row.tier),
@@ -1084,20 +1096,20 @@ function mapBookingRow(
   const paidAmount = numberOrZero(row.advance_payment ?? row.deposit_amount ?? 0)
   const billing = pricingTotals
     ? {
-        base: pricingTotals.base,
-        addons: pricingTotals.insuranceFee,
-        fees: pricingTotals.deliveryFee + pricingTotals.depositFee,
-        discounts: 0,
-        currency: AED,
-        vatRate: DEFAULT_VAT_RATE,
-      }
+      base: pricingTotals.base,
+      addons: pricingTotals.insuranceFee,
+      fees: pricingTotals.deliveryFee + pricingTotals.depositFee,
+      discounts: 0,
+      currency: AED,
+      vatRate: DEFAULT_VAT_RATE,
+    }
     : {
-        base: numberOrZero(row.total_amount),
-        addons: 0,
-        fees: 0,
-        discounts: 0,
-        currency: AED,
-      }
+      base: numberOrZero(row.total_amount),
+      addons: 0,
+      fees: 0,
+      discounts: 0,
+      currency: AED,
+    }
   return {
     id: row.id,
     code: row.external_code ?? formatFallbackCode(row.id),
@@ -1124,10 +1136,10 @@ function mapBookingRow(
     targetTime: Date.parse(end) || Date.parse(start) || null,
     serviceLevel: row.start_at
       ? {
-          slaMinutes: 180,
-          promisedAt: end,
-          actualAt: null,
-        }
+        slaMinutes: 180,
+        promisedAt: end,
+        actualAt: null,
+      }
       : undefined,
     addons: [],
     tags: [],
@@ -1140,8 +1152,10 @@ function mapBookingRow(
     fullInsuranceFee: row.full_insurance_fee ?? undefined,
     advancePayment: row.advance_payment ?? undefined,
     salesOrderUrl: row.sales_order_url ?? undefined,
+
     agreementNumber: row.agreement_number ?? undefined,
     zohoSalesOrderId: row.zoho_sales_order_id ?? undefined,
+    mileageLimit: row.mileage_limit ?? undefined,
     timeline: [],
     salesService,
     billing,
@@ -1500,11 +1514,7 @@ function mapDocumentRecognition(row: ClientRow): Client["documentRecognition"] |
   const hasData =
     row.doc_status ||
     row.doc_raw ||
-    row.doc_document_number ||
-    row.doc_document_id ||
-    row.doc_full_name ||
-    row.doc_first_name ||
-    row.doc_last_name
+    row.doc_document_id
 
   if (!hasData) return undefined
 
@@ -1514,20 +1524,6 @@ function mapDocumentRecognition(row: ClientRow): Client["documentRecognition"] |
     model: row.doc_model ?? undefined,
     documentId: row.doc_document_id ?? undefined,
     docType: row.doc_type ?? undefined,
-    fullName: row.doc_full_name ?? undefined,
-    firstName: row.doc_first_name ?? undefined,
-    lastName: row.doc_last_name ?? undefined,
-    middleName: row.doc_middle_name ?? undefined,
-    dateOfBirth: row.doc_date_of_birth ?? undefined,
-    nationality: row.doc_nationality ?? undefined,
-    address: row.doc_address ?? undefined,
-    documentNumber: row.doc_document_number ?? undefined,
-    issueDate: row.doc_issue_date ?? undefined,
-    expiryDate: row.doc_expiry_date ?? undefined,
-    issuingCountry: row.doc_issuing_country ?? undefined,
-    driverClass: row.doc_driver_class ?? undefined,
-    driverRestrictions: row.doc_driver_restrictions ?? undefined,
-    driverEndorsements: row.doc_driver_endorsements ?? undefined,
     processedAt: row.doc_processed_at ?? undefined,
     error: row.doc_error ?? undefined,
     raw: row.doc_raw ?? undefined,

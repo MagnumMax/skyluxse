@@ -53,6 +53,7 @@ export interface Booking {
   advancePayment?: number | null
   salesOrderUrl?: string | null
   agreementNumber?: string | null
+  mileageLimit?: string | null
   zohoSalesOrderId?: string | null
   salesService?: {
     rating?: number
@@ -190,7 +191,14 @@ export interface ClientDocumentRecognition {
   model?: string
   documentId?: string
   docType?: string
-  fullName?: string
+  processedAt?: string
+  error?: string
+  raw?: Record<string, any>
+}
+
+export interface Client {
+  id: EntityId
+  name: string
   firstName?: string
   lastName?: string
   middleName?: string
@@ -204,14 +212,6 @@ export interface ClientDocumentRecognition {
   driverClass?: string
   driverRestrictions?: string
   driverEndorsements?: string
-  processedAt?: string
-  error?: string
-  raw?: Record<string, any>
-}
-
-export interface Client {
-  id: EntityId
-  name: string
   phone: string
   email: string
   status: string

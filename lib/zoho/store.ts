@@ -1,5 +1,6 @@
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
-import * as ZOHOCRMSDK from "@zohocrm/nodejs-sdk-7.0";
+// @ts-ignore
+import * as ZOHOCRMSDK from "@zohocrm/nodejs-sdk-7.0/lib/zohocrmsdk.js";
 
 // SDK ships without TypeScript types; treat Zoho objects as any to avoid blocking compilation.
 const Zoho: any = ZOHOCRMSDK;

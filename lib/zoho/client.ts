@@ -1,4 +1,5 @@
-import * as ZOHOCRMSDK from "@zohocrm/nodejs-sdk-7.0";
+// @ts-ignore
+import * as ZOHOCRMSDK from "@zohocrm/nodejs-sdk-7.0/lib/zohocrmsdk.js";
 import { initializeZoho } from "./config";
 
 export async function createZohoClient(clientData: {

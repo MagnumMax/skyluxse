@@ -35,9 +35,7 @@ export function SalesClientWorkspace({ client }: { client: Client }) {
 
       <SectionCard title="Document Recognition" subtitle="Gemini parsed fields" icon={Sparkles}>
         <ClientDocumentRecognitionPanel
-          recognition={client.documentRecognition}
-          documents={client.documents}
-          clientId={client.id}
+          client={client}
         />
       </SectionCard>
 
