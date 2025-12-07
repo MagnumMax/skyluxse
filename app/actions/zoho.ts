@@ -2,6 +2,10 @@
 
 import { createZohoClient, createZohoOrder } from "@/lib/zoho/client";
 
+export type CreateSalesOrderResult =
+    | { success: true; data: { salesOrderId: string; salesOrderUrl: string; message?: string } }
+    | { success: false; error: string }
+
 export async function createClientAction(data: {
     firstName: string;
     lastName: string;
@@ -79,7 +83,7 @@ export async function createSalesOrderAction(orderData: any) {
     }
 }
 
-export async function createSalesOrderForBooking(bookingId: string) {
+export async function createSalesOrderForBooking(bookingId: string): Promise<CreateSalesOrderResult> {
     try {
         const { getLiveBookingById, getLiveClientById } = await import("@/lib/data/live-data");
         const { createSalesOrder, findContactByEmail, createContact, getOrganizationId } = await import("@/lib/zoho/books");
@@ -88,6 +92,20 @@ export async function createSalesOrderForBooking(bookingId: string) {
 
         const booking = await getLiveBookingById(bookingId);
         if (!booking) throw new Error("Booking not found");
+
+        // Check if sales order already exists
+        if (booking.zohoSalesOrderId) {
+            const orgId = await getOrganizationId();
+            const existingSalesOrderUrl = `https://books.zoho.com/app/${orgId}#/salesorders/${booking.zohoSalesOrderId}`;
+            return {
+                success: true,
+                data: {
+                    salesOrderId: booking.zohoSalesOrderId,
+                    salesOrderUrl: booking.salesOrderUrl || existingSalesOrderUrl,
+                    message: "Sales Order already exists",
+                },
+            };
+        }
 
         const client = booking.clientId ? await getLiveClientById(String(booking.clientId)) : null;
         if (!client) throw new Error("Client not found for this booking");

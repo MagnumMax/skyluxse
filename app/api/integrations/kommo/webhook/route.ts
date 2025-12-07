@@ -3,6 +3,7 @@ import { headers } from "next/headers"
 import { serviceClient } from "@/lib/supabase/service-client"
 import { recognizeLatestClientDocument } from "@/lib/ai/document-recognition"
 import { createSalesOrderForBooking } from "@/app/actions/zoho"
+import { KOMMO_STATUSES_FOR_SALES_ORDER } from "@/lib/constants/bookings"
 
 const SIGNATURE_HEADER = "x-kommo-signature"
 const REQUIRE_SIGNATURE = false
@@ -997,18 +998,28 @@ async function handleStatusChange(event: any): Promise<HandleResult> {
     if (bookingId) {
         await logBookingTimelineEvent(bookingId, statusIdForTimeline, statusLabel, pipelineForTimeline)
 
-        // Trigger Zoho Sales Order creation if status is "Confirmed Bookings"
-        if (statusId === "75440391") {
+        // Trigger Zoho Sales Order creation if status is in the configured list
+        // The check for existing sales order is handled inside createSalesOrderForBooking
+        if (statusId && KOMMO_STATUSES_FOR_SALES_ORDER.includes(statusId as any)) {
             try {
-                console.log(`Trigering Zoho Sales Order for booking ${bookingId} (Kommo status: ${statusId})`)
+                console.log(`Triggering Zoho Sales Order for booking ${bookingId} (Kommo status: ${statusId})`)
                 const result = await createSalesOrderForBooking(bookingId)
                 if (result.success) {
-                    await logBookingTimelineEvent(
-                        bookingId,
-                        statusIdForTimeline,
-                        `Created Zoho Sales Order: ${result.data?.salesOrderUrl ?? "Success"}`,
-                        pipelineForTimeline
-                    )
+                    if (result.data.message === "Sales Order already exists") {
+                        await logBookingTimelineEvent(
+                            bookingId,
+                            statusIdForTimeline,
+                            `Zoho Sales Order already exists: ${result.data.salesOrderId}`,
+                            pipelineForTimeline
+                        )
+                    } else {
+                        await logBookingTimelineEvent(
+                            bookingId,
+                            statusIdForTimeline,
+                            `Created Zoho Sales Order: ${result.data.salesOrderUrl ?? "Success"}`,
+                            pipelineForTimeline
+                        )
+                    }
                 } else {
                     console.error("Failed to create Zoho Sales Order from webhook", result.error)
                     await logBookingTimelineEvent(
@@ -1020,6 +1031,14 @@ async function handleStatusChange(event: any): Promise<HandleResult> {
                 }
             } catch (error) {
                 console.error("Error executing createSalesOrderForBooking", error)
+                await logBookingTimelineEvent(
+                    bookingId,
+                    statusIdForTimeline,
+                    `Error creating Zoho Sales Order: ${error instanceof Error ? error.message : "Unknown error"}`,
+                    pipelineForTimeline
+                ).catch((logError) => {
+                    console.error("Failed to log timeline event", logError)
+                })
             }
         }
     }
