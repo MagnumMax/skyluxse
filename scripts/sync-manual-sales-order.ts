@@ -18,7 +18,7 @@ const serviceClient = createClient(
     process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-const ZOHO_SALES_ORDER_ID = "6183693000004109109";
+const ZOHO_SALES_ORDER_ID = "6183693000004109209";
 
 async function syncManualSalesOrder() {
     console.log(`\n🔍 Syncing Manual Sales Order: ${ZOHO_SALES_ORDER_ID}\n`);
