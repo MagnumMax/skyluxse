@@ -8,6 +8,7 @@ import { Icon, type NavIcon } from "@/components/icons"
 import { cn } from "@/lib/utils"
 import { isActiveLink, toRoute } from "@/lib/navigation"
 import type { DashboardNavGroup } from "@/components/dashboard-header"
+import { ProfileMenu } from "@/components/profile-menu"
 
 type SidebarProps = {
   navGroups: DashboardNavGroup[]
@@ -35,7 +36,7 @@ export function DashboardSidebar({ navGroups }: SidebarProps) {
       onMouseEnter={() => setCollapsed(false)}
       onMouseLeave={() => setCollapsed(true)}
     >
-      <nav className="relative z-10 flex flex-1 flex-col gap-2 overflow-y-auto px-2.5 pb-4 pt-2.5">
+      <nav className="relative z-10 flex flex-1 flex-col gap-2 overflow-y-auto px-2.5 pb-2 pt-2.5">
         <div className="space-y-0.5">
           {uniqueLinks.map((link) => {
             const active = isActiveLink(pathname, link.href)
@@ -81,6 +82,16 @@ export function DashboardSidebar({ navGroups }: SidebarProps) {
           })}
         </div>
       </nav>
+      <div className="border-t border-white/10 bg-white/5 px-2.5 py-3">
+        <ProfileMenu
+          placement="bottom"
+          hideDetails={collapsed}
+          className={cn(
+            "w-full justify-start",
+            collapsed ? "justify-center px-1" : "px-2"
+          )}
+        />
+      </div>
     </aside>
   )
 }

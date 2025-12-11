@@ -1,5 +1,11 @@
 # Schema Changelog
 
+## 2025-11-XX — Auto-create driver tasks from calendar events
+- Added `system_settings` table with JSON values and RLS to store runtime configuration (initial keys: `tasks.deliveryLeadHours`, `tasks.pickupLeadHours`, default 12h).
+- Added helper `get_task_lead_hours(setting_key, default_hours)` and trigger function `create_task_from_calendar_event(mode)` that inserts `delivery`/`pickup` tasks for a booking when its calendar event is within the configured lead window, avoiding duplicates.
+- Wired triggers on `calendar_events` (insert/update, `event_type='booking'`) for both delivery/start and pickup/end windows; tasks inherit `booking_id/vehicle_id/client_id`, pull `driver_id` from bookings, set `scope='driver'`, priority, geo from delivery/collect locations, and seed a checklist in `metadata`.
+- Added `task_required_inputs` and `task_required_input_values` tables (with RLS) plus required-input templates in task metadata so drivers can submit odometer/fuel/photos/signature; storage paths stored for file evidence in bucket `task-media`.
+
 ## 2025-11-26 — Remove Vehicle Health Score
 - Dropped `vehicles.health_score` in favour of service scheduling data only; UI now relies on utilisation + upcoming service windows without a computed readiness score.
 - Updated `docs/schemas/database-schema.md` and fleet specs to reflect the removal and avoid stale references; migration `0042_remove_vehicle_health_score.sql` applied via Supabase MCP.

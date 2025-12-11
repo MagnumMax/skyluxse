@@ -9,7 +9,7 @@ type DriverPageShellProps = {
 
 export function DriverPageShell({ children, className }: DriverPageShellProps) {
   return (
-    <div className={cn("mx-auto flex w-full max-w-3xl flex-col gap-5 px-4 py-6 text-white", className)}>
+    <div className={cn("mx-auto flex w-full flex-col gap-5 px-4 py-6 text-white", className)}>
       {children}
     </div>
   )

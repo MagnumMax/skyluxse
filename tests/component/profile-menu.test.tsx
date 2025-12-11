@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react"
+import { render, screen, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
@@ -17,29 +17,32 @@ describe("ProfileMenu", () => {
     pushMock.mockReset()
   })
 
-  it("navigates to profile settings and notifies parent", async () => {
+  it("открывает меню и показывает профиль без Quick links", async () => {
+    const user = userEvent.setup()
+
+    render(<ProfileMenu />)
+
+    await user.click(screen.getByRole("button", { name: /open profile menu/i }))
+
+    const menu = await screen.findByRole("menu")
+
+    expect(within(menu).getByText("Alex Kim")).toBeVisible()
+    expect(within(menu).getByText("Operations Lead")).toBeVisible()
+    expect(within(menu).getByText("alex.kim@skyluxse.com")).toBeVisible()
+    expect(within(menu).queryByText(/quick links/i)).not.toBeInTheDocument()
+  })
+
+  it("navigates to logout", async () => {
     const user = userEvent.setup()
     const onNavigate = vi.fn()
 
     render(<ProfileMenu onNavigate={onNavigate} />)
 
     await user.click(screen.getByRole("button", { name: /open profile menu/i }))
-    const profileButton = await screen.findByRole("button", { name: /profile settings/i })
-    await user.click(profileButton)
-
-    expect(pushMock).toHaveBeenCalledWith("/fleet-calendar?role=operations")
-    expect(onNavigate).toHaveBeenCalledTimes(1)
-  })
-
-  it("navigates to logout", async () => {
-    const user = userEvent.setup()
-
-    render(<ProfileMenu />)
-
-    await user.click(screen.getByRole("button", { name: /open profile menu/i }))
-    const logoutButton = await screen.findByRole("button", { name: /log out/i })
-    await user.click(logoutButton)
+    const logoutItem = await screen.findByRole("menuitem", { name: /sign out/i })
+    await user.click(logoutItem)
 
     expect(pushMock).toHaveBeenCalledWith("/login")
+    expect(onNavigate).toHaveBeenCalledTimes(1)
   })
 })

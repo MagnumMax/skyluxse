@@ -6,6 +6,7 @@ import { DashboardHeaderSearch } from "@/components/dashboard-header-search"
 import type { OperationsTask } from "@/lib/domain/entities"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { OperationsTaskCard } from "@/components/operations-task-card"
 import {
   Select,
   SelectContent,
@@ -19,7 +20,7 @@ const statusColumns = [
   {
     id: "todo" as const,
     label: "Backlog",
-    description: "Queued items awaiting checklist inputs",
+    description: "Queued items awaiting required inputs",
   },
   {
     id: "inprogress" as const,
@@ -130,7 +131,7 @@ export function OperationsTasksBoard({ tasks }: { tasks: OperationsTask[] }) {
               </div>
               <div className="mt-4 space-y-3">
                 {columnTasks.map((task) => (
-                  <TaskCard key={task.id} task={task} />
+                  <OperationsTaskCard key={task.id} task={task} />
                 ))}
                 {columnTasks.length === 0 ? (
                   <div className="rounded-3xl border border-dashed border-border/60 px-4 py-6 text-sm text-muted-foreground">
@@ -144,81 +145,4 @@ export function OperationsTasksBoard({ tasks }: { tasks: OperationsTask[] }) {
       </div>
     </div>
   )
-}
-
-function TaskCard({ task }: { task: OperationsTask }) {
-  const completionPct = Math.round((task.requiredInputs.completed / task.requiredInputs.total) * 100)
-  return (
-    <div className="space-y-3 rounded-3xl border border-border/60 bg-card/80 p-4">
-      <div className="flex items-center justify-between text-xs">
-        <span className="uppercase tracking-[0.35em] text-muted-foreground">
-          {task.category}
-        </span>
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-auto rounded-full border-border/60 px-3 py-1 text-[11px] font-semibold text-muted-foreground"
-        >
-          {task.priority}
-        </Button>
-      </div>
-      <div>
-        <p className="text-base font-semibold text-foreground">{task.title}</p>
-        <p className="text-sm text-muted-foreground">{task.description}</p>
-      </div>
-      <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.35em] text-muted-foreground">
-        {task.bookingId ? (
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-auto rounded-full border-border/60 px-2 py-0.5 text-[10px] font-semibold"
-          >
-            Booking #{task.bookingCode ?? task.bookingId}
-          </Button>
-        ) : null}
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-auto rounded-full border-border/60 px-2 py-0.5 text-[10px] font-semibold"
-        >
-          SLA {task.slaMinutes}m
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-auto rounded-full border-border/60 px-2 py-0.5 text-[10px] font-semibold"
-        >
-          {task.channel}
-        </Button>
-      </div>
-      <div>
-        <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">Required inputs</p>
-        <div className="mt-2 h-2 w-full rounded-full bg-muted">
-          <div className="h-2 rounded-full bg-primary" style={{ width: `${completionPct}%` }} />
-        </div>
-        <p className="mt-1 text-xs text-muted-foreground">
-          {task.requiredInputs.completed}/{task.requiredInputs.total} complete
-        </p>
-      </div>
-      <div className="flex items-center justify-between text-xs text-muted-foreground">
-        <div>
-          <p className="font-semibold text-foreground">{task.owner}</p>
-          <p className="text-[11px] uppercase tracking-[0.35em]">{task.ownerRole}</p>
-        </div>
-        <span>{formatTime(task.lastUpdate)}</span>
-      </div>
-    </div>
-  )
-}
-
-function formatTime(value: string) {
-  try {
-    return new Intl.DateTimeFormat("en-CA", {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-    }).format(new Date(value))
-  } catch {
-    return value
-  }
 }

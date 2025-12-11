@@ -249,11 +249,25 @@ export interface OutboxJob {
   createdAt: string
 }
 
-export interface TaskChecklistItem {
-  id: string
+export type TaskInputType = "number" | "text" | "select" | "file"
+
+export interface TaskRequiredInput {
+  key: string
   label: string
+  type: TaskInputType
   required: boolean
-  completed: boolean
+  multiple?: boolean
+  accept?: string
+  options?: string[]
+}
+
+export interface TaskInputValue {
+  key: string
+  valueText?: string | null
+  valueNumber?: number | null
+  valueJson?: Record<string, any> | null
+  storagePaths?: string[] | null
+  bucket?: string | null
 }
 
 export interface Task {
@@ -265,17 +279,23 @@ export interface Task {
   deadline: string
   bookingId?: EntityId
   bookingCode?: string
+  vehicleName?: string
+  vehiclePlate?: string
+  vehicleId?: EntityId
+  lastVehicleOdometer?: number
+  lastVehicleFuel?: number
   priority: "High" | "Medium" | "Low"
   description: string
-  checklist: TaskChecklistItem[]
   geo?: { pickup?: string; dropoff?: string }
   slaMinutes: number
+  requiredInputs?: TaskRequiredInput[]
+  inputValues?: TaskInputValue[]
 }
 
 export interface OperationsTask extends Task {
   owner: string
   ownerRole: string
-  requiredInputs: {
+  requiredInputProgress: {
     completed: number
     total: number
   }

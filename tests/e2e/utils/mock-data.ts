@@ -13,11 +13,13 @@ type TaskRow = {
   created_by: string | null
   sla_minutes: number | null
   metadata: Record<string, unknown> | null
-  task_checklist_items: Array<{
-    id: string
-    label: string | null
-    is_required: boolean | null
-    is_complete: boolean | null
+  task_required_input_values?: Array<{
+    key: string | null
+    value_number: number | null
+    value_text: string | null
+    value_json: Record<string, any> | null
+    storage_paths: string[] | null
+    bucket: string | null
   }> | null
   created_at: string | null
   updated_at: string | null
@@ -76,9 +78,6 @@ export function createDriverTaskRow(overrides: Partial<TaskRow> = {}): TaskRow {
     assignee_driver_id: "driver-1",
     created_by: "staff-1",
     sla_minutes: 60,
-    task_checklist_items: [
-      { id: "chk-1", label: "Inspect exterior", is_required: true, is_complete: false },
-    ],
     created_at: nowISO(),
     updated_at: nowISO(),
     ...restOverrides,

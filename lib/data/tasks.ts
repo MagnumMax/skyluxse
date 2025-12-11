@@ -1,15 +1,14 @@
 import { cache } from "react"
 
-import type { Booking, OperationsTask, Task, TaskChecklistItem } from "@/lib/domain/entities"
+import type {
+  Booking,
+  OperationsTask,
+  Task,
+  TaskInputValue,
+  TaskRequiredInput,
+} from "@/lib/domain/entities"
 import { getLiveBookings, getStaffAccounts, type StaffAccount } from "@/lib/data/live-data"
 import { serviceClient } from "@/lib/supabase/service-client"
-
-type TaskChecklistRow = {
-  id: string
-  label: string | null
-  is_required: boolean | null
-  is_complete: boolean | null
-}
 
 type TaskRow = {
   id: string
@@ -26,14 +25,23 @@ type TaskRow = {
   metadata: Record<string, any> | null
   created_at: string | null
   updated_at: string | null
-  task_checklist_items: TaskChecklistRow[] | null
+  task_required_input_values: TaskInputValueRow[] | null
+}
+
+type TaskInputValueRow = {
+  key: string | null
+  value_number: number | null
+  value_text: string | null
+  value_json: Record<string, any> | null
+  storage_paths: string[] | null
+  bucket: string | null
 }
 
 const fetchTaskRows = cache(async (): Promise<TaskRow[]> => {
   const { data, error } = await serviceClient
     .from("tasks")
     .select(
-      "id, title, task_type, status, deadline_at, booking_id, vehicle_id, client_id, assignee_driver_id, created_by, sla_minutes, metadata, created_at, updated_at, task_checklist_items(id, label, is_required, is_complete)"
+      "id, title, task_type, status, deadline_at, booking_id, vehicle_id, client_id, assignee_driver_id, created_by, sla_minutes, metadata, created_at, updated_at, task_required_input_values(key, value_number, value_text, value_json, storage_paths, bucket)"
     )
     .order("deadline_at", { ascending: true, nullsFirst: false })
   if (error) {
@@ -45,11 +53,13 @@ const fetchTaskRows = cache(async (): Promise<TaskRow[]> => {
 export const getOperationsTasks = cache(async (): Promise<OperationsTask[]> => {
   const [rows, bookings, staff] = await Promise.all([fetchTaskRows(), getLiveBookings(), getStaffAccounts()])
   const bookingsById = new Map(bookings.map((booking) => [String(booking.id), booking]))
+  const odometerByVehicle = buildOdometerMap(rows)
+  const fuelByVehicle = buildFuelMap(rows)
   const staffById = buildStaffMap(staff)
 
   return rows
     .filter((row) => !isDriverTaskRow(row))
-    .map((row) => toOperationsTask(row, { bookingsById, staffById }))
+    .map((row) => toOperationsTask(row, { bookingsById, staffById, odometerByVehicle, fuelByVehicle }))
 })
 
 export const getOperationsTaskById = cache(async (taskId: string): Promise<OperationsTask | null> => {
@@ -60,7 +70,9 @@ export const getOperationsTaskById = cache(async (taskId: string): Promise<Opera
 export const getDriverTasks = cache(async (): Promise<Task[]> => {
   const [rows, bookings] = await Promise.all([fetchTaskRows(), getLiveBookings()])
   const bookingsById = new Map(bookings.map((booking) => [String(booking.id), booking]))
-  return rows.filter(isDriverTaskRow).map((row) => toBaseTask(row, { bookingsById }))
+  const odometerByVehicle = buildOdometerMap(rows)
+  const fuelByVehicle = buildFuelMap(rows)
+  return rows.filter(isDriverTaskRow).map((row) => toBaseTask(row, { bookingsById, odometerByVehicle, fuelByVehicle }))
 })
 
 export const getDriverTaskById = cache(async (taskId: string): Promise<Task | null> => {
@@ -70,27 +82,52 @@ export const getDriverTaskById = cache(async (taskId: string): Promise<Task | nu
 
 function toOperationsTask(
   row: TaskRow,
-  context: { bookingsById: Map<string, Booking>; staffById: Map<string, StaffAccount> }
+  context: {
+    bookingsById: Map<string, Booking>
+    staffById: Map<string, StaffAccount>
+    odometerByVehicle: Map<string, number>
+    fuelByVehicle: Map<string, { value: number; ts: number }>
+  }
 ): OperationsTask {
   const base = toBaseTask(row, context)
   const metadata = sanitizeMetadata(row.metadata)
   const staff = row.created_by ? context.staffById.get(row.created_by) : undefined
-  const checklistProgress = getChecklistProgress(base.checklist)
+  const requiredInputProgress = deriveRequiredInputProgress(metadata, base.requiredInputs, base.inputValues)
 
   return {
     ...base,
     owner: metadata.owner ?? staff?.full_name ?? "Unassigned",
     ownerRole: metadata.ownerRole ?? staff?.role ?? "Operations",
-    requiredInputs: metadata.requiredInputs ?? checklistProgress,
+    requiredInputProgress: requiredInputProgress,
     lastUpdate: row.updated_at ?? row.created_at ?? new Date().toISOString(),
     channel: metadata.channel ?? "Manual",
   }
 }
 
-function toBaseTask(row: TaskRow, context: { bookingsById: Map<string, Booking> }): Task {
+function toBaseTask(
+  row: TaskRow,
+  context: { bookingsById: Map<string, Booking>; odometerByVehicle: Map<string, number>; fuelByVehicle: Map<string, { value: number; ts: number }> }
+): Task {
   const metadata = sanitizeMetadata(row.metadata)
-  const checklist = mergeChecklist(row.task_checklist_items, metadata.checklist as TaskChecklistItem[] | undefined)
   const booking = row.booking_id ? context.bookingsById.get(row.booking_id) : null
+  const requiredInputs = extractRequiredInputs(metadata)
+  const inputValues = mergeInputValues(row.task_required_input_values)
+  const odometer = extractOdometerValue(row.task_required_input_values)
+  const fuel = extractFuelValue(row.task_required_input_values)
+  if (row.vehicle_id && odometer !== undefined) {
+    const current = context.odometerByVehicle.get(row.vehicle_id)
+    const next = current === undefined ? odometer : Math.max(current, odometer)
+    context.odometerByVehicle.set(row.vehicle_id, next)
+  }
+  if (row.vehicle_id && fuel) {
+    const current = context.fuelByVehicle.get(row.vehicle_id)
+    const ts = getTimestamp(row)
+    const numeric = Number(fuel.value)
+    if (Number.isFinite(numeric)) {
+      const next = selectLatestFuel(current, { value: numeric, ts: ts ? new Date(ts).getTime() : Date.now() })
+      context.fuelByVehicle.set(row.vehicle_id, next)
+    }
+  }
 
   return {
     id: row.id,
@@ -101,27 +138,18 @@ function toBaseTask(row: TaskRow, context: { bookingsById: Map<string, Booking> 
     deadline: formatDeadline(row.deadline_at),
     bookingId: booking?.id ?? row.booking_id ?? undefined,
     bookingCode: booking?.code,
+    vehicleName: booking?.carName,
+    vehiclePlate: booking?.carPlate ?? undefined,
+    vehicleId: row.vehicle_id ?? undefined,
+    lastVehicleOdometer: row.vehicle_id ? context.odometerByVehicle.get(row.vehicle_id) : undefined,
+    lastVehicleFuel: row.vehicle_id ? context.fuelByVehicle.get(row.vehicle_id)?.value ?? undefined : undefined,
     priority: normalizePriority(metadata.priority),
     description: metadata.description ?? "No description provided.",
-    checklist,
     geo: metadata.geo,
     slaMinutes: row.sla_minutes ?? 0,
+    requiredInputs,
+    inputValues,
   }
-}
-
-function mergeChecklist(apiItems: TaskChecklistRow[] | null, metaItems?: TaskChecklistItem[]): TaskChecklistItem[] {
-  if (metaItems?.length) {
-    return metaItems
-  }
-  if (!apiItems?.length) {
-    return []
-  }
-  return apiItems.map((item) => ({
-    id: item.id,
-    label: item.label ?? "Checklist item",
-    required: Boolean(item.is_required),
-    completed: Boolean(item.is_complete),
-  }))
 }
 
 function sanitizeMetadata(metadata: Record<string, any> | null | undefined) {
@@ -129,6 +157,151 @@ function sanitizeMetadata(metadata: Record<string, any> | null | undefined) {
     return {}
   }
   return metadata as Record<string, any>
+}
+
+function extractRequiredInputs(metadata: Record<string, any>): TaskRequiredInput[] | undefined {
+  const inputs = metadata.requiredInputs
+  if (!Array.isArray(inputs)) return undefined
+  return inputs
+    .map((entry) => {
+      if (!entry || typeof entry !== "object") return null
+      const key = String(entry.key ?? "")
+      const label = String(entry.label ?? entry.key ?? "Input")
+      const normalized = `${key} ${label}`.toLowerCase()
+      if (normalized.includes("cleaning_needed") || normalized.includes("cleaning")) return null
+      if (shouldSkipSignatureField(key, label)) return null
+      return {
+        key,
+        label,
+        type: (entry.type as TaskRequiredInput["type"]) ?? "text",
+        required: Boolean(entry.required),
+        multiple: Boolean(entry.multiple),
+        accept: entry.accept ? String(entry.accept) : undefined,
+        options: Array.isArray(entry.options) ? entry.options.map((opt: any) => String(opt)) : undefined,
+      } satisfies TaskRequiredInput
+    })
+    .filter(Boolean) as TaskRequiredInput[]
+}
+
+function mergeInputValues(rows: TaskInputValueRow[] | null): TaskInputValue[] | undefined {
+  if (!rows?.length) return undefined
+  return rows.map((row) => ({
+    key: row.key ?? "",
+    valueNumber: row.value_number,
+    valueText: row.value_text,
+    valueJson: row.value_json ?? undefined,
+    storagePaths: row.storage_paths ?? undefined,
+    bucket: row.bucket ?? undefined,
+  }))
+}
+
+function extractOdometerValue(rows: TaskInputValueRow[] | null): number | undefined {
+  if (!rows?.length) return undefined
+  const odometers = rows
+    .filter((row) => {
+      const key = row.key?.toLowerCase() ?? ""
+      return key.startsWith("odo")
+    })
+    .map((row) => row.value_number)
+    .filter((v): v is number => typeof v === "number")
+  if (!odometers.length) return undefined
+  return Math.max(...odometers)
+}
+
+function buildOdometerMap(rows: TaskRow[]): Map<string, number> {
+  const map = new Map<string, number>()
+  for (const row of rows) {
+    if (!row.vehicle_id) continue
+    const odo = extractOdometerValue(row.task_required_input_values)
+    if (odo === undefined) continue
+    const current = map.get(row.vehicle_id)
+    map.set(row.vehicle_id, current === undefined ? odo : Math.max(current, odo))
+  }
+  return map
+}
+
+function extractFuelValue(rows: TaskInputValueRow[] | null): { value: string; key: string } | undefined {
+  if (!rows?.length) return undefined
+  const fuelRow = rows.find((row) => {
+    const key = row.key?.toLowerCase() ?? ""
+    return key.includes("fuel")
+  })
+  if (fuelRow?.value_number !== null && fuelRow?.value_number !== undefined) {
+    return { value: String(fuelRow.value_number), key: fuelRow.key ?? "fuel_level" }
+  }
+  if (!fuelRow?.value_text) return undefined
+  return { value: fuelRow.value_text, key: fuelRow.key ?? "fuel_level" }
+}
+
+function selectLatestFuel(
+  current: { value: number; ts: number } | undefined,
+  next: { value: number; ts: number }
+): { value: number; ts: number } {
+  if (!current) return next
+  return next.ts >= current.ts ? next : current
+}
+
+function buildFuelMap(rows: TaskRow[]): Map<string, { value: number; ts: number }> {
+  const map = new Map<string, { value: number; ts: number }>()
+  for (const row of rows) {
+    if (!row.vehicle_id) continue
+    const type = normalizeTaskType(row.task_type)
+    if (type !== "delivery") continue
+    const fuel = extractFuelValue(row.task_required_input_values)
+    if (!fuel) continue
+    const ts = getTimestamp(row)
+    const numeric = Number(fuel.value)
+    if (!Number.isFinite(numeric)) continue
+    const record = selectLatestFuel(map.get(row.vehicle_id), { value: numeric, ts: ts ? new Date(ts).getTime() : Date.now() })
+    map.set(row.vehicle_id, record)
+  }
+  return map
+}
+
+function getTimestamp(row: TaskRow): string | null {
+  return row.updated_at ?? row.created_at ?? row.deadline_at ?? null
+}
+
+function deriveRequiredInputProgress(
+  metadata: Record<string, any>,
+  requiredInputs?: TaskRequiredInput[],
+  inputValues?: TaskInputValue[]
+): { completed: number; total: number } {
+  const metaProgress = metadata.requiredInputs
+  if (metaProgress && typeof metaProgress === "object" && !Array.isArray(metaProgress)) {
+    const completed = Number(metaProgress.completed ?? 0)
+    const total = Number(metaProgress.total ?? 0)
+    return sanitizeProgress(completed, total)
+  }
+  return computeInputProgress(requiredInputs, inputValues)
+}
+
+function computeInputProgress(requiredInputs?: TaskRequiredInput[], inputValues?: TaskInputValue[]) {
+  if (!requiredInputs?.length) return { completed: 0, total: 0 }
+  const completed = requiredInputs.filter((input) => {
+    const value = inputValues?.find((entry) => entry.key === input.key)
+    if (!value) return false
+    if (value.storagePaths?.length) return true
+    if (value.valueNumber !== null && value.valueNumber !== undefined) return true
+    if (value.valueText && value.valueText.length) return true
+    if (value.valueJson && Object.keys(value.valueJson).length) return true
+    return false
+  }).length
+  return { completed, total: requiredInputs.length }
+}
+
+function sanitizeProgress(completed: number, total: number) {
+  const safeTotal = Number.isFinite(total) && total > 0 ? total : 0
+  if (safeTotal === 0) {
+    return { completed: 0, total: 0 }
+  }
+  const safeCompleted = Number.isFinite(completed) ? Math.min(Math.max(completed, 0), safeTotal) : 0
+  return { completed: safeCompleted, total: safeTotal }
+}
+
+function shouldSkipSignatureField(key: string, label: string) {
+  const normalized = `${key} ${label}`.toLowerCase()
+  return normalized.includes("signature")
 }
 
 function normalizeTaskType(value: string | null | undefined): Task["type"] {
@@ -179,12 +352,6 @@ function formatDeadline(value: string | null): string {
   } catch {
     return value
   }
-}
-
-function getChecklistProgress(checklist: TaskChecklistItem[]): { completed: number; total: number } {
-  const total = checklist.length || 1
-  const completed = checklist.filter((item) => item.completed).length
-  return { completed, total }
 }
 
 function isDriverTaskRow(row: TaskRow): boolean {

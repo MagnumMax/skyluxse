@@ -1,6 +1,6 @@
 # Database Schema
 
-_Last updated: 18 Nov 2025_
+_Last updated: 28 Nov 2025_
 
 This schema proposal is derived from the production requirements captured in `docs/prd-foundations.md` and the live SPA prototype in `/beta`. It is designed for Supabase/PostgreSQL, keeps App Router friendly URL structures in mind, and documents the structure in a DBML-friendly way, following the Holistics DBML guidelines for table, column, and relationship definitions.
 
@@ -327,11 +327,25 @@ This schema proposal is derived from the production requirements captured in `do
 
 **task_checklist_items**: `task_id`, `label`, `required boolean`, `position`, `completed boolean`, `completed_by`, `completed_at`.
 
-**task_required_inputs**: capture definitions (odometer, fuel, photos). Columns: `task_id`, `key`, `label`, `input_type` (`number`,`text`,`select`,`file`), `accept`, `multiple`, `required`.
+**task_required_inputs**: capture definitions (odometer, fuel, photos). Columns: `task_id`, `key`, `label`, `input_type` (`number`,`text`,`select`,`file`), `accept`, `multiple`, `required`, `options[]`.
 
-**task_required_input_values** store submissions for each definition, including `value_text`, `value_number`, `value_json`, `captured_by`, `captured_at`.
+**task_required_input_values** store submissions for each definition, including `value_text`, `value_number`, `value_json`, `storage_paths[]` (bucket `task-media`), `captured_by`, `captured_at`.
 
 **task_media** simply references `documents` with entity_type = `task` for photos/videos.
+
+**Auto-create driver tasks from calendar events**
+- Trigger function `create_task_from_calendar_event(mode)` runs on `calendar_events` insert/update when `event_type = 'booking'`.
+- Two triggers (`delivery`, `pickup`) look at `start_at`/`end_at` respectively; if the deadline falls within the configurable lead window, a `tasks` row is created when none exists for that booking/task_type in `todo`/`inprogress`.
+- Lead windows read from `system_settings`: `tasks.deliveryLeadHours` and `tasks.pickupLeadHours` (default 12h). SLA is disabled (`sla_minutes = 0`), but `deadline_at` mirrors the calendar window.
+- Inserted tasks inherit `booking_id/vehicle_id/client_id`, pull `assignee_driver_id` from the booking, set `scope='driver'`, `priority` (`high` for delivery, `medium` for pickup), `category='logistics'`, `channel='Auto'`, geo from `bookings.collect_location`/`delivery_location`, and seed a checklist + required inputs in `metadata` (odometer, fuel, photos, signature/damage notes). Values persist in `task_required_input_values`.
+
+**system_settings** stores JSON runtime configuration:
+| Column | Type | Notes |
+| --- | --- | --- |
+| key | text pk | e.g., `tasks.deliveryLeadHours`, `tasks.pickupLeadHours`. |
+| value | jsonb | Shape `{ "hours": 12 }` for lead windows (extensible). |
+| description | text | |
+| updated_at | timestamptz | Managed by `set_updated_at` trigger. |
 
 ### Sales pipeline
 **sales_pipeline_stages** keep the stage metadata now stored in `MOCK_DATA.salesPipeline.stages`: columns `id` (`new`), `name`, `probability`, `sla_days`, `badge_color`, plus Kommo linkage fields `kommo_pipeline_id`, `kommo_status_id`, `booking_status`. `(kommo_pipeline_id, kommo_status_id)` is unique (partial index) so Edge Functions can resolve a stage/booking status without hard-coded maps. `booking_status` is constrained to `lead`, `confirmed`, `delivery`, `in_progress`, `completed`, `cancelled` and feeds `bookings.status` during webhook ingestion.
@@ -495,10 +509,47 @@ Table tasks {
   vehicle_id uuid [ref: > vehicles.id]
   client_id uuid [ref: > clients.id]
   task_type task_type
+  category task_category
   status task_status
+  priority priority_level
   title text
   deadline_at timestamptz
+  sla_minutes int
+  metadata jsonb
   assignee_driver_id uuid [ref: > driver_profiles.id]
+}
+
+Table task_required_inputs {
+  id uuid [pk]
+  task_id uuid [ref: > tasks.id]
+  key text
+  label text
+  input_type text
+  accept text
+  multiple boolean
+  required boolean
+  options text
+  created_at timestamptz
+  updated_at timestamptz
+}
+
+Table task_required_input_values {
+  id uuid [pk]
+  task_id uuid [ref: > tasks.id]
+  key text
+  value_text text
+  value_number numeric
+  value_json jsonb
+  storage_paths text
+  bucket text
+  captured_at timestamptz
+}
+
+Table system_settings {
+  key text [pk]
+  value jsonb
+  description text
+  updated_at timestamptz
 }
 
 Table sales_pipeline_stages {

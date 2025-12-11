@@ -1,6 +1,18 @@
 import type { Metadata, Viewport } from "next"
 import { ReactNode } from "react"
 
+import { DashboardHeader, type DashboardNavGroup } from "@/components/dashboard-header"
+import { DashboardHeaderProvider } from "@/components/dashboard-header-context"
+import { DashboardSidebar } from "@/components/dashboard-sidebar"
+import { DriverHeaderActions } from "@/components/driver-header-actions"
+
+const navGroups: DashboardNavGroup[] = [
+  {
+    label: "Driver",
+    links: [{ href: "/driver/tasks", label: "Tasks", icon: "tasks" }],
+  },
+]
+
 export const metadata: Metadata = {
   title: {
     default: "SkyLuxse Driver",
@@ -18,17 +30,23 @@ export const viewport: Viewport = {
 
 export default function DriverLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="min-h-screen bg-slate-950 text-white">
-      <header className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-white/10 bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 px-4 py-4">
-        <div>
-          <p className="text-[0.6rem] font-semibold uppercase tracking-[0.5em] text-slate-400">Driver</p>
-          <h1 className="text-xl font-semibold tracking-tight text-white">SkyLuxse field ops</h1>
+    <DashboardHeaderProvider>
+      <div className="relative flex min-h-screen w-full flex-col overflow-x-hidden bg-slate-50 text-slate-900">
+        <DashboardHeader navGroups={navGroups} className="fixed inset-x-0 top-0 z-40 w-full" />
+        <div className="flex flex-1 min-h-0 overflow-hidden lg:pl-16">
+          <DashboardSidebar navGroups={navGroups} />
+          <main
+            className="relative flex-1 min-h-0 overflow-y-auto border-l border-white/10 bg-slate-950 pb-8 text-white [--dashboard-gutter:1rem]"
+            style={{
+              paddingTop: "calc(var(--dashboard-header-height, 64px) + var(--dashboard-gutter, 1rem))",
+              paddingInline: "var(--dashboard-gutter, 1rem)",
+            }}
+          >
+            <DriverHeaderActions />
+            {children}
+          </main>
         </div>
-        <button className="rounded-full border border-white/40 px-3 py-1 text-xs font-semibold uppercase tracking-[0.3em] text-white/80">
-          Online
-        </button>
-      </header>
-      <main className="mx-auto w-full max-w-md space-y-5 px-4 py-6">{children}</main>
-    </div>
+      </div>
+    </DashboardHeaderProvider>
   )
 }

@@ -77,7 +77,6 @@ export function DashboardHeader({ navGroups, className }: DashboardHeaderProps) 
             {contextualContent}
           </div>
         ) : null}
-        <ProfileMenu placement="bottom-end" />
       </div>
     </header>
   )
