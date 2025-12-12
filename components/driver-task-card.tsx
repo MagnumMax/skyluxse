@@ -162,7 +162,7 @@ export function DriverTaskCard({
           <div className="absolute inset-0 z-10 flex items-center justify-center rounded-3xl bg-black/50 backdrop-blur-sm">
             <div className="flex items-center gap-3 rounded-full border border-white/30 bg-white/10 px-4 py-2 text-sm font-semibold tracking-[0.2em] text-white">
               <Loader2 className="h-4 w-4 animate-spin" />
-              <span>{isOnline ? "Opening task…" : "No internet connection"}</span>
+              <span>{isOnline ? "Opening task…" : "No internet connection!"}</span>
             </div>
           </div>
         ) : null}
