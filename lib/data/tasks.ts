@@ -138,6 +138,8 @@ function toBaseTask(
     deadline: formatDeadline(row.deadline_at),
     bookingId: booking?.id ?? row.booking_id ?? undefined,
     bookingCode: booking?.code,
+    clientId: booking?.clientId ?? row.client_id ?? undefined,
+    clientName: booking?.clientName,
     vehicleName: booking?.carName,
     vehiclePlate: booking?.carPlate ?? undefined,
     vehicleId: row.vehicle_id ?? undefined,
@@ -149,6 +151,8 @@ function toBaseTask(
     slaMinutes: row.sla_minutes ?? 0,
     requiredInputs,
     inputValues,
+    outstandingAmount: booking ? Math.max(0, (booking.totalAmount ?? 0) - (booking.paidAmount ?? 0)) : undefined,
+    currency: booking?.billing?.currency ?? "AED",
   }
 }
 

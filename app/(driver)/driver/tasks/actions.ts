@@ -35,6 +35,10 @@ const SubmitInputsSchema = z.object({
       .optional()
       .transform((v) => (v && v.length ? v : undefined))
   ),
+  paymentCollected: z.preprocess(
+    (value) => (value === null || value === undefined || value === "" ? undefined : value),
+    z.coerce.number().nonnegative().optional()
+  ),
 })
 
 const DeletePhotoSchema = z.object({
@@ -108,7 +112,7 @@ export async function submitTaskInputs(formData: FormData): Promise<ActionResult
     return { success: false, message }
   }
 
-  const { taskId, odometer, fuel, notes } = submission.data
+  const { taskId, odometer, fuel, notes, paymentCollected } = submission.data
   const photoFiles = formData.getAll("photos").filter((item): item is File => item instanceof File && item.size > 0)
   const damagePhotos = formData.getAll("damage_photos").filter((item): item is File => item instanceof File && item.size > 0)
 
@@ -138,6 +142,9 @@ export async function submitTaskInputs(formData: FormData): Promise<ActionResult
     }
     if (notes !== undefined) {
       rows.push({ task_id: taskId, key: "damage_notes", value_text: notes })
+    }
+    if (paymentCollected !== undefined) {
+      rows.push({ task_id: taskId, key: "payment_collected", value_number: paymentCollected })
     }
 
     const bucket = "task-media"

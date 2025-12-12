@@ -279,6 +279,8 @@ export interface Task {
   deadline: string
   bookingId?: EntityId
   bookingCode?: string
+  clientId?: EntityId
+  clientName?: string
   vehicleName?: string
   vehiclePlate?: string
   vehicleId?: EntityId
@@ -290,6 +292,9 @@ export interface Task {
   slaMinutes: number
   requiredInputs?: TaskRequiredInput[]
   inputValues?: TaskInputValue[]
+  outstandingAmount?: number
+  currency?: string
+  clientPhone?: string
 }
 
 export interface OperationsTask extends Task {
