@@ -1,6 +1,6 @@
 "use client"
 
-import { type ReactNode, useMemo } from "react"
+import { type ReactNode, useMemo, useEffect, useState } from "react"
 import {
   ArrowDownToLine,
   Check,
@@ -93,7 +93,7 @@ export function DriverHeaderActions() {
 
   return (
     <DashboardHeaderSlot>
-      <div className="flex w-full flex-wrap items-center gap-2 md:gap-3">
+      <div className="flex w-full min-w-0 flex-nowrap items-center gap-1 overflow-x-auto md:flex-wrap md:gap-3">
         {pathname.startsWith("/driver/tasks") ? (
           <>
             <HeaderSearchInput value={currentQuery} onChange={setQuery} placeholder="Search tasks…" />
@@ -131,7 +131,7 @@ function HeaderSearchInput({
   placeholder: string
 }) {
   return (
-    <div className="relative min-w-[200px] flex-1 md:min-w-[260px]">
+    <div className="relative min-w-[140px] flex-1 md:min-w-[260px]">
       <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
       <input
         value={value}
@@ -148,13 +148,32 @@ function HeaderSearchInput({
 }
 
 function OnlinePill() {
+  const [isOnline, setIsOnline] = useState<boolean>(typeof navigator !== "undefined" ? navigator.onLine : true)
+  useEffect(() => {
+    function onOnline() {
+      setIsOnline(true)
+    }
+    function onOffline() {
+      setIsOnline(false)
+    }
+    if (typeof window !== "undefined") {
+      window.addEventListener("online", onOnline)
+      window.addEventListener("offline", onOffline)
+    }
+    return () => {
+      if (typeof window !== "undefined") {
+        window.removeEventListener("online", onOnline)
+        window.removeEventListener("offline", onOffline)
+      }
+    }
+  }, [])
   return (
-    <div className="flex items-center gap-2 rounded-full border border-white/25 bg-white/5 px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.3em] text-white/80">
+    <div className="flex shrink-0 items-center gap-2 rounded-full border border-white/25 bg-white/5 px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.3em] text-white/80">
       <span className="relative flex h-2 w-2">
-        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
-        <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
+        <span className={`absolute inline-flex h-full w-full animate-ping rounded-full ${isOnline ? "bg-emerald-400" : "bg-rose-400"} opacity-60`} />
+        <span className={`relative inline-flex h-2 w-2 rounded-full ${isOnline ? "bg-emerald-400" : "bg-rose-400"}`} />
       </span>
-      Online
+      {isOnline ? "On" : "Off"}
     </div>
   )
 }

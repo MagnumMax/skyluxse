@@ -6,6 +6,9 @@ const nextConfig = {
     optimizeCss: true,
     testProxy: true,
   },
+  serverActions: {
+    bodySizeLimit: "20mb",
+  },
   serverExternalPackages: ["@zohocrm/nodejs-sdk-7.0"],
   images: {
     remotePatterns: [

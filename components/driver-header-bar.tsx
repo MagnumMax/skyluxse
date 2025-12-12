@@ -1,6 +1,6 @@
 "use client"
 
-import { type ReactNode, useMemo } from "react"
+import { type ReactNode, useMemo, useEffect, useState } from "react"
 import { ArrowDownToLine, Car, CheckCircle2, Hourglass, Package, Wrench } from "lucide-react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 
@@ -32,6 +32,21 @@ export function DriverHeaderBar() {
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const router = useRouter()
+  const [isOnline, setIsOnline] = useState<boolean>(typeof navigator !== "undefined" ? navigator.onLine : true)
+  useEffect(() => {
+    function onOnline() { setIsOnline(true) }
+    function onOffline() { setIsOnline(false) }
+    if (typeof window !== "undefined") {
+      window.addEventListener("online", onOnline)
+      window.addEventListener("offline", onOffline)
+    }
+    return () => {
+      if (typeof window !== "undefined") {
+        window.removeEventListener("online", onOnline)
+        window.removeEventListener("offline", onOffline)
+      }
+    }
+  }, [])
 
   const isTasksPage = useMemo(() => pathname === "/driver/tasks", [pathname])
 
@@ -136,10 +151,10 @@ export function DriverHeaderBar() {
           ) : null}
           <button className="flex items-center gap-2 rounded-full border border-white/40 px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.3em] text-white/80">
             <span className="relative flex h-2 w-2">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
+              <span className={`absolute inline-flex h-full w-full animate-ping rounded-full ${isOnline ? "bg-emerald-400" : "bg-rose-400"} opacity-60`} />
+              <span className={`relative inline-flex h-2 w-2 rounded-full ${isOnline ? "bg-emerald-400" : "bg-rose-400"}`} />
             </span>
-            Online
+            {isOnline ? "On" : "Off"}
           </button>
         </div>
       </div>
