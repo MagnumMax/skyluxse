@@ -126,12 +126,12 @@ export function SalesClientsList({ clients }: { clients: Client[] }) {
       <DashboardPageHeader title="Client workspace" />
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
-        <KpiCard label="Всего клиентов" value={kpis.totalClients} />
-        <KpiCard label="Активны (30 дн)" value={kpis.activeRecently} />
-        <KpiCard label="Средний LTV" value={kpis.avgLtv} />
-        <KpiCard label="Задолженность" value={kpis.totalOutstanding} />
-        <KpiCard label="VIP доля" value={kpis.vipShare} />
-        <KpiCard label="Gold доля" value={kpis.goldShare} />
+        <KpiCard label="Total clients" value={kpis.totalClients} />
+        <KpiCard label="Active (30 d)" value={kpis.activeRecently} />
+        <KpiCard label="Average LTV" value={kpis.avgLtv} />
+        <KpiCard label="Outstanding" value={kpis.totalOutstanding} />
+        <KpiCard label="VIP share" value={kpis.vipShare} />
+        <KpiCard label="Gold share" value={kpis.goldShare} />
       </section>
 
       <section className="rounded-[26px] border border-border/70 bg-card/80 p-5 shadow-sm">
@@ -160,7 +160,7 @@ export function SalesClientsList({ clients }: { clients: Client[] }) {
           <FilterSelect
             id="segment-filter"
             label="Segment"
-            allLabel="Все сегменты"
+            allLabel="All segments"
             value={filters.segment}
             options={clientSegmentFilterOptions}
             onValueChange={(value) => setFilters((prev) => ({ ...prev, segment: value }))}
@@ -231,8 +231,8 @@ export function SalesClientsList({ clients }: { clients: Client[] }) {
         </section>
       ) : (
         <section className="rounded-[24px] border border-border/60 bg-background/90 p-12 text-center">
-          <p className="text-lg font-semibold text-foreground">Нет клиентов по выбранным фильтрам</p>
-          <p className="mt-2 text-sm text-muted-foreground">Попробуйте сбросить фильтры или изменить поисковый запрос.</p>
+          <p className="text-lg font-semibold text-foreground">No clients for selected filters</p>
+          <p className="mt-2 text-sm text-muted-foreground">Try resetting filters or change the search query.</p>
         </section>
       )}
     </DashboardPageShell>

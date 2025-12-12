@@ -22,7 +22,7 @@ export function VehicleGalleryManager({ vehicleId, documents }: VehicleGalleryMa
   const { toast } = useToast()
   const [items, setItems] = useState<VehicleDocument[]>(documents.filter((doc) => doc.type === "gallery" || doc.type === "photo"))
   const [uploading, setUploading] = useState(false)
-  const [filesLabel, setFilesLabel] = useState("Выберите файлы")
+  const [filesLabel, setFilesLabel] = useState("Choose files")
   const [pending, setPending] = useState<PendingUpload[]>([])
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
@@ -51,7 +51,7 @@ export function VehicleGalleryManager({ vehicleId, documents }: VehicleGalleryMa
         const response = await fetch(`/api/fleet/vehicles/${vehicleId}/documents`, { method: "POST", body: formData })
         if (!response.ok) {
           const msg = await readError(response)
-          toast({ title: `Не удалось загрузить ${file.name}`, description: msg ?? undefined, variant: "destructive" })
+          toast({ title: `Failed to upload ${file.name}`, description: msg ?? undefined, variant: "destructive" })
           URL.revokeObjectURL(tempUrl)
           setItems((prev) => prev.filter((doc) => doc.id !== tempId))
           setPending((prev) => prev.filter((p) => p.id !== `pending-${timestamp}-${index}`))
@@ -65,8 +65,8 @@ export function VehicleGalleryManager({ vehicleId, documents }: VehicleGalleryMa
         setPending((prev) => prev.filter((p) => p.id !== `pending-${timestamp}-${index}`))
       })
     )
-    toast({ title: "Фото добавлены", variant: "success" })
-    setFilesLabel("Выберите файлы")
+    toast({ title: "Photos added", variant: "success" })
+    setFilesLabel("Choose files")
     if (fileInputRef.current) {
       fileInputRef.current.value = ""
     }
@@ -78,11 +78,11 @@ export function VehicleGalleryManager({ vehicleId, documents }: VehicleGalleryMa
     const response = await fetch(`/api/fleet/vehicles/${vehicleId}/documents/${doc.id}`, { method: "DELETE" })
     if (!response.ok) {
       const message = await readError(response)
-      toast({ title: "Не удалось удалить фото", description: message ?? undefined, variant: "destructive" })
+      toast({ title: "Failed to delete photo", description: message ?? undefined, variant: "destructive" })
       setItems((prev) => [...prev, doc])
       return
     }
-    toast({ title: "Фото удалено", variant: "success" })
+    toast({ title: "Photo deleted", variant: "success" })
   }
 
   const handleSetHero = async (doc: VehicleDocument) => {
@@ -94,22 +94,22 @@ export function VehicleGalleryManager({ vehicleId, documents }: VehicleGalleryMa
     })
     if (!response.ok) {
       const message = await readError(response)
-      toast({ title: "Не удалось сделать главным", description: message ?? undefined, variant: "destructive" })
+      toast({ title: "Failed to set as main", description: message ?? undefined, variant: "destructive" })
       return
     }
-    toast({ title: "Главное фото обновлено", variant: "success" })
+    toast({ title: "Main photo updated", variant: "success" })
   }
 
   return (
     <Card className="rounded-[26px] border-border/70 bg-card/80">
       <CardHeader>
-        <CardTitle className="text-sm uppercase tracking-[0.35em] text-muted-foreground">Фотографии</CardTitle>
+        <CardTitle className="text-sm uppercase tracking-[0.35em] text-muted-foreground">Photos</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {items.length === 0 ? (
             <div className="col-span-full rounded-2xl border border-dashed border-border/60 px-3 py-6 text-center text-sm text-muted-foreground">
-              Галерея пуста
+              Gallery is empty
             </div>
           ) : (
             items.map((doc) => (
@@ -123,18 +123,18 @@ export function VehicleGalleryManager({ vehicleId, documents }: VehicleGalleryMa
                     className="object-cover transition group-hover:scale-105"
                   />
                 ) : (
-                  <div className="flex h-full items-center justify-center text-xs text-muted-foreground">Нет превью</div>
+                  <div className="flex h-full items-center justify-center text-xs text-muted-foreground">No preview</div>
                 )}
                 <div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-2 bg-black/60 px-3 py-2 text-xs text-white opacity-0 transition group-hover:opacity-100">
                   <span className="truncate">{doc.name ?? "Photo"}</span>
                   <div className="flex gap-2">
                     {doc.bucket && doc.storagePath ? (
                       <button className="underline" onClick={() => handleSetHero(doc)}>
-                        Главная
+                        Make main
                       </button>
                     ) : null}
                     <button className="underline" onClick={() => handleDelete(doc)}>
-                      Удалить
+                      Delete
                     </button>
                   </div>
                 </div>
@@ -152,7 +152,7 @@ export function VehicleGalleryManager({ vehicleId, documents }: VehicleGalleryMa
               disabled={uploading}
               onClick={() => fileInputRef.current?.click()}
             >
-              {uploading ? "Загружается..." : "Choose files"}
+              {uploading ? "Uploading..." : "Choose files"}
             </Button>
             <input
               type="file"
@@ -162,16 +162,16 @@ export function VehicleGalleryManager({ vehicleId, documents }: VehicleGalleryMa
               ref={fileInputRef}
               onChange={(event) => {
                 const files = event.target.files
-                const label = files && files.length > 0 ? Array.from(files).map((f) => f.name).join(", ") : "Выберите файлы"
+                const label = files && files.length > 0 ? Array.from(files).map((f) => f.name).join(", ") : "Choose files"
                 setFilesLabel(label)
                 void handleUpload(files)
               }}
             />
           </label>
-          <p className="text-xs text-muted-foreground">Поддерживаются изображения, до 10 МБ каждое.</p>
+          <p className="text-xs text-muted-foreground">Images supported, up to 10 MB each.</p>
           {pending.length ? (
             <p className="text-xs text-muted-foreground">
-              Загружается: {pending.map((p) => p.name).join(", ")}
+              Uploading: {pending.map((p) => p.name).join(", ")}
             </p>
           ) : null}
         </div>

@@ -61,15 +61,15 @@ export function VehicleForm({
     })
 
     if (!response.ok) {
-      const message = (await safeErrorMessage(response)) ?? "Не удалось сохранить данные"
-      toast({ title: "Ошибка", description: message, variant: "destructive" })
+      const message = (await safeErrorMessage(response)) ?? "Failed to save data"
+      toast({ title: "Error", description: message, variant: "destructive" })
       setSubmitting(false)
       return
     }
 
     const { id } = (await response.json()) as { id: string }
     toast({
-      title: mode === "create" ? "Авто создано" : "Изменения сохранены",
+      title: mode === "create" ? "Vehicle created" : "Changes saved",
       variant: "success",
     })
     router.push(`/fleet/${id}`)
@@ -82,7 +82,7 @@ export function VehicleForm({
       <form id={formId} onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
         <Card className="rounded-[26px] border-border/70 bg-card/80">
           <CardHeader>
-            <CardTitle className="text-sm uppercase tracking-[0.35em] text-muted-foreground">Данные авто</CardTitle>
+            <CardTitle className="text-sm uppercase tracking-[0.35em] text-muted-foreground">Vehicle details</CardTitle>
           </CardHeader>
           <CardContent className="grid gap-4 md:grid-cols-2">
             <FormField
@@ -382,7 +382,7 @@ export function VehicleForm({
         {renderActions ? (
           <div className="flex items-center justify-end">
             <Button type="submit" disabled={submitting}>
-              {submitting ? "Сохраняем..." : mode === "create" ? "Создать авто" : "Сохранить изменения"}
+              {submitting ? "Saving..." : mode === "create" ? "Create vehicle" : "Save changes"}
             </Button>
           </div>
         ) : null}

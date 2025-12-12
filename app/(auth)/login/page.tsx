@@ -6,7 +6,7 @@ import { LoginForm } from "./login-form"
 
 export const metadata: Metadata = {
   title: "SkyLuxse ERP · Login",
-  description: "Паритетный экран входа SkyLuxse ERP с выбором роли и OTP-запросом.",
+  description: "SkyLuxse ERP login screen with role selection and OTP request.",
 }
 
 const roles = [
@@ -24,9 +24,9 @@ const roleRoutes = {
 } satisfies Record<(typeof roles)[number]["value"], string>
 
 const heroBullets = [
-  "Корпоративный вход: заявки, авто и клиенты в одном учете.",
-  "Автосигналы по платежам, доставкам и возвратам.",
-  "Онлайн-отчеты по загрузке, марже и SLA.",
+  "Corporate access: bookings, vehicles, and clients in one place.",
+  "Automated signals for payments, deliveries, and returns.",
+  "Online reports for utilization, margin, and SLA.",
 ]
 
 const heroGradient =
@@ -41,7 +41,7 @@ export default function LoginPage() {
         <Card className="rounded-[28px] border border-border/70 shadow-[0_20px_60px_rgba(15,23,42,0.08)]">
           <CardHeader className="space-y-3">
             <p className="text-xs font-semibold uppercase tracking-[0.32em] text-muted-foreground">SkyLuxse ERP</p>
-            <CardTitle className="text-3xl font-semibold tracking-tight text-foreground">Добро пожаловать</CardTitle>
+            <CardTitle className="text-3xl font-semibold tracking-tight text-foreground">Welcome</CardTitle>
           </CardHeader>
           <CardContent>
             <LoginForm roles={roles} roleRoutes={roleRoutes} />
@@ -54,11 +54,11 @@ export default function LoginPage() {
         >
           <div className="inline-flex items-center gap-2 rounded-full border border-indigo-400/50 bg-slate-900/60 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em]">
             <span className="h-1.5 w-1.5 rounded-full bg-indigo-300" />
-            Внутренний доступ SkyLuxse
+            Internal access · SkyLuxse
           </div>
-          <h2 className="mt-6 text-3xl font-semibold tracking-tight">Корпоративная ОС автопарка</h2>
+          <h2 className="mt-6 text-3xl font-semibold tracking-tight">Corporate fleet OS</h2>
           <p className="mt-3 text-base text-slate-200">
-            Платформа для сотрудников: бронирования, SLA и водители собраны в одном рабочем окне.
+            Staff platform: bookings, SLA, and drivers unified in a single workspace.
           </p>
           <ul className="mt-6 space-y-3 text-sm">
             {heroBullets.map((bullet) => (

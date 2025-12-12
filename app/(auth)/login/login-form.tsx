@@ -35,7 +35,7 @@ export function LoginForm({ roles, roleRoutes }: LoginFormProps) {
     const normalizedEmail = email.trim()
 
     if (!normalizedEmail) {
-      setError("Введите рабочий email")
+      setError("Enter your work email")
       return
     }
 
@@ -89,7 +89,7 @@ export function LoginForm({ roles, roleRoutes }: LoginFormProps) {
           One-time code
         </Label>
         <div className="space-y-2">
-          <p className="text-sm text-muted-foreground">MFA support will appear after integration.</p>
+          <p className="text-sm text-muted-foreground">MFA support will be available after integration.</p>
           <Button variant="secondary" type="button" className="h-11 w-full rounded-2xl border border-border/70">
             Send code
           </Button>

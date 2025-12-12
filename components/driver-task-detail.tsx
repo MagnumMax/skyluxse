@@ -133,7 +133,7 @@ export function DriverTaskDetail({ task, client }: { task: Task; client?: Client
   return (
     <div className="space-y-5 text-white">
       {!isOnline ? (
-        <div className="rounded-2xl border border-white/20 bg-amber-600/20 px-4 py-2 text-sm text-amber-100">Нет сети. Данные и фото будут сохранены при восстановлении соединения.</div>
+        <div className="rounded-2xl border border-white/20 bg-amber-600/20 px-4 py-2 text-sm text-amber-100">Offline. Data and photos will be saved when connection is restored.</div>
       ) : null}
       <Button
         asChild
@@ -141,7 +141,7 @@ export function DriverTaskDetail({ task, client }: { task: Task; client?: Client
         size="sm"
         className="w-fit rounded-full border-white/25 bg-white/5 px-3 py-1.5 text-white hover:border-white/40 hover:bg-white/10"
       >
-        <Link href="/driver/tasks">← Назад к списку</Link>
+        <Link href="/driver/tasks">← Back to list</Link>
       </Button>
 
       <DriverTaskCard task={taskWithLiveStatus} clickable={false} showEta={false} showLocationHeader={false}>
@@ -206,7 +206,7 @@ export function DriverTaskDetail({ task, client }: { task: Task; client?: Client
       {client ? (
         <Card className="rounded-3xl border border-white/15 bg-white/5 text-white shadow-lg">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold uppercase tracking-[0.35em] text-white/60">Клиент</CardTitle>
+            <CardTitle className="text-sm font-semibold uppercase tracking-[0.35em] text-white/60">Client</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap items-start justify-between gap-4">
@@ -217,7 +217,7 @@ export function DriverTaskDetail({ task, client }: { task: Task; client?: Client
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <Button asChild size="sm" variant="outline" className="rounded-full border-white/25 bg-white/5 px-3 py-1 text-xs font-semibold text-white hover:border-white/40 hover:bg-white/10" disabled={!telUrl}>
-                  <a href={telUrl ?? "#"}>Позвонить</a>
+                  <a href={telUrl ?? "#"}>Call</a>
                 </Button>
                 <Button asChild size="sm" variant="outline" className="rounded-full border-white/25 bg-white/5 px-3 py-1 text-xs font-semibold text-white hover:border-white/40 hover:bg-white/10" disabled={!whatsappUrl}>
                   <a href={whatsappUrl ?? "#"} target="_blank" rel="noopener noreferrer">WhatsApp</a>
@@ -225,7 +225,7 @@ export function DriverTaskDetail({ task, client }: { task: Task; client?: Client
               </div>
             </div>
             <div className="mt-4 space-y-3">
-              <h3 className="text-sm font-semibold text-white">Документы</h3>
+              <h3 className="text-sm font-semibold text-white">Documents</h3>
               {client.documents.length ? (
                 <ul className="space-y-3 text-sm text-white/80">
                   {client.documents.map((doc) => (
@@ -288,7 +288,7 @@ export function DriverTaskDetail({ task, client }: { task: Task; client?: Client
                               return (
                                 <p className="flex items-center gap-1 text-xs text-rose-300">
                                   <AlertTriangle className="size-3 animate-pulse" />
-                                  {`Истёк ${d} ${ruDays(d)} назад`} ({formatDate(expiryVal, { month: "short", day: "numeric", year: "numeric" })})
+                                  {`Expired ${d} ${ruDays(d)} ago`} ({formatDate(expiryVal, { month: "short", day: "numeric", year: "numeric" })})
                                 </p>
                               )
                             }
@@ -297,11 +297,11 @@ export function DriverTaskDetail({ task, client }: { task: Task; client?: Client
                               return (
                                 <p className="flex items-center gap-1 text-xs text-amber-300">
                                   <AlertTriangle className="size-3" />
-                                  {`Скоро истекает через ${d} ${ruDays(d)}`} ({formatDate(expiryVal, { month: "short", day: "numeric", year: "numeric" })})
+                                  {`Expires in ${d} ${ruDays(d)}`} ({formatDate(expiryVal, { month: "short", day: "numeric", year: "numeric" })})
                                 </p>
                               )
                             }
-                            return <p className="text-xs text-white/70">Истекает {formatDate(expiryVal, { month: "short", day: "numeric", year: "numeric" })}</p>
+                            return <p className="text-xs text-white/70">Expires {formatDate(expiryVal, { month: "short", day: "numeric", year: "numeric" })}</p>
                           })()}
                         </a>
                       ) : (
@@ -357,7 +357,7 @@ export function DriverTaskDetail({ task, client }: { task: Task; client?: Client
                               return (
                                 <p className="flex items-center gap-1 text-xs text-rose-300">
                                   <AlertTriangle className="size-3 animate-pulse" />
-                                  {`Истёк ${d} ${ruDays(d)} назад`} ({formatDate(expiryVal, { month: "short", day: "numeric", year: "numeric" })})
+                                  {`Expired ${d} ${ruDays(d)} ago`} ({formatDate(expiryVal, { month: "short", day: "numeric", year: "numeric" })})
                                 </p>
                               )
                             }
@@ -366,11 +366,11 @@ export function DriverTaskDetail({ task, client }: { task: Task; client?: Client
                               return (
                                 <p className="flex items-center gap-1 text-xs text-amber-300">
                                   <AlertTriangle className="size-3" />
-                                  {`Скоро истекает через ${d} ${ruDays(d)}`} ({formatDate(expiryVal, { month: "short", day: "numeric", year: "numeric" })})
+                                  {`Expires in ${d} ${ruDays(d)}`} ({formatDate(expiryVal, { month: "short", day: "numeric", year: "numeric" })})
                                 </p>
                               )
                             }
-                            return <p className="text-xs text-white/70">Истекает {formatDate(expiryVal, { month: "short", day: "numeric", year: "numeric" })}</p>
+                            return <p className="text-xs text-white/70">Expires {formatDate(expiryVal, { month: "short", day: "numeric", year: "numeric" })}</p>
                           })()}
                         </div>
                       )}
@@ -378,7 +378,7 @@ export function DriverTaskDetail({ task, client }: { task: Task; client?: Client
                   ))}
                 </ul>
               ) : (
-                <p className="text-xs text-white/70">Документы не загружены.</p>
+                <p className="text-xs text-white/70">No documents uploaded.</p>
               )}
             </div>
           </CardContent>
@@ -387,7 +387,7 @@ export function DriverTaskDetail({ task, client }: { task: Task; client?: Client
 
       <Card className="rounded-3xl border border-white/15 bg-white/5 text-white shadow-lg">
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-semibold uppercase tracking-[0.35em] text-white/60">Заполнить</CardTitle>
+          <CardTitle className="text-sm font-semibold uppercase tracking-[0.35em] text-white/60">Complete</CardTitle>
         </CardHeader>
         <CardContent>
           <DriverTaskInputs
@@ -453,10 +453,10 @@ function DriverTaskInputs({
     )
     if (!filtered.length) {
       return [
-        { key: "odometer", label: "Одометр", type: "number", required: true },
-        { key: "fuel", label: "Топливо/заряд", type: "select", required: true, options: ["Full", "3/4", "1/2", "1/4", "Empty"] },
-        { key: "photos", label: "Фото", type: "file", required: true, multiple: true, accept: "image/*" },
-        { key: "damage_notes", label: "Заметки о повреждениях", type: "text", required: false },
+        { key: "odometer", label: "Odometer", type: "number", required: true },
+        { key: "fuel", label: "Fuel/charge", type: "select", required: true, options: ["Full", "3/4", "1/2", "1/4", "Empty"] },
+        { key: "photos", label: "Photos", type: "file", required: true, multiple: true, accept: "image/*" },
+        { key: "damage_notes", label: "Damage notes", type: "text", required: false },
       ]
     }
     return filtered
@@ -477,12 +477,12 @@ function DriverTaskInputs({
       })
       const saveResult = await submitTaskInputs(formData)
       if (!saveResult.success) {
-        setMessage(saveResult.message ?? "Не удалось сохранить данные")
+        setMessage(saveResult.message ?? "Failed to save data")
         return
       }
       const completeResult = await completeTask({ taskId })
       if (!completeResult.success) {
-        setMessage(completeResult.message ?? "Данные сохранены, но не удалось завершить задачу")
+        setMessage(completeResult.message ?? "Data saved, but failed to complete task")
         return
       }
       {
@@ -497,7 +497,7 @@ function DriverTaskInputs({
       })
       setFileInputResetKey((prev) => prev + 1)
       onCompleted?.("done")
-      setMessage("Задача завершена")
+      setMessage("Task completed")
   })
 }
 
@@ -508,7 +508,7 @@ function DriverTaskInputs({
     startDeleteTransition(async () => {
       const result = await deleteTaskPhoto({ taskId, path: photo.path, bucket: photo.bucket ?? "task-media" })
       if (!result.success) {
-        setMessage(result.message ?? "Не удалось удалить фото")
+        setMessage(result.message ?? "Failed to delete photo")
         setDeletePending(null)
         return
       }
@@ -570,14 +570,14 @@ function DriverTaskInputs({
   if (!normalizedInputs.length) {
     return (
       <div className="space-y-3">
-        <p className="text-sm text-white/70">Нет обязательных данных. Нажмите кнопку, чтобы завершить задачу.</p>
+        <p className="text-sm text-white/70">No required inputs. Press the button to complete the task.</p>
         <Button
           type="button"
           disabled={isPending}
           onClick={() => handleSubmit(new FormData())}
           className="rounded-full bg-white/90 px-4 py-2 text-sm font-semibold text-slate-900 transition hover:bg-white"
         >
-          {isPending ? "Сохраняем…" : "Завершить задачу"}
+          {isPending ? "Saving…" : "Complete task"}
         </Button>
         {message ? <p className="text-sm text-emerald-100">{message}</p> : null}
       </div>
@@ -622,8 +622,8 @@ function DriverTaskInputs({
                   className="w-full rounded-2xl border border-white/20 bg-white/10 px-3 py-2 text-white placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-white/60"
                   placeholder={
                     previousOdometer !== undefined
-                      ? `Последнее значение: ${previousOdometer}`
-                      : "Например, 25000"
+                      ? `Last value: ${previousOdometer}`
+                      : "For example, 25000"
                   }
                   disabled={isDone}
                   onChange={(e) => {
@@ -673,7 +673,7 @@ function DriverTaskInputs({
                   className="w-full rounded-2xl border border-white/20 bg-white/10 px-3 py-2 text-white placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-white/60"
                   disabled={isDone}
                 >
-                  <option value="">Выберите</option>
+                  <option value="">Select</option>
                   {(input.options ?? ["Full", "3/4", "1/2", "1/4", "Empty"]).map((opt) => (
                     <option key={opt} value={opt}>
                       {opt}
@@ -689,7 +689,7 @@ function DriverTaskInputs({
                   required={input.required}
                   className="w-full rounded-2xl border border-white/20 bg-white/10 px-3 py-2 text-white placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-white/60"
                   rows={3}
-                  placeholder="Добавьте комментарий"
+                  placeholder="Add a comment"
                   disabled={isDone}
                 />
               )
@@ -748,11 +748,11 @@ function DriverTaskInputs({
             <div key={input.key} className="space-y-3">
               {input.type === "text" && input.key === "damage_notes" && typeof outstanding === "number" ? (
                 <div className="rounded-2xl border border-white/25 bg-white/10 p-4 space-y-3">
-                  <div className={sectionHintClass}>Оплата</div>
+                  <div className={sectionHintClass}>Payment</div>
                   <div className="grid grid-cols-2 gap-x-4 gap-y-3 items-center">
-                    <div className="text-sm text-white/70">К оплате</div>
+                    <div className="text-sm text-white/70">Due</div>
                     <div className="text-base font-semibold text-white text-right">{currency} {outstanding.toFixed(2)}</div>
-                    <div className="text-sm text-white/80">Получено</div>
+                    <div className="text-sm text-white/80">Received</div>
                     <div className="flex items-center justify-end">
                       <div className="relative w-40">
                         <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs text-white/60">{currency}</span>
@@ -771,12 +771,12 @@ function DriverTaskInputs({
                         />
                       </div>
                     </div>
-                    <div className="text-sm text-white/70">Остаток</div>
+                    <div className="text-sm text-white/70">Outstanding</div>
                     <div className="text-base font-semibold text-white text-right">{currency} {String(paymentInput ?? 0) && Number.isFinite(Number(paymentInput)) ? Math.max(0, outstanding - Number(paymentInput)).toFixed(2) : outstanding.toFixed(2)}</div>
                   </div>
                   
                   {typeof paymentInput === "number" && paymentInput > outstanding ? (
-                    <div className="text-xs text-rose-200">Сумма больше задолженности</div>
+                    <div className="text-xs text-rose-200">Amount exceeds outstanding</div>
                   ) : null}
                 </div>
               ) : null}
@@ -808,7 +808,7 @@ function DriverTaskInputs({
           disabled={isPending || isDone}
           className="rounded-full bg-white/90 px-4 py-2 text-sm font-semibold text-slate-900 transition hover:bg-white"
         >
-          {isPending ? "Сохраняем…" : "Завершить задачу"}
+          {isPending ? "Saving…" : "Complete task"}
         </Button>
         {message ? <p className="text-sm text-emerald-100">{message}</p> : null}
       </div>
@@ -926,7 +926,7 @@ function renderGallerySection(
                 unoptimized
               />
             ) : (
-              <div className="flex h-full items-center justify-center text-xs text-white/60">Нет превью</div>
+              <div className="flex h-full items-center justify-center text-xs text-white/60">No preview</div>
             )}
             <button
               type="button"
@@ -945,10 +945,10 @@ function renderGallerySection(
               className="absolute right-2 top-2 rounded-full bg-black/60 px-3 py-1 text-xs font-semibold text-white transition hover:bg-black/80 disabled:opacity-50"
             >
               {photo.local
-                ? "Убрать"
+                ? "Remove"
                 : opts.deletePending === photo.path
-                  ? "Удаляем…"
-                  : "Удалить"}
+                  ? "Deleting…"
+                  : "Delete"}
             </button>
           </div>
         )

@@ -21,12 +21,12 @@ export function VehicleDocumentsManager({ vehicleId, documents }: VehicleDocumen
   const [items, setItems] = useState<VehicleDocument[]>(documents)
   const [docType, setDocType] = useState<(typeof docTypeOptions)[number]>("insurance")
   const [uploading, setUploading] = useState(false)
-  const [fileName, setFileName] = useState<string>("Выберите файл")
+  const [fileName, setFileName] = useState<string>("Choose file")
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
   const handleUpload = async (selectedFile: File | null) => {
     if (!selectedFile) {
-      toast({ title: "Файл не выбран", variant: "destructive" })
+      toast({ title: "No file selected", variant: "destructive" })
       return
     }
     setUploading(true)
@@ -42,14 +42,14 @@ export function VehicleDocumentsManager({ vehicleId, documents }: VehicleDocumen
 
     if (!response.ok) {
       const message = await readError(response)
-      toast({ title: "Не удалось загрузить документ", description: message ?? undefined, variant: "destructive" })
+      toast({ title: "Failed to upload document", description: message ?? undefined, variant: "destructive" })
       return
     }
 
     const { document } = (await response.json()) as { document: VehicleDocument }
     setItems((prev) => [...prev, document])
-    toast({ title: "Документ добавлен", variant: "success" })
-    setFileName("Выберите файл")
+    toast({ title: "Document added", variant: "success" })
+    setFileName("Choose file")
     setDocType("insurance")
     if (fileInputRef.current) {
       fileInputRef.current.value = ""
@@ -64,28 +64,28 @@ export function VehicleDocumentsManager({ vehicleId, documents }: VehicleDocumen
     if (!response.ok) {
       const message = await readError(response)
       toast({
-        title: "Не удалось удалить документ",
+        title: "Failed to delete document",
         description: message ?? undefined,
         variant: "destructive",
       })
       setItems(prevItems)
       return
     }
-    toast({ title: "Документ удалён", variant: "success" })
+    toast({ title: "Document deleted", variant: "success" })
   }
 
   return (
     <Card className="rounded-[28px] border-border/60 bg-muted/70">
       <CardHeader>
-        <CardTitle className="text-lg font-semibold text-foreground">Загрузка документов</CardTitle>
+        <CardTitle className="text-lg font-semibold text-foreground">Documents upload</CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
         <section className="space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-[0.35em] text-muted-foreground">Уже загружено</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.35em] text-muted-foreground">Already uploaded</p>
           <div className="space-y-3">
             {items.filter((doc) => doc.type !== "gallery" && doc.type !== "photo").length === 0 ? (
               <div className="rounded-2xl border border-dashed border-border/60 bg-card/80 px-3 py-2 text-sm text-muted-foreground">
-                Нет документов
+                No documents
               </div>
             ) : (
               items
@@ -109,11 +109,11 @@ export function VehicleDocumentsManager({ vehicleId, documents }: VehicleDocumen
                         rel="noreferrer"
                         className="text-xs font-semibold text-primary hover:underline"
                       >
-                        Открыть
+                        Open
                       </a>
                     ) : null}
                     <Button variant="ghost" size="sm" onClick={() => handleDelete(doc.id)}>
-                      Удалить
+                      Delete
                     </Button>
                   </div>
                 </div>
@@ -123,13 +123,13 @@ export function VehicleDocumentsManager({ vehicleId, documents }: VehicleDocumen
         </section>
 
         <section className="space-y-3 rounded-2xl border border-border/60 bg-card/60 p-4">
-          <p className="text-xs font-semibold uppercase tracking-[0.35em] text-muted-foreground">Документ</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.35em] text-muted-foreground">Document</p>
           <div className="grid gap-3 md:grid-cols-[1.3fr_1fr] md:items-end">
             <div className="space-y-2">
-              <Label className="text-xs text-muted-foreground">Тип документа *</Label>
+              <Label className="text-xs text-muted-foreground">Document type *</Label>
               <Select value={docType} onValueChange={(value) => setDocType(value as (typeof docTypeOptions)[number])}>
                 <SelectTrigger className="h-11">
-                  <SelectValue placeholder="Не выбран" />
+                  <SelectValue placeholder="Not selected" />
                 </SelectTrigger>
                 <SelectContent>
                   {docTypeOptions.map((option) => (
@@ -141,7 +141,7 @@ export function VehicleDocumentsManager({ vehicleId, documents }: VehicleDocumen
               </Select>
             </div>
             <div className="space-y-2">
-              <Label className="text-xs text-muted-foreground">Файл *</Label>
+              <Label className="text-xs text-muted-foreground">File *</Label>
               <label className="flex w-full cursor-pointer items-center justify-between gap-3 rounded-2xl border border-dashed border-border/60 bg-muted/30 px-4 py-3 text-sm font-semibold text-foreground hover:border-primary">
                 <span className="truncate">{fileName}</span>
                 <Button type="button" size="sm" variant="outline" onClick={() => fileInputRef.current?.click()}>
@@ -154,7 +154,7 @@ export function VehicleDocumentsManager({ vehicleId, documents }: VehicleDocumen
                   ref={fileInputRef}
                   onChange={(event) => {
                     const nextFile = event.target.files?.[0] ?? null
-                    setFileName(nextFile ? nextFile.name : "Выберите файл")
+                    setFileName(nextFile ? nextFile.name : "Choose file")
                     void handleUpload(nextFile)
                   }}
                   disabled={uploading}
@@ -163,8 +163,8 @@ export function VehicleDocumentsManager({ vehicleId, documents }: VehicleDocumen
             </div>
           </div>
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="text-xs text-muted-foreground">Максимальный размер — 10 МБ для каждого файла.</p>
-            {uploading ? <span className="text-xs text-muted-foreground">Загружается...</span> : null}
+            <p className="text-xs text-muted-foreground">Maximum size — 10 MB per file.</p>
+            {uploading ? <span className="text-xs text-muted-foreground">Uploading...</span> : null}
           </div>
         </section>
       </CardContent>
