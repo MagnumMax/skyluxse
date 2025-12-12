@@ -19,22 +19,34 @@ type BookingRow = {
 }
 
 async function main() {
-  const bookingId = process.argv[2]
-  if (!bookingId) {
-    throw new Error("Provide bookingId as first argument")
+  const arg = process.argv[2]
+  if (!arg) {
+    throw new Error("Provide bookingId or external code (e.g., K-12345678) as first argument")
   }
 
-  const { data: booking, error: bookingError } = await client
+  const isExternalCode = /^K-\d+$/.test(arg)
+  const query = client
     .from("bookings")
-    .select(
-      "id, vehicle_id, client_id, driver_id, start_at, end_at, delivery_location, collect_location"
-    )
-    .eq("id", bookingId)
+    .select("id, vehicle_id, client_id, driver_id, start_at, end_at, delivery_location, collect_location")
     .limit(1)
-    .single()
+    .maybeSingle()
+    .then((res) => res)
+  const { data: booking, error: bookingError } = isExternalCode
+    ? await client
+        .from("bookings")
+        .select("id, vehicle_id, client_id, driver_id, start_at, end_at, delivery_location, collect_location")
+        .eq("external_code", arg)
+        .limit(1)
+        .single()
+    : await client
+        .from("bookings")
+        .select("id, vehicle_id, client_id, driver_id, start_at, end_at, delivery_location, collect_location")
+        .eq("id", arg)
+        .limit(1)
+        .single()
 
   if (bookingError) {
-    throw new Error(`Failed to load booking ${bookingId}: ${bookingError.message}`)
+    throw new Error(`Failed to load booking ${arg}: ${bookingError.message}`)
   }
 
   const deliveryTask = buildTaskInsert(booking, "delivery")

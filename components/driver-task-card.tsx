@@ -1,13 +1,15 @@
 "use client"
 
 import Link from "next/link"
-import type { PropsWithChildren } from "react"
+import { useEffect, useState, type PropsWithChildren } from "react"
+import { useRouter } from "next/navigation"
+import type { Route } from "next"
 
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import type { Task } from "@/lib/domain/entities"
 import { cn } from "@/lib/utils"
-import { ArrowDownToLine, CheckCircle2, Hourglass } from "lucide-react"
+import { ArrowDownToLine, CheckCircle2, Hourglass, Loader2 } from "lucide-react"
 import { formatDateTime } from "@/lib/formatters"
 
 export const taskTypeLabels: Record<Task["type"], string> = {
@@ -46,6 +48,23 @@ export function DriverTaskCard({
   showLocationHeader = true,
   children,
 }: DriverTaskCardProps) {
+  const router = useRouter()
+  const [opening, setOpening] = useState(false)
+  const [isOnline, setIsOnline] = useState<boolean>(typeof navigator !== "undefined" ? navigator.onLine : true)
+  useEffect(() => {
+    function onOnline() { setIsOnline(true) }
+    function onOffline() { setIsOnline(false) }
+    if (typeof window !== "undefined") {
+      window.addEventListener("online", onOnline)
+      window.addEventListener("offline", onOffline)
+    }
+    return () => {
+      if (typeof window !== "undefined") {
+        window.removeEventListener("online", onOnline)
+        window.removeEventListener("offline", onOffline)
+      }
+    }
+  }, [])
   const card = (
     <Card className="rounded-3xl border border-white/15 bg-gradient-to-br from-white/10 via-white/5 to-transparent text-white shadow-lg transition hover:border-white/40">
       <CardHeader className="space-y-3">
@@ -125,9 +144,29 @@ export function DriverTaskCard({
 
   if (clickable && href) {
     return (
-      <Link href={href} className="block" prefetch={false}>
-        {card}
-      </Link>
+      <div className="relative">
+        <button
+          type="button"
+          className="block w-full text-left"
+          onClick={() => {
+            if (opening) return
+            setOpening(true)
+            router.push(href as Route)
+          }}
+          aria-busy={opening}
+          disabled={opening}
+        >
+          {card}
+        </button>
+        {opening ? (
+          <div className="absolute inset-0 z-10 flex items-center justify-center rounded-3xl bg-black/50 backdrop-blur-sm">
+            <div className="flex items-center gap-3 rounded-full border border-white/30 bg-white/10 px-4 py-2 text-sm font-semibold tracking-[0.2em] text-white">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span>{isOnline ? "Opening task…" : "No internet connection"}</span>
+            </div>
+          </div>
+        ) : null}
+      </div>
     )
   }
 

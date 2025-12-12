@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils"
 import { brandSans } from "@/lib/fonts"
 import { ToastProvider } from "@/components/ui/toast"
 import { WebVitals } from "@/components/web-vitals"
+import { PwaRegister } from "@/components/pwa-register"
 
 export const metadata: Metadata = {
   title: "SkyLuxse ERP 2.0",
@@ -13,7 +14,12 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <link rel="manifest" href="/manifest.webmanifest" />
+        <meta name="theme-color" content="#0ea5e9" />
+      </head>
       <body className={cn("min-h-screen bg-background font-sans antialiased", brandSans.variable)}>
+        <PwaRegister />
         <WebVitals />
         <ToastProvider>{children}</ToastProvider>
       </body>
