@@ -15,7 +15,7 @@ function getSupabase() {
 async function getAccessToken() {
     // 1. Try to get from DB
     // We assume the first token in the table is the one we want, or filter by user_mail if needed
-    const { data } = await getSupabase().from('zoho_tokens').select('*').limit(1).single();
+    const { data } = await getSupabase().from('zoho_tokens').select('*').limit(1).maybeSingle();
 
     let refreshToken = process.env.ZOHO_REFRESH_TOKEN;
     let accessToken = null;
@@ -25,6 +25,8 @@ async function getAccessToken() {
         refreshToken = data.refresh_token || refreshToken;
         accessToken = data.access_token;
         expiryTime = Number(data.expiry_time);
+    } else {
+        console.log("No Zoho token found in DB, falling back to env vars");
     }
 
     // Check if valid (give 5 min buffer)
@@ -34,7 +36,10 @@ async function getAccessToken() {
 
     console.log("Refreshing Zoho Access Token...");
 
-    if (!refreshToken) throw new Error("No refresh token found");
+    if (!refreshToken) {
+        console.error("Zoho Refresh Token is missing in both DB (zoho_tokens) and Env (ZOHO_REFRESH_TOKEN)");
+        throw new Error("No refresh token found");
+    }
 
     const url = `https://accounts.zoho.com/oauth/v2/token?refresh_token=${refreshToken}&client_id=${process.env.ZOHO_CLIENT_ID}&client_secret=${process.env.ZOHO_CLIENT_SECRET}&grant_type=refresh_token`;
     const response = await fetch(url, { method: 'POST' });
