@@ -18,7 +18,9 @@ export const BOOKING_PRIORITIES: Record<BookingPriority, { label: string; classN
 export type KommoPipelineStageId =
   | "79790631"
   | "91703923"
+  | "96699420"
   | "96150292"
+  | "98035992"
   | "75440391"
   | "75440395"
   | "75440399"
@@ -54,7 +56,7 @@ export type KommoPipelineStageMeta = {
 const KOMMO_STAGE_DEFINITIONS: KommoPipelineStageMeta[] = [
   {
     id: "79790631",
-    label: "Request Bot Answering",
+    label: "new lead",
     group: "Intake",
     description: "Bot logged lead; waiting on human follow-up.",
     headerColor: "#99ccff",
@@ -63,7 +65,7 @@ const KOMMO_STAGE_DEFINITIONS: KommoPipelineStageMeta[] = [
   },
   {
     id: "91703923",
-    label: "Follow Up",
+    label: "Follow up",
     group: "Intake",
     description: "Sales validating details with client.",
     headerColor: "#99ccff",
@@ -71,8 +73,17 @@ const KOMMO_STAGE_DEFINITIONS: KommoPipelineStageMeta[] = [
     bookingStatus: "new",
   },
   {
+    id: "96699420",
+    label: "Qualification",
+    group: "Intake",
+    description: "Qualify lead before proposal.",
+    headerColor: "#bcd9ff",
+    borderColor: "#8db5e6",
+    bookingStatus: "new",
+  },
+  {
     id: "96150292",
-    label: "Waiting for Payment",
+    label: "Payment Pending",
     group: "Preparation",
     description: "Hold assets until upfront payment clears.",
     headerColor: "#cfe4ff",
@@ -80,8 +91,17 @@ const KOMMO_STAGE_DEFINITIONS: KommoPipelineStageMeta[] = [
     bookingStatus: "preparation",
   },
   {
+    id: "98035992",
+    label: "Sales order sent",
+    group: "Preparation",
+    description: "Sales order issued; awaiting confirmation.",
+    headerColor: "#d6eaff",
+    borderColor: "#9cc3e4",
+    bookingStatus: "preparation",
+  },
+  {
     id: "75440391",
-    label: "Confirmed Bookings",
+    label: "Confirmed bookings",
     group: "Preparation",
     description: "Docs ready; assign vehicle and driver.",
     headerColor: "#d6eaff",
@@ -90,7 +110,7 @@ const KOMMO_STAGE_DEFINITIONS: KommoPipelineStageMeta[] = [
   },
   {
     id: "75440395",
-    label: "Delivery Within 24 Hours",
+    label: "Delivery within 24h",
     group: "Delivery",
     description: "Prep delivery run for the upcoming day.",
     headerColor: "#fffeb2",
@@ -108,7 +128,7 @@ const KOMMO_STAGE_DEFINITIONS: KommoPipelineStageMeta[] = [
   },
   {
     id: "76475495",
-    label: "Pick Up Within 24 Hours",
+    label: "Pick up within 24h",
     group: "Return",
     description: "Schedule pickup and closing logistics.",
     headerColor: "#ebffb1",
@@ -117,7 +137,7 @@ const KOMMO_STAGE_DEFINITIONS: KommoPipelineStageMeta[] = [
   },
   {
     id: "78486287",
-    label: "Objections",
+    label: "OBJECTIONS",
     group: "Live",
     description: "Customer raised concerns under review.",
     headerColor: "#ebffb1",
@@ -126,7 +146,7 @@ const KOMMO_STAGE_DEFINITIONS: KommoPipelineStageMeta[] = [
   },
   {
     id: "75440643",
-    label: "Refund Deposit",
+    label: "Deposit Settled",
     group: "Settlement",
     description: "Processing inspections and deposit refund.",
     headerColor: "#deff81",
@@ -135,7 +155,7 @@ const KOMMO_STAGE_DEFINITIONS: KommoPipelineStageMeta[] = [
   },
   {
     id: "75440639",
-    label: "Deal Is Closed",
+    label: "Deal is Closed",
     group: "Settlement",
     description: "Paperwork complete; awaiting archive.",
     headerColor: "#87f2c0",
@@ -144,7 +164,7 @@ const KOMMO_STAGE_DEFINITIONS: KommoPipelineStageMeta[] = [
   },
   {
     id: "142",
-    label: "Closed · Won",
+    label: "Closed - won",
     group: "Closed",
     description: "Won lead; archive booking record.",
     headerColor: "#ccff66",
@@ -153,7 +173,7 @@ const KOMMO_STAGE_DEFINITIONS: KommoPipelineStageMeta[] = [
   },
   {
     id: "143",
-    label: "Closed · Lost",
+    label: "lost",
     group: "Closed",
     description: "Lost lead; keep for reporting only.",
     headerColor: "#d5d8db",

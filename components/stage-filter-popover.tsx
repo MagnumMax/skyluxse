@@ -13,10 +13,10 @@ type StageFilterPopoverProps = {
 }
 
 const STAGE_META: Record<BookingStageKey, { label: string; description: string }> = {
-  confirmed: { label: "Confirmed Bookings", description: "Docs ready; assign vehicle and driver" },
-  delivery: { label: "Delivery Within 24 Hours", description: "Prep delivery run for the upcoming day" },
+  confirmed: { label: "Confirmed bookings", description: "Docs ready; assign vehicle and driver" },
+  delivery: { label: "Delivery within 24h", description: "Prep delivery run for the upcoming day" },
   "in-rent": { label: "Car with Customers", description: "Vehicle with client; monitor trip and SLA" },
-  pickup: { label: "Pick Up Within 24 Hours", description: "Schedule pickup and closing logistics" },
+  pickup: { label: "Pick up within 24h", description: "Schedule pickup and closing logistics" },
   closed: { label: "Closed", description: "Deal completed or cancelled" },
   other: { label: "Other", description: "Waiting for payment or other statuses" },
 }

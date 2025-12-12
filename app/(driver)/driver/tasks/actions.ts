@@ -35,6 +35,15 @@ const SubmitInputsSchema = z.object({
       .optional()
       .transform((v) => (v && v.length ? v : undefined))
   ),
+  agreementNumber: z.preprocess(
+    (value) => (value === null || value === undefined || value === "" ? undefined : value),
+    z
+      .string()
+      .trim()
+      .max(100)
+      .optional()
+      .transform((v) => (v && v.length ? v : undefined))
+  ),
   paymentCollected: z.preprocess(
     (value) => (value === null || value === undefined || value === "" ? undefined : value),
     z.coerce.number().nonnegative().optional()
@@ -104,6 +113,7 @@ export async function submitTaskInputs(formData: FormData): Promise<ActionResult
     odometer: formData.get("odometer"),
     fuel: formData.get("fuel"),
     notes: formData.get("notes"),
+    agreementNumber: formData.get("agreementNumber"),
     cleaning: formData.get("cleaning"),
   })
 
@@ -112,7 +122,7 @@ export async function submitTaskInputs(formData: FormData): Promise<ActionResult
     return { success: false, message }
   }
 
-  const { taskId, odometer, fuel, notes, paymentCollected } = submission.data
+  const { taskId, odometer, fuel, notes, agreementNumber, paymentCollected } = submission.data
   const photoFiles = formData.getAll("photos").filter((item): item is File => item instanceof File && item.size > 0)
   const damagePhotos = formData.getAll("damage_photos").filter((item): item is File => item instanceof File && item.size > 0)
 
@@ -142,6 +152,9 @@ export async function submitTaskInputs(formData: FormData): Promise<ActionResult
     }
     if (notes !== undefined) {
       rows.push({ task_id: taskId, key: "damage_notes", value_text: notes })
+    }
+    if (agreementNumber !== undefined) {
+      rows.push({ task_id: taskId, key: "agreement_number", value_text: agreementNumber })
     }
     if (paymentCollected !== undefined) {
       rows.push({ task_id: taskId, key: "payment_collected", value_number: paymentCollected })

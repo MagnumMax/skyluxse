@@ -746,6 +746,20 @@ function DriverTaskInputs({
           }
           return (
             <div key={input.key} className="space-y-3">
+              {input.type === "text" && input.key === "damage_notes" ? (
+                <>
+                  <div className="flex items-center justify-between">
+                    <span className={labelClass}>Agreement Number</span>
+                  </div>
+                  <input
+                    name="agreementNumber"
+                    type="text"
+                    className="w-full rounded-2xl border border-white/20 bg-white/10 px-3 py-2 text-white placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-white/60"
+                    placeholder="Enter agreement number"
+                    disabled={isDone}
+                  />
+                </>
+              ) : null}
               {input.type === "text" && input.key === "damage_notes" && typeof outstanding === "number" ? (
                 <div className="rounded-2xl border border-white/25 bg-white/10 p-4 space-y-3">
                   <div className={sectionHintClass}>Payment</div>
