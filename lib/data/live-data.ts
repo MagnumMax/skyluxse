@@ -395,12 +395,24 @@ const fetchBookingRows = cache(async (): Promise<BookingRow[]> => {
     .from("bookings")
     .select(BOOKING_SELECT_COLUMNS)
     .order("start_at", { ascending: false })
-    .limit(500)
+    .limit(2000)
   if (error) {
     throw new Error(`[supabase] Failed to load bookings: ${error.message}`)
   }
   return data ?? []
 })
+
+async function fetchBookingRowById(bookingId: string): Promise<BookingRow | null> {
+  const { data, error } = await serviceClient
+    .from("bookings")
+    .select(BOOKING_SELECT_COLUMNS)
+    .eq("id", bookingId)
+    .maybeSingle()
+  if (error) {
+    throw new Error(`[supabase] Failed to load booking ${bookingId}: ${error.message}`)
+  }
+  return coerceRow<BookingRow>(data)
+}
 
 async function fetchBookingRowsByVehicleId(vehicleId: string): Promise<BookingRow[]> {
   if (!vehicleId) return []
@@ -971,8 +983,43 @@ export const getLiveBookings = cache(async (): Promise<Booking[]> => {
 })
 
 export const getLiveBookingById = cache(async (bookingId: string): Promise<Booking | null> => {
-  const bookings = await getLiveBookings()
-  return bookings.find((booking) => String(booking.id) === bookingId) ?? null
+  const row = await fetchBookingRowById(bookingId)
+  if (!row) return null
+
+  const [clientRow, vehicleRow, invoiceRows, staffRows, pipelineStageRows] = await Promise.all([
+    row.client_id ? fetchClientRowById(row.client_id) : Promise.resolve(null),
+    row.vehicle_id ? fetchVehicleRowById(row.vehicle_id) : Promise.resolve(null),
+    fetchBookingInvoiceRowsByBookingIds([bookingId]),
+    fetchStaffRows(),
+    fetchSalesPipelineStageRows(),
+  ])
+
+  const clientsById = new Map<string, ClientRow>()
+  if (clientRow) clientsById.set(clientRow.id, clientRow)
+
+  const vehiclesById = new Map<string, VehicleRow>()
+  if (vehicleRow) vehiclesById.set(vehicleRow.id, vehicleRow)
+
+  const staffById = new Map<string, StaffRow>()
+  staffRows.forEach((s) => staffById.set(s.id, s))
+
+  const invoicesByBooking = new Map<string, BookingInvoice[]>()
+  if (invoiceRows.length > 0) {
+    invoicesByBooking.set(bookingId, invoiceRows.map(mapInvoiceRow))
+  }
+
+  const stageByKommoStatusId = new Map<string, SalesPipelineStageRow>()
+  pipelineStageRows.forEach((s) => {
+    if (s.kommo_status_id) stageByKommoStatusId.set(String(s.kommo_status_id), s)
+  })
+
+  return mapBookingRow(row, {
+    clientsById,
+    vehiclesById,
+    staffById,
+    invoicesByBooking,
+    stageByKommoStatusId,
+  })
 })
 
 export const getBookingDocuments = cache(async (bookingId: string): Promise<BookingDocument[]> => {
