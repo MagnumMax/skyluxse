@@ -129,7 +129,10 @@ export async function createSalesOrder(orderData: any) {
 export async function findContactByEmail(email: string) {
     const orgId = await getOrganizationId();
     const client = await getBooksClient();
-    const response = await client.get(`/contacts?email=${encodeURIComponent(email)}`, orgId);
+    // Filter by contact_type to ensure we get a customer, not a vendor.
+    // The Zoho API supports filtering by 'contact_name', 'email', 'company_name', etc.
+    // It also supports 'contact_type' which can be 'customer' or 'vendor'.
+    const response = await client.get(`/contacts?email=${encodeURIComponent(email)}&contact_type=customer`, orgId);
 
     if (response.code === 0 && response.contacts.length > 0) {
         return response.contacts[0];

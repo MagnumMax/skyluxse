@@ -85,6 +85,27 @@ function isIdLike(value?: string) {
   return c === "passport" || c === "emirates_id" || c === "id"
 }
 
+const KOMMO_BASE_URL = process.env.NEXT_PUBLIC_KOMMO_BASE_URL || process.env.KOMMO_BASE_URL
+
+function buildKommoLeadUrl(bookingCode?: string): string | undefined {
+  if (!bookingCode || !KOMMO_BASE_URL) return undefined
+  // Check for K- prefix which indicates Kommo Lead ID
+  if (bookingCode.startsWith("K-")) {
+    const leadId = bookingCode.slice(2)
+    if (!leadId) return undefined
+    try {
+      const base = new URL(KOMMO_BASE_URL)
+      const normalizedPath = base.pathname.endsWith("/") ? base.pathname.slice(0, -1) : base.pathname
+      // Kommo leads URL pattern: /leads/detail/{id}
+      base.pathname = `${normalizedPath}/leads/detail/${leadId}`
+      return base.toString()
+    } catch {
+      return undefined
+    }
+  }
+  return undefined
+}
+
 export function DriverTaskDetail({ task, client }: { task: Task; client?: Client }) {
   const [status, setStatus] = useState<Task["status"]>(task.status)
   const [isOnline, setIsOnline] = useState<boolean>(typeof window === "undefined" ? true : navigator.onLine)
@@ -112,8 +133,8 @@ export function DriverTaskDetail({ task, client }: { task: Task; client?: Client
   const isDone = status === "done"
   const mapUrl = buildMapsUrl(task.type, task.geo)
   const phoneDigits = normalizePhone(client?.phone ?? task.clientPhone)
-  const telUrl = phoneDigits ? `tel:${phoneDigits}` : undefined
   const whatsappUrl = phoneDigits ? `https://wa.me/${phoneDigits}?text=${encodeURIComponent(buildWhatsAppText(task))}` : undefined
+  const kommoLeadUrl = buildKommoLeadUrl(task.bookingCode)
 
   useEffect(() => {
     function onOnline() {
@@ -133,13 +154,15 @@ export function DriverTaskDetail({ task, client }: { task: Task; client?: Client
   return (
     <div className="space-y-5 text-white">
       {!isOnline ? (
-        <div className="rounded-2xl border border-white/20 bg-amber-600/20 px-4 py-2 text-sm text-amber-100">Offline. Data and photos will be saved when connection is restored.</div>
+        <div className="rounded-2xl border border-white/20 bg-amber-600/20 px-4 py-3 text-base text-amber-100">
+          Offline. Data and photos will be saved when connection is restored.
+        </div>
       ) : null}
       <Button
         asChild
         variant="outline"
         size="sm"
-        className="w-fit rounded-full border-white/25 bg-white/5 px-3 py-1.5 text-white hover:border-white/40 hover:bg-white/10"
+        className="w-fit rounded-full border-white/25 bg-white/5 px-4 py-2 text-base text-white hover:border-white/40 hover:bg-white/10"
       >
         <Link href="/driver/tasks">← Back to list</Link>
       </Button>
@@ -147,11 +170,11 @@ export function DriverTaskDetail({ task, client }: { task: Task; client?: Client
       <DriverTaskCard task={taskWithLiveStatus} clickable={false} showEta={false} showLocationHeader={false}>
         <div className="flex flex-col gap-2 text-sm text-white/80">
           {details.length ? (
-            <dl className="grid grid-cols-2 gap-2 text-[0.75rem] text-white/70 sm:grid-cols-3">
+            <dl className="grid grid-cols-2 gap-3 text-sm text-white/70 sm:grid-cols-3">
               {details.map((item) => (
                 <div key={item.label} className="space-y-1">
-                  <dt className="text-[0.55rem] uppercase tracking-[0.35em] text-white/60">{item.label}</dt>
-                  <dd className="text-sm font-semibold text-white">{item.value}</dd>
+                  <dt className="text-[0.65rem] uppercase tracking-[0.28em] text-white/60">{item.label}</dt>
+                  <dd className="text-base font-semibold text-white">{item.value}</dd>
                 </div>
               ))}
             </dl>
@@ -196,7 +219,16 @@ export function DriverTaskDetail({ task, client }: { task: Task; client?: Client
               >
                 #{task.bookingCode ?? task.bookingId}
               </Badge>
-              
+              {task.zohoSalesOrderUrl ? (
+                <a
+                  href={task.zohoSalesOrderUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded-full border border-white/25 bg-white/5 px-2.5 py-0.5 text-[0.65rem] font-medium uppercase tracking-[0.3em] text-white hover:bg-white/10"
+                >
+                  Sales order
+                </a>
+              ) : null}
             </div>
             <div className="flex flex-wrap items-center gap-2"></div>
           </div>
@@ -216,11 +248,8 @@ export function DriverTaskDetail({ task, client }: { task: Task; client?: Client
                 <p className="text-xs text-white/70">{client.phone}</p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                <Button asChild size="sm" variant="outline" className="rounded-full border-white/25 bg-white/5 px-3 py-1 text-xs font-semibold text-white hover:border-white/40 hover:bg-white/10" disabled={!telUrl}>
-                  <a href={telUrl ?? "#"}>Call</a>
-                </Button>
-                <Button asChild size="sm" variant="outline" className="rounded-full border-white/25 bg-white/5 px-3 py-1 text-xs font-semibold text-white hover:border-white/40 hover:bg-white/10" disabled={!whatsappUrl}>
-                  <a href={whatsappUrl ?? "#"} target="_blank" rel="noopener noreferrer">WhatsApp</a>
+                <Button asChild size="sm" variant="outline" className="rounded-full border-white/25 bg-white/5 px-3 py-1 text-xs font-semibold text-white hover:border-white/40 hover:bg-white/10" disabled={!kommoLeadUrl && !whatsappUrl}>
+                  <a href={kommoLeadUrl ?? whatsappUrl ?? "#"} target="_blank" rel="noopener noreferrer">Message</a>
                 </Button>
               </div>
             </div>
@@ -398,8 +427,6 @@ export function DriverTaskDetail({ task, client }: { task: Task; client?: Client
             photos={existingPhotos}
             isDone={isDone}
             onCompleted={(nextStatus) => setStatus(nextStatus)}
-            outstanding={typeof task.outstandingAmount === "number" ? task.outstandingAmount : undefined}
-            currency={task.currency ?? "AED"}
           />
         </CardContent>
       </Card>
@@ -415,8 +442,6 @@ type DriverTaskInputsProps = {
   photos?: { path: string; bucket?: string; key?: string }[]
   isDone?: boolean
   onCompleted?: (status: Task["status"]) => void
-  outstanding?: number
-  currency?: string
 }
 
 function DriverTaskInputs({
@@ -427,8 +452,6 @@ function DriverTaskInputs({
   photos = [],
   isDone = false,
   onCompleted,
-  outstanding,
-  currency = "AED",
 }: DriverTaskInputsProps) {
   const [message, setMessage] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
@@ -441,11 +464,9 @@ function DriverTaskInputs({
   const [localFiles, setLocalFiles] = useState<Array<{ id: string; url: string; file: File; name: string; kind: "photos" | "damage" }>>([])
   const [fileInputResetKey, setFileInputResetKey] = useState(0)
   const localFilesRef = useRef(localFiles)
-  const [paymentInput, setPaymentInput] = useState<number | undefined>(undefined)
   const fieldCardBase = "rounded-2xl border border-white/15 bg-slate-950/40 px-4 py-3 shadow-sm"
   const returnPhotosCardClass = "rounded-2xl border border-white/15 bg-white/5 px-4 py-3 space-y-3"
   const labelClass = "text-sm font-semibold text-white/90"
-  const sectionHintClass = "text-[0.65rem] uppercase tracking-[0.35em] text-white/60"
 
   const normalizedInputs: DriverInput[] = useMemo(() => {
     const filtered = (inputs ?? []).filter(
@@ -469,9 +490,6 @@ function DriverTaskInputs({
       formData.set("taskId", taskId)
       formData.delete("photos")
       formData.delete("damage_photos")
-      if (paymentInput !== undefined) {
-        formData.set("paymentCollected", String(paymentInput))
-      }
       localFiles.forEach((item) => {
         formData.append(item.name, item.file, item.file.name)
       })
@@ -569,7 +587,7 @@ function DriverTaskInputs({
 
   if (!normalizedInputs.length) {
     return (
-      <div className="space-y-3">
+      <div className="space-y-5">
         <p className="text-sm text-white/70">No required inputs. Press the button to complete the task.</p>
         <Button
           type="button"
@@ -585,9 +603,9 @@ function DriverTaskInputs({
   }
 
   return (
-    <form action={handleSubmit} className="space-y-6">
+    <form action={handleSubmit} className="space-y-8">
       <input type="hidden" name="taskId" value={taskId} />
-      <div className="space-y-4">
+      <div className="space-y-6">
         {normalizedInputs.map((input) => {
           const labelText = adjustOdometerLabel(input.label, previousOdometer, input.key)
           const fuelLabel = adjustFuelLabel(input.label, input.key)
@@ -745,7 +763,7 @@ function DriverTaskInputs({
             return null
           }
           return (
-            <div key={input.key} className="space-y-3">
+            <div key={input.key} className="space-y-4">
               {input.type === "text" && input.key === "damage_notes" ? (
                 <>
                   <div className="flex items-center justify-between">
@@ -760,40 +778,6 @@ function DriverTaskInputs({
                   />
                 </>
               ) : null}
-              {input.type === "text" && input.key === "damage_notes" && typeof outstanding === "number" ? (
-                <div className="rounded-2xl border border-white/25 bg-white/10 p-4 space-y-3">
-                  <div className={sectionHintClass}>Payment</div>
-                  <div className="grid grid-cols-2 gap-x-4 gap-y-3 items-center">
-                    <div className="text-sm text-white/70">Due</div>
-                    <div className="text-base font-semibold text-white text-right">{currency} {outstanding.toFixed(2)}</div>
-                    <div className="text-sm text-white/80">Received</div>
-                    <div className="flex items-center justify-end">
-                      <div className="relative w-40">
-                        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs text-white/60">{currency}</span>
-                        <input
-                          type="number"
-                          inputMode="decimal"
-                          min={0}
-                          step="0.01"
-                          value={paymentInput === undefined ? "" : String(paymentInput)}
-                          onChange={(e) => {
-                            const v = Number(e.target.value)
-                            setPaymentInput(Number.isFinite(v) ? v : undefined)
-                          }}
-                          className="w-full rounded-2xl border border-white/20 bg-white/10 px-10 py-1.5 text-white focus:outline-none focus:ring-2 focus:ring-white/60"
-                          disabled={isDone}
-                        />
-                      </div>
-                    </div>
-                    <div className="text-sm text-white/70">Outstanding</div>
-                    <div className="text-base font-semibold text-white text-right">{currency} {String(paymentInput ?? 0) && Number.isFinite(Number(paymentInput)) ? Math.max(0, outstanding - Number(paymentInput)).toFixed(2) : outstanding.toFixed(2)}</div>
-                  </div>
-                  
-                  {typeof paymentInput === "number" && paymentInput > outstanding ? (
-                    <div className="text-xs text-rose-200">Amount exceeds outstanding</div>
-                  ) : null}
-                </div>
-              ) : null}
               <div className="flex items-center justify-between">
                 <span className={labelClass}>
                   {fieldLabel}
@@ -806,7 +790,7 @@ function DriverTaskInputs({
                   {renderFieldContent()}
                 </div>
               ) : shouldWrapWithCard ? (
-                <div className={`${fieldCardBase} ${input.type === "file" ? "space-y-3" : "space-y-2"}`}>
+                <div className={`${fieldCardBase} ${input.type === "file" ? "space-y-4" : "space-y-3"}`}>
                   {renderFieldContent()}
                 </div>
               ) : (
@@ -816,7 +800,7 @@ function DriverTaskInputs({
           )
         })}
       </div>
-      <div className="space-y-2">
+      <div className="space-y-3">
         <Button
           type="submit"
           disabled={isPending || isDone}

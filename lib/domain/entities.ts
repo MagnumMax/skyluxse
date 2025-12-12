@@ -295,6 +295,8 @@ export interface Task {
   outstandingAmount?: number
   currency?: string
   clientPhone?: string
+  zohoSalesOrderId?: string
+  zohoSalesOrderUrl?: string
 }
 
 export interface OperationsTask extends Task {

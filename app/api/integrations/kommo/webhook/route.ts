@@ -53,6 +53,7 @@ const KOMMO_STATUS_CONFIG: Record<string, { label: string; bookingStatus: string
     "79790631": { label: "Request Bot Answering", bookingStatus: "lead" },
     "91703923": { label: "Follow Up", bookingStatus: "lead" },
     "96150292": { label: "Waiting for Payment", bookingStatus: "confirmed" },
+    "98035992": { label: "Sales order sent", bookingStatus: "confirmed" }, // Added missing status
     "75440391": { label: "Confirmed Bookings", bookingStatus: "confirmed" },
     "75440395": { label: "Delivery Within 24 Hours", bookingStatus: "delivery" },
     "75440399": { label: "Car with Customers", bookingStatus: "in_progress" },
@@ -989,7 +990,7 @@ async function handleStatusChange(event: any): Promise<HandleResult> {
         vehicleId: vehicleMatch?.id ?? null,
         startAt: startAt ?? null,
         endAt: endAt ?? null,
-        kommoStatusId: Number(event.status_id),
+        kommoStatusId: Number(statusId), // Use resolved statusId, not raw event.status_id
         ownerId,
     })
     const statusIdForTimeline = statusId ?? "unknown"
@@ -1000,6 +1001,10 @@ async function handleStatusChange(event: any): Promise<HandleResult> {
 
         // Trigger Zoho Sales Order creation if status is in the configured list
         // The check for existing sales order is handled inside createSalesOrderForBooking
+        
+        // Debug Log
+        console.log("Checking Zoho Trigger:", { statusId, inList: KOMMO_STATUSES_FOR_SALES_ORDER.includes(statusId as any) });
+
         if (statusId && KOMMO_STATUSES_FOR_SALES_ORDER.includes(statusId as any)) {
             try {
                 console.log(`Triggering Zoho Sales Order for booking ${bookingId} (Kommo status: ${statusId})`)

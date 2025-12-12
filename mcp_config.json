@@ -10,6 +10,67 @@
                 "SUPABASE_URL": "${NEXT_PUBLIC_SUPABASE_URL}",
                 "SUPABASE_ACCESS_TOKEN": "${SUPABASE_ACCESS_TOKEN}"
             }
+        },
+        "FastLease-Supabase": {
+            "command": "mcp-server-supabase",
+            "args": ["--project-ref=sfekjkzuionqapecccwf"],
+            "env": {
+                "SUPABASE_ACCESS_TOKEN": "sbp_47ae049ae03410e74b66e48e197ae5c8ac8bd400"
+            }
+        },
+        "SkyLuxse-Supabase": {
+            "command": "mcp-server-supabase",
+            "args": ["--project-ref=bylxzpvyzvycrpkwxvle"],
+            "env": {
+                "SUPABASE_ACCESS_TOKEN": "sbp_47ae049ae03410e74b66e48e197ae5c8ac8bd400"
+            }
+        },
+        "Akaria-Supabase": {
+            "command": "mcp-server-supabase",
+            "args": ["--project-ref=koquyeuvlhouuvqrtzkn"],
+            "env": {
+                "SUPABASE_ACCESS_TOKEN": "sbp_47ae049ae03410e74b66e48e197ae5c8ac8bd400"
+            }
+        },
+        "PropStat-Supabase": {
+            "command": "mcp-server-supabase",
+            "args": ["--project-ref=saqrdlxcmrwqbehurxdl"],
+            "env": {
+                "SUPABASE_ACCESS_TOKEN": "sbp_47ae049ae03410e74b66e48e197ae5c8ac8bd400"
+            }
+        },
+        "AEX-Supabase": {
+            "command": "mcp-server-supabase",
+            "args": ["--project-ref=bxvwxqcxwxkovtgdrarp"],
+            "env": {
+                "SUPABASE_ACCESS_TOKEN": "sbp_47ae049ae03410e74b66e48e197ae5c8ac8bd400"
+            }
+        },
+        "context7": {
+            "command": "npx",
+            "args": ["-y", "@upstash/context7-mcp"],
+            "env": {
+                "UPSTASH_API_KEY": "ctx7sk-b7f9282f-0d2e-4ae1-8cf1-c56233ad507b"
+            }
+        },
+        "figma": {
+            "url": "https://mcp.figma.com/mcp",
+            "bearer_token_env_var": "FIGMA_OAUTH_TOKEN",
+            "http_headers": {
+                "X-Figma-Region": "us-east-1"
+            }
+        },
+        "chrome_devtools": {
+            "url": "http://localhost:3000/mcp",
+            "enabled_tools": ["open", "screenshot"],
+            "disabled_tools": ["screenshot"],
+            "startup_timeout_sec": 20,
+            "tool_timeout_sec": 45,
+            "enabled": true
+        },
+        "shadcn": {
+            "command": "npx",
+            "args": ["shadcn@latest", "mcp"]
         }
     }
 }

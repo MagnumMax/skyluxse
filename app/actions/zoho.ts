@@ -89,6 +89,9 @@ export async function createSalesOrderForBooking(bookingId: string): Promise<Cre
         const { createSalesOrder, findContactByEmail, createContact, getOrganizationId } = await import("@/lib/zoho/books");
         const { serviceClient } = await import("@/lib/supabase/service-client");
         const { revalidatePath } = await import("next/cache");
+        const { updateKommoLeadStatus } = await import("@/lib/kommo/client");
+        const { KOMMO_STATUSES_FOR_SALES_ORDER } = await import("@/lib/constants/bookings");
+        const { sendNotification } = await import("@/lib/notifications");
 
         const booking = await getLiveBookingById(bookingId);
         if (!booking) throw new Error("Booking not found");
@@ -331,12 +334,47 @@ Need help before paying? We’re here for you—Text us on whatsapp anytime!`;
             // We don't fail the action because the SO was created, but we log it.
         }
 
+        // 4. Update Kommo Status
+        try {
+            const { data: bookingRaw } = await serviceClient
+                .from("bookings")
+                .select("source_payload_id, advance_payment")
+                .eq("id", bookingId)
+                .single();
+
+            if (bookingRaw?.source_payload_id?.startsWith("kommo:")) {
+                const leadId = bookingRaw.source_payload_id.replace("kommo:", "");
+                const advancePayment = Number(bookingRaw.advance_payment || 0);
+                
+                // Logic: if advance_payment > 0 -> Payment Pending (96150292), else Confirmed (75440391)
+                const targetStatusId = advancePayment > 0 ? "96150292" : "75440391";
+                
+                console.log(`Updating Kommo Lead ${leadId} to status ${targetStatusId} (Advance: ${advancePayment})`);
+                await updateKommoLeadStatus(leadId, targetStatusId);
+            }
+        } catch (kommoError) {
+            console.error("Failed to update Kommo status:", kommoError);
+            // Don't fail the action if Kommo update fails
+        }
+
         revalidatePath(`/bookings/${bookingId}`); // Revalidate the specific booking page
+
+        // 5. Send Notification (Success)
+        await sendNotification('telegram', {
+            message: `✅ <b>Sales Order Created</b>\n\n<b>Booking:</b> ${booking.code}\n<b>Sales Order:</b> <a href="${salesOrderUrl}">Link</a>\n<b>Client:</b> ${client.name}\n<b>Amount:</b> ${booking.totalAmount} AED`
+        }).catch(err => console.error("Failed to send success notification", err));
 
         return { success: true, data: { salesOrderId, salesOrderUrl } };
 
     } catch (error: any) {
         console.error("createSalesOrderForBooking failed:", error);
+        
+        // 6. Send Notification (Failure)
+        const { sendNotification } = await import("@/lib/notifications");
+        await sendNotification('telegram', {
+            message: `❌ <b>Sales Order Creation Failed</b>\n\n<b>Booking:</b> ${bookingId}\n<b>Error:</b> ${error.message || "Unknown error"}`
+        }).catch(err => console.error("Failed to send failure notification", err));
+
         return { success: false, error: error.message || "Unknown error" };
     }
 }

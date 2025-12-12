@@ -25,7 +25,6 @@ export const dynamic = "force-dynamic"
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
 }
 
 export default function DriverLayout({ children }: { children: ReactNode }) {

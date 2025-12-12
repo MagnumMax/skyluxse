@@ -26,12 +26,20 @@ export function OperationsBookingDetail({
   driver,
   services,
   variant = "operations",
+  pickupMiles,
+  pickupFuel,
+  returnMiles,
+  returnFuel,
 }: {
   booking: Booking
   client?: Client
   driver?: Driver | null
   services?: VehicleMaintenanceEntry[]
   variant?: "operations" | "sales" | "exec"
+  pickupMiles?: number
+  pickupFuel?: string
+  returnMiles?: number
+  returnFuel?: string
 }) {
   const advancePayment = resolveAdvancePayment(booking)
   const outstanding = computeOutstandingAmount(booking, advancePayment)
@@ -48,7 +56,7 @@ export function OperationsBookingDetail({
         tags={tags}
       />
 
-      <BookingLogisticsFinancialSection booking={booking} outstanding={outstanding} advancePayment={advancePayment} />
+      <BookingLogisticsFinancialSection booking={booking} outstanding={outstanding} advancePayment={advancePayment} pickupMiles={pickupMiles} pickupFuel={pickupFuel} returnMiles={returnMiles} returnFuel={returnFuel} />
 
       <BookingServiceConflicts booking={booking} services={services ?? []} />
 
@@ -144,7 +152,7 @@ function BookingOverviewSection({ booking, client, outstanding, advancePayment, 
   )
 }
 
-function BookingLogisticsFinancialSection({ booking, outstanding, advancePayment }: { booking: Booking; outstanding: number; advancePayment?: number | null }) {
+function BookingLogisticsFinancialSection({ booking, outstanding, advancePayment, pickupMiles, pickupFuel, returnMiles, returnFuel }: { booking: Booking; outstanding: number; advancePayment?: number | null; pickupMiles?: number; pickupFuel?: string; returnMiles?: number; returnFuel?: string }) {
   const totalWithVat = resolveBookingTotalWithVat(booking)
   const pickupDate = formatShortDate(booking.startDate, booking.startTime)
   const pickupTime = formatTimeLabel(booking.startDate, booking.startTime)
@@ -173,13 +181,13 @@ function BookingLogisticsFinancialSection({ booking, outstanding, advancePayment
     },
     {
       label: "Pickup mileage",
-      value: formatMileage(booking.pickupMileage),
-      helper: `Fuel ${booking.pickupFuel ?? "—"}`,
+      value: formatMileage(pickupMiles),
+      helper: `Fuel ${pickupFuel ?? "—"}`,
     },
     {
       label: "Return mileage",
-      value: formatMileage(booking.returnMileage),
-      helper: `Fuel ${booking.returnFuel ?? "—"}`,
+      value: formatMileage(returnMiles),
+      helper: `Fuel ${returnFuel ?? "—"}`,
     },
   ]
   const logisticsParameters: ParameterListItem[] = []

@@ -7,7 +7,7 @@ import type { Task } from "@/lib/domain/entities"
 
 export function DriverTaskList({ tasks }: { tasks: Task[] }) {
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       {tasks.map((task) => (
         <DriverTaskCard key={task.id} task={task} href={toRoute(`/driver/tasks/${task.id}`)} />
       ))}

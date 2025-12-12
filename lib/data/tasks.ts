@@ -80,6 +80,51 @@ export const getDriverTaskById = cache(async (taskId: string): Promise<Task | nu
   return tasks.find((task) => String(task.id) === taskId) ?? null
 })
 
+export const getTasksByBookingId = cache(async (bookingId: string): Promise<{ pickupMiles: number; pickupFuel: number; returnMiles: number; returnFuel: number }> => {
+  const rows = await fetchTaskRows()
+  const bookingTasks = rows.filter((row) => row.booking_id === bookingId)
+
+  let pickupMaxOdo: number | undefined
+  let pickupLatestFuel: { value: number; ts: number } | undefined
+  let returnMaxOdo: number | undefined
+  let returnLatestFuel: { value: number; ts: number } | undefined
+
+  for (const row of bookingTasks) {
+    const type = normalizeTaskType(row.task_type)
+    const odo = extractOdometerValue(row.task_required_input_values)
+    const fuel = extractFuelValue(row.task_required_input_values)
+    const ts = getTimestamp(row)
+    const numericFuel = fuel ? Number(fuel.value) : NaN
+
+    if (type === "delivery") {
+      // Pickup
+      if (odo !== undefined) {
+        pickupMaxOdo = pickupMaxOdo === undefined ? odo : Math.max(pickupMaxOdo, odo)
+      }
+      if (Number.isFinite(numericFuel)) {
+        const fuelRecord = { value: numericFuel, ts: ts ? new Date(ts).getTime() : Date.now() }
+        pickupLatestFuel = selectLatestFuel(pickupLatestFuel, fuelRecord)
+      }
+    } else if (type === "pickup") {
+      // Return
+      if (odo !== undefined) {
+        returnMaxOdo = returnMaxOdo === undefined ? odo : Math.max(returnMaxOdo, odo)
+      }
+      if (Number.isFinite(numericFuel)) {
+        const fuelRecord = { value: numericFuel, ts: ts ? new Date(ts).getTime() : Date.now() }
+        returnLatestFuel = selectLatestFuel(returnLatestFuel, fuelRecord)
+      }
+    }
+  }
+
+  return {
+    pickupMiles: pickupMaxOdo ?? 0,
+    pickupFuel: pickupLatestFuel?.value ?? 0,
+    returnMiles: returnMaxOdo ?? 0,
+    returnFuel: returnLatestFuel?.value ?? 0,
+  }
+})
+
 function toOperationsTask(
   row: TaskRow,
   context: {
@@ -129,6 +174,10 @@ function toBaseTask(
     }
   }
 
+  const zohoSalesOrderId = booking?.zohoSalesOrderId
+  const zohoOrgId = process.env.ZOHO_ORG_ID
+  const zohoSalesOrderUrl = booking?.salesOrderUrl ?? (zohoSalesOrderId && zohoOrgId ? `https://books.zoho.com/app/${zohoOrgId}#/salesorders/${zohoSalesOrderId}` : undefined)
+
   return {
     id: row.id,
     title: row.title ?? metadata.title ?? "Untitled task",
@@ -153,6 +202,8 @@ function toBaseTask(
     inputValues,
     outstandingAmount: booking ? Math.max(0, (booking.totalAmount ?? 0) - (booking.paidAmount ?? 0)) : undefined,
     currency: booking?.billing?.currency ?? "AED",
+    zohoSalesOrderId: zohoSalesOrderId ?? undefined,
+    zohoSalesOrderUrl: zohoSalesOrderUrl ?? undefined,
   }
 }
 
