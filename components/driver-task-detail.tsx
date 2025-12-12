@@ -110,7 +110,7 @@ export function DriverTaskDetail({ task, client }: { task: Task; client?: Client
   const details = [] as { label: string; value: string }[]
   const taskWithLiveStatus = { ...task, status } as Task
   const isDone = status === "done"
-  const mapUrl = buildMapsUrl(task.geo)
+  const mapUrl = buildMapsUrl(task.type, task.geo)
   const phoneDigits = normalizePhone(client?.phone ?? task.clientPhone)
   const telUrl = phoneDigits ? `tel:${phoneDigits}` : undefined
   const whatsappUrl = phoneDigits ? `https://wa.me/${phoneDigits}?text=${encodeURIComponent(buildWhatsAppText(task))}` : undefined
@@ -981,13 +981,17 @@ function normalizePhone(value?: string) {
   return digits
 }
 
-function buildMapsUrl(geo?: { pickup?: string; dropoff?: string }) {
-  const origin = geo?.pickup?.trim()
-  const destination = geo?.dropoff?.trim()
-  if (origin && destination) {
-    return `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}`
+function buildMapsUrl(type: Task["type"], geo?: { pickup?: string; dropoff?: string }) {
+  const destination = (() => {
+    if (!geo) return undefined
+    if (type === "delivery") return geo.dropoff?.trim()
+    if (type === "pickup") return geo.pickup?.trim()
+    return geo.pickup?.trim() || geo.dropoff?.trim()
+  })()
+  if (destination) {
+    return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}`
   }
-  const query = origin || destination
+  const query = geo?.pickup?.trim() || geo?.dropoff?.trim()
   if (query) {
     return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`
   }
