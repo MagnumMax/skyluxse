@@ -84,6 +84,9 @@ export async function createSalesOrderAction(orderData: any) {
 }
 
 export async function createSalesOrderForBooking(bookingId: string): Promise<CreateSalesOrderResult> {
+    let booking: any = null;
+    let client: any = null;
+
     try {
         const { getLiveBookingById, getLiveClientById } = await import("@/lib/data/live-data");
         const { createSalesOrder, findContactByEmail, createContact, getOrganizationId } = await import("@/lib/zoho/books");
@@ -93,7 +96,7 @@ export async function createSalesOrderForBooking(bookingId: string): Promise<Cre
         const { KOMMO_STATUSES_FOR_SALES_ORDER } = await import("@/lib/constants/bookings");
         const { sendNotification } = await import("@/lib/notifications");
 
-        const booking = await getLiveBookingById(bookingId);
+        booking = await getLiveBookingById(bookingId);
         if (!booking) throw new Error("Booking not found");
 
         // Check if sales order already exists
@@ -110,7 +113,7 @@ export async function createSalesOrderForBooking(bookingId: string): Promise<Cre
             };
         }
 
-        const client = booking.clientId ? await getLiveClientById(String(booking.clientId)) : null;
+        client = booking.clientId ? await getLiveClientById(String(booking.clientId)) : null;
         if (!client) throw new Error("Client not found for this booking");
 
         if (!client.email) throw new Error("Client email is missing");
@@ -178,8 +181,8 @@ export async function createSalesOrderForBooking(bookingId: string): Promise<Cre
 
         const zohoItemId = vehicleData?.zoho_item_id;
 
-        // Fetch additional services
-        const { data: additionalServices } = await serviceClient
+        // Fetch additional services from booking
+        const { data: bookingServices } = await serviceClient
             .from("booking_additional_services")
             .select(`
                 price,
@@ -187,6 +190,23 @@ export async function createSalesOrderForBooking(bookingId: string): Promise<Cre
                 quantity,
                 service:additional_services (
                     name
+                )
+            `)
+            .eq("booking_id", bookingId);
+
+        // Fetch tasks and their additional services
+        const { data: taskServices } = await serviceClient
+            .from("tasks")
+            .select(`
+                id,
+                title,
+                services:task_additional_services (
+                    price,
+                    description,
+                    quantity,
+                    service:additional_services (
+                        name
+                    )
                 )
             `)
             .eq("booking_id", bookingId);
@@ -220,9 +240,9 @@ export async function createSalesOrderForBooking(bookingId: string): Promise<Cre
             }
         ];
 
-        // Add additional services
-        if (additionalServices && additionalServices.length > 0) {
-            additionalServices.forEach((as: any) => {
+        // Add additional services from booking
+        if (bookingServices && bookingServices.length > 0) {
+            bookingServices.forEach((as: any) => {
                 lineItems.push({
                     item_id: undefined, // We don't have item_id for dynamic services yet
                     name: as.service?.name || "Additional Service",
@@ -231,6 +251,24 @@ export async function createSalesOrderForBooking(bookingId: string): Promise<Cre
                     quantity: as.quantity || 1,
                     tax_id: "6183693000000229181"
                 });
+            });
+        }
+
+        // Add additional services from tasks
+        if (taskServices && taskServices.length > 0) {
+            taskServices.forEach((task: any) => {
+                if (task.services && task.services.length > 0) {
+                    task.services.forEach((as: any) => {
+                        lineItems.push({
+                            item_id: undefined,
+                            name: `${as.service?.name || "Task Service"} (Task: ${task.title})`,
+                            description: as.description || "",
+                            rate: as.price,
+                            quantity: as.quantity || 1,
+                            tax_id: "6183693000000229181"
+                        });
+                    });
+                }
             });
         }
 
@@ -388,7 +426,7 @@ Need help before paying? We’re here for you—Text us on whatsapp anytime!`;
 
         // 5. Send Notification (Success)
         await sendNotification('telegram', {
-            message: `✅ <b>Sales Order Created</b>\n\n<b>Booking:</b> ${booking.code}\n<b>Sales Order:</b> <a href="${salesOrderUrl}">Link</a>\n<b>Client:</b> ${client.name}\n<b>Amount:</b> ${booking.totalAmount} AED`
+            message: `✅ <b>Sales Order Created</b>\n\n<b>Booking:</b> ${booking.code}\n<b>Sales Order:</b> <a href="${salesOrderUrl}">Link</a>\n<b>Client:</b> ${client.name}\n<b>Auto:</b> ${booking.carName}\n<b>Plate:</b> ${booking.carPlate || "N/A"}`
         }).catch(err => console.error("Failed to send success notification", err));
 
         return { success: true, data: { salesOrderId, salesOrderUrl } };
@@ -399,9 +437,230 @@ Need help before paying? We’re here for you—Text us on whatsapp anytime!`;
         // 6. Send Notification (Failure)
         const { sendNotification } = await import("@/lib/notifications");
         await sendNotification('telegram', {
-            message: `❌ <b>Sales Order Creation Failed</b>\n\n<b>Booking:</b> ${bookingId}\n<b>Error:</b> ${error.message || "Unknown error"}`
+            message: `❌ <b>Sales Order Creation Failed</b>\n\n<b>Booking:</b> ${booking?.code || bookingId}\n<b>Client:</b> ${client?.name || "N/A"}\n<b>Auto:</b> ${booking?.carName || "N/A"}\n<b>Plate:</b> ${booking?.carPlate || "N/A"}\n<b>Error:</b> ${error.message || "Unknown error"}`
         }).catch(err => console.error("Failed to send failure notification", err));
 
         return { success: false, error: error.message || "Unknown error" };
+    }
+}
+
+export async function updateSalesOrderForBooking(bookingId: string): Promise<{ success: boolean; error?: string }> {
+    try {
+        const { getLiveBookingById } = await import("@/lib/data/live-data");
+        const { updateSalesOrder, getOrganizationId } = await import("@/lib/zoho/books");
+        const { serviceClient } = await import("@/lib/supabase/service-client");
+        const { revalidatePath } = await import("next/cache");
+        const { sendNotification } = await import("@/lib/notifications");
+
+        const booking = await getLiveBookingById(bookingId);
+        if (!booking) throw new Error("Booking not found");
+
+        if (!booking.zohoSalesOrderId) {
+            console.log("No Sales Order ID found for booking, skipping update.");
+            return { success: false, error: "No Sales Order ID found" };
+        }
+
+        // 1. Fetch Vehicle Zoho Item ID
+        const { data: vehicleData } = await serviceClient
+            .from("vehicles")
+            .select("zoho_item_id")
+            .eq("id", booking.carId)
+            .single();
+
+        const zohoItemId = vehicleData?.zoho_item_id;
+
+        // Fetch additional services from booking
+        const { data: bookingServices } = await serviceClient
+            .from("booking_additional_services")
+            .select(`
+                price,
+                description,
+                quantity,
+                service:additional_services (
+                    name
+                )
+            `)
+            .eq("booking_id", bookingId);
+
+        // Fetch tasks and their additional services
+        const { data: taskServices } = await serviceClient
+            .from("tasks")
+            .select(`
+                id,
+                title,
+                services:task_additional_services (
+                    price,
+                    description,
+                    quantity,
+                    service:additional_services (
+                        name
+                    )
+                )
+            `)
+            .eq("booking_id", bookingId);
+
+        const { differenceInDays, parseISO, format } = await import("date-fns");
+
+        let quantity = 1;
+        let startStr = "";
+        let endStr = "";
+
+        if (booking.startDate && booking.endDate) {
+            const start = parseISO(booking.startDate);
+            const end = parseISO(booking.endDate);
+            const days = differenceInDays(end, start);
+            if (days > 0) quantity = days;
+
+            startStr = format(start, "dd.MM.yyyy HH:mm");
+            endStr = format(end, "dd.MM.yyyy HH:mm");
+        }
+
+        const rate = booking.priceDaily || (booking.totalAmount ? booking.totalAmount / quantity : 0);
+
+        const lineItems = [
+            {
+                item_id: zohoItemId || undefined,
+                ...(zohoItemId ? {} : { name: `Car Rental - ${booking.carName}` }),
+                description: `${startStr} - ${endStr}`,
+                rate: rate,
+                quantity: quantity,
+                tax_id: "6183693000000229181"
+            }
+        ];
+
+        // Add additional services from booking
+        if (bookingServices && bookingServices.length > 0) {
+            bookingServices.forEach((as: any) => {
+                lineItems.push({
+                    item_id: undefined,
+                    name: as.service?.name || "Additional Service",
+                    description: as.description || "",
+                    rate: as.price,
+                    quantity: as.quantity || 1,
+                    tax_id: "6183693000000229181"
+                });
+            });
+        }
+
+        // Add additional services from tasks
+        if (taskServices && taskServices.length > 0) {
+            taskServices.forEach((task: any) => {
+                if (task.services && task.services.length > 0) {
+                    task.services.forEach((as: any) => {
+                        lineItems.push({
+                            item_id: undefined,
+                            name: `${as.service?.name || "Task Service"} (Task: ${task.title})`,
+                            description: as.description || "",
+                            rate: as.price,
+                            quantity: as.quantity || 1,
+                            tax_id: "6183693000000229181"
+                        });
+                    });
+                }
+            });
+        }
+
+        // Helper to extract fee amount from label
+        function extractFee(label: string | null | undefined): number {
+            if (!label) return 0;
+            const match = label.match(/(\d+)/);
+            return match ? parseInt(match[1], 10) : 0;
+        }
+
+        // Delivery Fee
+        const ITEM_DELIVERY_CHARGE_ID = "6183693000000251070";
+        if (booking.deliveryFeeLabel) {
+            const deliveryFee = extractFee(booking.deliveryFeeLabel);
+            if (deliveryFee > 0) {
+                lineItems.push({
+                    item_id: ITEM_DELIVERY_CHARGE_ID,
+                    name: "Delivery Charge",
+                    description: "",
+                    rate: deliveryFee,
+                    quantity: 1,
+                    tax_id: "6183693000000229181"
+                });
+            }
+        }
+
+        // No Deposit Fee
+        const ITEM_NO_DEPOSIT_FEE_ID = "6183693000000251092";
+        if (booking.insuranceFeeLabel && booking.insuranceFeeLabel.toLowerCase().includes("no deposit")) {
+            const noDepositFee = extractFee(booking.insuranceFeeLabel);
+            if (noDepositFee > 0) {
+                lineItems.push({
+                    item_id: ITEM_NO_DEPOSIT_FEE_ID,
+                    name: "No Deposit Fixed Fee",
+                    description: "",
+                    rate: noDepositFee,
+                    quantity: 1,
+                    tax_id: "6183693000000229181"
+                });
+            }
+        }
+
+        // CDW Insurance
+        const ITEM_CDW_INSURANCE_ID = "6183693000002576237";
+        if (booking.fullInsuranceFee && booking.fullInsuranceFee > 0) {
+            lineItems.push({
+                item_id: ITEM_CDW_INSURANCE_ID,
+                name: "CDW Insurance",
+                description: "",
+                rate: booking.fullInsuranceFee,
+                quantity: 1,
+                tax_id: "6183693000000229181"
+            });
+        }
+
+        const customFields = [
+            {
+                customfield_id: "6183693000001829012", // Pick Up Date
+                value: booking.startDate?.split("T")[0]
+            },
+            {
+                customfield_id: "6183693000001829002", // Drop Off Date
+                value: booking.endDate?.split("T")[0]
+            },
+            {
+                customfield_id: "6183693000001829066", // Rental Location
+                value: booking.deliveryLocation || booking.pickupLocation || ""
+            },
+            {
+                customfield_id: "6183693000001869037", // KM Limit
+                value: booking.mileageLimit || ""
+            }
+        ];
+
+        if (booking.advancePayment) {
+            customFields.push({
+                customfield_id: "6183693000002201003", // Advance payment
+                value: String(booking.advancePayment)
+            });
+        }
+
+        const updateData = {
+            line_items: lineItems,
+            custom_fields: customFields
+        };
+
+        const response = await updateSalesOrder(booking.zohoSalesOrderId, updateData);
+
+        if (response.code === 0) {
+            const orgId = await getOrganizationId();
+            const salesOrderUrl = `https://books.zoho.com/app/${orgId}#/salesorders/${booking.zohoSalesOrderId}`;
+            
+            await sendNotification('telegram', {
+                message: `🔄 <b>Sales Order Updated</b>\n\n<b>Booking:</b> ${booking.code}\n<b>Sales Order:</b> <a href="${salesOrderUrl}">Link</a>\n<b>Client:</b> ${booking.clientName}\n<b>Auto:</b> ${booking.carName}\n<b>Plate:</b> ${booking.carPlate || "N/A"}`
+            }).catch(err => console.error("Failed to send update notification", err));
+
+            revalidatePath(`/bookings/${bookingId}`);
+            return { success: true };
+        } else {
+            throw new Error(response.message);
+        }
+
+    } catch (error: any) {
+        console.error("Failed to update Sales Order:", error);
+        return { success: false, error: error.message };
     }
 }

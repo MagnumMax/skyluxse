@@ -18,7 +18,8 @@ async function main() {
         .select(`
             *,
             clients ( * ),
-            staff_accounts ( full_name, email )
+            staff_accounts ( full_name, email ),
+            vehicles ( name, plate_number )
         `)
         .eq("id", bookingId)
         .single()
@@ -131,7 +132,7 @@ Need help before paying? We’re here for you—Text us on whatsapp anytime!`;
         if (orderRes.code !== 0) {
             console.error("Failed to create SO:", orderRes.message)
             await sendNotification('telegram', {
-                message: `❌ <b>Sales Order Creation Failed (Manual)</b>\n\n<b>Booking:</b> ${booking.external_code}\n<b>Error:</b> ${orderRes.message}`
+                message: `❌ <b>Sales Order Creation Failed (Manual)</b>\n\n<b>Booking:</b> ${booking.external_code}\n<b>Client:</b> ${client.name}\n<b>Auto:</b> ${booking.vehicles?.name || "N/A"}\n<b>Plate:</b> ${booking.vehicles?.plate_number || "N/A"}\n<b>Error:</b> ${orderRes.message}`
             })
             return
         }
@@ -149,7 +150,7 @@ Need help before paying? We’re here for you—Text us on whatsapp anytime!`;
 
         // Notification
         await sendNotification('telegram', {
-            message: `✅ <b>Sales Order Created (Manual)</b>\n\n<b>Booking:</b> ${booking.external_code}\n<b>Sales Order:</b> <a href="${salesOrderUrl}">Link</a>\n<b>Client:</b> ${client.name}\n<b>Amount:</b> ${booking.total_amount} AED`
+            message: `✅ <b>Sales Order Created (Manual)</b>\n\n<b>Booking:</b> ${booking.external_code}\n<b>Sales Order:</b> <a href="${salesOrderUrl}">Link</a>\n<b>Client:</b> ${client.name}\n<b>Auto:</b> ${booking.vehicles?.name || "N/A"}\n<b>Plate:</b> ${booking.vehicles?.plate_number || "N/A"}`
         })
     }
 

@@ -4,6 +4,7 @@
 import { revalidatePath } from "next/cache"
 import { serviceClient } from "@/lib/supabase/service-client"
 import { AdditionalService, BookingAdditionalService, TaskAdditionalService } from "@/lib/domain/additional-services"
+import { updateSalesOrderForBooking } from "@/app/actions/zoho"
 
 // Services CRUD
 export async function getAdditionalServices() {
@@ -89,6 +90,12 @@ export async function addServiceToBooking(bookingId: string, serviceId: string, 
 
     if (error) throw error
     revalidatePath(`/bookings/${bookingId}`)
+    
+    // Sync with Zoho
+    await updateSalesOrderForBooking(bookingId).catch(err => {
+        console.error(`Failed to sync Zoho for booking ${bookingId}:`, err)
+    })
+    
     return data
 }
 
@@ -102,6 +109,12 @@ export async function updateBookingService(linkId: string, bookingId: string, up
 
     if (error) throw error
     revalidatePath(`/bookings/${bookingId}`)
+    
+    // Sync with Zoho
+    await updateSalesOrderForBooking(bookingId).catch(err => {
+        console.error(`Failed to sync Zoho for booking ${bookingId}:`, err)
+    })
+    
     return data
 }
 
@@ -113,6 +126,11 @@ export async function removeServiceFromBooking(linkId: string, bookingId: string
 
     if (error) throw error
     revalidatePath(`/bookings/${bookingId}`)
+    
+    // Sync with Zoho
+    await updateSalesOrderForBooking(bookingId).catch(err => {
+        console.error(`Failed to sync Zoho for booking ${bookingId}:`, err)
+    })
 }
 
 // Task Links
@@ -153,6 +171,20 @@ export async function addServiceToTask(taskId: string, serviceId: string, overri
 
     if (error) throw error
     revalidatePath(`/tasks/${taskId}`)
+    
+    // Sync with Zoho if task is linked to booking
+    const { data: task } = await serviceClient
+        .from("tasks")
+        .select("booking_id")
+        .eq("id", taskId)
+        .single()
+    
+    if (task?.booking_id) {
+        await updateSalesOrderForBooking(task.booking_id).catch(err => {
+            console.error(`Failed to sync Zoho for task ${taskId} (booking ${task.booking_id}):`, err)
+        })
+    }
+    
     return data
 }
 
@@ -166,6 +198,20 @@ export async function updateTaskService(linkId: string, taskId: string, updates:
 
     if (error) throw error
     revalidatePath(`/tasks/${taskId}`)
+    
+    // Sync with Zoho if task is linked to booking
+    const { data: task } = await serviceClient
+        .from("tasks")
+        .select("booking_id")
+        .eq("id", taskId)
+        .single()
+    
+    if (task?.booking_id) {
+        await updateSalesOrderForBooking(task.booking_id).catch(err => {
+            console.error(`Failed to sync Zoho for task ${taskId} (booking ${task.booking_id}):`, err)
+        })
+    }
+    
     return data
 }
 
@@ -177,4 +223,17 @@ export async function removeServiceFromTask(linkId: string, taskId: string) {
 
     if (error) throw error
     revalidatePath(`/tasks/${taskId}`)
+    
+    // Sync with Zoho if task is linked to booking
+    const { data: task } = await serviceClient
+        .from("tasks")
+        .select("booking_id")
+        .eq("id", taskId)
+        .single()
+    
+    if (task?.booking_id) {
+        await updateSalesOrderForBooking(task.booking_id).catch(err => {
+            console.error(`Failed to sync Zoho for task ${taskId} (booking ${task.booking_id}):`, err)
+        })
+    }
 }

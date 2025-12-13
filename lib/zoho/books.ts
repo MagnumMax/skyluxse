@@ -94,6 +94,20 @@ export async function getBooksClient() {
                 body: JSON.stringify(body)
             });
             return res.json();
+        },
+        put: async (path: string, body: any, orgId?: string) => {
+            const url = new URL(`${baseUrl}${path}`);
+            if (orgId) url.searchParams.append("organization_id", orgId);
+
+            const res = await fetch(url.toString(), {
+                method: 'PUT',
+                headers: {
+                    Authorization: `Zoho-oauthtoken ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(body)
+            });
+            return res.json();
         }
     };
 
@@ -129,6 +143,12 @@ export async function createSalesOrder(orderData: any) {
     const orgId = await getOrganizationId();
     const client = await getBooksClient();
     return client.post("/salesorders", orderData, orgId);
+}
+
+export async function updateSalesOrder(salesOrderId: string, orderData: any) {
+    const orgId = await getOrganizationId();
+    const client = await getBooksClient();
+    return client.put(`/salesorders/${salesOrderId}`, orderData, orgId);
 }
 
 export async function findContactByEmail(email: string) {
