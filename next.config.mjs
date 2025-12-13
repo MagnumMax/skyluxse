@@ -3,11 +3,11 @@ const nextConfig = {
   reactStrictMode: true,
   typedRoutes: true,
   experimental: {
+    serverActions: {
+      bodySizeLimit: "20mb",
+    },
     optimizeCss: true,
     testProxy: true,
-  },
-  serverActions: {
-    bodySizeLimit: "20mb",
   },
   serverExternalPackages: ["@zohocrm/nodejs-sdk-7.0"],
   images: {

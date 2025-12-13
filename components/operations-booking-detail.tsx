@@ -13,6 +13,8 @@ import { Badge } from "@/components/ui/badge"
 import { ClientAiPanel } from "@/components/sales-client-ai-panel"
 import { ParameterList, type ParameterListItem } from "@/components/parameter-list"
 import { CreateSalesOrderButton } from "@/components/zoho/create-sales-order-button"
+import { AdditionalService, BookingAdditionalService } from "@/lib/domain/additional-services"
+import { ServiceSelector } from "@/components/service-selector"
 
 const currencyFormatter = new Intl.NumberFormat("en-CA", { style: "currency", currency: "AED", maximumFractionDigits: 0 })
 const dateFormatter = new Intl.DateTimeFormat("en-CA", { month: "short", day: "numeric" })
@@ -30,6 +32,8 @@ export function OperationsBookingDetail({
   pickupFuel,
   returnMiles,
   returnFuel,
+  additionalServices,
+  availableServices,
 }: {
   booking: Booking
   client?: Client
@@ -40,6 +44,8 @@ export function OperationsBookingDetail({
   pickupFuel?: string
   returnMiles?: number
   returnFuel?: string
+  additionalServices?: BookingAdditionalService[]
+  availableServices?: AdditionalService[]
 }) {
   const advancePayment = resolveAdvancePayment(booking)
   const outstanding = computeOutstandingAmount(booking, advancePayment)
@@ -57,6 +63,13 @@ export function OperationsBookingDetail({
       />
 
       <BookingLogisticsFinancialSection booking={booking} outstanding={outstanding} advancePayment={advancePayment} pickupMiles={pickupMiles} pickupFuel={pickupFuel} returnMiles={returnMiles} returnFuel={returnFuel} />
+
+      <ServiceSelector 
+        entityId={String(booking.id)} 
+        entityType="booking" 
+        initialServices={additionalServices ?? []} 
+        availableServices={availableServices ?? []} 
+      />
 
       <BookingServiceConflicts booking={booking} services={services ?? []} />
 

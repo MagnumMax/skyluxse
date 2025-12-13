@@ -29,6 +29,20 @@ export default async function BookingDetailPage({ params, searchParams }: PagePr
   if (!detail) {
     notFound()
   }
-  const { booking, client, driver, services, variant, pickupMiles, pickupFuel, returnMiles, returnFuel } = detail
-  return <OperationsBookingDetail booking={booking} client={client} driver={driver} services={services} variant={variant} pickupMiles={pickupMiles} pickupFuel={pickupFuel} returnMiles={returnMiles} returnFuel={returnFuel} />
+  const { booking, client, driver, services, variant, pickupMiles, pickupFuel, returnMiles, returnFuel, additionalServices, availableServices } = detail
+  return (
+    <OperationsBookingDetail 
+      booking={booking} 
+      client={client} 
+      driver={driver} 
+      services={services} 
+      variant={variant} 
+      pickupMiles={pickupMiles} 
+      pickupFuel={pickupFuel} 
+      returnMiles={returnMiles} 
+      returnFuel={returnFuel} 
+      additionalServices={additionalServices}
+      availableServices={availableServices}
+    />
+  )
 }

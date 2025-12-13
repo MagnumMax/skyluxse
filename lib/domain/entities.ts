@@ -21,6 +21,7 @@ export interface Booking {
   driverId: EntityId | null
   status: BookingStatus
   kommoStatusId?: number | null
+  sourcePayloadId?: string
   pipelineStageId?: string
   pipelineStageName?: string
   totalAmount: number

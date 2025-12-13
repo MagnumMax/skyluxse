@@ -7,8 +7,10 @@ import { OperationsTaskCard } from "@/components/operations-task-card"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ParameterList, type ParameterListItem } from "@/components/parameter-list"
+import { AdditionalService, TaskAdditionalService } from "@/lib/domain/additional-services"
+import { ServiceSelector } from "@/components/service-selector"
 
-export function OperationsTaskDetail({ task }: { task: OperationsTask }) {
+export function OperationsTaskDetail({ task, additionalServices, availableServices }: { task: OperationsTask; additionalServices?: TaskAdditionalService[]; availableServices?: AdditionalService[] }) {
   const priorityMeta = BOOKING_PRIORITIES[task.priority.toLowerCase() as keyof typeof BOOKING_PRIORITIES] ?? {
     label: task.priority,
     className: "bg-slate-200 text-slate-700",
@@ -34,6 +36,13 @@ export function OperationsTaskDetail({ task }: { task: OperationsTask }) {
           <ParameterList items={buildTaskParameters(task, priorityMeta.label)} columns={3} />
         </CardContent>
       </Card>
+
+      <ServiceSelector 
+        entityId={String(task.id)} 
+        entityType="task" 
+        initialServices={additionalServices ?? []} 
+        availableServices={availableServices ?? []} 
+      />
 
       <Card className="rounded-[28px] border-border/70 bg-card/80">
         <CardHeader>

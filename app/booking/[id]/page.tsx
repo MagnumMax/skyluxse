@@ -5,6 +5,7 @@ import { OperationsBookingDetail } from "@/components/operations-booking-detail"
 import { loadBookingDetail } from "@/lib/data/load-booking-detail"
 import { getLiveBookingById } from "@/lib/data/live-data"
 import { resolveBookingViewVariant } from "@/lib/utils"
+import { getAdditionalServices, getBookingServices } from "@/app/actions/additional-services"
 
 export const dynamic = "force-dynamic"
 
@@ -31,13 +32,27 @@ export default async function BookingPublicPage({ params, searchParams }: PagePr
   if (!detail) {
     notFound()
   }
+
+  const [additionalServices, availableServices] = await Promise.all([
+    getBookingServices(id),
+    getAdditionalServices()
+  ])
+
   const { booking, client, driver, services, variant } = detail
 
   return (
     <div className="min-h-screen bg-muted/40">
       <div className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6 lg:px-10">
         <div className="rounded-[32px] border border-border/60 bg-background/95 p-6 shadow-lg shadow-black/5">
-          <OperationsBookingDetail booking={booking} client={client} driver={driver} services={services} variant={variant} />
+          <OperationsBookingDetail 
+            booking={booking} 
+            client={client} 
+            driver={driver} 
+            services={services} 
+            variant={variant}
+            additionalServices={additionalServices}
+            availableServices={availableServices}
+          />
         </div>
       </div>
     </div>

@@ -98,6 +98,49 @@ export async function completeTask(input: z.infer<typeof CompleteTaskSchema>): P
       return { success: false, message: error.message }
     }
 
+    // Sync additional services to booking and sales order
+    const { data: task } = await serviceClient
+      .from("tasks")
+      .select("booking_id")
+      .eq("id", taskId)
+      .single()
+
+    if (task?.booking_id) {
+      const { data: taskServices } = await serviceClient
+        .from("task_additional_services")
+        .select("*")
+        .eq("task_id", taskId)
+
+      if (taskServices && taskServices.length > 0) {
+        // Copy to booking_additional_services
+        const bookingServices = taskServices.map((ts) => ({
+          booking_id: task.booking_id,
+          service_id: ts.service_id,
+          price: ts.price,
+          description: ts.description,
+          quantity: ts.quantity,
+        }))
+
+        // @ts-ignore
+        const { error: copyError } = await serviceClient
+          .from("booking_additional_services")
+          .upsert(bookingServices, { onConflict: "booking_id, service_id" })
+
+        if (!copyError) {
+          // Try to create/sync sales order
+          try {
+            const { createSalesOrderForBooking } = await import("@/app/actions/zoho")
+            // We don't await this to not block the UI response, or maybe we should?
+            // The user wants "these records must be added to sale Order".
+            // Let's await it to ensure it happens, or log error.
+            await createSalesOrderForBooking(String(task.booking_id))
+          } catch (e) {
+            console.error("Failed to sync sales order from task completion:", e)
+          }
+        }
+      }
+    }
+
     revalidatePath("/driver/tasks")
     revalidatePath(`/driver/tasks/${taskId}`)
 

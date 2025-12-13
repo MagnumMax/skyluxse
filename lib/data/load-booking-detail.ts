@@ -3,6 +3,8 @@ import { resolveBookingViewVariant, type BookingViewVariant } from "@/lib/utils"
 import { getLiveBookingById, getLiveClientById, getLiveDrivers } from "./live-data"
 import { getVehicleServices } from "./fleet-data"
 import { getTasksByBookingId } from "./tasks"
+import { getBookingServices, getAdditionalServices } from "@/app/actions/additional-services"
+import { AdditionalService, BookingAdditionalService } from "@/lib/domain/additional-services"
 
 export type LoadedBookingDetail = {
   booking: Booking
@@ -14,6 +16,8 @@ export type LoadedBookingDetail = {
   pickupFuel: string
   returnMiles: number
   returnFuel: string
+  additionalServices: BookingAdditionalService[]
+  availableServices: AdditionalService[]
 }
 
 export async function loadBookingDetail({
@@ -28,11 +32,13 @@ export async function loadBookingDetail({
     return null
   }
   const variant = resolveBookingViewVariant(view)
-  const [client, drivers, services, taskMetrics] = await Promise.all([
+  const [client, drivers, services, taskMetrics, additionalServices, availableServices] = await Promise.all([
     booking.clientId ? getLiveClientById(String(booking.clientId)) : Promise.resolve(null),
     getLiveDrivers(),
     booking.carId ? getVehicleServices(String(booking.carId)) : Promise.resolve([]),
     getTasksByBookingId(bookingId),
+    getBookingServices(bookingId),
+    getAdditionalServices(),
   ])
   const driver = booking.driverId ? drivers.find((entry) => String(entry.id) === String(booking.driverId)) : null
   return {
@@ -45,5 +51,7 @@ export async function loadBookingDetail({
     pickupFuel: String(taskMetrics.pickupFuel),
     returnMiles: taskMetrics.returnMiles,
     returnFuel: String(taskMetrics.returnFuel),
+    additionalServices,
+    availableServices,
   }
 }

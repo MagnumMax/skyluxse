@@ -153,6 +153,7 @@ type BookingRow = {
   updated_at: string | null
   created_by: string | null
   kommo_status_id: number | null
+  source_payload_id: string | null
   delivery_fee_label?: string | null
   delivery_location?: string | null
   collect_location?: string | null
@@ -286,7 +287,7 @@ const SUPABASE_PUBLIC_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.
 const KOMMO_BASE_URL = process.env.NEXT_PUBLIC_KOMMO_BASE_URL || process.env.KOMMO_BASE_URL || ""
 const DOCUMENT_URL_TTL_SECONDS = 60 * 60
 const BOOKING_SELECT_COLUMNS =
-  "id, external_code, client_id, vehicle_id, driver_id, owner_id, status, booking_type, channel, priority, start_at, end_at, total_amount, deposit_amount, created_at, updated_at, created_by, kommo_status_id, delivery_fee_label, delivery_location, collect_location, rental_duration_days, price_daily, insurance_fee_label, full_insurance_fee, advance_payment, sales_order_url, agreement_number, zoho_sales_order_id, sales_service_rating, sales_service_feedback, sales_service_rated_by, sales_service_rated_at, mileage_limit"
+  "id, external_code, client_id, vehicle_id, driver_id, owner_id, status, booking_type, channel, priority, start_at, end_at, total_amount, deposit_amount, created_at, updated_at, created_by, kommo_status_id, source_payload_id, delivery_fee_label, delivery_location, collect_location, rental_duration_days, price_daily, insurance_fee_label, full_insurance_fee, advance_payment, sales_order_url, agreement_number, zoho_sales_order_id, sales_service_rating, sales_service_feedback, sales_service_rated_by, sales_service_rated_at, mileage_limit"
 
 const fetchClientRows = cache(async (): Promise<ClientRow[]> => {
   const { data, error } = await serviceClient
@@ -694,6 +695,7 @@ export const getLiveClients = cache(async (): Promise<Client[]> => {
     const rentals = buildClientRentals(clientBookings, vehiclesById, 4)
     const lifetimeValue = clientBookings.reduce((sum, booking) => sum + numberOrZero(booking.total_amount), 0)
     const lastBookingDate = getLastBookingDate(clientBookings)
+
     return {
       id: row.id,
       name: row.name ?? "Unnamed client",
@@ -1079,6 +1081,7 @@ function mapVehicleRow(row: VehicleRow, options?: { staffById?: Map<string, Staf
   const staffById = options?.staffById
   const createdBy = resolveStaffActorById(staffById, row.created_by) ?? (row.kommo_vehicle_id ? "Kommo import" : undefined)
   const updatedBy = resolveStaffActorById(staffById, row.updated_by) ?? createdBy
+
   return {
     id: row.id,
     name: row.name ?? "Unnamed vehicle",
@@ -1228,6 +1231,7 @@ function mapBookingRow(
     history: [],
     extensions: [],
     kommoStatusId: row.kommo_status_id ?? undefined,
+    sourcePayloadId: row.source_payload_id ?? undefined,
     pipelineStageId: stageEntry?.id ?? undefined,
     pipelineStageName: stageEntry?.name ?? undefined,
     createdAt: row.created_at ?? undefined,

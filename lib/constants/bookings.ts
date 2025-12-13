@@ -84,21 +84,21 @@ const KOMMO_STAGE_DEFINITIONS: KommoPipelineStageMeta[] = [
     bookingStatus: "new",
   },
   {
-    id: "96150292",
-    label: "Payment Pending",
-    group: "Preparation",
-    description: "Hold assets until upfront payment clears.",
-    headerColor: "#cfe4ff",
-    borderColor: "#96bbe0",
-    bookingStatus: "preparation",
-  },
-  {
     id: "98035992",
     label: "Sales order sent",
     group: "Preparation",
     description: "Sales order issued; awaiting confirmation.",
     headerColor: "#d6eaff",
     borderColor: "#9cc3e4",
+    bookingStatus: "preparation",
+  },
+  {
+    id: "96150292",
+    label: "Payment Pending",
+    group: "Preparation",
+    description: "Hold assets until upfront payment clears.",
+    headerColor: "#cfe4ff",
+    borderColor: "#96bbe0",
     bookingStatus: "preparation",
   },
   {
@@ -225,6 +225,8 @@ export function resolveStageKeyFromKommoStatus(kommoStatusId?: string | number |
   const normalizedId = kommoStatusId ? String(kommoStatusId) : null
   switch (normalizedId) {
     case "75440391": // Confirmed Bookings
+    case "96150292": // Payment Pending
+    case "98035992": // Sales Order Sent
       return "confirmed"
     case "75440395": // Delivery Within 24 Hours
       return "delivery"

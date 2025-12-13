@@ -8,6 +8,7 @@ import {
   BarChart3,
   FileSpreadsheet,
   Workflow,
+  Settings,
 } from "lucide-react"
 
 export type NavIcon =
@@ -19,6 +20,7 @@ export type NavIcon =
   | "analytics"
   | "reports"
   | "integrations"
+  | "settings"
 
 const iconMap: Record<NavIcon, LucideIcon> = {
   dashboard: LayoutDashboard,
@@ -29,6 +31,7 @@ const iconMap: Record<NavIcon, LucideIcon> = {
   analytics: BarChart3,
   reports: FileSpreadsheet,
   integrations: Workflow,
+  settings: Settings,
 }
 
 export function Icon({ name, className }: { name: NavIcon; className?: string }) {

@@ -29,6 +29,7 @@ const navGroups: DashboardNavGroup[] = [
       { href: "/exec/dashboard", label: "Dashboard", icon: "dashboard" },
       { href: "/exec/reports", label: "Reports", icon: "reports" },
       { href: "/exec/analytics", label: "Analytics", icon: "analytics" },
+      { href: "/exec/services", label: "Services", icon: "settings" },
     ],
   },
   {

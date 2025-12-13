@@ -178,6 +178,19 @@ export async function createSalesOrderForBooking(bookingId: string): Promise<Cre
 
         const zohoItemId = vehicleData?.zoho_item_id;
 
+        // Fetch additional services
+        const { data: additionalServices } = await serviceClient
+            .from("booking_additional_services")
+            .select(`
+                price,
+                description,
+                quantity,
+                service:additional_services (
+                    name
+                )
+            `)
+            .eq("booking_id", bookingId);
+
         const { differenceInDays, parseISO, format } = await import("date-fns");
 
         let quantity = 1;
@@ -206,6 +219,20 @@ export async function createSalesOrderForBooking(bookingId: string): Promise<Cre
                 tax_id: "6183693000000229181" // Standard Rate 5%
             }
         ];
+
+        // Add additional services
+        if (additionalServices && additionalServices.length > 0) {
+            additionalServices.forEach((as: any) => {
+                lineItems.push({
+                    item_id: undefined, // We don't have item_id for dynamic services yet
+                    name: as.service?.name || "Additional Service",
+                    description: as.description || "",
+                    rate: as.price,
+                    quantity: as.quantity || 1,
+                    tax_id: "6183693000000229181"
+                });
+            });
+        }
 
         // Helper to extract fee amount from label (e.g. "Delivery Fee- 200 aed" -> 200)
         function extractFee(label: string | null | undefined): number {

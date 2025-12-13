@@ -90,6 +90,8 @@ export function SalesBookingsBoard({
       if (resolvedSearchTerm.trim()) {
         const haystack = [
           booking.code,
+          String(booking.id),
+          booking.sourcePayloadId ?? "",
           booking.clientName,
           booking.carName,
           booking.channel,
