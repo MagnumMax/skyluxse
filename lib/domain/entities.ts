@@ -14,6 +14,7 @@ export interface Booking {
   carId: EntityId
   carName: string
   carPlate?: string | null
+  carExternalRef?: string | null
   startDate: string
   endDate: string
   startTime: string

@@ -94,6 +94,8 @@ export function SalesBookingsBoard({
           booking.sourcePayloadId ?? "",
           booking.clientName,
           booking.carName,
+          booking.carPlate ?? "",
+          booking.carExternalRef ?? "",
           booking.channel,
           booking.segment,
           booking.tags?.join(" ") ?? "",

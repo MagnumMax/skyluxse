@@ -1181,6 +1181,7 @@ function mapBookingRow(
     carId: row.vehicle_id ?? row.id,
     carName: vehicle?.name ?? "Unassigned vehicle",
     carPlate: vehicle?.plate_number ?? undefined,
+    carExternalRef: vehicle?.external_ref ?? undefined,
     startDate: start,
     endDate: end,
     startTime: start,
