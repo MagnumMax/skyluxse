@@ -20,8 +20,8 @@ async function main() {
     const { count: staffCount } = await serviceClient.from("staff_accounts").select("*", { count: "exact", head: true })
     console.log("Staff Count:", staffCount)
 
-    const { data: firstBooking } = await serviceClient.from("bookings").select("owner_id").not("owner_id", "is", null).limit(1)
-    console.log("Sample Booking Owner ID:", firstBooking?.[0]?.owner_id)
+    const { data: firstBooking } = await serviceClient.from("bookings").select("*").limit(1)
+    console.log("Sample Booking:", firstBooking?.[0])
 }
 
 main()

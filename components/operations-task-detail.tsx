@@ -6,11 +6,12 @@ import { DashboardHeaderSlot } from "@/components/dashboard-header-context"
 import { OperationsTaskCard } from "@/components/operations-task-card"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { ParameterList, type ParameterListItem } from "@/components/parameter-list"
 import { AdditionalService, TaskAdditionalService } from "@/lib/domain/additional-services"
 import { ServiceSelector } from "@/components/service-selector"
 
-export function OperationsTaskDetail({ task, additionalServices, availableServices }: { task: OperationsTask; additionalServices?: TaskAdditionalService[]; availableServices?: AdditionalService[] }) {
+export function OperationsTaskDetail({ task, additionalServices, availableServices, handoverPhotos }: { task: OperationsTask; additionalServices?: TaskAdditionalService[]; availableServices?: AdditionalService[], handoverPhotos?: string[] }) {
   const priorityMeta = BOOKING_PRIORITIES[task.priority.toLowerCase() as keyof typeof BOOKING_PRIORITIES] ?? {
     label: task.priority,
     className: "bg-slate-200 text-slate-700",
@@ -43,6 +44,28 @@ export function OperationsTaskDetail({ task, additionalServices, availableServic
         initialServices={additionalServices ?? []} 
         availableServices={availableServices ?? []} 
       />
+
+      {handoverPhotos && handoverPhotos.length > 0 ? (
+        <Accordion type="single" collapsible className="rounded-[26px] border border-border/70 bg-card/80 px-6">
+          <AccordionItem value="handover-photos" className="border-none">
+            <AccordionTrigger className="hover:no-underline py-6">
+               <span className="text-sm uppercase tracking-[0.35em] text-muted-foreground">Handover Photos</span>
+            </AccordionTrigger>
+            <AccordionContent>
+                <div className="grid gap-2 sm:grid-cols-2 pb-6">
+                    {handoverPhotos.map((image) => (
+                    <div key={image} className="overflow-hidden rounded-2xl border border-border/60 bg-muted/50">
+                        <a href={image} target="_blank" rel="noreferrer">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={image} alt="Handover" className="h-32 w-full object-cover" />
+                        </a>
+                    </div>
+                    ))}
+                </div>
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
+      ) : null}
 
       <Card className="rounded-[28px] border-border/70 bg-card/80">
         <CardHeader>

@@ -2,9 +2,10 @@ import { notFound } from "next/navigation"
 
 import { DriverPageShell } from "@/components/driver-page-shell"
 import { DriverTaskDetail } from "@/components/driver-task-detail"
-import { getDriverTaskById } from "@/lib/data/tasks"
+import { getDriverTaskById, getDriverTasks } from "@/lib/data/tasks"
 import { getLiveClientByIdFromDb } from "@/lib/data/live-data"
 import { getAdditionalServices, getTaskServices } from "@/app/actions/additional-services"
+import { createSignedUrl } from "@/lib/storage/signed-url"
 
 type PageProps = { params: Promise<{ taskId: string }> }
 
@@ -38,6 +39,21 @@ export default async function DriverTaskDetailPage({ params }: PageProps) {
     return undefined
   })()
 
+  let handoverPhotos: string[] = []
+  if (task.type === "pickup" && task.bookingId) {
+    const allTasks = await getDriverTasks()
+    const deliveryTask = allTasks.find(t => t.bookingId === task.bookingId && t.type === "delivery")
+    if (deliveryTask?.inputValues) {
+      const photosInput = deliveryTask.inputValues.find(v => v.key === "handover_photos")
+      if (photosInput?.storagePaths?.length && photosInput.bucket) {
+        const urls = await Promise.all(
+          photosInput.storagePaths.map(path => createSignedUrl(photosInput.bucket, path))
+        )
+        handoverPhotos = urls.filter((url): url is string => !!url)
+      }
+    }
+  }
+
   return (
     <DriverPageShell>
       <DriverTaskDetail 
@@ -46,6 +62,7 @@ export default async function DriverTaskDetailPage({ params }: PageProps) {
         additionalServices={additionalServices}
         availableServices={availableServices}
         kommoLeadUrl={kommoLeadUrl}
+        handoverPhotos={handoverPhotos}
       />
     </DriverPageShell>
   )

@@ -10,6 +10,7 @@ import { ServiceSelector } from "@/components/service-selector"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import type { Client, Task } from "@/lib/domain/entities"
 import { AdditionalService, TaskAdditionalService } from "@/lib/domain/additional-services"
 import { supabaseBrowser } from "@/lib/supabase/browser-client"
@@ -114,12 +115,14 @@ export function DriverTaskDetail({
   additionalServices,
   availableServices,
   kommoLeadUrl: kommoLeadUrlProp,
+  handoverPhotos,
 }: { 
   task: Task
   client?: Client
   additionalServices?: TaskAdditionalService[]
   availableServices?: AdditionalService[]
   kommoLeadUrl?: string
+  handoverPhotos?: string[]
 }) {
   const [status, setStatus] = useState<Task["status"]>(task.status)
   const [isOnline, setIsOnline] = useState<boolean>(typeof window === "undefined" ? true : navigator.onLine)
@@ -429,6 +432,28 @@ export function DriverTaskDetail({
         availableServices={availableServices ?? []} 
         variant="driver"
       />
+
+      {handoverPhotos && handoverPhotos.length > 0 ? (
+        <Accordion type="single" collapsible className="rounded-3xl border border-white/15 bg-white/5 px-6">
+          <AccordionItem value="handover-photos" className="border-none">
+            <AccordionTrigger className="hover:no-underline py-6">
+               <span className="text-sm font-semibold uppercase tracking-[0.35em] text-white/60">Handover Photos</span>
+            </AccordionTrigger>
+            <AccordionContent>
+                <div className="grid gap-2 sm:grid-cols-2 pb-6">
+                    {handoverPhotos.map((image) => (
+                    <div key={image} className="overflow-hidden rounded-2xl border border-white/10 bg-black/20">
+                        <a href={image} target="_blank" rel="noreferrer">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={image} alt="Handover" className="h-32 w-full object-cover" />
+                        </a>
+                    </div>
+                    ))}
+                </div>
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
+      ) : null}
 
       <Card className="rounded-3xl border border-white/15 bg-white/5 text-white shadow-lg">
         <CardHeader className="pb-2">
