@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import type { Task } from "@/lib/domain/entities"
 import { cn } from "@/lib/utils"
-import { ArrowDownToLine, CheckCircle2, Hourglass, Loader2, User } from "lucide-react"
+import { ArrowDownToLine, CheckCircle2, Hourglass, Loader2, User, MapPin } from "lucide-react"
 import { formatDateTime } from "@/lib/formatters"
 
 export const taskTypeLabels: Record<Task["type"], string> = {
@@ -37,6 +37,8 @@ type DriverTaskCardProps = PropsWithChildren<{
   showEta?: boolean
   showStatus?: boolean
   showLocationHeader?: boolean
+  showClient?: boolean
+  mapUrl?: string
 }>
 
 export function DriverTaskCard({
@@ -46,6 +48,8 @@ export function DriverTaskCard({
   showEta = true,
   showStatus = true,
   showLocationHeader = true,
+  showClient = true,
+  mapUrl,
   children,
 }: DriverTaskCardProps) {
   const router = useRouter()
@@ -126,12 +130,6 @@ export function DriverTaskCard({
           </Badge>
           <CardTitle className="text-xl text-white sm:text-2xl">{task.vehicleName ?? task.title}</CardTitle>
         </div>
-        {task.clientName ? (
-          <div className="flex items-center gap-1.5 text-sm font-medium text-white/90">
-            <User className="h-4 w-4 text-white/70" />
-            <span>{task.clientName}</span>
-          </div>
-        ) : null}
         {showLocationHeader
           ? (() => {
               if (!task.geo) return null
@@ -148,11 +146,29 @@ export function DriverTaskCard({
               }
               return text ? (
                 <CardDescription className="truncate text-base text-white/80 sm:text-sm sm:whitespace-normal sm:overflow-visible">
-                  {text}
+                  {!clickable && mapUrl ? (
+                    <a
+                      href={mapUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 hover:underline hover:text-white"
+                    >
+                      <MapPin className="h-4 w-4" />
+                      {text}
+                    </a>
+                  ) : (
+                    text
+                  )}
                 </CardDescription>
               ) : null
             })()
           : null}
+        {showClient && task.clientName ? (
+          <div className="flex items-center gap-1.5 text-sm font-medium text-white/90">
+            <User className="h-4 w-4 text-white/70" />
+            <span>{task.clientName}</span>
+          </div>
+        ) : null}
       </CardHeader>
       <CardContent className="text-sm text-white/75">
         {children ? <div className="w-full pt-1 text-white">{children}</div> : null}

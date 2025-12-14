@@ -19,6 +19,25 @@ export default async function DriverTaskDetailPage({ params }: PageProps) {
     getAdditionalServices().catch(() => [])
   ])
 
+  const kommoLeadUrl = (() => {
+    const baseUrl = process.env.KOMMO_BASE_URL
+    const bookingCode = task.bookingCode
+    if (!bookingCode || !baseUrl) return undefined
+    if (bookingCode.startsWith("K-")) {
+      const leadId = bookingCode.slice(2)
+      if (!leadId) return undefined
+      try {
+        const base = new URL(baseUrl)
+        const normalizedPath = base.pathname.endsWith("/") ? base.pathname.slice(0, -1) : base.pathname
+        base.pathname = `${normalizedPath}/leads/detail/${leadId}`
+        return base.toString()
+      } catch {
+        return undefined
+      }
+    }
+    return undefined
+  })()
+
   return (
     <DriverPageShell>
       <DriverTaskDetail 
@@ -26,6 +45,7 @@ export default async function DriverTaskDetailPage({ params }: PageProps) {
         client={client ?? undefined} 
         additionalServices={additionalServices}
         availableServices={availableServices}
+        kommoLeadUrl={kommoLeadUrl}
       />
     </DriverPageShell>
   )

@@ -64,7 +64,7 @@ const SignUrlSchema = z.object({
 async function getTaskMetadata(taskId: string) {
   const { data, error } = await serviceClient
     .from("tasks")
-    .select("metadata, status, task_required_input_values(key, value_number, storage_paths, bucket)")
+    .select("metadata, status, task_type, task_required_input_values(key, value_number, storage_paths, bucket)")
     .eq("id", taskId)
     .single()
 
@@ -80,7 +80,7 @@ async function getTaskMetadata(taskId: string) {
       const key = String(row?.key ?? "")
       return key === "odometer" || key.startsWith("odo_")
     })?.value_number ?? undefined
-  return { requiredInputs, metadata, status: (data?.status as ActionResult["status"]) ?? "todo", previousOdometer }
+  return { requiredInputs, metadata, status: (data?.status as ActionResult["status"]) ?? "todo", previousOdometer, taskType: data.task_type }
 }
 
 export async function completeTask(input: z.infer<typeof CompleteTaskSchema>): Promise<ActionResult> {
@@ -165,12 +165,15 @@ export async function submitTaskInputs(formData: FormData): Promise<ActionResult
     return { success: false, message }
   }
 
-  const { taskId, odometer, fuel, notes, agreementNumber, paymentCollected } = submission.data
-  const photoFiles = formData.getAll("photos").filter((item): item is File => item instanceof File && item.size > 0)
-  const damagePhotos = formData.getAll("damage_photos").filter((item): item is File => item instanceof File && item.size > 0)
+  const { taskId, odometer, fuel, notes, agreementNumber, paymentCollected, cleaning } = submission.data
 
   try {
-    const { requiredInputs, previousOdometer } = await getTaskMetadata(taskId)
+    const { requiredInputs, previousOdometer, taskType } = await getTaskMetadata(taskId)
+    
+    if (taskType === "delivery" && !agreementNumber) {
+      return { success: false, message: "Agreement Number is required for Delivery tasks" }
+    }
+
     const filteredInputs = filterSignatureInputs(requiredInputs)
     if (odometer !== undefined && previousOdometer !== undefined && odometer < previousOdometer) {
       return { success: false, message: `Пробег не может быть меньше ${previousOdometer}` }
@@ -202,6 +205,9 @@ export async function submitTaskInputs(formData: FormData): Promise<ActionResult
     if (paymentCollected !== undefined) {
       rows.push({ task_id: taskId, key: "payment_collected", value_number: paymentCollected })
     }
+    if (cleaning !== undefined) {
+      rows.push({ task_id: taskId, key: "cleaning_needed", value_text: String(cleaning) })
+    }
 
     const bucket = "task-media"
 
@@ -218,8 +224,28 @@ export async function submitTaskInputs(formData: FormData): Promise<ActionResult
       rows.push({ task_id: taskId, key, storage_paths: paths, bucket })
     }
 
-    await uploadFiles(photoFiles, photoKey(filteredInputs))
-    await uploadFiles(damagePhotos, "damage_photos")
+    const fileInputs = filteredInputs.filter((i: any) => i.type === "file")
+    for (const input of fileInputs) {
+      const key = input.key
+      const files = formData.getAll(key).filter((item): item is File => item instanceof File && item.size > 0)
+      await uploadFiles(files, key)
+    }
+
+    // Fallback for legacy "photos" and "damage_photos" if they are not in metadata but sent?
+    // Or if metadata has "photos" key but UI sent it as "photos".
+    // The loop above covers it if "photos" is in metadata.
+    // If "damage_photos" is in metadata, it covers it.
+    
+    // We should double check if we need to explicitly handle "damage_photos" if it was hardcoded in UI but not in metadata?
+    // But if it's not in metadata, how would the UI render it? 
+    // The UI renders based on metadata. So it must be in metadata.
+    
+    // However, previously `uploadFiles(photoFiles, photoKey(filteredInputs))` used `photoKey` helper.
+    // `photoKey` looks for "photo" in key.
+    // If metadata has `key: "vehicle_photos"`, `photoKey` finds it.
+    // Loop above finds `key: "vehicle_photos"`. `formData.getAll("vehicle_photos")`.
+    // My UI change will send `name="vehicle_photos"`.
+    // So this aligns.
 
     if (rows.length) {
       const { error } = await serviceClient

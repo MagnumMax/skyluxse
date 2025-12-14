@@ -73,7 +73,7 @@ export function DashboardHeader({ navGroups, className, hideBrandOnMobile }: Das
         <span
           className={cn(
             "text-[0.65rem] font-semibold uppercase tracking-[0.34em] text-slate-400",
-            hideBrandOnMobile && "hidden sm:inline"
+            hideBrandOnMobile && "hidden md:inline"
           )}
         >
           SkyLuxse ERP

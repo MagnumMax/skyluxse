@@ -14,7 +14,7 @@ import type { Client, Task } from "@/lib/domain/entities"
 import { AdditionalService, TaskAdditionalService } from "@/lib/domain/additional-services"
 import { supabaseBrowser } from "@/lib/supabase/browser-client"
 import { formatDate } from "@/lib/formatters"
-import { AlertTriangle, MapPin } from "lucide-react"
+import { AlertTriangle, MapPin, User } from "lucide-react"
 
 import { taskTypeLabels } from "./driver-task-card"
 
@@ -112,27 +112,47 @@ export function DriverTaskDetail({
   task, 
   client,
   additionalServices,
-  availableServices 
+  availableServices,
+  kommoLeadUrl: kommoLeadUrlProp,
 }: { 
   task: Task
   client?: Client
   additionalServices?: TaskAdditionalService[]
   availableServices?: AdditionalService[]
+  kommoLeadUrl?: string
 }) {
   const [status, setStatus] = useState<Task["status"]>(task.status)
   const [isOnline, setIsOnline] = useState<boolean>(typeof window === "undefined" ? true : navigator.onLine)
   const [nowTs] = useState(() => Date.now())
-  const previousOdometer =
-    task.inputValues?.find((value) => value.key === "odometer" || value.key.startsWith("odo_"))?.valueNumber ??
-    task.lastVehicleOdometer ??
-    undefined
+
+  // Compute initial values from saved task input values
+  const initialValues = useMemo(() => {
+    const values: Record<string, any> = {}
+    task.inputValues?.forEach((iv) => {
+      if (iv.key === "agreement_number") values.agreementNumber = iv.valueText
+      else if (iv.key === "damage_notes") values.damage_notes = iv.valueText
+      else if (iv.key === "odometer" || iv.key.startsWith("odo_")) values.odometer = iv.valueNumber
+      else if (iv.key === "fuel_level" || iv.key.startsWith("fuel_")) values.fuel = iv.valueNumber
+      else if (iv.key === "cleaning_needed") values.cleaning = iv.valueText
+      else if (iv.key === "payment_collected") values.paymentCollected = iv.valueNumber
+      // Add other fields if needed
+    })
+    return values
+  }, [task.inputValues])
+
+  const lastOdometer = task.lastVehicleOdometer ?? undefined
+  
+  // previousOdometer prop logic was: saved ?? last. 
+  // We keep it for backward compatibility if needed, but we prefer specific props now.
+  const previousOdometer = initialValues.odometer ?? lastOdometer
+
   const previousFuel =
     task.inputValues?.find((value) => value.key === "fuel_level" || value.key.startsWith("fuel_"))?.valueNumber ??
     task.lastVehicleFuel ??
     undefined
   const existingPhotos =
     task.inputValues
-      ?.filter((value) => value.storagePaths?.length && value.key.toLowerCase().includes("photo"))
+      ?.filter((value) => value.storagePaths?.length)
       .flatMap((value) =>
         (value.storagePaths ?? []).map((path) => ({
           path,
@@ -146,7 +166,7 @@ export function DriverTaskDetail({
   const mapUrl = buildMapsUrl(task.type, task.geo)
   const phoneDigits = normalizePhone(client?.phone ?? task.clientPhone)
   const whatsappUrl = phoneDigits ? `https://wa.me/${phoneDigits}?text=${encodeURIComponent(buildWhatsAppText(task))}` : undefined
-  const kommoLeadUrl = buildKommoLeadUrl(task.bookingCode)
+  const kommoLeadUrl = kommoLeadUrlProp ?? buildKommoLeadUrl(task.bookingCode)
 
   useEffect(() => {
     function onOnline() {
@@ -179,8 +199,15 @@ export function DriverTaskDetail({
         <Link href="/driver/tasks">← Back to list</Link>
       </Button>
 
-      <DriverTaskCard task={taskWithLiveStatus} clickable={false} showEta={false} showLocationHeader={false}>
+      <DriverTaskCard task={taskWithLiveStatus} clickable={false} showEta={false} showClient={false} mapUrl={mapUrl ?? undefined}>
         <div className="flex flex-col gap-2 text-sm text-white/80">
+          {task.clientName ? (
+            <div className="flex items-center gap-1.5 text-sm font-medium text-white/90">
+              <User className="h-4 w-4 text-white/70" />
+              <span>{task.clientName}</span>
+            </div>
+          ) : null}
+
           {details.length ? (
             <dl className="grid grid-cols-2 gap-3 text-sm text-white/70 sm:grid-cols-3">
               {details.map((item) => (
@@ -191,38 +218,7 @@ export function DriverTaskDetail({
               ))}
             </dl>
           ) : null}
-          {task.geo ? (
-            (() => {
-              const text = (() => {
-                if (task.type === "delivery") return task.geo.dropoff ?? ""
-                if (task.type === "pickup") return task.geo.pickup ?? ""
-                return task.geo.pickup && task.geo.dropoff
-                  ? `${task.geo.pickup} → ${task.geo.dropoff}`
-                  : task.geo.pickup || task.geo.dropoff || ""
-              })()
-              if (!text) return null
-              return (
-                <div className="text-sm text-white/80">
-                  {mapUrl ? (
-                    <a
-                      href={mapUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 hover:underline"
-                    >
-                      <MapPin className="h-4 w-4" />
-                      {text}
-                    </a>
-                  ) : (
-                    <span className="inline-flex items-center gap-1">
-                      <MapPin className="h-4 w-4" />
-                      {text}
-                    </span>
-                  )}
-                </div>
-              )
-            })()
-          ) : null}
+
           <div className="flex w-full items-center justify-between gap-2">
             <div className="flex flex-wrap items-center gap-2">
               <Badge
@@ -447,6 +443,9 @@ export function DriverTaskDetail({
             photos={existingPhotos}
             isDone={isDone}
             onCompleted={(nextStatus) => setStatus(nextStatus)}
+            taskType={task.type}
+            initialValues={initialValues}
+            lastOdometer={lastOdometer}
           />
         </CardContent>
       </Card>
@@ -462,31 +461,52 @@ type DriverTaskInputsProps = {
   photos?: { path: string; bucket?: string; key?: string }[]
   isDone?: boolean
   onCompleted?: (status: Task["status"]) => void
+  taskType?: Task["type"]
+  initialValues?: Record<string, any>
+  lastOdometer?: number
 }
 
 function DriverTaskInputs({
   taskId,
   inputs,
-  previousOdometer,
+  previousOdometer, // This prop is now considered "last known odometer" if not found in initialValues, or we can use separate props
   previousFuel,
   photos = [],
   isDone = false,
   onCompleted,
+  taskType,
+  initialValues = {},
+  lastOdometer,
 }: DriverTaskInputsProps) {
   const [message, setMessage] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
   const [isDeleting, startDeleteTransition] = useTransition()
-  const [fuelLevel, setFuelLevel] = useState<number>(() => parseFuelFraction(previousFuel) ?? 8)
-  const [odometerValue, setOdometerValue] = useState<number | undefined>(undefined)
+  
+  // Initialize fuel from saved value or previous value
+  const [fuelLevel, setFuelLevel] = useState<number>(() => {
+    if (initialValues.fuel !== undefined) return initialValues.fuel
+    return parseFuelFraction(previousFuel) ?? 8
+  })
+
+  // Initialize odometer from saved value
+  const [odometerValue, setOdometerValue] = useState<number | undefined>(initialValues.odometer)
+  
   const [existingPhotos, setExistingPhotos] = useState(photos)
   const [displayPhotos, setDisplayPhotos] = useState<Array<{ path: string; bucket?: string; url?: string; key?: string }>>(photos)
   const [deletePending, setDeletePending] = useState<string | null>(null)
-  const [localFiles, setLocalFiles] = useState<Array<{ id: string; url: string; file: File; name: string; kind: "photos" | "damage" }>>([])
+  const [localFiles, setLocalFiles] = useState<
+    Array<{ id: string; url: string; file: File; name: string; kind: string }>
+  >([])
   const [fileInputResetKey, setFileInputResetKey] = useState(0)
   const localFilesRef = useRef(localFiles)
   const fieldCardBase = "rounded-2xl border border-white/15 bg-slate-950/40 px-4 py-3 shadow-sm"
   const returnPhotosCardClass = "rounded-2xl border border-white/15 bg-white/5 px-4 py-3 space-y-3"
   const labelClass = "text-sm font-semibold text-white/90"
+
+  // Sync existingPhotos with photos prop when it changes (revalidation)
+  useEffect(() => {
+    setExistingPhotos(photos)
+  }, [photos])
 
   const normalizedInputs: DriverInput[] = useMemo(() => {
     const filtered = (inputs ?? []).filter(
@@ -508,6 +528,14 @@ function DriverTaskInputs({
     setMessage(null)
     startTransition(async () => {
       formData.set("taskId", taskId)
+      
+      // Clear file inputs from formData to prevent duplicates (as we append localFiles manually)
+      normalizedInputs.forEach((input) => {
+        if (input.type === "file") {
+          formData.delete(input.key)
+        }
+      })
+      
       formData.delete("photos")
       formData.delete("damage_photos")
       localFiles.forEach((item) => {
@@ -518,11 +546,8 @@ function DriverTaskInputs({
         setMessage(saveResult.message ?? "Failed to save data")
         return
       }
-      const completeResult = await completeTask({ taskId })
-      if (!completeResult.success) {
-        setMessage(completeResult.message ?? "Data saved, but failed to complete task")
-        return
-      }
+      
+      // Move state updates here to prevent duplicate uploads if completeTask fails
       {
         const appended = (saveResult.paths ?? []).map(({ path, bucket, key }) => ({ path, bucket, key }))
         if (appended.length) {
@@ -534,6 +559,13 @@ function DriverTaskInputs({
         return []
       })
       setFileInputResetKey((prev) => prev + 1)
+
+      const completeResult = await completeTask({ taskId })
+      if (!completeResult.success) {
+        setMessage(completeResult.message ?? "Data saved, but failed to complete task")
+        return
+      }
+      
       onCompleted?.("done")
       setMessage("Task completed")
   })
@@ -627,25 +659,24 @@ function DriverTaskInputs({
       <input type="hidden" name="taskId" value={taskId} />
       <div className="space-y-6">
         {normalizedInputs.map((input) => {
-          const labelText = adjustOdometerLabel(input.label, previousOdometer, input.key)
+          const labelText = adjustOdometerLabel(input.label, lastOdometer, input.key)
           const fuelLabel = adjustFuelLabel(input.label, input.key)
-          const kind: "photos" | "damage" = isDamageKey(input.key) ? "damage" : "photos"
-          const hasPhotos =
-            (kind === "damage"
-              ? displayPhotos.some((p) => isDamageKey(p.key ?? "")) || localFiles.some((f) => f.kind === "damage")
-              : displayPhotos.some((p) => !isDamageKey(p.key ?? "")) || localFiles.some((f) => f.kind === "photos")
-            )
+          const isDamage = isDamageKey(input.key)
+          const localFileKind = isDamage ? "damage" : input.key
+          const hasPhotos = isDamage
+            ? displayPhotos.some((p) => isDamageKey(p.key ?? "")) || localFiles.some((f) => f.kind === "damage")
+            : displayPhotos.some((p) => p.key === input.key) || localFiles.some((f) => f.kind === input.key)
           const isOdometer = isOdometerKey(input.key)
           const isFuel = isFuelKey(input.key)
           const delta =
-            isOdometer && previousOdometer !== undefined && odometerValue !== undefined
-              ? formatOdometerDelta(odometerValue, previousOdometer)
+            isOdometer && lastOdometer !== undefined && odometerValue !== undefined
+              ? formatOdometerDelta(odometerValue, lastOdometer)
               : isFuel && previousFuel !== undefined
                   ? formatFuelDelta(fuelLevel, previousFuel)
                   : null
           const isOdometerField = input.type === "number" && isOdometer
           const isNotesField = input.type === "text" && input.key === "damage_notes"
-          const isReturnPhotos = input.type === "file" && kind === "photos"
+          const isReturnPhotos = input.type === "file" && !isDamage
           const shouldWrapWithCard = !isOdometerField && !isNotesField && !isReturnPhotos
           const fieldLabel = fuelLabel ?? labelText
           const renderFieldContent = () => {
@@ -656,13 +687,14 @@ function DriverTaskInputs({
                   type="number"
                   inputMode="numeric"
                   required={input.required}
-                  min={previousOdometer ?? 0}
+                  min={lastOdometer ?? 0}
                   className="w-full rounded-2xl border border-white/20 bg-white/10 px-3 py-2 text-white placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-white/60"
                   placeholder={
-                    previousOdometer !== undefined
-                      ? `Last value: ${previousOdometer}`
+                    lastOdometer !== undefined
+                      ? `Last value: ${lastOdometer}`
                       : "For example, 25000"
                   }
+                  value={odometerValue ?? ""}
                   disabled={isDone}
                   onChange={(e) => {
                     const value = e.target.value
@@ -710,6 +742,7 @@ function DriverTaskInputs({
                   required={input.required}
                   className="w-full rounded-2xl border border-white/20 bg-white/10 px-3 py-2 text-white placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-white/60"
                   disabled={isDone}
+                  defaultValue={initialValues.cleaning}
                 >
                   <option value="">Select</option>
                   {(input.options ?? ["Full", "3/4", "1/2", "1/4", "Empty"]).map((opt) => (
@@ -729,19 +762,26 @@ function DriverTaskInputs({
                   rows={3}
                   placeholder="Add a comment"
                   disabled={isDone}
+                  defaultValue={initialValues.damage_notes ?? initialValues.notes}
                 />
               )
             }
             if (input.type === "file") {
-              const galleryOptions =
-                kind === "damage"
-                  ? {}
-                  : { frame: "inline" as const, hideTitle: true }
+              const galleryOptions = isDamage
+                ? {}
+                : { frame: "inline" as const, hideTitle: true }
+              const currentDisplayPhotos = isDamage
+                ? displayPhotos.filter((p) => isDamageKey(p.key ?? ""))
+                : displayPhotos.filter((p) => p.key === input.key)
+              const currentLocalFiles = isDamage
+                ? localFiles.filter((f) => f.kind === "damage")
+                : localFiles.filter((f) => f.kind === input.key)
+
               return (
                 <>
                   <input
                     key={`${input.key}-${fileInputResetKey}`}
-                    name={input.key.includes("damage") ? "damage_photos" : "photos"}
+                    name={input.key}
                     type="file"
                     multiple={input.multiple}
                     accept={input.accept}
@@ -751,22 +791,20 @@ function DriverTaskInputs({
                     onChange={(event) => {
                       const files = event.target.files
                       if (!files) return
-                      const inputName = input.key.includes("damage") ? "damage_photos" : "photos"
-                      const kind: "photos" | "damage" = input.key.includes("damage") ? "damage" : "photos"
                       const previews = Array.from(files).map((file, idx) => ({
-                        id: `${inputName}-${Date.now()}-${idx}`,
+                        id: `${input.key}-${Date.now()}-${idx}`,
                         url: URL.createObjectURL(file),
                         file,
-                        name: inputName,
-                        kind,
+                        name: input.key,
+                        kind: localFileKind,
                       }))
                       setLocalFiles((prev) => [...prev, ...previews])
                     }}
                   />
                   {renderGallerySection(
                     input.label,
-                    displayPhotos.filter((p) => (kind === "damage" ? isDamageKey(p.key ?? "") : !isDamageKey(p.key ?? ""))),
-                    localFiles.filter((f) => f.kind === kind),
+                    currentDisplayPhotos,
+                    currentLocalFiles,
                     {
                       isDone,
                       isDeleting,
@@ -784,17 +822,22 @@ function DriverTaskInputs({
           }
           return (
             <div key={input.key} className="space-y-4">
-              {input.type === "text" && input.key === "damage_notes" ? (
+              {input.type === "text" && input.key === "damage_notes" && taskType === "delivery" ? (
                 <>
                   <div className="flex items-center justify-between">
-                    <span className={labelClass}>Agreement Number</span>
+                    <span className={labelClass}>
+                      Agreement Number
+                      <span className="text-rose-200"> *</span>
+                    </span>
                   </div>
                   <input
                     name="agreementNumber"
                     type="text"
+                    required
                     className="w-full rounded-2xl border border-white/20 bg-white/10 px-3 py-2 text-white placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-white/60"
                     placeholder="Enter agreement number"
                     disabled={isDone}
+                    defaultValue={initialValues.agreementNumber}
                   />
                 </>
               ) : null}
@@ -909,7 +952,7 @@ function toPublicStorageUrl(bucket: string, path: string) {
 function renderGallerySection(
   title: string,
   stored: Array<{ path: string; bucket?: string; url?: string; key?: string }>,
-  local: Array<{ id: string; url: string; kind: "photos" | "damage"; name?: string }>,
+  local: Array<{ id: string; url: string; kind: string; name?: string }>,
   opts: {
     isDone: boolean
     isDeleting: boolean
