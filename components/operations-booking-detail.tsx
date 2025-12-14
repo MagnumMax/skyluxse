@@ -1,7 +1,7 @@
 import type { ReactNode } from "react"
 import Link from "next/link"
 
-import type { Booking, Client, Driver, VehicleMaintenanceEntry } from "@/lib/domain/entities"
+import type { Booking, Client, Driver, VehicleMaintenanceEntry, OperationsTask } from "@/lib/domain/entities"
 import { resolveBookingTotalWithVat } from "@/lib/pricing/booking-totals"
 import { getClientSegmentLabel } from "@/lib/constants/client-segments"
 import { cn } from "@/lib/utils"
@@ -15,6 +15,7 @@ import { ParameterList, type ParameterListItem } from "@/components/parameter-li
 import { CreateSalesOrderButton } from "@/components/zoho/create-sales-order-button"
 import { AdditionalService, BookingAdditionalService } from "@/lib/domain/additional-services"
 import { ServiceSelector } from "@/components/service-selector"
+import { BookingTaskList } from "@/components/booking-task-list"
 
 const currencyFormatter = new Intl.NumberFormat("en-CA", { style: "currency", currency: "AED", maximumFractionDigits: 0 })
 const dateFormatter = new Intl.DateTimeFormat("en-CA", { month: "short", day: "numeric" })
@@ -34,6 +35,7 @@ export function OperationsBookingDetail({
   returnFuel,
   additionalServices,
   availableServices,
+  tasks,
 }: {
   booking: Booking
   client?: Client
@@ -46,6 +48,7 @@ export function OperationsBookingDetail({
   returnFuel?: string
   additionalServices?: BookingAdditionalService[]
   availableServices?: AdditionalService[]
+  tasks?: OperationsTask[]
 }) {
   const advancePayment = resolveAdvancePayment(booking)
   const outstanding = computeOutstandingAmount(booking, advancePayment)
@@ -71,6 +74,8 @@ export function OperationsBookingDetail({
         availableServices={availableServices ?? []} 
       />
 
+      <BookingTasksSection tasks={tasks ?? []} />
+
       <BookingServiceConflicts booking={booking} services={services ?? []} />
 
       <BookingActivitySection booking={booking} />
@@ -82,6 +87,16 @@ export function OperationsBookingDetail({
       {variant === "sales" && client ? <SalesExtras booking={booking} client={client} /> : null}
       {variant === "exec" ? <ExecHighlights booking={booking} driver={driver} outstanding={outstanding} /> : null}
     </DashboardPageShell>
+  )
+}
+
+function BookingTasksSection({ tasks }: { tasks: OperationsTask[] }) {
+  if (!tasks.length) return null
+  return (
+    <section className="space-y-3">
+      <h2 className="text-lg font-semibold tracking-tight">Linked Tasks</h2>
+      <BookingTaskList tasks={tasks} />
+    </section>
   )
 }
 

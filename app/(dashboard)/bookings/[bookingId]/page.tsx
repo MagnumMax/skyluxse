@@ -29,7 +29,7 @@ export default async function BookingDetailPage({ params, searchParams }: PagePr
   if (!detail) {
     notFound()
   }
-  const { booking, client, driver, services, variant, pickupMiles, pickupFuel, returnMiles, returnFuel, additionalServices, availableServices } = detail
+  const { booking, client, driver, services, variant, pickupMiles, pickupFuel, returnMiles, returnFuel, additionalServices, availableServices, tasks } = detail
   return (
     <OperationsBookingDetail 
       booking={booking} 
@@ -43,6 +43,7 @@ export default async function BookingDetailPage({ params, searchParams }: PagePr
       returnFuel={returnFuel} 
       additionalServices={additionalServices}
       availableServices={availableServices}
+      tasks={tasks}
     />
   )
 }

@@ -28,6 +28,8 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
+import { cn } from "@/lib/utils"
+
 type ServiceLink = BookingAdditionalService | TaskAdditionalService
 
 interface ServiceSelectorProps {
@@ -35,12 +37,37 @@ interface ServiceSelectorProps {
   entityType: "booking" | "task"
   initialServices: ServiceLink[]
   availableServices: AdditionalService[]
+  variant?: "default" | "driver"
 }
 
-export function ServiceSelector({ entityId, entityType, initialServices, availableServices }: ServiceSelectorProps) {
+export function ServiceSelector({ entityId, entityType, initialServices, availableServices, variant = "default" }: ServiceSelectorProps) {
   const [services, setServices] = useState<ServiceLink[]>(initialServices)
   const [isOpen, setIsOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  
+  const isDriver = variant === "driver"
+  const cardClassName = isDriver 
+    ? "rounded-3xl border border-white/15 bg-white/5 text-white shadow-lg mt-0" 
+    : "mt-6"
+  const headerClassName = isDriver
+    ? "pb-2 border-b-0"
+    : "flex flex-row items-center justify-between py-4"
+  const titleClassName = isDriver
+    ? "text-sm font-semibold uppercase tracking-[0.35em] text-white/60"
+    : "text-base font-medium"
+  const contentClassName = isDriver ? "pt-4" : ""
+  const emptyTextClassName = isDriver ? "text-sm text-white/70" : "text-sm text-muted-foreground"
+  const itemBorderClassName = isDriver ? "border-white/10" : "border-border"
+  const itemTextClassName = isDriver ? "text-white/70" : "text-muted-foreground"
+  const itemTitleClassName = isDriver ? "font-semibold text-white" : "font-medium"
+  const badgeVariant = isDriver ? "outline" : "secondary"
+  const badgeClassName = isDriver ? "border-white/25 text-white" : ""
+  const actionButtonClassName = isDriver ? "text-white/70 hover:text-white hover:bg-white/10" : ""
+  const addButtonVariant = isDriver ? "outline" : "outline"
+  const addButtonClassName = isDriver 
+    ? "rounded-full border-white/25 bg-white/5 text-xs font-semibold text-white hover:border-white/40 hover:bg-white/10 h-7" 
+    : "size-sm"
+
   
   // New service form state
   const [selectedServiceId, setSelectedServiceId] = useState<string>("")
@@ -162,93 +189,95 @@ export function ServiceSelector({ entityId, entityType, initialServices, availab
   }
 
   return (
-    <Card className="mt-6">
-      <CardHeader className="flex flex-row items-center justify-between py-4">
-        <CardTitle className="text-base font-medium">Additional Services</CardTitle>
-        <Dialog open={isOpen} onOpenChange={(open) => { setIsOpen(open); if(!open) resetForm(); }}>
-          <DialogTrigger asChild>
-            <Button size="sm" variant="outline">
-              <Plus className="mr-2 h-4 w-4" /> Add
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>{editingId ? "Edit Service" : "Add Service"}</DialogTitle>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid gap-2">
-                <Label>Service</Label>
-                <Select value={selectedServiceId} onValueChange={handleServiceSelect} disabled={!!editingId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select service" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableServices.map((s) => (
-                      <SelectItem key={s.id} value={s.id}>
-                        {s.name} ({Number(s.default_price).toFixed(2)} AED)
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
+    <Card className={cardClassName}>
+      <CardHeader className={headerClassName}>
+        <div className="flex items-center justify-between w-full">
+            <CardTitle className={titleClassName}>Additional Services</CardTitle>
+            <Dialog open={isOpen} onOpenChange={(open) => { setIsOpen(open); if(!open) resetForm(); }}>
+            <DialogTrigger asChild>
+                <Button size={isDriver ? "sm" : "sm"} variant={addButtonVariant} className={addButtonClassName}>
+                <Plus className="mr-2 h-4 w-4" /> Add
+                </Button>
+            </DialogTrigger>
+            <DialogContent>
+                <DialogHeader>
+                <DialogTitle>{editingId ? "Edit Service" : "Add Service"}</DialogTitle>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
                 <div className="grid gap-2">
-                    <Label>Price (AED)</Label>
-                    <Input 
-                        type="number" 
-                        value={customPrice} 
-                        onChange={(e) => setCustomPrice(e.target.value)} 
-                    />
+                    <Label>Service</Label>
+                    <Select value={selectedServiceId} onValueChange={handleServiceSelect} disabled={!!editingId}>
+                    <SelectTrigger>
+                        <SelectValue placeholder="Select service" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {availableServices.map((s) => (
+                        <SelectItem key={s.id} value={s.id}>
+                            {s.name} ({Number(s.default_price).toFixed(2)} AED)
+                        </SelectItem>
+                        ))}
+                    </SelectContent>
+                    </Select>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                        <Label>Price (AED)</Label>
+                        <Input 
+                            type="number" 
+                            value={customPrice} 
+                            onChange={(e) => setCustomPrice(e.target.value)} 
+                        />
+                    </div>
+                    <div className="grid gap-2">
+                        <Label>Quantity</Label>
+                        <Input 
+                            type="number" 
+                            value={quantity} 
+                            onChange={(e) => setQuantity(e.target.value)} 
+                        />
+                    </div>
                 </div>
                 <div className="grid gap-2">
-                    <Label>Quantity</Label>
-                    <Input 
-                        type="number" 
-                        value={quantity} 
-                        onChange={(e) => setQuantity(e.target.value)} 
+                    <Label>Description (Optional override)</Label>
+                    <Textarea 
+                        value={customDescription} 
+                        onChange={(e) => setCustomDescription(e.target.value)} 
                     />
                 </div>
-              </div>
-              <div className="grid gap-2">
-                <Label>Description (Optional override)</Label>
-                <Textarea 
-                    value={customDescription} 
-                    onChange={(e) => setCustomDescription(e.target.value)} 
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button onClick={editingId ? handleUpdate : handleAdd} disabled={isLoading || !selectedServiceId}>
-                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {editingId ? "Save Changes" : "Add Service"}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+                </div>
+                <DialogFooter>
+                <Button onClick={editingId ? handleUpdate : handleAdd} disabled={isLoading || !selectedServiceId}>
+                    {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    {editingId ? "Save Changes" : "Add Service"}
+                </Button>
+                </DialogFooter>
+            </DialogContent>
+            </Dialog>
+        </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className={contentClassName}>
         {services.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No additional services added.</p>
+            <p className={emptyTextClassName}>No additional services added.</p>
         ) : (
             <div className="space-y-4">
                 {services.map((link) => (
-                    <div key={link.id} className="flex items-start justify-between border-b pb-4 last:border-0 last:pb-0">
+                    <div key={link.id} className={cn("flex items-start justify-between border-b pb-4 last:border-0 last:pb-0", itemBorderClassName)}>
                         <div className="space-y-1">
                             <div className="flex items-center gap-2">
-                                <span className="font-medium">{link.service?.name || "Unknown Service"}</span>
-                                <Badge variant="secondary">x{link.quantity}</Badge>
+                                <span className={itemTitleClassName}>{link.service?.name || "Unknown Service"}</span>
+                                <Badge variant={badgeVariant} className={badgeClassName}>x{link.quantity}</Badge>
                             </div>
-                            <p className="text-sm text-muted-foreground">{link.description || link.service?.description}</p>
+                            <p className={cn("text-sm", itemTextClassName)}>{link.description || link.service?.description}</p>
                         </div>
                         <div className="flex items-center gap-4">
-                            <span className="font-medium tabular-nums">
+                            <span className={cn("font-medium tabular-nums", isDriver ? "text-white" : "")}>
                                 {(Number(link.price) * link.quantity).toFixed(2)} AED
                             </span>
                             <div className="flex items-center gap-1">
-                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(link)}>
+                                <Button variant="ghost" size="icon" className={cn("h-8 w-8", actionButtonClassName)} onClick={() => openEdit(link)}>
                                     <Pencil className="h-4 w-4" />
                                 </Button>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDelete(link.id)}>
+                                <Button variant="ghost" size="icon" className={cn("h-8 w-8 text-destructive", actionButtonClassName, isDriver ? "text-rose-400 hover:text-rose-300" : "")} onClick={() => handleDelete(link.id)}>
                                     <X className="h-4 w-4" />
                                 </Button>
                             </div>

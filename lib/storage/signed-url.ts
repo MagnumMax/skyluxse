@@ -21,10 +21,20 @@ export async function createSignedUrl(bucket: MaybeString, path: MaybeString): P
       return fallbackPublicUrl(bucket, normalizedPath)
     }
     const signedUrl = data.signedUrl
-    if (signedUrl.startsWith("http") || !SUPABASE_PUBLIC_URL) {
+    if (signedUrl.startsWith("http")) {
       return signedUrl
     }
-    return `${SUPABASE_PUBLIC_URL}${signedUrl}`
+
+    // Fallback to service client URL if env var is missing
+    const baseUrl = SUPABASE_PUBLIC_URL || (serviceClient as any).supabaseUrl
+    if (baseUrl) {
+      // Ensure we don't double slash
+      const prefix = baseUrl.replace(/\/$/, "")
+      const suffix = signedUrl.startsWith("/") ? signedUrl : `/${signedUrl}`
+      return `${prefix}${suffix}`
+    }
+
+    return signedUrl
   } catch (error) {
     console.warn("[supabase] Unexpected error while signing URL", { bucket, path: normalizedPath, error })
     return fallbackPublicUrl(bucket, normalizedPath)

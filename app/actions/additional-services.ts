@@ -171,6 +171,7 @@ export async function addServiceToTask(taskId: string, serviceId: string, overri
 
     if (error) throw error
     revalidatePath(`/tasks/${taskId}`)
+    revalidatePath(`/driver/tasks/${taskId}`)
     
     // Sync with Zoho if task is linked to booking
     const { data: task } = await serviceClient
@@ -198,6 +199,7 @@ export async function updateTaskService(linkId: string, taskId: string, updates:
 
     if (error) throw error
     revalidatePath(`/tasks/${taskId}`)
+    revalidatePath(`/driver/tasks/${taskId}`)
     
     // Sync with Zoho if task is linked to booking
     const { data: task } = await serviceClient
@@ -223,6 +225,7 @@ export async function removeServiceFromTask(linkId: string, taskId: string) {
 
     if (error) throw error
     revalidatePath(`/tasks/${taskId}`)
+    revalidatePath(`/driver/tasks/${taskId}`)
     
     // Sync with Zoho if task is linked to booking
     const { data: task } = await serviceClient

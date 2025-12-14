@@ -1,4 +1,4 @@
-import type { Booking, Client, Driver, VehicleMaintenanceEntry } from "@/lib/domain/entities"
+import type { Booking, Client, Driver, VehicleMaintenanceEntry, OperationsTask } from "@/lib/domain/entities"
 import { resolveBookingViewVariant, type BookingViewVariant } from "@/lib/utils"
 import { getLiveBookingById, getLiveClientById, getLiveDrivers } from "./live-data"
 import { getVehicleServices } from "./fleet-data"
@@ -18,6 +18,7 @@ export type LoadedBookingDetail = {
   returnFuel: string
   additionalServices: BookingAdditionalService[]
   availableServices: AdditionalService[]
+  tasks: OperationsTask[]
 }
 
 export async function loadBookingDetail({
@@ -53,5 +54,6 @@ export async function loadBookingDetail({
     returnFuel: String(taskMetrics.returnFuel),
     additionalServices,
     availableServices,
+    tasks: taskMetrics.tasks,
   }
 }

@@ -29,6 +29,24 @@ async function main() {
         return
     }
 
+    // Fetch additional services
+    const { data: bookingServices } = await serviceClient
+        .from("booking_additional_services")
+        .select(`
+            service:additional_services ( name )
+        `)
+        .eq("booking_id", bookingId);
+
+    // Fetch tasks
+    const { data: taskServices } = await serviceClient
+        .from("tasks")
+        .select(`
+            services:task_additional_services (
+                service:additional_services ( name )
+            )
+        `)
+        .eq("booking_id", bookingId);
+
     console.log("Booking:", booking.external_code, booking.status)
 
     // 2. Import Zoho Libs (Dynamic import in node script)
@@ -149,8 +167,26 @@ Need help before paying? We’re here for you—Text us on whatsapp anytime!`;
         }).eq("id", bookingId)
 
         // Notification
+        // Collect service names for notification
+        const serviceNames: string[] = [];
+        if (bookingServices && bookingServices.length > 0) {
+            bookingServices.forEach((as: any) => {
+                if (as.service?.name) serviceNames.push(as.service.name);
+            });
+        }
+        if (taskServices && taskServices.length > 0) {
+            taskServices.forEach((task: any) => {
+                if (task.services && task.services.length > 0) {
+                    task.services.forEach((as: any) => {
+                        if (as.service?.name) serviceNames.push(`${as.service.name} (Task)`);
+                    });
+                }
+            });
+        }
+        const servicesText = serviceNames.length > 0 ? `\n<b>Services:</b> ${serviceNames.join(", ")}` : "";
+
         await sendNotification('telegram', {
-            message: `✅ <b>Sales Order Created (Manual)</b>\n\n<b>Booking:</b> ${booking.external_code}\n<b>Sales Order:</b> <a href="${salesOrderUrl}">Link</a>\n<b>Client:</b> ${client.name}\n<b>Auto:</b> ${booking.vehicles?.name || "N/A"}\n<b>Plate:</b> ${booking.vehicles?.plate_number || "N/A"}`
+            message: `✅ <b>Sales Order Created (Manual)</b>\n\n<b>Booking:</b> ${booking.external_code}\n<b>Sales Order:</b> <a href="${salesOrderUrl}">Link</a>\n<b>Client:</b> ${client.name}\n<b>Auto:</b> ${booking.vehicles?.name || "N/A"}\n<b>Plate:</b> ${booking.vehicles?.plate_number || "N/A"}${servicesText}`
         })
     }
 

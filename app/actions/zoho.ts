@@ -424,9 +424,27 @@ Need help before paying? We’re here for you—Text us on whatsapp anytime!`;
 
         revalidatePath(`/bookings/${bookingId}`); // Revalidate the specific booking page
 
+        // Collect service names for notification
+        const serviceNames: string[] = [];
+        if (bookingServices && bookingServices.length > 0) {
+            bookingServices.forEach((as: any) => {
+                if (as.service?.name) serviceNames.push(as.service.name);
+            });
+        }
+        if (taskServices && taskServices.length > 0) {
+            taskServices.forEach((task: any) => {
+                if (task.services && task.services.length > 0) {
+                    task.services.forEach((as: any) => {
+                        if (as.service?.name) serviceNames.push(`${as.service.name} (Task)`);
+                    });
+                }
+            });
+        }
+        const servicesText = serviceNames.length > 0 ? `\n<b>Services:</b> ${serviceNames.join(", ")}` : "";
+
         // 5. Send Notification (Success)
         await sendNotification('telegram', {
-            message: `✅ <b>Sales Order Created</b>\n\n<b>Booking:</b> ${booking.code}\n<b>Sales Order:</b> <a href="${salesOrderUrl}">Link</a>\n<b>Client:</b> ${client.name}\n<b>Auto:</b> ${booking.carName}\n<b>Plate:</b> ${booking.carPlate || "N/A"}`
+            message: `✅ <b>Sales Order Created</b>\n\n<b>Booking:</b> ${booking.code}\n<b>Sales Order:</b> <a href="${salesOrderUrl}">Link</a>\n<b>Client:</b> ${client.name}\n<b>Auto:</b> ${booking.carName}\n<b>Plate:</b> ${booking.carPlate || "N/A"}${servicesText}`
         }).catch(err => console.error("Failed to send success notification", err));
 
         return { success: true, data: { salesOrderId, salesOrderUrl } };
@@ -649,8 +667,26 @@ export async function updateSalesOrderForBooking(bookingId: string): Promise<{ s
             const orgId = await getOrganizationId();
             const salesOrderUrl = `https://books.zoho.com/app/${orgId}#/salesorders/${booking.zohoSalesOrderId}`;
             
+            // Collect service names for notification
+            const serviceNames: string[] = [];
+            if (bookingServices && bookingServices.length > 0) {
+                bookingServices.forEach((as: any) => {
+                    if (as.service?.name) serviceNames.push(as.service.name);
+                });
+            }
+            if (taskServices && taskServices.length > 0) {
+                taskServices.forEach((task: any) => {
+                    if (task.services && task.services.length > 0) {
+                        task.services.forEach((as: any) => {
+                            if (as.service?.name) serviceNames.push(`${as.service.name} (Task)`);
+                        });
+                    }
+                });
+            }
+            const servicesText = serviceNames.length > 0 ? `\n<b>Services:</b> ${serviceNames.join(", ")}` : "";
+
             await sendNotification('telegram', {
-                message: `🔄 <b>Sales Order Updated</b>\n\n<b>Booking:</b> ${booking.code}\n<b>Sales Order:</b> <a href="${salesOrderUrl}">Link</a>\n<b>Client:</b> ${booking.clientName}\n<b>Auto:</b> ${booking.carName}\n<b>Plate:</b> ${booking.carPlate || "N/A"}`
+                message: `🔄 <b>Sales Order Updated</b>\n\n<b>Booking:</b> ${booking.code}\n<b>Sales Order:</b> <a href="${salesOrderUrl}">Link</a>\n<b>Client:</b> ${booking.clientName}\n<b>Auto:</b> ${booking.carName}\n<b>Plate:</b> ${booking.carPlate || "N/A"}${servicesText}`
             }).catch(err => console.error("Failed to send update notification", err));
 
             revalidatePath(`/bookings/${bookingId}`);

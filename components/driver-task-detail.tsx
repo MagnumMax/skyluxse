@@ -6,10 +6,12 @@ import { useEffect, useMemo, useRef, useState, useTransition } from "react"
 
 import { completeTask, deleteTaskPhoto, signTaskPhotoUrl, submitTaskInputs } from "@/app/(driver)/driver/tasks/actions"
 import { DriverTaskCard } from "@/components/driver-task-card"
+import { ServiceSelector } from "@/components/service-selector"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import type { Client, Task } from "@/lib/domain/entities"
+import { AdditionalService, TaskAdditionalService } from "@/lib/domain/additional-services"
 import { supabaseBrowser } from "@/lib/supabase/browser-client"
 import { formatDate } from "@/lib/formatters"
 import { AlertTriangle, MapPin } from "lucide-react"
@@ -106,7 +108,17 @@ function buildKommoLeadUrl(bookingCode?: string): string | undefined {
   return undefined
 }
 
-export function DriverTaskDetail({ task, client }: { task: Task; client?: Client }) {
+export function DriverTaskDetail({ 
+  task, 
+  client,
+  additionalServices,
+  availableServices 
+}: { 
+  task: Task
+  client?: Client
+  additionalServices?: TaskAdditionalService[]
+  availableServices?: AdditionalService[]
+}) {
   const [status, setStatus] = useState<Task["status"]>(task.status)
   const [isOnline, setIsOnline] = useState<boolean>(typeof window === "undefined" ? true : navigator.onLine)
   const [nowTs] = useState(() => Date.now())
@@ -413,6 +425,14 @@ export function DriverTaskDetail({ task, client }: { task: Task; client?: Client
           </CardContent>
         </Card>
       ) : null}
+
+      <ServiceSelector 
+        entityId={String(task.id)} 
+        entityType="task" 
+        initialServices={additionalServices ?? []} 
+        availableServices={availableServices ?? []} 
+        variant="driver"
+      />
 
       <Card className="rounded-3xl border border-white/15 bg-white/5 text-white shadow-lg">
         <CardHeader className="pb-2">

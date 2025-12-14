@@ -26,6 +26,7 @@ type TaskRow = {
   created_at: string | null
   updated_at: string | null
   task_required_input_values: TaskInputValueRow[] | null
+  clients: { name: string | null }[] | null
 }
 
 type TaskInputValueRow = {
@@ -41,7 +42,7 @@ const fetchTaskRows = cache(async (): Promise<TaskRow[]> => {
   const { data, error } = await serviceClient
     .from("tasks")
     .select(
-      "id, title, task_type, status, deadline_at, booking_id, vehicle_id, client_id, assignee_driver_id, created_by, sla_minutes, metadata, created_at, updated_at, task_required_input_values(key, value_number, value_text, value_json, storage_paths, bucket)"
+      "id, title, task_type, status, deadline_at, booking_id, vehicle_id, client_id, assignee_driver_id, created_by, sla_minutes, metadata, created_at, updated_at, task_required_input_values(key, value_number, value_text, value_json, storage_paths, bucket), clients(name)"
     )
     .order("deadline_at", { ascending: true, nullsFirst: false })
   if (error) {
@@ -72,7 +73,7 @@ export const getDriverTasks = cache(async (): Promise<Task[]> => {
   const bookingsById = new Map(bookings.map((booking) => [String(booking.id), booking]))
   const odometerByVehicle = buildOdometerMap(rows)
   const fuelByVehicle = buildFuelMap(rows)
-  return rows.filter(isDriverTaskRow).map((row) => toBaseTask(row, { bookingsById, odometerByVehicle, fuelByVehicle }))
+  return rows.map((row) => toBaseTask(row, { bookingsById, odometerByVehicle, fuelByVehicle }))
 })
 
 export const getDriverTaskById = cache(async (taskId: string): Promise<Task | null> => {
@@ -80,9 +81,10 @@ export const getDriverTaskById = cache(async (taskId: string): Promise<Task | nu
   return tasks.find((task) => String(task.id) === taskId) ?? null
 })
 
-export const getTasksByBookingId = cache(async (bookingId: string): Promise<{ pickupMiles: number; pickupFuel: number; returnMiles: number; returnFuel: number }> => {
-  const rows = await fetchTaskRows()
+export const getTasksByBookingId = cache(async (bookingId: string): Promise<{ pickupMiles: number; pickupFuel: number; returnMiles: number; returnFuel: number; tasks: OperationsTask[] }> => {
+  const [rows, allTasks] = await Promise.all([fetchTaskRows(), getOperationsTasks()])
   const bookingTasks = rows.filter((row) => row.booking_id === bookingId)
+  const tasks = allTasks.filter((task) => String(task.bookingId) === bookingId)
 
   let pickupMaxOdo: number | undefined
   let pickupLatestFuel: { value: number; ts: number } | undefined
@@ -122,6 +124,7 @@ export const getTasksByBookingId = cache(async (bookingId: string): Promise<{ pi
     pickupFuel: pickupLatestFuel?.value ?? 0,
     returnMiles: returnMaxOdo ?? 0,
     returnFuel: returnLatestFuel?.value ?? 0,
+    tasks,
   }
 })
 
@@ -146,6 +149,7 @@ function toOperationsTask(
     requiredInputProgress: requiredInputProgress,
     lastUpdate: row.updated_at ?? row.created_at ?? new Date().toISOString(),
     channel: metadata.channel ?? "Manual",
+    createdAt: row.created_at ?? new Date().toISOString(),
   }
 }
 
@@ -188,7 +192,7 @@ function toBaseTask(
     bookingId: booking?.id ?? row.booking_id ?? undefined,
     bookingCode: booking?.code,
     clientId: booking?.clientId ?? row.client_id ?? undefined,
-    clientName: booking?.clientName,
+    clientName: booking?.clientName ?? row.clients?.[0]?.name ?? undefined,
     vehicleName: booking?.carName,
     vehiclePlate: booking?.carPlate ?? undefined,
     vehicleId: row.vehicle_id ?? undefined,

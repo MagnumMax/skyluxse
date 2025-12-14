@@ -310,6 +310,7 @@ export interface OperationsTask extends Task {
   }
   lastUpdate: string
   channel: string
+  createdAt: string
 }
 
 export type FleetCarStatus = "Available" | "In Rent" | "Maintenance" | "Reserved" | "Sold" | "Service Car"
