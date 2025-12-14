@@ -48,6 +48,10 @@ const SubmitInputsSchema = z.object({
     (value) => (value === null || value === undefined || value === "" ? undefined : value),
     z.coerce.number().nonnegative().optional()
   ),
+  cleaning: z.preprocess(
+    (value) => (value === null || value === undefined || value === "" ? undefined : value),
+    z.string().optional()
+  ),
 })
 
 const DeletePhotoSchema = z.object({
