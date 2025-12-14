@@ -72,12 +72,12 @@ export function DriverTaskCard({
   const card = (
     <Card className="rounded-3xl border border-white/15 bg-gradient-to-br from-white/10 via-white/5 to-transparent text-white shadow-lg transition hover:border-white/40">
       <CardHeader className="space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-2 text-xs tracking-[0.18em] text-white/70 sm:text-xs sm:uppercase sm:tracking-[0.3em] sm:text-white/60">
+        <div className="flex flex-wrap items-center justify-between gap-2 text-sm tracking-[0.18em] text-white/70 sm:text-xs sm:uppercase sm:tracking-[0.3em] sm:text-white/60">
           <div className="flex flex-wrap items-center gap-2">
             <span>{taskTypeLabels[task.type]}</span>
             <Badge
               variant="outline"
-              className="border-white/30 bg-white/10 px-2.5 py-1 text-xs font-semibold tracking-[0.18em] text-white sm:tracking-[0.3em]"
+              className="border-white/30 bg-white/10 px-3 py-1.5 text-sm font-semibold tracking-[0.18em] text-white sm:tracking-[0.3em]"
             >
               <span className="sm:hidden">
                 {formatDateTime(task.deadline, {
@@ -101,7 +101,7 @@ export function DriverTaskCard({
               <Badge
                 variant="outline"
                 className={cn(
-                  "border-white/25 bg-white/5 px-2.5 py-1 text-xs font-semibold tracking-[0.18em] text-white/85 sm:tracking-[0.3em]",
+                  "border-white/25 bg-white/5 px-3 py-1.5 text-sm font-semibold tracking-[0.18em] text-white/85 sm:tracking-[0.3em]",
                   taskStatusTone[task.status]
                 )}
               >
@@ -124,11 +124,11 @@ export function DriverTaskCard({
         <div className="flex flex-wrap items-center gap-3">
           <Badge
             variant="outline"
-            className="border border-white/70 bg-white px-3 py-1.5 text-sm font-semibold uppercase tracking-[0.22em] text-slate-900 shadow-sm"
+            className="border border-white/70 bg-white px-3.5 py-2 text-base font-semibold uppercase tracking-[0.22em] text-slate-900 shadow-sm"
           >
             {task.vehiclePlate ?? "N/A"}
           </Badge>
-          <CardTitle className="text-xl text-white sm:text-2xl">{task.vehicleName ?? task.title}</CardTitle>
+          <CardTitle className="text-2xl text-white sm:text-3xl">{task.vehicleName ?? task.title}</CardTitle>
         </div>
         {showLocationHeader
           ? (() => {
@@ -194,7 +194,7 @@ export function DriverTaskCard({
         </button>
         {opening ? (
           <div className="absolute inset-0 z-10 flex items-center justify-center rounded-3xl bg-black/50 backdrop-blur-sm">
-            <div className="flex items-center gap-3 rounded-full border border-white/30 bg-white/10 px-5 py-2.5 text-base font-semibold tracking-[0.18em] text-white">
+            <div className="flex items-center gap-3 rounded-full border border-white/30 bg-white/10 px-6 py-3 text-lg font-semibold tracking-[0.18em] text-white">
               <Loader2 className="h-4 w-4 animate-spin" />
               <span>{isOnline ? "Opening task…" : "No internet connection!"}</span>
             </div>

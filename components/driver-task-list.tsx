@@ -9,7 +9,7 @@ import { User } from "lucide-react"
 
 export function DriverTaskList({ tasks }: { tasks: Task[] }) {
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       {tasks.map((task) => (
         <DriverTaskCard 
           key={task.id} 
@@ -19,7 +19,7 @@ export function DriverTaskList({ tasks }: { tasks: Task[] }) {
         >
           <div className="flex flex-col gap-3">
             {task.clientName ? (
-              <div className="flex items-center gap-1.5 text-sm font-medium text-white/90">
+              <div className="flex items-center gap-1.5 text-base font-medium text-white/90">
                 <User className="h-4 w-4 text-white/70" />
                 <span>{task.clientName}</span>
               </div>
@@ -29,7 +29,7 @@ export function DriverTaskList({ tasks }: { tasks: Task[] }) {
               <div className="flex flex-wrap items-center gap-2">
                 <Badge
                   variant="outline"
-                  className="border-white/25 bg-white/5 px-2.5 py-0.5 text-[0.65rem] font-medium uppercase tracking-[0.3em]"
+                  className="border-white/25 bg-white/5 px-3 py-1 text-[0.75rem] font-medium uppercase tracking-[0.3em]"
                 >
                   #{task.bookingCode ?? task.bookingId}
                 </Badge>
@@ -38,7 +38,7 @@ export function DriverTaskList({ tasks }: { tasks: Task[] }) {
                     href={task.zohoSalesOrderUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="rounded-full border border-white/25 bg-white/5 px-2.5 py-0.5 text-[0.65rem] font-medium uppercase tracking-[0.3em] text-white hover:bg-white/10"
+                    className="rounded-full border border-white/25 bg-white/5 px-3 py-1 text-[0.75rem] font-medium uppercase tracking-[0.3em] text-white hover:bg-white/10"
                     onClick={(e) => e.stopPropagation()}
                   >
                     Sales order

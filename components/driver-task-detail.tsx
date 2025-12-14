@@ -184,7 +184,7 @@ export function DriverTaskDetail({
   }, [])
 
   return (
-    <div className="space-y-5 text-white">
+    <div className="space-y-6 text-white">
       {!isOnline ? (
         <div className="rounded-2xl border border-white/20 bg-amber-600/20 px-4 py-3 text-base text-amber-100">
           Offline. Data and photos will be saved when connection is restored.
@@ -193,27 +193,27 @@ export function DriverTaskDetail({
       <Button
         asChild
         variant="outline"
-        size="sm"
-        className="w-fit rounded-full border-white/25 bg-white/5 px-4 py-2 text-base text-white hover:border-white/40 hover:bg-white/10"
+        size="lg"
+        className="w-fit rounded-full border-white/25 bg-white/5 px-5 py-2.5 text-base text-white hover:border-white/40 hover:bg-white/10"
       >
         <Link href="/driver/tasks">← Back to list</Link>
       </Button>
 
       <DriverTaskCard task={taskWithLiveStatus} clickable={false} showEta={false} showClient={false} mapUrl={mapUrl ?? undefined}>
-        <div className="flex flex-col gap-2 text-sm text-white/80">
+        <div className="flex flex-col gap-2 text-base text-white/80">
           {task.clientName ? (
-            <div className="flex items-center gap-1.5 text-sm font-medium text-white/90">
+            <div className="flex items-center gap-1.5 text-base font-medium text-white/90">
               <User className="h-4 w-4 text-white/70" />
               <span>{task.clientName}</span>
             </div>
           ) : null}
 
           {details.length ? (
-            <dl className="grid grid-cols-2 gap-3 text-sm text-white/70 sm:grid-cols-3">
+            <dl className="grid grid-cols-2 gap-4 text-base text-white/70 sm:grid-cols-3">
               {details.map((item) => (
                 <div key={item.label} className="space-y-1">
-                  <dt className="text-[0.65rem] uppercase tracking-[0.28em] text-white/60">{item.label}</dt>
-                  <dd className="text-base font-semibold text-white">{item.value}</dd>
+                  <dt className="text-[0.75rem] uppercase tracking-[0.28em] text-white/60">{item.label}</dt>
+                  <dd className="text-lg font-semibold text-white">{item.value}</dd>
                 </div>
               ))}
             </dl>
@@ -223,7 +223,7 @@ export function DriverTaskDetail({
             <div className="flex flex-wrap items-center gap-2">
               <Badge
                 variant="outline"
-                className="border-white/25 bg-white/5 px-2.5 py-0.5 text-[0.65rem] font-medium uppercase tracking-[0.3em]"
+                className="border-white/25 bg-white/5 px-3 py-1 text-[0.75rem] font-medium uppercase tracking-[0.3em]"
               >
                 #{task.bookingCode ?? task.bookingId}
               </Badge>
@@ -232,7 +232,7 @@ export function DriverTaskDetail({
                   href={task.zohoSalesOrderUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="rounded-full border border-white/25 bg-white/5 px-2.5 py-0.5 text-[0.65rem] font-medium uppercase tracking-[0.3em] text-white hover:bg-white/10"
+                  className="rounded-full border border-white/25 bg-white/5 px-3 py-1 text-[0.75rem] font-medium uppercase tracking-[0.3em] text-white hover:bg-white/10"
                 >
                   Sales order
                 </a>
@@ -246,25 +246,25 @@ export function DriverTaskDetail({
       {client ? (
         <Card className="rounded-3xl border border-white/15 bg-white/5 text-white shadow-lg">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold uppercase tracking-[0.35em] text-white/60">Client</CardTitle>
+            <CardTitle className="text-base font-semibold uppercase tracking-[0.35em] text-white/60">Client</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div className="space-y-1">
-                <p className="text-base font-semibold text-white">{client.name}</p>
-                <p className="text-xs text-white/70">{client.email}</p>
-                <p className="text-xs text-white/70">{client.phone}</p>
+                <p className="text-lg font-semibold text-white">{client.name}</p>
+                <p className="text-sm text-white/70">{client.email}</p>
+                <p className="text-sm text-white/70">{client.phone}</p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                <Button asChild size="sm" variant="outline" className="rounded-full border-white/25 bg-white/5 px-3 py-1 text-xs font-semibold text-white hover:border-white/40 hover:bg-white/10" disabled={!kommoLeadUrl && !whatsappUrl}>
+                <Button asChild size="lg" variant="outline" className="rounded-full border-white/25 bg-white/5 px-4 py-2 text-sm font-semibold text-white hover:border-white/40 hover:bg-white/10" disabled={!kommoLeadUrl && !whatsappUrl}>
                   <a href={kommoLeadUrl ?? whatsappUrl ?? "#"} target="_blank" rel="noopener noreferrer">Message</a>
                 </Button>
               </div>
             </div>
             <div className="mt-4 space-y-3">
-              <h3 className="text-sm font-semibold text-white">Documents</h3>
+              <h3 className="text-base font-semibold text-white">Documents</h3>
               {client.documents.length ? (
-                <ul className="space-y-3 text-sm text-white/80">
+                <ul className="space-y-3 text-base text-white/80">
                   {client.documents.map((doc) => (
                     <li key={doc.id}>
                       {doc.url ? (
@@ -281,7 +281,7 @@ export function DriverTaskDetail({
                         >
                           <div className="flex items-start justify-between gap-2">
                             <div>
-                              <p className="font-medium text-white">{doc.type}</p>
+                              <p className="font-medium text-white text-base">{doc.type}</p>
                             </div>
                             <div className="flex items-center gap-2">
                               {(() => {
@@ -291,11 +291,11 @@ export function DriverTaskDetail({
                                 const rec = arr.find((x: any) => canonicalType(x?.doc_type) === docCanon) ?? null
                                 const n = doc.number ?? rec?.document_number ?? (isIdLike(doc.type) ? client?.documentNumber : undefined)
                                 return n ? (
-                                  <Badge variant="outline" className="text-[11px] tracking-wider">#{n}</Badge>
+                                  <Badge variant="outline" className="text-[12px] tracking-wider">#{n}</Badge>
                                 ) : null
                               })()}
                               {String(doc.status ?? "").toLowerCase() !== "needs_review" ? (
-                                <Badge variant="outline" className="text-[11px] uppercase tracking-wider">
+                                <Badge variant="outline" className="text-[12px] uppercase tracking-wider">
                                   {(() => {
                                     const raw = client?.documentRecognition?.raw
                                     const arr = Array.isArray(raw) ? raw : raw ? [raw] : []
@@ -323,7 +323,7 @@ export function DriverTaskDetail({
                             if (state === "expired") {
                               const d = daysSince(expiryVal, nowTs) ?? 0
                               return (
-                                <p className="flex items-center gap-1 text-xs text-rose-300">
+                                <p className="flex items-center gap-1 text-sm text-rose-300">
                                   <AlertTriangle className="size-3 animate-pulse" />
                                   {`Expired ${d} ${ruDays(d)} ago`} ({formatDate(expiryVal, { month: "short", day: "numeric", year: "numeric" })})
                                 </p>
@@ -332,13 +332,13 @@ export function DriverTaskDetail({
                             if (state === "soon") {
                               const d = daysUntil(expiryVal, nowTs) ?? 0
                               return (
-                                <p className="flex items-center gap-1 text-xs text-amber-300">
+                                <p className="flex items-center gap-1 text-sm text-amber-300">
                                   <AlertTriangle className="size-3" />
                                   {`Expires in ${d} ${ruDays(d)}`} ({formatDate(expiryVal, { month: "short", day: "numeric", year: "numeric" })})
                                 </p>
                               )
                             }
-                            return <p className="text-xs text-white/70">Expires {formatDate(expiryVal, { month: "short", day: "numeric", year: "numeric" })}</p>
+                            return <p className="text-sm text-white/70">Expires {formatDate(expiryVal, { month: "short", day: "numeric", year: "numeric" })}</p>
                           })()}
                         </a>
                       ) : (
@@ -350,7 +350,7 @@ export function DriverTaskDetail({
                         })()}`}>
                           <div className="flex items-start justify-between gap-2">
                             <div>
-                              <p className="font-medium text-white">{doc.type}</p>
+                              <p className="font-medium text-white text-base">{doc.type}</p>
                             </div>
                             <div className="flex items-center gap-2">
                               {(() => {
@@ -360,11 +360,11 @@ export function DriverTaskDetail({
                                 const rec = arr.find((x: any) => canonicalType(x?.doc_type) === docCanon) ?? null
                                 const n = doc.number ?? rec?.document_number ?? (isIdLike(doc.type) ? client?.documentNumber : undefined)
                                 return n ? (
-                                  <Badge variant="outline" className="text-[11px] tracking-wider">#{n}</Badge>
+                                  <Badge variant="outline" className="text-[12px] tracking-wider">#{n}</Badge>
                                 ) : null
                               })()}
                               {String(doc.status ?? "").toLowerCase() !== "needs_review" ? (
-                                <Badge variant="outline" className="text-[11px] uppercase tracking-wider">
+                                <Badge variant="outline" className="text-[12px] uppercase tracking-wider">
                                   {(() => {
                                     const raw = client?.documentRecognition?.raw
                                     const arr = Array.isArray(raw) ? raw : raw ? [raw] : []
@@ -392,7 +392,7 @@ export function DriverTaskDetail({
                             if (state === "expired") {
                               const d = daysSince(expiryVal, nowTs) ?? 0
                               return (
-                                <p className="flex items-center gap-1 text-xs text-rose-300">
+                                <p className="flex items-center gap-1 text-sm text-rose-300">
                                   <AlertTriangle className="size-3 animate-pulse" />
                                   {`Expired ${d} ${ruDays(d)} ago`} ({formatDate(expiryVal, { month: "short", day: "numeric", year: "numeric" })})
                                 </p>
@@ -401,13 +401,13 @@ export function DriverTaskDetail({
                             if (state === "soon") {
                               const d = daysUntil(expiryVal, nowTs) ?? 0
                               return (
-                                <p className="flex items-center gap-1 text-xs text-amber-300">
+                                <p className="flex items-center gap-1 text-sm text-amber-300">
                                   <AlertTriangle className="size-3" />
                                   {`Expires in ${d} ${ruDays(d)}`} ({formatDate(expiryVal, { month: "short", day: "numeric", year: "numeric" })})
                                 </p>
                               )
                             }
-                            return <p className="text-xs text-white/70">Expires {formatDate(expiryVal, { month: "short", day: "numeric", year: "numeric" })}</p>
+                            return <p className="text-sm text-white/70">Expires {formatDate(expiryVal, { month: "short", day: "numeric", year: "numeric" })}</p>
                           })()}
                         </div>
                       )}
@@ -415,7 +415,7 @@ export function DriverTaskDetail({
                   ))}
                 </ul>
               ) : (
-                <p className="text-xs text-white/70">No documents uploaded.</p>
+                <p className="text-sm text-white/70">No documents uploaded.</p>
               )}
             </div>
           </CardContent>
@@ -499,9 +499,9 @@ function DriverTaskInputs({
   >([])
   const [fileInputResetKey, setFileInputResetKey] = useState(0)
   const localFilesRef = useRef(localFiles)
-  const fieldCardBase = "rounded-2xl border border-white/15 bg-slate-950/40 px-4 py-3 shadow-sm"
-  const returnPhotosCardClass = "rounded-2xl border border-white/15 bg-white/5 px-4 py-3 space-y-3"
-  const labelClass = "text-sm font-semibold text-white/90"
+  const fieldCardBase = "rounded-2xl border border-white/15 bg-slate-950/40 px-4 py-4 shadow-sm"
+  const returnPhotosCardClass = "rounded-2xl border border-white/15 bg-white/5 px-4 py-4 space-y-3"
+  const labelClass = "text-base font-semibold text-white/90"
 
   // Sync existingPhotos with photos prop when it changes (revalidation)
   useEffect(() => {
@@ -688,7 +688,7 @@ function DriverTaskInputs({
                   inputMode="numeric"
                   required={input.required}
                   min={lastOdometer ?? 0}
-                  className="w-full rounded-2xl border border-white/20 bg-white/10 px-3 py-2 text-white placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-white/60"
+                  className="w-full rounded-2xl border border-white/20 bg-white/10 px-3 py-3 text-base text-white placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-white/60"
                   placeholder={
                     lastOdometer !== undefined
                       ? `Last value: ${lastOdometer}`
@@ -740,7 +740,7 @@ function DriverTaskInputs({
                 <select
                   name={input.key === "cleaning_needed" ? "cleaning" : input.key}
                   required={input.required}
-                  className="w-full rounded-2xl border border-white/20 bg-white/10 px-3 py-2 text-white placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-white/60"
+                  className="w-full rounded-2xl border border-white/20 bg-white/10 px-3 py-3 text-base text-white placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-white/60"
                   disabled={isDone}
                   defaultValue={initialValues.cleaning}
                 >
@@ -758,7 +758,7 @@ function DriverTaskInputs({
                 <textarea
                   name={input.key === "damage_notes" ? "notes" : input.key}
                   required={input.required}
-                  className="w-full rounded-2xl border border-white/20 bg-white/10 px-3 py-2 text-white placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-white/60"
+                  className="w-full rounded-2xl border border-white/20 bg-white/10 px-3 py-3 text-base text-white placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-white/60"
                   rows={3}
                   placeholder="Add a comment"
                   disabled={isDone}
@@ -786,7 +786,7 @@ function DriverTaskInputs({
                     multiple={input.multiple}
                     accept={input.accept}
                     required={input.required && !hasPhotos}
-                    className="block w-full text-sm text-white file:mr-3 file:rounded-lg file:border-0 file:bg-white/80 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-slate-900 hover:file:bg-white"
+                    className="block w-full text-base text-white file:mr-3 file:rounded-lg file:border-0 file:bg-white/80 file:px-4 file:py-2.5 file:text-base file:font-semibold file:text-slate-900 hover:file:bg-white"
                     disabled={isDone}
                     onChange={(event) => {
                       const files = event.target.files
@@ -867,7 +867,8 @@ function DriverTaskInputs({
         <Button
           type="submit"
           disabled={isPending || isDone}
-          className="rounded-full bg-white/90 px-4 py-2 text-sm font-semibold text-slate-900 transition hover:bg-white"
+          size="lg"
+          className="rounded-full bg-white/90 px-5 py-2.5 text-base font-semibold text-slate-900 transition hover:bg-white"
         >
           {isPending ? "Saving…" : "Complete task"}
         </Button>
@@ -975,7 +976,7 @@ function renderGallerySection(
         return (
           <div
             key={photo.id ?? photo.path}
-            className="group relative h-32 overflow-hidden rounded-2xl border border-white/15 bg-white/5"
+            className="group relative h-36 overflow-hidden rounded-2xl border border-white/15 bg-white/5"
           >
             {publicUrl ? (
               <Image
@@ -1003,7 +1004,7 @@ function renderGallerySection(
                 (!photo.local && (opts.isDeleting || opts.deletePending === photo.path)) ||
                 opts.isPending
               }
-              className="absolute right-2 top-2 rounded-full bg-black/60 px-3 py-1 text-xs font-semibold text-white transition hover:bg-black/80 disabled:opacity-50"
+              className="absolute right-2 top-2 rounded-full bg-black/60 px-3.5 py-1.5 text-sm font-semibold text-white transition hover:bg-black/80 disabled:opacity-50"
             >
               {photo.local
                 ? "Remove"
@@ -1017,7 +1018,7 @@ function renderGallerySection(
     </div>
   )
   const titleElement = opts.hideTitle ? null : (
-    <div className="text-[0.65rem] uppercase tracking-[0.35em] text-white/60">{title}</div>
+    <div className="text-[0.75rem] uppercase tracking-[0.35em] text-white/60">{title}</div>
   )
   if (opts.frame === "inline") {
     return (
@@ -1028,7 +1029,7 @@ function renderGallerySection(
     )
   }
   return (
-    <div className="rounded-2xl border border-white/15 bg-white/5 p-3 space-y-3">
+    <div className="rounded-2xl border border-white/15 bg-white/5 p-3.5 space-y-3">
       {titleElement}
       {grid}
     </div>
