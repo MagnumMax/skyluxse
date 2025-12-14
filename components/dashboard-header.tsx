@@ -70,10 +70,14 @@ export function DashboardHeader({ navGroups, className, hideBrandOnMobile }: Das
     >
       <div className="flex items-center gap-3">
         <MobileNav navGroups={navGroups} />
-        <span className={cn(
-          "text-[0.65rem] font-semibold uppercase tracking-[0.34em] text-slate-400",
-          hideBrandOnMobile && "hidden lg:inline"
-        )}>SkyLuxse ERP</span>
+        <span
+          className={cn(
+            "text-[0.65rem] font-semibold uppercase tracking-[0.34em] text-slate-400",
+            hideBrandOnMobile && "hidden sm:inline"
+          )}
+        >
+          SkyLuxse ERP
+        </span>
       </div>
       <div className="flex flex-1 flex-wrap items-center justify-end gap-3 min-w-0">
         {contextualContent ? (

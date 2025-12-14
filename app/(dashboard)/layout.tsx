@@ -51,7 +51,11 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   return (
     <DashboardHeaderProvider>
       <div className="relative flex min-h-screen w-full flex-col overflow-x-hidden bg-slate-50 text-slate-900">
-        <DashboardHeader navGroups={navGroups} className="fixed inset-x-0 top-0 z-40 w-full" />
+        <DashboardHeader
+          navGroups={navGroups}
+          className="fixed inset-x-0 top-0 z-40 w-full"
+          hideBrandOnMobile
+        />
         <div className="flex flex-1 min-h-0 overflow-hidden lg:pl-16">
           <DashboardSidebar navGroups={navGroups} />
           <main
