@@ -61,7 +61,7 @@ export function OperationsFleetCalendarClient({
   initialVehicleId,
 }: OperationsFleetCalendarClientProps) {
   const router = useRouter()
-  const calendarController = useFleetCalendarController("week", "none")
+  const calendarController = useFleetCalendarController("fortnight", "none")
   const sanitizedEvents = useMemo(
     () => events.filter((event) => !isLostCalendarEvent(event)),
     [events]
@@ -302,7 +302,7 @@ function FleetCalendarHeaderControls({
   onSortChange: (value: SortOption) => void
   onReset: () => void
 }) {
-  const compactPeriodOptions = calendarViewOptions.filter((option) => option.id === "week" || option.id === "fortnight")
+  const compactPeriodOptions = calendarViewOptions.filter((option) => option.id === "fortnight" || option.id === "30-day")
 
   return (
     <DashboardHeaderSearch
@@ -637,7 +637,7 @@ export function resetFilters(
   setSortOption("utilization")
   controller.clearCustomRange()
   controller.setGrouping("none")
-  controller.setView("week")
+  controller.setView("fortnight")
   controller.goToday()
   setSearchQuery("")
   setPinnedVehicleId(null)

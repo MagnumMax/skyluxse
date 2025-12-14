@@ -632,7 +632,7 @@
   top: 0;
   z-index: 30;
   background: #ffffff;
-  box-shadow: none;
+  box-shadow: 0 1px 0 hsl(var(--border) / 0.6);
   padding-top: 0.35rem;
   border-bottom: none;
 }
@@ -644,6 +644,11 @@
 .fleet-calendar-row-grid {
   min-width: 500px;
   padding-left: 0.3rem;
+}
+
+.fleet-calendar-row-grid .calendar-grid {
+  width: max-content;
+  min-width: 100%;
 }
 
 .fleet-calendar-scroll-body {
@@ -694,6 +699,19 @@
   border-bottom: none;
   margin-bottom: 0.4rem;
   background: #ffffff;
+}
+
+.fleet-calendar-grid-header .calendar-day-header {
+  position: static;
+  top: auto;
+  z-index: auto;
+  backdrop-filter: none;
+  background: transparent !important;
+}
+
+.fleet-calendar-grid-header .calendar-day-header--weekend,
+.fleet-calendar-grid-header .calendar-day-header--today {
+  background: transparent !important;
 }
 
 .fleet-calendar-group-divider {
