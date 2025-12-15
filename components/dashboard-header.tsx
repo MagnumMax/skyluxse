@@ -65,7 +65,7 @@ export function DashboardHeader({ navGroups, className, hideBrandOnMobile }: Das
     <header
       ref={headerRef}
       className={cn(
-        "flex flex-wrap items-center justify-between gap-4 border-b border-slate-800/80 bg-slate-950 px-4 py-3 text-slate-50 shadow-[0_16px_50px_-28px_rgba(0,0,0,0.6)] lg:px-4",
+        "flex flex-wrap items-center justify-between gap-4 border-b border-slate-800/80 bg-slate-950 px-4 py-2 text-slate-50 shadow-[0_16px_50px_-28px_rgba(0,0,0,0.6)] lg:px-4",
         className
       )}
     >
@@ -75,9 +75,9 @@ export function DashboardHeader({ navGroups, className, hideBrandOnMobile }: Das
           <Image
             src="/skyluxse_logo.png"
             alt="SkyLuxse ERP"
-            width={120}
-            height={32}
-            className="h-8 w-auto object-contain"
+            width={140}
+            height={40}
+            className="h-10 w-auto object-contain"
             priority
           />
         </div>
@@ -118,9 +118,16 @@ function MobileNav({ navGroups }: { navGroups: DashboardNavGroup[] }) {
         side="left"
         className="flex w-full max-w-sm flex-col gap-0 border border-white/10 bg-slate-950/95 p-0 text-slate-50 shadow-[0_22px_65px_-28px_rgba(0,0,0,0.65)]"
       >
-        <SheetHeader className="border-b border-white/10 px-6 py-4 text-left">
-          <SheetTitle className="text-xs font-semibold uppercase tracking-[0.35em] text-muted-foreground">
-            SkyLuxse ERP
+        <SheetHeader className="border-b border-white/10 px-6 py-3 text-left">
+          <SheetTitle>
+            <Image
+              src="/skyluxse_logo.png"
+              alt="SkyLuxse ERP"
+              width={140}
+              height={40}
+              className="h-8 w-auto object-contain"
+            />
+            <span className="sr-only">SkyLuxse ERP</span>
           </SheetTitle>
           <SheetDescription className="sr-only">
             Dashboard navigation menu with quick access to fleet, clients, and tasks.
