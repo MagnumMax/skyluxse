@@ -9,6 +9,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
+import { loginAsDriver } from "./actions"
+
 type RoleOption = {
   value: string
   label: string
@@ -30,7 +32,7 @@ export function LoginForm({ roles, roleRoutes }: LoginFormProps) {
 
   const fallbackRoute = roleRoutes.operations ?? DEFAULT_OPERATIONS_ROUTE
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const normalizedEmail = email.trim()
 
@@ -41,6 +43,11 @@ export function LoginForm({ roles, roleRoutes }: LoginFormProps) {
 
     setError(null)
     setIsSubmitting(true)
+
+    if (selectedRole === "driver") {
+      await loginAsDriver(normalizedEmail)
+    }
+
     const nextRoute = roleRoutes[selectedRole] ?? fallbackRoute
     router.push(nextRoute as Route)
   }

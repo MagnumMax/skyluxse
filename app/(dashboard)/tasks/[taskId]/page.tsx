@@ -2,8 +2,8 @@ import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 
 import { OperationsTaskDetail } from "@/components/operations-task-detail"
-import { getOperationsTaskById, getDriverTasks } from "@/lib/data/tasks"
-import { getTaskServices, getAdditionalServices } from "@/app/actions/additional-services"
+import { getBookingRelatedTasks, getOperationsTaskById } from "@/lib/data/tasks"
+import { getAdditionalServices, getTaskServices } from "@/app/actions/additional-services"
 import { createSignedUrl } from "@/lib/storage/signed-url"
 
 type PageProps = { params: Promise<{ taskId: string }> }
@@ -30,10 +30,10 @@ export default async function OperationsTaskDetailPage({ params }: PageProps) {
 
   let handoverPhotos: string[] = []
   if (task.type === "pickup" && task.bookingId) {
-    const allTasks = await getDriverTasks()
-    const deliveryTask = allTasks.find(t => t.bookingId === task.bookingId && t.type === "delivery")
+    const bookingTasks = await getBookingRelatedTasks(String(task.bookingId))
+    const deliveryTask = bookingTasks.find((t) => t.type === "delivery")
     if (deliveryTask?.inputValues) {
-      const photosInput = deliveryTask.inputValues.find(v => v.key === "handover_photos")
+      const photosInput = deliveryTask.inputValues.find((v) => v.key === "handover_photos")
       if (photosInput?.storagePaths?.length && photosInput.bucket) {
         const urls = await Promise.all(
           photosInput.storagePaths.map(path => createSignedUrl(photosInput.bucket, path))

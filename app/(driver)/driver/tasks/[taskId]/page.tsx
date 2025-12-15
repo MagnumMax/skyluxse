@@ -2,7 +2,7 @@ import { notFound } from "next/navigation"
 
 import { DriverPageShell } from "@/components/driver-page-shell"
 import { DriverTaskDetail } from "@/components/driver-task-detail"
-import { getDriverTaskById, getDriverTasks } from "@/lib/data/tasks"
+import { getBookingRelatedTasks, getDriverTaskById } from "@/lib/data/tasks"
 import { getLiveClientByIdFromDb } from "@/lib/data/live-data"
 import { getAdditionalServices, getTaskServices } from "@/app/actions/additional-services"
 import { createSignedUrl } from "@/lib/storage/signed-url"
@@ -41,10 +41,10 @@ export default async function DriverTaskDetailPage({ params }: PageProps) {
 
   let handoverPhotos: string[] = []
   if (task.type === "pickup" && task.bookingId) {
-    const allTasks = await getDriverTasks()
-    const deliveryTask = allTasks.find(t => t.bookingId === task.bookingId && t.type === "delivery")
+    const bookingTasks = await getBookingRelatedTasks(String(task.bookingId))
+    const deliveryTask = bookingTasks.find((t) => t.type === "delivery")
     if (deliveryTask?.inputValues) {
-      const photosInput = deliveryTask.inputValues.find(v => v.key === "handover_photos")
+      const photosInput = deliveryTask.inputValues.find((v) => v.key === "handover_photos")
       if (photosInput?.storagePaths?.length && photosInput.bucket) {
         const urls = await Promise.all(
           photosInput.storagePaths.map(path => createSignedUrl(photosInput.bucket, path))

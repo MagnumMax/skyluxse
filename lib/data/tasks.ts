@@ -1,4 +1,5 @@
 import { cache } from "react"
+import { cookies } from "next/headers"
 
 import type {
   Booking,
@@ -7,7 +8,14 @@ import type {
   TaskInputValue,
   TaskRequiredInput,
 } from "@/lib/domain/entities"
-import { getLiveBookings, getStaffAccounts, type StaffAccount } from "@/lib/data/live-data"
+import {
+  getBookingsByDriverId,
+  getDriverProfileByEmail,
+  getLiveBookingById,
+  getLiveBookings,
+  getStaffAccounts,
+  type StaffAccount,
+} from "@/lib/data/live-data"
 import { serviceClient } from "@/lib/supabase/service-client"
 
 type TaskRow = {
@@ -38,13 +46,23 @@ type TaskInputValueRow = {
   bucket: string | null
 }
 
-const fetchTaskRows = cache(async (): Promise<TaskRow[]> => {
-  const { data, error } = await serviceClient
+const fetchTaskRows = cache(async (filters?: { driverId?: string; bookingId?: string }): Promise<TaskRow[]> => {
+  let query = serviceClient
     .from("tasks")
     .select(
       "id, title, task_type, status, deadline_at, booking_id, vehicle_id, client_id, assignee_driver_id, created_by, sla_minutes, metadata, created_at, updated_at, task_required_input_values(key, value_number, value_text, value_json, storage_paths, bucket), clients(name)"
     )
     .order("deadline_at", { ascending: true, nullsFirst: false })
+
+  if (filters?.driverId) {
+    query = query.eq("assignee_driver_id", filters.driverId)
+  }
+  if (filters?.bookingId) {
+    query = query.eq("booking_id", filters.bookingId)
+  }
+
+  const { data, error } = await query
+
   if (error) {
     throw new Error(`[supabase] Failed to load tasks: ${error.message}`)
   }
@@ -69,11 +87,38 @@ export const getOperationsTaskById = cache(async (taskId: string): Promise<Opera
 })
 
 export const getDriverTasks = cache(async (): Promise<Task[]> => {
-  const [rows, bookings] = await Promise.all([fetchTaskRows(), getLiveBookings()])
+  const cookieStore = await cookies()
+  const email = cookieStore.get("skyluxse_driver_email")?.value
+
+  let driverId: string | undefined
+  if (email) {
+    const profile = await getDriverProfileByEmail(email)
+    if (profile) {
+      driverId = profile.id
+    }
+  }
+
+  // If we found a driver ID, use it to filter tasks and bookings
+  const [rows, bookings] = await Promise.all([
+    fetchTaskRows({ driverId }),
+    driverId ? getBookingsByDriverId(driverId) : getLiveBookings(),
+  ])
+
   const bookingsById = new Map(bookings.map((booking) => [String(booking.id), booking]))
   const odometerByVehicle = buildOdometerMap(rows)
   const fuelByVehicle = buildFuelMap(rows)
-  return rows.map((row) => toBaseTask(row, { bookingsById, odometerByVehicle, fuelByVehicle }))
+
+  return rows
+    .filter((row) => {
+      // If we are logged in as a driver, only show tasks assigned to me
+      if (driverId) {
+        return row.assignee_driver_id === driverId
+      }
+      // Fallback: show all driver tasks if not logged in (legacy behavior, but dangerous for perf)
+      // Ideally we should return empty if not logged in, but let's keep it safe for now
+      return isDriverTaskRow(row)
+    })
+    .map((row) => toBaseTask(row, { bookingsById, odometerByVehicle, fuelByVehicle }))
 })
 
 export const getDriverTaskById = cache(async (taskId: string): Promise<Task | null> => {
@@ -81,17 +126,50 @@ export const getDriverTaskById = cache(async (taskId: string): Promise<Task | nu
   return tasks.find((task) => String(task.id) === taskId) ?? null
 })
 
+export const getBookingRelatedTasks = cache(async (bookingId: string): Promise<Task[]> => {
+  const [rows, booking] = await Promise.all([
+    fetchTaskRows({ bookingId }),
+    getLiveBookingById(bookingId),
+  ])
+
+  if (!booking) return []
+
+  const bookingsById = new Map([[String(booking.id), booking]])
+  const odometerByVehicle = buildOdometerMap(rows)
+  const fuelByVehicle = buildFuelMap(rows)
+  return rows.map((row) => toBaseTask(row, { bookingsById, odometerByVehicle, fuelByVehicle }))
+})
+
 export const getTasksByBookingId = cache(async (bookingId: string): Promise<{ pickupMiles: number; pickupFuel: number; returnMiles: number; returnFuel: number; tasks: OperationsTask[] }> => {
-  const [rows, allTasks] = await Promise.all([fetchTaskRows(), getOperationsTasks()])
-  const bookingTasks = rows.filter((row) => row.booking_id === bookingId)
-  const tasks = allTasks.filter((task) => String(task.bookingId) === bookingId)
+  const [rows, booking, staff] = await Promise.all([
+    fetchTaskRows({ bookingId }),
+    getLiveBookingById(bookingId),
+    getStaffAccounts(),
+  ])
+
+  if (!booking) {
+    return {
+      pickupMiles: 0,
+      pickupFuel: 0,
+      returnMiles: 0,
+      returnFuel: 0,
+      tasks: [],
+    }
+  }
+
+  const bookingsById = new Map([[String(booking.id), booking]])
+  const staffById = buildStaffMap(staff)
+  const odometerByVehicle = buildOdometerMap(rows)
+  const fuelByVehicle = buildFuelMap(rows)
+
+  const tasks = rows.map((row) => toOperationsTask(row, { bookingsById, staffById, odometerByVehicle, fuelByVehicle }))
 
   let pickupMaxOdo: number | undefined
   let pickupLatestFuel: { value: number; ts: number } | undefined
   let returnMaxOdo: number | undefined
   let returnLatestFuel: { value: number; ts: number } | undefined
 
-  for (const row of bookingTasks) {
+  for (const row of rows) {
     const type = normalizeTaskType(row.task_type)
     const odo = extractOdometerValue(row.task_required_input_values)
     const fuel = extractFuelValue(row.task_required_input_values)

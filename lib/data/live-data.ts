@@ -452,6 +452,19 @@ async function fetchBookingRowsByClientId(clientId: string): Promise<BookingRow[
   return data ?? []
 }
 
+async function fetchBookingRowsByDriverId(driverId: string): Promise<BookingRow[]> {
+  const { data, error } = await serviceClient
+    .from("bookings")
+    .select(BOOKING_SELECT_COLUMNS)
+    .eq("driver_id", driverId)
+    .order("start_at", { ascending: false })
+    .limit(100)
+  if (error) {
+    throw new Error(`[supabase] Failed to load bookings for driver ${driverId}: ${error.message}`)
+  }
+  return data ?? []
+}
+
 const fetchBookingInvoiceRows = cache(async (): Promise<BookingInvoiceRow[]> => {
   const { data, error } = await serviceClient
     .from("booking_invoices")
@@ -1042,6 +1055,53 @@ export const getLiveDrivers = cache(async (): Promise<Driver[]> => {
     name: staffById.get(row.staff_account_id ?? "")?.full_name ?? `Driver ${row.id.slice(0, 6)}`,
     status: mapDriverStatus(row.status),
   }))
+})
+
+export const getDriverProfileByEmail = cache(async (email: string): Promise<DriverProfileRow | null> => {
+  const { data: staff, error: staffError } = await serviceClient
+    .from("staff_accounts")
+    .select("id")
+    .eq("email", email)
+    .eq("role", "driver")
+    .maybeSingle()
+
+  if (staffError) {
+    console.error("Failed to find staff by email", email, staffError)
+    return null
+  }
+  if (!staff) return null
+
+  const { data: profile, error: profileError } = await serviceClient
+    .from("driver_profiles")
+    .select("id, status, staff_account_id")
+    .eq("staff_account_id", staff.id)
+    .maybeSingle()
+
+  if (profileError) {
+    console.error("Failed to find driver profile for staff", staff.id, profileError)
+    return null
+  }
+  return profile
+})
+
+export const getBookingsByDriverId = cache(async (driverId: string): Promise<Booking[]> => {
+  const [bookingRows, clientRows, vehicleRows] = await Promise.all([
+    fetchBookingRowsByDriverId(driverId),
+    fetchClientRows(),
+    fetchVehicleRows(),
+  ])
+
+  const clientsById = new Map<string, ClientRow>()
+  clientRows.forEach((row) => clientsById.set(row.id, row))
+
+  const vehiclesById = new Map<string, VehicleRow>()
+  vehicleRows.forEach((row) => vehiclesById.set(row.id, row))
+
+  const staffById = new Map<string, StaffRow>() // We don't fetch all staff for driver view optimization
+
+  return bookingRows.map((row) =>
+    mapBookingRow(row, { clientsById, vehiclesById, staffById, invoicesByBooking: new Map(), stageByKommoStatusId: new Map() })
+  )
 })
 
 const FLEET_CALENDAR_EXCLUDED_STATUSES = new Set<FleetCar["status"]>(["Sold", "Service Car"])
