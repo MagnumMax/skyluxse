@@ -15,7 +15,7 @@ import type { Client, Task } from "@/lib/domain/entities"
 import { AdditionalService, TaskAdditionalService } from "@/lib/domain/additional-services"
 import { supabaseBrowser } from "@/lib/supabase/browser-client"
 import { formatDate } from "@/lib/formatters"
-import { AlertTriangle, MapPin, User } from "lucide-react"
+import { AlertTriangle, MapPin, User, ExternalLink } from "lucide-react"
 
 import { taskTypeLabels } from "./driver-task-card"
 
@@ -215,7 +215,7 @@ export function DriverTaskDetail({
             <dl className="grid grid-cols-2 gap-4 text-base text-white/70 sm:grid-cols-3">
               {details.map((item) => (
                 <div key={item.label} className="space-y-1">
-                  <dt className="text-[0.75rem] uppercase tracking-[0.28em] text-white/60">{item.label}</dt>
+                  <dt className="text-[0.75rem] uppercase tracking-[0.15em] text-white/60 sm:tracking-[0.28em]">{item.label}</dt>
                   <dd className="text-lg font-semibold text-white">{item.value}</dd>
                 </div>
               ))}
@@ -223,21 +223,17 @@ export function DriverTaskDetail({
           ) : null}
 
           <div className="flex w-full items-center justify-between gap-2">
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge
-                variant="outline"
-                className="border-white/25 bg-white/5 px-3 py-1 text-[0.75rem] font-medium uppercase tracking-[0.3em]"
-              >
-                #{task.bookingCode ?? task.bookingId}
-              </Badge>
+            <div className="flex flex-wrap items-center gap-3 text-xs text-white/50">
+              <span className="tracking-wider">#{task.bookingCode ?? task.bookingId}</span>
               {task.zohoSalesOrderUrl ? (
                 <a
                   href={task.zohoSalesOrderUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="rounded-full border border-white/25 bg-white/5 px-3 py-1 text-[0.75rem] font-medium uppercase tracking-[0.3em] text-white hover:bg-white/10"
+                  className="flex items-center gap-1 hover:text-white hover:underline"
                 >
-                  Sales order
+                  <ExternalLink className="h-3 w-3" />
+                  <span>Sales order</span>
                 </a>
               ) : null}
             </div>

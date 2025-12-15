@@ -18,10 +18,10 @@ export const taskTypeLabels: Record<Task["type"], string> = {
   maintenance: "Maintenance",
 }
 
-export const taskStatusTone: Record<Task["status"], string> = {
-  todo: "border-white/30 text-white/70",
-  inprogress: "border-sky-200 text-sky-50",
-  done: "border-emerald-200 text-emerald-50",
+export const taskStatusColors: Record<Task["status"], string> = {
+  todo: "text-red-400",
+  inprogress: "text-yellow-400",
+  done: "text-green-400",
 }
 
 export const taskStatusLabels: Record<Task["status"], string> = {
@@ -79,13 +79,7 @@ export function DriverTaskCard({
               variant="outline"
               className="border-white/30 bg-white/10 px-3 py-1.5 text-sm font-semibold tracking-[0.18em] text-white sm:tracking-[0.3em]"
             >
-              <span className="sm:hidden">
-                {formatDateTime(task.deadline, {
-                  month: "short",
-                  day: "numeric",
-                })}
-              </span>
-              <span className="hidden sm:inline">
+              <span>
                 {formatDateTime(task.deadline, {
                   month: "short",
                   day: "numeric",
@@ -98,11 +92,10 @@ export function DriverTaskCard({
           </div>
           <div className="flex items-center gap-2">
             {showStatus ? (
-              <Badge
-                variant="outline"
+              <div
                 className={cn(
-                  "border-white/25 bg-white/5 px-3 py-1.5 text-sm font-semibold tracking-[0.18em] text-white/85 sm:tracking-[0.3em]",
-                  taskStatusTone[task.status]
+                  "flex items-center text-sm font-semibold tracking-[0.18em] sm:tracking-[0.3em]",
+                  taskStatusColors[task.status]
                 )}
               >
                 <span className="mr-1.5 inline-flex h-3 w-3 items-center justify-center">
@@ -115,20 +108,20 @@ export function DriverTaskCard({
                   )}
                 </span>
                 {taskStatusLabels[task.status]}
-              </Badge>
+              </div>
             ) : showEta ? (
               <span>ETA {task.deadline}</span>
             ) : null}
           </div>
         </div>
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <Badge
             variant="outline"
-            className="border border-white/70 bg-white px-3.5 py-2 text-base font-semibold uppercase tracking-[0.22em] text-slate-900 shadow-sm"
+            className="border border-white/70 bg-white px-2.5 py-1 text-sm font-semibold uppercase tracking-[0.15em] text-slate-900 shadow-sm sm:px-3.5 sm:py-2 sm:text-base sm:tracking-[0.22em]"
           >
             {task.vehiclePlate ?? "N/A"}
           </Badge>
-          <CardTitle className="text-2xl text-white sm:text-3xl">{task.vehicleName ?? task.title}</CardTitle>
+          <CardTitle className="text-xl text-white sm:text-3xl">{task.vehicleName ?? task.title}</CardTitle>
         </div>
         {showLocationHeader
           ? (() => {
@@ -145,7 +138,7 @@ export function DriverTaskCard({
                     : task.geo.pickup || task.geo.dropoff || ""
               }
               return text ? (
-                <CardDescription className="truncate text-base text-white/80 sm:text-sm sm:whitespace-normal sm:overflow-visible">
+                <CardDescription className="line-clamp-2 text-sm text-white/80 sm:line-clamp-none sm:whitespace-normal sm:overflow-visible">
                   {!clickable && mapUrl ? (
                     <a
                       href={mapUrl}

@@ -5,7 +5,7 @@ import Link from "next/link"
 import { DriverTaskCard } from "@/components/driver-task-card"
 import type { Task } from "@/lib/domain/entities"
 import { Badge } from "@/components/ui/badge"
-import { User } from "lucide-react"
+import { User, ExternalLink } from "lucide-react"
 
 export function DriverTaskList({ tasks }: { tasks: Task[] }) {
   return (
@@ -26,22 +26,18 @@ export function DriverTaskList({ tasks }: { tasks: Task[] }) {
             ) : null}
             
             <div className="flex w-full items-center justify-between gap-2">
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge
-                  variant="outline"
-                  className="border-white/25 bg-white/5 px-3 py-1 text-[0.75rem] font-medium uppercase tracking-[0.3em]"
-                >
-                  #{task.bookingCode ?? task.bookingId}
-                </Badge>
+              <div className="flex flex-wrap items-center gap-3 text-xs text-white/50">
+                <span className="tracking-wider">#{task.bookingCode ?? task.bookingId}</span>
                 {task.zohoSalesOrderUrl ? (
                   <a
                     href={task.zohoSalesOrderUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="rounded-full border border-white/25 bg-white/5 px-3 py-1 text-[0.75rem] font-medium uppercase tracking-[0.3em] text-white hover:bg-white/10"
+                    className="flex items-center gap-1 hover:text-white hover:underline"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    Sales order
+                    <ExternalLink className="h-3 w-3" />
+                    <span>Sales order</span>
                   </a>
                 ) : null}
               </div>
