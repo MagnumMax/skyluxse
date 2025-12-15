@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import Image from "next/image"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { Menu } from "lucide-react"
 import { usePathname } from "next/navigation"
@@ -70,14 +71,16 @@ export function DashboardHeader({ navGroups, className, hideBrandOnMobile }: Das
     >
       <div className="flex items-center gap-3">
         <MobileNav navGroups={navGroups} />
-        <span
-          className={cn(
-            "text-[0.65rem] font-semibold uppercase tracking-[0.34em] text-slate-400",
-            hideBrandOnMobile && "hidden md:inline"
-          )}
-        >
-          SkyLuxse ERP
-        </span>
+        <div className={cn(hideBrandOnMobile && "hidden md:block")}>
+          <Image
+            src="/skyluxse_logo.png"
+            alt="SkyLuxse ERP"
+            width={120}
+            height={32}
+            className="h-8 w-auto object-contain"
+            priority
+          />
+        </div>
       </div>
       <div className="flex flex-1 flex-wrap items-center justify-end gap-3 min-w-0">
         {contextualContent ? (
