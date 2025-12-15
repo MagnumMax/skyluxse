@@ -251,8 +251,6 @@ export function DriverTaskDetail({
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div className="space-y-1">
                 <p className="text-lg font-semibold text-white">{client.name}</p>
-                <p className="text-sm text-white/70">{client.email}</p>
-                <p className="text-sm text-white/70">{client.phone}</p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <Button asChild size="lg" variant="outline" className="rounded-full border-white/25 bg-white/5 px-4 py-2 text-sm font-semibold text-white hover:border-white/40 hover:bg-white/10" disabled={!kommoLeadUrl && !whatsappUrl}>
@@ -290,7 +288,7 @@ export function DriverTaskDetail({
                                 const rec = arr.find((x: any) => canonicalType(x?.doc_type) === docCanon) ?? null
                                 const n = doc.number ?? rec?.document_number ?? (isIdLike(doc.type) ? client?.documentNumber : undefined)
                                 return n ? (
-                                  <Badge variant="outline" className="text-[12px] tracking-wider">#{n}</Badge>
+                                  <Badge variant="outline" className="border-white/20 text-[12px] tracking-wider text-white/60">#{n}</Badge>
                                 ) : null
                               })()}
                               {String(doc.status ?? "").toLowerCase() !== "needs_review" ? (
@@ -359,7 +357,7 @@ export function DriverTaskDetail({
                                 const rec = arr.find((x: any) => canonicalType(x?.doc_type) === docCanon) ?? null
                                 const n = doc.number ?? rec?.document_number ?? (isIdLike(doc.type) ? client?.documentNumber : undefined)
                                 return n ? (
-                                  <Badge variant="outline" className="text-[12px] tracking-wider">#{n}</Badge>
+                                  <Badge variant="outline" className="border-white/20 text-[12px] tracking-wider text-white/60">#{n}</Badge>
                                 ) : null
                               })()}
                               {String(doc.status ?? "").toLowerCase() !== "needs_review" ? (
