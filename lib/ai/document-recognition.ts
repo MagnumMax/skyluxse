@@ -2,7 +2,7 @@ import { serviceClient } from "@/lib/supabase/service-client"
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.GOOGLE_GEMINI_API_KEY
 const GEMINI_FLASH_MODEL = "gemini-2.5-flash"
-const GEMINI_PRO_MODEL = "gemini-2.5-pro"
+const GEMINI_PRO_MODEL = "gemini-3-pro-preview"
 const GEMINI_API_ROOT = "https://generativelanguage.googleapis.com/v1beta/models"
 const GEMINI_TIMEOUT_MS = Number(process.env.GEMINI_TIMEOUT_MS ?? 30000)
 
