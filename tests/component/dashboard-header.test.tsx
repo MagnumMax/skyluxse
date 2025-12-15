@@ -74,7 +74,7 @@ describe("DashboardHeader", () => {
   it("shows only the brand without a page title", () => {
     render(<DashboardHeader navGroups={navGroups} />)
 
-    expect(screen.getAllByText(/skyluxse erp/i)[0]).toBeVisible()
+    expect(screen.getAllByAltText(/skyluxse erp/i)[0]).toBeVisible()
     expect(screen.queryByRole("heading", { level: 1 })).not.toBeInTheDocument()
   })
 })
