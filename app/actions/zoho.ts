@@ -113,6 +113,30 @@ export async function createSalesOrderForBooking(bookingId: string): Promise<Cre
             };
         }
 
+        // Check sync status to prevent race conditions
+        const { data: syncStatus } = await serviceClient
+            .from("bookings")
+            .select("zoho_sync_status")
+            .eq("id", bookingId)
+            .single();
+
+        if (syncStatus?.zoho_sync_status === "in_progress" || syncStatus?.zoho_sync_status === "synced") {
+            return {
+                success: true,
+                data: {
+                    salesOrderId: booking.zohoSalesOrderId || "",
+                    salesOrderUrl: booking.salesOrderUrl || "",
+                    message: "Sales Order creation is already in progress or completed",
+                },
+            };
+        }
+
+        // Acquire lock
+        await serviceClient
+            .from("bookings")
+            .update({ zoho_sync_status: "in_progress" })
+            .eq("id", bookingId);
+
         client = booking.clientId ? await getLiveClientById(String(booking.clientId)) : null;
         if (!client) throw new Error("Client not found for this booking");
 

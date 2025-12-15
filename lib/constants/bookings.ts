@@ -40,9 +40,6 @@ export type KommoPipelineStageId =
  */
 export const KOMMO_STATUSES_FOR_SALES_ORDER: readonly KommoPipelineStageId[] = [
   "98035992", // Sales Order sent
-  "96150292", // Waiting for Payment
-  "75440391", // Confirmed Bookings
-  "75440395", // Delivery Within 24 Hours
 ] as const
 
 export type KommoPipelineStageMeta = {
