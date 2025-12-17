@@ -112,8 +112,12 @@ export function OperationsFleetCalendarClient({
 
     const rangeStart = visibleDates[0] ?? calendarController.baseDate
     const rangeEnd = visibleDates.length
-      ? new Date(visibleDates[visibleDates.length - 1].getTime() + DAY_IN_MS)
-      : new Date(rangeStart.getTime() + calendarController.rangeDays * DAY_IN_MS)
+      ? new Date(
+          visibleDates[visibleDates.length - 1].getFullYear(),
+          visibleDates[visibleDates.length - 1].getMonth(),
+          visibleDates[visibleDates.length - 1].getDate() + 1
+        )
+      : new Date(rangeStart.getFullYear(), rangeStart.getMonth(), rangeStart.getDate() + calendarController.rangeDays)
 
     const filteredEvents = sanitizedEvents
       .filter((event) => {
