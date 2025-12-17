@@ -17,8 +17,8 @@ export const ROLE_NAV_GROUPS: Record<UserRole, DashboardNavGroup[]> = {
     {
       label: "Sales",
       links: [
-        { href: "/analytics", label: "Dashboard", icon: "analytics" },
         { href: "/fleet-calendar", label: "Fleet calendar", icon: "calendar" },
+        { href: "/analytics", label: "Dashboard", icon: "analytics" },
         { href: "/bookings", label: "Bookings", icon: "dashboard" },
         { href: "/fleet", label: "Fleet", icon: "fleet" },
         { href: "/clients", label: "Clients", icon: "clients" },

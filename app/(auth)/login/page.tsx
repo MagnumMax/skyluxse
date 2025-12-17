@@ -18,7 +18,7 @@ const roles = [
 
 const roleRoutes = {
   operation: "/fleet-calendar",
-  sale: "/bookings",
+  sale: "/fleet-calendar",
   execution: "/exec/dashboard",
   driver: "/driver/tasks",
 } satisfies Record<(typeof roles)[number]["value"], string>
