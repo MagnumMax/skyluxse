@@ -1,0 +1,52 @@
+import { DashboardNavGroup } from "@/components/dashboard-header"
+
+export type UserRole = "driver" | "sale" | "operation" | "execution"
+
+export const ROLE_NAV_GROUPS: Record<UserRole, DashboardNavGroup[]> = {
+  driver: [
+    {
+      label: "Driver",
+      links: [
+        { href: "/driver/tasks", label: "Dashboard", icon: "dashboard" },
+        { href: "/driver/tasks", label: "Task", icon: "tasks" },
+        { href: "/fleet", label: "Fleet", icon: "fleet" },
+      ],
+    },
+  ],
+  sale: [
+    {
+      label: "Sales",
+      links: [
+        { href: "/analytics", label: "Dashboard", icon: "analytics" },
+        { href: "/fleet-calendar", label: "Fleet calendar", icon: "calendar" },
+        { href: "/bookings", label: "Bookings", icon: "dashboard" },
+        { href: "/fleet", label: "Fleet", icon: "fleet" },
+        { href: "/clients", label: "Clients", icon: "clients" },
+      ],
+    },
+  ],
+  operation: [
+    {
+      label: "Operations",
+      links: [
+         { href: "/tasks", label: "Dashboard", icon: "dashboard" },
+         { href: "/tasks", label: "Task", icon: "tasks" },
+         { href: "/fleet", label: "Fleet", icon: "fleet" },
+         { href: "/fleet-calendar", label: "Fleet calendar", icon: "calendar" },
+         { href: "/bookings", label: "Bookings", icon: "dashboard" },
+      ],
+    },
+  ],
+  execution: [
+    {
+      label: "Executive",
+      links: [
+        { href: "/exec/dashboard", label: "Dashboard", icon: "dashboard" },
+        { href: "/exec/fleet-calendar", label: "Fleet calendar", icon: "calendar" },
+        { href: "/bookings", label: "Bookings", icon: "dashboard" },
+        { href: "/fleet", label: "Fleet", icon: "fleet" },
+        { href: "/clients", label: "Clients", icon: "clients" },
+      ],
+    },
+  ],
+}

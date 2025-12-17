@@ -1,42 +1,12 @@
 import type { Metadata } from "next"
 import { ReactNode } from "react"
 
+import { cookies } from "next/headers"
+import { ROLE_NAV_GROUPS, UserRole } from "@/lib/roles"
+
 import { DashboardHeader, type DashboardNavGroup } from "@/components/dashboard-header"
 import { DashboardHeaderProvider } from "@/components/dashboard-header-context"
 import { DashboardSidebar } from "@/components/dashboard-sidebar"
-
-const navGroups: DashboardNavGroup[] = [
-  {
-    label: "Operations",
-    links: [
-      { href: "/fleet-calendar", label: "Fleet calendar", icon: "calendar" },
-      { href: "/tasks", label: "Tasks", icon: "tasks" },
-      { href: "/fleet", label: "Fleet", icon: "fleet" },
-    ],
-  },
-  {
-    label: "Sales",
-    links: [
-      { href: "/fleet-calendar", label: "Fleet calendar", icon: "calendar" },
-      { href: "/bookings", label: "Bookings", icon: "dashboard" },
-      { href: "/clients", label: "Clients", icon: "clients" },
-      { href: "/analytics", label: "Analytics", icon: "analytics" },
-    ],
-  },
-  {
-    label: "Executive",
-    links: [
-      { href: "/exec/dashboard", label: "Dashboard", icon: "dashboard" },
-      { href: "/exec/reports", label: "Reports", icon: "reports" },
-      { href: "/exec/analytics", label: "Analytics", icon: "analytics" },
-      { href: "/exec/services", label: "Services", icon: "settings" },
-    ],
-  },
-  {
-    label: "Integrations",
-    links: [{ href: "/exec/integrations", label: "Outbox", icon: "integrations" }],
-  },
-]
 
 export const dynamic = "force-dynamic"
 
@@ -47,7 +17,11 @@ export const metadata: Metadata = {
   },
 }
 
-export default function DashboardLayout({ children }: { children: ReactNode }) {
+export default async function DashboardLayout({ children }: { children: ReactNode }) {
+  const cookieStore = await cookies()
+  const role = (cookieStore.get("skyluxse_role")?.value as UserRole) ?? "operation"
+  const navGroups = ROLE_NAV_GROUPS[role] ?? ROLE_NAV_GROUPS.operation
+
   return (
     <DashboardHeaderProvider>
       <div className="relative flex min-h-screen w-full flex-col overflow-x-hidden bg-slate-50 text-slate-900">

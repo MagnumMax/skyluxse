@@ -10,16 +10,16 @@ export const metadata: Metadata = {
 }
 
 const roles = [
-  { value: "operations", label: "Fleet manager" },
-  { value: "sales", label: "Sales manager" },
-  { value: "ceo", label: "Executive team" },
+  { value: "operation", label: "Operations" },
+  { value: "sale", label: "Sales" },
+  { value: "execution", label: "Execution" },
   { value: "driver", label: "Driver" },
 ] as const
 
 const roleRoutes = {
-  operations: "/fleet-calendar",
-  sales: "/fleet-calendar",
-  ceo: "/exec/dashboard",
+  operation: "/fleet-calendar",
+  sale: "/bookings",
+  execution: "/exec/dashboard",
   driver: "/driver/tasks",
 } satisfies Record<(typeof roles)[number]["value"], string>
 

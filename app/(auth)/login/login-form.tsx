@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
-import { loginAsDriver } from "./actions"
+import { loginAsDriver, loginAsRole } from "./actions"
 
 type RoleOption = {
   value: string
@@ -47,6 +47,8 @@ export function LoginForm({ roles, roleRoutes }: LoginFormProps) {
     if (selectedRole === "driver") {
       await loginAsDriver(normalizedEmail)
     }
+    
+    await loginAsRole(selectedRole)
 
     const nextRoute = roleRoutes[selectedRole] ?? fallbackRoute
     router.push(nextRoute as Route)

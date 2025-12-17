@@ -5,13 +5,7 @@ import { DashboardHeader, type DashboardNavGroup } from "@/components/dashboard-
 import { DashboardHeaderProvider } from "@/components/dashboard-header-context"
 import { DashboardSidebar } from "@/components/dashboard-sidebar"
 import { DriverHeaderActions } from "@/components/driver-header-actions"
-
-const navGroups: DashboardNavGroup[] = [
-  {
-    label: "Driver",
-    links: [{ href: "/driver/tasks", label: "Tasks", icon: "tasks" }],
-  },
-]
+import { ROLE_NAV_GROUPS } from "@/lib/roles"
 
 export const metadata: Metadata = {
   title: {
@@ -28,6 +22,8 @@ export const viewport: Viewport = {
 }
 
 export default function DriverLayout({ children }: { children: ReactNode }) {
+  const navGroups = ROLE_NAV_GROUPS.driver
+
   return (
     <DashboardHeaderProvider>
       <div className="relative flex min-h-screen w-full flex-col overflow-x-hidden bg-slate-50 text-slate-900">
