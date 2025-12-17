@@ -3,14 +3,27 @@ import type { CalendarEvent } from "@/lib/domain/entities"
 export const DAY_IN_MS = 86_400_000
 export const HALF_DAY_IN_MS = DAY_IN_MS / 2
 
+function addDaysLocal(date: Date, days: number) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate() + days)
+}
+
+function utcDayStamp(date: Date) {
+  return Date.UTC(date.getFullYear(), date.getMonth(), date.getDate())
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, value))
+}
+
 export function getStartOfToday() {
   const now = new Date()
   return new Date(now.getFullYear(), now.getMonth(), now.getDate())
 }
 
 export function buildVisibleDates(baseDate: Date, offset: number, days: number) {
-  const rangeStart = new Date(baseDate.getTime() + offset * DAY_IN_MS)
-  return Array.from({ length: days }, (_, index) => new Date(rangeStart.getTime() + index * DAY_IN_MS))
+  const normalizedBase = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate())
+  const rangeStart = addDaysLocal(normalizedBase, offset)
+  return Array.from({ length: days }, (_, index) => addDaysLocal(rangeStart, index))
 }
 
 export type EventPlacement = { startSlot: number; spanSlots: number }
@@ -25,7 +38,7 @@ export function getEventGridPlacement(event: CalendarEvent, visibleDates: Date[]
     visibleDates[0].getMonth(),
     visibleDates[0].getDate()
   )
-  const rangeEnd = new Date(rangeStart.getTime() + visibleDates.length * DAY_IN_MS)
+  const rangeEnd = addDaysLocal(rangeStart, visibleDates.length)
   const eventStart = new Date(event.start)
   const eventEnd = new Date(event.end)
   const clampedStart = eventStart < rangeStart ? rangeStart : eventStart
@@ -36,12 +49,24 @@ export function getEventGridPlacement(event: CalendarEvent, visibleDates: Date[]
   }
 
   const slotCount = visibleDates.length * 2
-  const startSlot = Math.max(
-    0,
-    Math.min(slotCount - 1, Math.floor((clampedStart.getTime() - rangeStart.getTime()) / HALF_DAY_IN_MS))
-  )
-  const rawEndSlot = Math.ceil((clampedEnd.getTime() - rangeStart.getTime()) / HALF_DAY_IN_MS)
-  const endSlot = Math.max(startSlot + 1, Math.min(slotCount, rawEndSlot))
+  const rangeStartDay = utcDayStamp(rangeStart)
+
+  const startDay = utcDayStamp(clampedStart)
+  const startDayDiff = Math.floor((startDay - rangeStartDay) / DAY_IN_MS)
+  const startHalf = clampedStart.getHours() >= 12 ? 1 : 0
+  const rawStartSlot = startDayDiff * 2 + startHalf
+  const startSlot = clamp(rawStartSlot, 0, slotCount - 1)
+
+  const endDay = utcDayStamp(clampedEnd)
+  const endDayDiff = Math.floor((endDay - rangeStartDay) / DAY_IN_MS)
+  const endHourFraction =
+    clampedEnd.getHours() +
+    clampedEnd.getMinutes() / 60 +
+    clampedEnd.getSeconds() / 3600 +
+    clampedEnd.getMilliseconds() / 3_600_000
+  const endHalf = endHourFraction === 0 ? 0 : endHourFraction <= 12 ? 1 : 2
+  const rawEndSlot = endDayDiff * 2 + endHalf
+  const endSlot = clamp(Math.max(startSlot + 1, rawEndSlot), startSlot + 1, slotCount)
   const spanSlots = Math.max(1, endSlot - startSlot)
 
   return { startSlot, spanSlots }

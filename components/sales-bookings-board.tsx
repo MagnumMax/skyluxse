@@ -1,6 +1,6 @@
 "use client"
 
-import { forwardRef, useMemo, useState } from "react"
+import { forwardRef, useCallback, useMemo, useState } from "react"
 import type { KeyboardEvent } from "react"
 import { useRouter } from "next/navigation"
 import {
@@ -12,17 +12,13 @@ import {
   type DropResult,
 } from "@hello-pangea/dnd"
 
-import type { Booking, Driver } from "@/lib/domain/entities"
+import type { Booking, Driver, KommoStageConfig } from "@/lib/domain/entities"
 import { resolveBookingTotalWithVat } from "@/lib/pricing/booking-totals"
 import {
   BOOKING_TYPES,
   FALLBACK_KOMMO_STAGE_META,
   BOOKING_STAGE_FILTER_DEFAULTS,
-  KOMMO_PIPELINE_STAGE_META,
-  KOMMO_PIPELINE_STAGE_ORDER,
-  resolveBookingStageKey,
   type BookingStageKey,
-  type KommoPipelineStageId,
 } from "@/lib/constants/bookings"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -30,17 +26,17 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
-type StageBucketId = KommoPipelineStageId | "fallback"
+type StageBucketId = string
 
-const stageOrder = KOMMO_PIPELINE_STAGE_ORDER
-const hiddenStageIds: KommoPipelineStageId[] = ["79790631", "91703923", "143"]
-const visibleStageOrder = stageOrder.filter((stageId) => !hiddenStageIds.includes(stageId))
+const hiddenStageIds: string[] = ["79790631", "91703923", "143"]
+
 type RouterPushInput = Parameters<ReturnType<typeof useRouter>["push"]>[0]
 export type BookingSortOption = "start-date" | "priority" | "value" | "code"
 
 type SalesBookingsBoardProps = {
   bookings: Booking[]
   drivers: Driver[]
+  stages: KommoStageConfig[]
   readOnly?: boolean
   searchTerm?: string
   onSearchTermChange?: (value: string) => void
@@ -53,6 +49,7 @@ type SalesBookingsBoardProps = {
 export function SalesBookingsBoard({
   bookings,
   drivers,
+  stages,
   readOnly = false,
   searchTerm,
   onSearchTermChange,
@@ -69,6 +66,95 @@ export function SalesBookingsBoard({
   const resolvedSearchTerm = searchTerm ?? localSearchTerm
   const handleSearchChange = onSearchTermChange ?? setLocalSearchTerm
   const activeStageFilters = stageFilters ?? BOOKING_STAGE_FILTER_DEFAULTS
+
+  const stageOrder = useMemo(() => stages.map((s) => s.id), [stages])
+  const visibleStageOrder = useMemo(
+    () => stageOrder.filter((stageId) => !hiddenStageIds.includes(stageId)),
+    [stageOrder]
+  )
+
+  const getStageConfig = useCallback(
+    (id: string | number | null | undefined) => {
+      if (!id) return null
+      return stages.find((s) => s.id === String(id))
+    },
+    [stages]
+  )
+
+  const resolveBookingStageKey = useCallback(
+    (booking: Pick<Booking, "kommoStatusId" | "status">): BookingStageKey => {
+      const stageConfig = getStageConfig(booking.kommoStatusId)
+      if (stageConfig?.booking_status) {
+        return stageConfig.booking_status as BookingStageKey
+      }
+      switch (booking.status) {
+        case "delivery":
+          return "delivery"
+        case "in-rent":
+          return "in-rent"
+        case "settlement":
+          return "closed"
+        default:
+          return "other"
+      }
+    },
+    [getStageConfig]
+  )
+
+  const normalizeStageId = useCallback(
+    (value: Booking["kommoStatusId"]): StageBucketId => {
+      const stringId = value ? String(value) : null
+      if (stringId && stages.some((s) => s.id === stringId)) {
+        return stringId
+      }
+      return "fallback"
+    },
+    [stages]
+  )
+
+  const resolveStageMeta = (stageId: StageBucketId) => {
+    if (stageId === "fallback") {
+      return FALLBACK_KOMMO_STAGE_META
+    }
+    const stage = stages.find((s) => s.id === stageId)
+    if (stage) {
+      return {
+        label: stage.label,
+        description: stage.description ?? "",
+        headerColor: stage.header_color ?? "#e5e7eb",
+        borderColor: stage.border_color ?? "#cbd5f5",
+        bookingStatus: stage.booking_status,
+      }
+    }
+    return FALLBACK_KOMMO_STAGE_META
+  }
+
+  const applyAutomations = (booking: Booking, targetStage: string, drivers: Driver[]) => {
+    const stageMeta = resolveStageMeta(targetStage)
+    const updatedBooking: Booking = {
+      ...booking,
+      status: (stageMeta.bookingStatus as Booking["status"]) || "new",
+      kommoStatusId: Number(targetStage),
+    }
+
+    if (stageMeta.bookingStatus === "preparation" && !booking.driverId) {
+      const fallbackDriver = drivers.find((driver) => driver.status === "Available") ?? drivers[0]
+      if (fallbackDriver) {
+        updatedBooking.driverId = fallbackDriver.id
+      }
+    }
+
+    if (stageMeta.bookingStatus === "delivery" && !booking.targetTime) {
+      updatedBooking.targetTime = Date.now() + 2 * 60 * 60 * 1000
+    }
+
+    if (stageMeta.bookingStatus === "settlement") {
+      updatedBooking.targetTime = null
+    }
+
+    return { updatedBooking }
+  }
+
 
   const filtered = useMemo(() => {
     return boardBookings.filter((booking) => {
@@ -108,7 +194,7 @@ export function SalesBookingsBoard({
       }
       return true
     })
-  }, [activeStageFilters, boardBookings, driverFilter, resolvedSearchTerm, typeFilter])
+  }, [activeStageFilters, boardBookings, driverFilter, resolvedSearchTerm, resolveBookingStageKey, typeFilter])
 
   const grouped = useMemo(() => {
     const initialEntries = [...stageOrder, "fallback" as const].map((stageId) => [stageId, [] as Booking[]])
@@ -128,7 +214,7 @@ export function SalesBookingsBoard({
     }
 
     return buckets
-  }, [filtered, sortOption])
+  }, [filtered, normalizeStageId, sortOption, stageOrder])
 
   const uniqueTypes = useMemo(() => {
     const set = new Set<Booking["type"]>()
@@ -350,47 +436,6 @@ const currencyFormatter = new Intl.NumberFormat("en-CA", {
   currency: "AED",
   maximumFractionDigits: 0,
 })
-
-const applyAutomations = (booking: Booking, targetStage: KommoPipelineStageId, drivers: Driver[]) => {
-  const stageMeta = KOMMO_PIPELINE_STAGE_META[targetStage]
-  const updatedBooking: Booking = {
-    ...booking,
-    status: stageMeta.bookingStatus,
-    kommoStatusId: Number(targetStage),
-  }
-
-  if (stageMeta.bookingStatus === "preparation" && !booking.driverId) {
-    const fallbackDriver = drivers.find((driver) => driver.status === "Available") ?? drivers[0]
-    if (fallbackDriver) {
-      updatedBooking.driverId = fallbackDriver.id
-    }
-  }
-
-  if (stageMeta.bookingStatus === "delivery" && !booking.targetTime) {
-    updatedBooking.targetTime = Date.now() + 2 * 60 * 60 * 1000
-  }
-
-  if (stageMeta.bookingStatus === "settlement") {
-    updatedBooking.targetTime = null
-  }
-
-  return { updatedBooking }
-}
-
-function normalizeStageId(value: Booking["kommoStatusId"]): StageBucketId {
-  const stringId = value ? String(value) : null
-  if (stringId && KOMMO_PIPELINE_STAGE_META[stringId as KommoPipelineStageId]) {
-    return stringId as KommoPipelineStageId
-  }
-  return "fallback"
-}
-
-function resolveStageMeta(stageId: StageBucketId) {
-  if (stageId === "fallback") {
-    return FALLBACK_KOMMO_STAGE_META
-  }
-  return KOMMO_PIPELINE_STAGE_META[stageId]
-}
 
 type KanbanCardProps = {
   booking: Booking

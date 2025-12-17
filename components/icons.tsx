@@ -9,6 +9,7 @@ import {
   FileSpreadsheet,
   Workflow,
   Settings,
+  Briefcase,
 } from "lucide-react"
 
 export type NavIcon =
@@ -21,6 +22,7 @@ export type NavIcon =
   | "reports"
   | "integrations"
   | "settings"
+  | "services"
 
 const iconMap: Record<NavIcon, LucideIcon> = {
   dashboard: LayoutDashboard,
@@ -32,6 +34,7 @@ const iconMap: Record<NavIcon, LucideIcon> = {
   reports: FileSpreadsheet,
   integrations: Workflow,
   settings: Settings,
+  services: Briefcase,
 }
 
 export function Icon({ name, className }: { name: NavIcon; className?: string }) {

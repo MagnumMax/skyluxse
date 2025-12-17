@@ -11,15 +11,16 @@ import { Button } from "@/components/ui/button"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { createDefaultBookingStageFilters, type BookingStageKey } from "@/lib/constants/bookings"
-import type { Booking, Driver } from "@/lib/domain/entities"
+import type { Booking, Driver, KommoStageConfig } from "@/lib/domain/entities"
 
 type BookingsClientProps = {
   bookings: Booking[]
   drivers: Driver[]
+  stages: KommoStageConfig[]
   readOnly?: boolean
 }
 
-export function BookingsClient({ bookings, drivers, readOnly }: BookingsClientProps) {
+export function BookingsClient({ bookings, drivers, stages, readOnly }: BookingsClientProps) {
   const [search, setSearch] = useState("")
   const [stageFilters, setStageFilters] = useState<Record<BookingStageKey, boolean>>(
     () => createDefaultBookingStageFilters()
@@ -74,6 +75,7 @@ export function BookingsClient({ bookings, drivers, readOnly }: BookingsClientPr
       <SalesBookingsBoard
         bookings={bookings}
         drivers={drivers}
+        stages={stages}
         readOnly={readOnly}
         searchTerm={search}
         onSearchTermChange={setSearch}

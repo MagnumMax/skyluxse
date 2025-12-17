@@ -98,9 +98,23 @@ export interface BookingInvoice {
 export interface BookingDocument {
   type: string
   status: string
-  url?: string
-  name?: string
+  url: string
+  expiry?: string
 }
+
+export type KommoStageConfig = {
+  id: string
+  label: string
+  group_name: string | null
+  description: string | null
+  header_color: string | null
+  border_color: string | null
+  booking_status: string | null
+  order_index: number
+  is_active: boolean
+  updated_at: string
+}
+
 
 export interface BookingHistoryItem {
   ts: string

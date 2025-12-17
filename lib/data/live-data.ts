@@ -1550,11 +1550,12 @@ function formatFallbackCode(id: string): string {
 async function mapBookingDocumentRow(row: DocumentLinkRow): Promise<BookingDocument | null> {
   const base = await mapDocumentLinkRow(row)
   if (!base) return null
+  if (!base.url) return null
   return {
     type: base.type,
     status: base.status ?? "active",
     url: base.url,
-    name: base.name,
+    expiry: base.expiry ?? undefined,
   }
 }
 

@@ -20,6 +20,14 @@ function normalizeDate(value: Date) {
   return new Date(value.getFullYear(), value.getMonth(), value.getDate())
 }
 
+function utcDayStamp(date: Date) {
+  return Date.UTC(date.getFullYear(), date.getMonth(), date.getDate())
+}
+
+function addDaysLocal(date: Date, days: number) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate() + days)
+}
+
 export function isLostCalendarEvent(event: CalendarEvent) {
   const normalizedStatus = event.bookingStatus ? String(event.bookingStatus).trim().toLowerCase() : ""
   if (normalizedStatus === "lost") return true
@@ -60,7 +68,7 @@ export function useFleetCalendarController(
     if (!customRange?.from) return null
     const start = normalizeDate(customRange.from)
     const end = normalizeDate(customRange.to ?? customRange.from)
-    const rangeLength = Math.floor((end.getTime() - start.getTime()) / DAY_IN_MS) + 1
+    const rangeLength = Math.floor((utcDayStamp(end) - utcDayStamp(start)) / DAY_IN_MS) + 1
     return Math.max(1, rangeLength)
   }, [customRange])
 
@@ -79,7 +87,7 @@ export function useFleetCalendarController(
     if (nextId === "custom") {
       if (!customRange) {
         const today = getStartOfToday()
-        const defaultEnd = new Date(today.getTime() + (customDefaultDays - 1) * DAY_IN_MS)
+        const defaultEnd = addDaysLocal(today, customDefaultDays - 1)
         setCustomRangeState({ from: today, to: defaultEnd })
         setBaseDate(today)
       }
@@ -96,7 +104,7 @@ export function useFleetCalendarController(
     setBaseDate(today)
     setOffset(0)
     if (customRangeDays) {
-      const updatedEnd = new Date(today.getTime() + (customRangeDays - 1) * DAY_IN_MS)
+      const updatedEnd = addDaysLocal(today, customRangeDays - 1)
       setCustomRangeState({ from: today, to: updatedEnd })
       setViewId("custom")
     }
@@ -188,7 +196,7 @@ export function FleetCalendarBoard({
       visibleDates[0].getMonth(),
       visibleDates[0].getDate()
     )
-    const rangeEndExclusive = new Date(rangeStart.getTime() + visibleDates.length * DAY_IN_MS)
+    const rangeEndExclusive = addDaysLocal(rangeStart, visibleDates.length)
 
     return events.filter((event) => {
       if (shouldHideEvent(event)) return false
