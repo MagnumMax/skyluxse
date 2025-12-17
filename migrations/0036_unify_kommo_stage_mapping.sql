@@ -23,18 +23,18 @@ with stage_seed(id, name, probability, sla_days, kommo_pipeline_id, kommo_status
     ('prospect', 'Prospect', 0.25, 5, null, null, 'lead'),
     ('proposal', 'Proposal', 0.6, 7, null, null, 'confirmed'),
     ('won', 'Won', 1.0, 0, null, null, 'completed'),
-    ('skyluxse_incoming', 'Kommo · Incoming leads', 0.15, 3, '9815931', '75440383', 'lead'),
-    ('skyluxse_bot_answering', 'Kommo · Request bot answering', 0.2, 2, '9815931', '79790631', 'lead'),
-    ('skyluxse_follow_up', 'Kommo · Follow up', 0.35, 4, '9815931', '91703923', 'lead'),
-    ('skyluxse_waiting_payment', 'Kommo · Waiting for payment', 0.55, 3, '9815931', '96150292', 'confirmed'),
-    ('skyluxse_confirmed', 'Kommo · Confirmed booking', 0.8, 2, '9815931', '75440391', 'confirmed'),
-    ('skyluxse_delivery_24h', 'Kommo · Delivery within 24h', 0.9, 1, '9815931', '75440395', 'delivery'),
-    ('skyluxse_with_customer', 'Kommo · Car with customer', 0.95, 5, '9815931', '75440399', 'in_progress'),
-    ('skyluxse_pickup_24h', 'Kommo · Pick up within 24h', 0.97, 2, '9815931', '76475495', 'completed'),
-    ('skyluxse_objections', 'Kommo · Objections', 0.4, 3, '9815931', '78486287', 'lead'),
-    ('skyluxse_refund_deposit', 'Kommo · Refund deposit', 0.7, 4, '9815931', '75440643', 'completed'),
-    ('skyluxse_deal_closed', 'Kommo · Deal is closed', 0.99, 1, '9815931', '75440639', 'completed'),
-    ('skyluxse_closed_won', 'Kommo · Closed - won', 1.0, 0, '9815931', '142', 'completed')
+    ('skyluxse_incoming', 'Incoming leads', 0.15, 3, '9815931', '75440383', 'lead'),
+    ('skyluxse_bot_answering', 'Request bot answering', 0.2, 2, '9815931', '79790631', 'lead'),
+    ('skyluxse_follow_up', 'Follow up', 0.35, 4, '9815931', '91703923', 'lead'),
+    ('skyluxse_waiting_payment', 'Waiting for payment', 0.55, 3, '9815931', '96150292', 'confirmed'),
+    ('skyluxse_confirmed', 'Confirmed booking', 0.8, 2, '9815931', '75440391', 'confirmed'),
+    ('skyluxse_delivery_24h', 'Delivery within 24h', 0.9, 1, '9815931', '75440395', 'delivery'),
+    ('skyluxse_with_customer', 'Car with customer', 0.95, 5, '9815931', '75440399', 'in_progress'),
+    ('skyluxse_pickup_24h', 'Pick up within 24h', 0.97, 2, '9815931', '76475495', 'completed'),
+    ('skyluxse_objections', 'Objections', 0.4, 3, '9815931', '78486287', 'lead'),
+    ('skyluxse_refund_deposit', 'Refund deposit', 0.7, 4, '9815931', '75440643', 'completed'),
+    ('skyluxse_deal_closed', 'Deal is closed', 0.99, 1, '9815931', '75440639', 'completed'),
+    ('skyluxse_closed_won', 'Closed - won', 1.0, 0, '9815931', '142', 'completed')
 )
 insert into public.sales_pipeline_stages as s
   (id, name, probability, sla_days, kommo_pipeline_id, kommo_status_id, booking_status)

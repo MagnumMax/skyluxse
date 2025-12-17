@@ -3,55 +3,55 @@
 -- This is a data-only migration; no schema changes.
 
 update public.sales_pipeline_stages
-set name = 'Kommo · Incoming Leads'
+set name = 'Incoming Leads'
 where kommo_pipeline_id = '9815931' and kommo_status_id = '75440383';
 
 update public.sales_pipeline_stages
-set name = 'Kommo · Request Bot Answering'
+set name = 'Request Bot Answering'
 where kommo_pipeline_id = '9815931' and kommo_status_id = '79790631';
 
 update public.sales_pipeline_stages
-set name = 'Kommo · Follow Up'
+set name = 'Follow Up'
 where kommo_pipeline_id = '9815931' and kommo_status_id = '91703923';
 
 update public.sales_pipeline_stages
-set name = 'Kommo · Waiting for Payment'
+set name = 'Waiting for Payment'
 where kommo_pipeline_id = '9815931' and kommo_status_id = '96150292';
 
 update public.sales_pipeline_stages
-set name = 'Kommo · Confirmed Bookings'
+set name = 'Confirmed Bookings'
 where kommo_pipeline_id = '9815931' and kommo_status_id = '75440391';
 
 update public.sales_pipeline_stages
-set name = 'Kommo · Delivery Within 24 Hours'
+set name = 'Delivery Within 24 Hours'
 where kommo_pipeline_id = '9815931' and kommo_status_id = '75440395';
 
 update public.sales_pipeline_stages
-set name = 'Kommo · Car with Customers'
+set name = 'Car with Customers'
 where kommo_pipeline_id = '9815931' and kommo_status_id = '75440399';
 
 update public.sales_pipeline_stages
-set name = 'Kommo · Pick Up Within 24 Hours'
+set name = 'Pick Up Within 24 Hours'
 where kommo_pipeline_id = '9815931' and kommo_status_id = '76475495';
 
 update public.sales_pipeline_stages
-set name = 'Kommo · Objections'
+set name = 'Objections'
 where kommo_pipeline_id = '9815931' and kommo_status_id = '78486287';
 
 update public.sales_pipeline_stages
-set name = 'Kommo · Refund Deposit'
+set name = 'Refund Deposit'
 where kommo_pipeline_id = '9815931' and kommo_status_id = '75440643';
 
 update public.sales_pipeline_stages
-set name = 'Kommo · Deal Is Closed'
+set name = 'Deal Is Closed'
 where kommo_pipeline_id = '9815931' and kommo_status_id = '75440639';
 
 update public.sales_pipeline_stages
-set name = 'Kommo · Closed · Won'
+set name = 'Closed · Won'
 where kommo_pipeline_id = '9815931' and kommo_status_id = '142';
 
 -- Status 143 is intentionally excluded from bookings; update for completeness if present
 update public.sales_pipeline_stages
-set name = 'Kommo · Closed · Lost'
+set name = 'Closed · Lost'
 where kommo_pipeline_id = '9815931' and kommo_status_id = '143';
 
