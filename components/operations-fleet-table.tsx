@@ -217,7 +217,7 @@ function getVehicleStatusBadgeTone(status: string) {
 function formatDate(value?: string) {
   if (!value) return "—"
   try {
-    return new Intl.DateTimeFormat("en-CA", { month: "short", day: "numeric" }).format(new Date(value))
+    return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Dubai", month: "short", day: "numeric" }).format(new Date(value))
   } catch {
     return value
   }

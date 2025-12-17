@@ -1,4 +1,5 @@
 import type { CalendarEvent } from "@/lib/domain/entities"
+import { toDubaiDate } from "@/lib/formatters"
 
 export const DAY_IN_MS = 86_400_000
 export const HALF_DAY_IN_MS = DAY_IN_MS / 2
@@ -16,7 +17,7 @@ function clamp(value: number, min: number, max: number) {
 }
 
 export function getStartOfToday() {
-  const now = new Date()
+  const now = toDubaiDate(new Date())
   return new Date(now.getFullYear(), now.getMonth(), now.getDate())
 }
 
@@ -39,8 +40,11 @@ export function getEventGridPlacement(event: CalendarEvent, visibleDates: Date[]
     visibleDates[0].getDate()
   )
   const rangeEnd = addDaysLocal(rangeStart, visibleDates.length)
-  const eventStart = new Date(event.start)
-  const eventEnd = new Date(event.end)
+  
+  // Convert event dates to Dubai time for placement calculation
+  const eventStart = toDubaiDate(event.start)
+  const eventEnd = toDubaiDate(event.end)
+  
   const clampedStart = eventStart < rangeStart ? rangeStart : eventStart
   const clampedEnd = eventEnd > rangeEnd ? rangeEnd : eventEnd
 

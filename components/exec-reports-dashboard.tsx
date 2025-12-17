@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ParameterList, type ParameterListItem } from "@/components/parameter-list"
 
 const currencyFormatter = new Intl.NumberFormat("en-CA", { style: "currency", currency: "AED", maximumFractionDigits: 0 })
-const dateFormatter = new Intl.DateTimeFormat("en-CA", { month: "short", day: "numeric" })
+const dateFormatter = new Intl.DateTimeFormat("en-CA", { month: "short", day: "numeric", timeZone: "Asia/Dubai" })
 const percentFormatter = new Intl.NumberFormat("en-CA", { style: "percent", maximumFractionDigits: 0 })
 
 export async function ExecReportsDashboard() {

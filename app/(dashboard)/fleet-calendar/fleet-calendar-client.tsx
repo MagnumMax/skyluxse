@@ -25,6 +25,7 @@ import {
   type KommoPipelineStageId,
 } from "@/lib/constants/bookings"
 import { buildVisibleDates, DAY_IN_MS } from "@/lib/fleet/calendar-grid"
+import { toDubaiDate } from "@/lib/formatters"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Calendar } from "@/components/ui/calendar"
@@ -145,8 +146,8 @@ export function OperationsFleetCalendarClient({
         return true
       })
       .filter((event) => {
-        const eventStart = new Date(event.start).getTime()
-        const eventEnd = new Date(event.end).getTime()
+        const eventStart = toDubaiDate(event.start).getTime()
+        const eventEnd = toDubaiDate(event.end).getTime()
         return eventEnd > rangeStart.getTime() && eventStart < rangeEnd.getTime()
       })
 
@@ -621,8 +622,8 @@ function formatRangeLabel(range: DateRange | null) {
   const start = range.from
   const end = range.to
   const sameYear = start.getFullYear() === end.getFullYear()
-  const monthDayFormatter = new Intl.DateTimeFormat("en-GB", { month: "short", day: "2-digit" })
-  const monthDayYearFormatter = new Intl.DateTimeFormat("en-GB", { month: "short", day: "2-digit", year: "numeric" })
+  const monthDayFormatter = new Intl.DateTimeFormat("en-GB", { month: "short", day: "2-digit", timeZone: "Asia/Dubai" })
+  const monthDayYearFormatter = new Intl.DateTimeFormat("en-GB", { month: "short", day: "2-digit", year: "numeric", timeZone: "Asia/Dubai" })
   const startLabel = (sameYear ? monthDayFormatter : monthDayYearFormatter).format(start)
   const endLabel = monthDayYearFormatter.format(end)
   return `${startLabel} → ${endLabel}`

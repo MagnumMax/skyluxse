@@ -2,6 +2,7 @@ import { cache } from "react"
 
 import type { Booking, EntityId, ExecDashboardData, ExecReportsSnapshot } from "@/lib/domain/entities"
 import { getLiveBookings, getLiveClients, getLiveFleetVehicles } from "@/lib/data/live-data"
+import { toDubaiDate } from "@/lib/formatters"
 
 export type AnalyticsSnapshot = {
   rangeOptions: string[]
@@ -63,7 +64,7 @@ export const getAnalyticsSnapshot = cache(async (): Promise<AnalyticsSnapshot> =
     rating: {
       average: Number(avgNps.toFixed(1)),
       caption: ratingCaption,
-      updated: new Date().toLocaleString("en-CA", { hour12: false }),
+      updated: new Date().toLocaleString("en-CA", { hour12: false, timeZone: "Asia/Dubai" }),
     },
   }
 })
@@ -207,9 +208,13 @@ function buildChannelMix(bookings: Booking[]) {
 }
 
 function normalizeDateKey(value: string) {
-  if (!value) return new Date().toISOString().slice(0, 10)
+  if (!value) {
+    const now = toDubaiDate(new Date())
+    return now.toISOString().slice(0, 10)
+  }
   try {
-    return new Date(value).toISOString().slice(0, 10)
+    const date = toDubaiDate(value)
+    return date.toISOString().slice(0, 10)
   } catch {
     return value
   }

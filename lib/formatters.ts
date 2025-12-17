@@ -18,7 +18,12 @@ export function formatCurrency(value?: number, currency = "AED", options?: Intl.
 export function formatDate(value?: string, options?: Intl.DateTimeFormatOptions) {
   if (!value) return "—"
   try {
-    return new Intl.DateTimeFormat(DEFAULT_LOCALE, options ?? { month: "short", day: "numeric" }).format(new Date(value))
+    return new Intl.DateTimeFormat(DEFAULT_LOCALE, {
+      timeZone: "Asia/Dubai",
+      month: "short",
+      day: "numeric",
+      ...options,
+    }).format(new Date(value))
   } catch {
     return value
   }
@@ -27,6 +32,7 @@ export function formatDate(value?: string, options?: Intl.DateTimeFormatOptions)
 export function formatDateTime(value?: string, options?: Intl.DateTimeFormatOptions) {
   if (!value) return "—"
   const defaultOptions: Intl.DateTimeFormatOptions = {
+    timeZone: "Asia/Dubai",
     month: "short",
     day: "numeric",
     year: "numeric",
@@ -34,7 +40,7 @@ export function formatDateTime(value?: string, options?: Intl.DateTimeFormatOpti
     minute: "2-digit",
   }
   try {
-    return new Intl.DateTimeFormat(DEFAULT_LOCALE, options ?? defaultOptions).format(new Date(value))
+    return new Intl.DateTimeFormat(DEFAULT_LOCALE, { ...defaultOptions, ...options }).format(new Date(value))
   } catch {
     return value
   }
@@ -48,4 +54,41 @@ export function titleCase(value?: string, fallback = "—") {
     .filter(Boolean)
     .map((chunk) => chunk.charAt(0).toUpperCase() + chunk.slice(1))
     .join(" ")
+}
+
+export function toDubaiDate(date: Date | string | number): Date {
+  const d = new Date(date)
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Dubai",
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
+    hour: "numeric",
+    minute: "numeric",
+    second: "numeric",
+    hour12: false,
+  })
+
+  const parts = formatter.formatToParts(d)
+  const part = (type: string) => parseInt(parts.find((p) => p.type === type)?.value || "0", 10)
+
+  return new Date(
+    part("year"),
+    part("month") - 1,
+    part("day"),
+    part("hour"),
+    part("minute"),
+    part("second")
+  )
+}
+
+export function fromDubaiDate(shiftedDate: Date): Date {
+  const year = shiftedDate.getFullYear()
+  const month = String(shiftedDate.getMonth() + 1).padStart(2, "0")
+  const day = String(shiftedDate.getDate()).padStart(2, "0")
+  const hour = String(shiftedDate.getHours()).padStart(2, "0")
+  const minute = String(shiftedDate.getMinutes()).padStart(2, "0")
+  const second = String(shiftedDate.getSeconds()).padStart(2, "0")
+
+  return new Date(`${year}-${month}-${day}T${hour}:${minute}:${second}+04:00`)
 }

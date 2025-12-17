@@ -480,6 +480,7 @@ function formatDeadline(value: string | null): string {
   if (!value) return "—"
   try {
     return new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Dubai",
       month: "short",
       day: "numeric",
       hour: "2-digit",

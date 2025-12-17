@@ -1,4 +1,5 @@
 import type { Booking } from "@/lib/domain/entities"
+import { toDubaiDate } from "@/lib/formatters"
 
 const DEFAULT_WINDOW_DAYS = 30
 
@@ -6,7 +7,7 @@ export function calculateVehicleRuntimeMetrics(bookings: Booking[], referenceDat
   const nowMs = referenceDate.getTime()
   const windowStartMs = nowMs - DEFAULT_WINDOW_DAYS * 24 * 60 * 60 * 1000
   const windowDuration = Math.max(nowMs - windowStartMs, 1)
-  const currentYear = referenceDate.getFullYear()
+  const currentYear = toDubaiDate(referenceDate).getFullYear()
 
   const windowBookedMs = bookings.reduce((total, booking) => total + computeWindowOverlapMs(booking, windowStartMs, nowMs), 0)
   const utilization = Math.min(1, windowBookedMs / windowDuration)
@@ -38,5 +39,5 @@ function getYearSafe(value: string) {
   if (Number.isNaN(timestamp)) {
     return null
   }
-  return new Date(timestamp).getFullYear()
+  return toDubaiDate(timestamp).getFullYear()
 }

@@ -55,6 +55,7 @@ export function OperationsTaskCard({ task, className }: OperationsTaskCardProps)
 function formatDate(value: string) {
   try {
     return new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Dubai",
       month: "short",
       day: "numeric",
       hour: "2-digit",

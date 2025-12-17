@@ -12,6 +12,7 @@ import {
   getEventGridPlacement,
   getStartOfToday,
 } from "@/lib/fleet/calendar-grid"
+import { toDubaiDate, fromDubaiDate } from "@/lib/formatters"
 import type { EventPlacement } from "@/lib/fleet/calendar-grid"
 import { cn } from "@/lib/utils"
 import type { DateRange } from "react-day-picker"
@@ -200,8 +201,8 @@ export function FleetCalendarBoard({
 
     return events.filter((event) => {
       if (shouldHideEvent(event)) return false
-      const start = new Date(event.start)
-      const end = new Date(event.end)
+      const start = toDubaiDate(event.start)
+      const end = toDubaiDate(event.end)
       return end > rangeStart && start < rangeEndExclusive
     })
   }, [events, shouldHideEvent, visibleDates])
@@ -290,12 +291,17 @@ export function FleetCalendarBoard({
 
   const handleLocalEventUpdate = useCallback(
     (eventId: CalendarEvent["id"], nextStart: Date, nextEnd: Date) => {
+      // nextStart/nextEnd come from grid interaction, so they are "shifted" dates (Dubai time expressed as local)
+      // We need to convert them back to real UTC dates
+      const realStart = fromDubaiDate(nextStart)
+      const realEnd = fromDubaiDate(nextEnd)
+
       setEventAdjustments((prev) => {
         const next = new Map(prev)
-        next.set(String(eventId), { start: nextStart.toISOString(), end: nextEnd.toISOString() })
+        next.set(String(eventId), { start: realStart.toISOString(), end: realEnd.toISOString() })
         return next
       })
-      onEventUpdate?.(eventId, nextStart, nextEnd)
+      onEventUpdate?.(eventId, realStart, realEnd)
     },
     [onEventUpdate]
   )
@@ -606,6 +612,7 @@ function CalendarEventPill({
             month: "short",
             hour: "2-digit",
             minute: "2-digit",
+            timeZone: "Asia/Dubai",
           })}
           {" → "}
           {end.toLocaleDateString("en-GB", {
@@ -613,6 +620,7 @@ function CalendarEventPill({
             month: "short",
             hour: "2-digit",
             minute: "2-digit",
+            timeZone: "Asia/Dubai",
           })}
         </div>
       </div>

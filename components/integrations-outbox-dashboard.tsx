@@ -44,6 +44,7 @@ const zohoCredentialMeta = {
 }
 
 const dateFormatter = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "Asia/Dubai",
   dateStyle: "medium",
   timeStyle: "short",
 })

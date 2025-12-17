@@ -3,7 +3,9 @@
 import type { FormEvent } from "react"
 import { useEffect, useMemo, useState } from "react"
 import type { VehicleMaintenanceEntry } from "@/lib/domain/entities"
-import { formatDateTime } from "@/lib/formatters"
+import { addDays } from "date-fns"
+import { CalendarIcon, Loader2, Plus, Trash2 } from "lucide-react"
+import { formatDateTime, toDubaiDate } from "@/lib/formatters"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -500,21 +502,24 @@ function buildPayloadFromDraft(draft: ServiceDraft): ServiceUpdatePayload | null
 function combineDateTime(date: string, time: string) {
   if (!date) return null
   const normalizedTime = time || "00:00"
-  const parsed = new Date(`${date}T${normalizedTime}:00`)
+  // Interpret as Dubai time (+04:00)
+  const parsed = new Date(`${date}T${normalizedTime}:00+04:00`)
   if (Number.isNaN(parsed.getTime())) return null
   return parsed.toISOString()
 }
 
 function toDateInput(value: Date) {
-  const year = value.getFullYear()
-  const month = `${value.getMonth() + 1}`.padStart(2, "0")
-  const day = `${value.getDate()}`.padStart(2, "0")
+  const dubaiDate = toDubaiDate(value)
+  const year = dubaiDate.getFullYear()
+  const month = `${dubaiDate.getMonth() + 1}`.padStart(2, "0")
+  const day = `${dubaiDate.getDate()}`.padStart(2, "0")
   return `${year}-${month}-${day}`
 }
 
 function toTimeInput(value: Date) {
-  const hours = `${value.getHours()}`.padStart(2, "0")
-  const minutes = `${value.getMinutes()}`.padStart(2, "0")
+  const dubaiDate = toDubaiDate(value)
+  const hours = `${dubaiDate.getHours()}`.padStart(2, "0")
+  const minutes = `${dubaiDate.getMinutes()}`.padStart(2, "0")
   return `${hours}:${minutes}`
 }
 

@@ -1,4 +1,5 @@
 import type { BookingStatus, CalendarEventType } from "@/lib/domain/entities"
+import { toDubaiDate } from "@/lib/formatters"
 
 export type PeriodRange = {
   from: string
@@ -9,9 +10,9 @@ export const DEFAULT_PERIOD_DAYS = 7
 export const MAX_PERIOD_DAYS = 31
 
 function formatDate(date: Date): string {
-  const year = date.getFullYear()
-  const month = `${date.getMonth() + 1}`.padStart(2, "0")
-  const day = `${date.getDate()}`.padStart(2, "0")
+  const year = date.getUTCFullYear()
+  const month = `${date.getUTCMonth() + 1}`.padStart(2, "0")
+  const day = `${date.getUTCDate()}`.padStart(2, "0")
   return `${year}-${month}-${day}`
 }
 
@@ -45,7 +46,8 @@ function addDaysUTC(date: Date, days: number): Date {
 
 const todayUTC = (() => {
   const now = new Date()
-  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()))
+  const dubai = toDubaiDate(now)
+  return new Date(Date.UTC(dubai.getFullYear(), dubai.getMonth(), dubai.getDate()))
 })()
 
 export const DEFAULT_PERIOD_RANGE: PeriodRange = {

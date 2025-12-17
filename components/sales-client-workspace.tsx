@@ -384,14 +384,14 @@ function formatDate(value?: string): string {
   if (!value) return "Not set"
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
-  return date.toLocaleDateString("en-CA", { month: "short", day: "numeric", year: "numeric" })
+  return date.toLocaleDateString("en-CA", { timeZone: "Asia/Dubai", month: "short", day: "numeric", year: "numeric" })
 }
 
 function formatDateTime(value?: string): string {
   if (!value) return "Not recorded"
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
-  return date.toLocaleString("en-CA", { dateStyle: "medium", timeStyle: "short" })
+  return date.toLocaleString("en-CA", { timeZone: "Asia/Dubai", dateStyle: "medium", timeStyle: "short" })
 }
 
 function formatDateRange(start?: string, end?: string): string {
@@ -402,7 +402,7 @@ function formatDateYear(value?: string): string {
   if (!value) return "Unknown"
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
-  return date.toLocaleDateString("en-CA", { year: "numeric", month: "short" })
+  return date.toLocaleDateString("en-CA", { timeZone: "Asia/Dubai", year: "numeric", month: "short" })
 }
 
 function normalizeContactValue(value: string | undefined, fallback: string): string {

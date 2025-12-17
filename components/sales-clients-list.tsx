@@ -35,7 +35,7 @@ const rentalStatusTone: Record<string, string> = {
   completed: "bg-slate-100 text-slate-700",
 }
 
-const dateFormatter = new Intl.DateTimeFormat("en-CA", { month: "short", day: "numeric" })
+const dateFormatter = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Dubai", month: "short", day: "numeric" })
 const currencyFormatter = new Intl.NumberFormat("en-CA", { style: "currency", currency: "AED", maximumFractionDigits: 0 })
 const numberFormatter = new Intl.NumberFormat("en-CA", { maximumFractionDigits: 0 })
 const percentFormatter = new Intl.NumberFormat("en-CA", { style: "percent", minimumFractionDigits: 0, maximumFractionDigits: 0 })

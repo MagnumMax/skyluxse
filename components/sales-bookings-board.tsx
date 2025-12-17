@@ -426,6 +426,7 @@ function buildBookingComparator(sortOption: BookingSortOption) {
 }
 
 const dateTimeFormatter = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "Asia/Dubai",
   month: "short",
   day: "numeric",
   hour: "2-digit",

@@ -18,9 +18,9 @@ import { ServiceSelector } from "@/components/service-selector"
 import { BookingTaskList } from "@/components/booking-task-list"
 
 const currencyFormatter = new Intl.NumberFormat("en-CA", { style: "currency", currency: "AED", maximumFractionDigits: 0 })
-const dateFormatter = new Intl.DateTimeFormat("en-CA", { month: "short", day: "numeric" })
-const dateTimeFormatter = new Intl.DateTimeFormat("en-CA", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })
-const timeFormatter = new Intl.DateTimeFormat("en-CA", { hour: "2-digit", minute: "2-digit" })
+const dateFormatter = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Dubai", month: "short", day: "numeric" })
+const dateTimeFormatter = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Dubai", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })
+const timeFormatter = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Dubai", hour: "2-digit", minute: "2-digit" })
 const referenceDate = new Date("2025-10-13T08:00:00Z")
 
 export function OperationsBookingDetail({
