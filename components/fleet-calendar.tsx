@@ -216,8 +216,8 @@ export function FleetCalendarBoard({
       return "General"
     }
     const labelFor = (key: string) => {
-      if (grouping === "manufacturer") return `${key} · Make`
-      if (grouping === "bodyStyle") return `${key} · Body type`
+      if (grouping === "manufacturer") return key
+      if (grouping === "bodyStyle") return key
       return "General"
     }
 
@@ -229,7 +229,7 @@ export function FleetCalendarBoard({
           .filter((event) => String(event.carId) === String(car.id))
           .sort((a, b) => a.start.localeCompare(b.start)),
       }))
-      return [{ label: "General", rows }]
+      return [{ label: "", rows }]
     }
 
     const map = new Map<string, { label: string; rows: { car: FleetCar; events: CalendarEvent[] }[] }>()
@@ -330,14 +330,16 @@ export function FleetCalendarBoard({
               </div>
               {groupedRows.map((group) => (
                 <Fragment key={`group-${group.label}`}>
-                  <div className="fleet-calendar-table-row fleet-calendar-table-row--group">
-                    <div className="fleet-calendar-left-sidebar">
-                      <div className="fleet-calendar-left-cell fleet-calendar-left-cell--group">{group.label}</div>
+                  {group.label && (
+                    <div className="fleet-calendar-table-row fleet-calendar-table-row--group">
+                      <div className="fleet-calendar-left-sidebar">
+                        <div className="fleet-calendar-left-cell fleet-calendar-left-cell--group">{group.label}</div>
+                      </div>
+                      <div className="fleet-calendar-row-grid">
+                        <div className="fleet-calendar-group-divider" />
+                      </div>
                     </div>
-                    <div className="fleet-calendar-row-grid">
-                      <div className="fleet-calendar-group-divider" />
-                    </div>
-                  </div>
+                  )}
                   {group.rows.map(({ car, events }) => (
                     <div key={`row-${group.label}-${car.id}`} className="fleet-calendar-table-row">
                       <div className="fleet-calendar-left-sidebar">
