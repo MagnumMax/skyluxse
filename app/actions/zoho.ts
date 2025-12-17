@@ -1,6 +1,7 @@
 "use server";
 
 import { createZohoClient, createZohoOrder } from "@/lib/zoho/client";
+import { buildZohoSalesOrderCustomFields, resolveZohoSalespersonId } from "@/lib/zoho/sales-order-payload";
 
 export type CreateSalesOrderResult =
     | { success: true; data: { salesOrderId: string; salesOrderUrl: string; message?: string } }
@@ -170,31 +171,7 @@ export async function createSalesOrderForBooking(bookingId: string): Promise<Cre
 
         // 2. Create Sales Order
 
-        // Resolve Salesperson
-        // Extracted from Zoho Salespersons list (Step 600)
-        const SALESPERSON_MAP: Record<string, string> = {
-            "aleksei": "6183693000000293023",
-            "danil": "6183693000000293150",
-            "konstantin": "6183693000000293152",
-            "siddharth": "6183693000001836001",
-            "elena": "6183693000002460005"
-        };
-
-        let salespersonId = "";
-        if (booking.ownerName) {
-            const normalizedOwner = booking.ownerName.toLowerCase();
-            for (const [key, id] of Object.entries(SALESPERSON_MAP)) {
-                if (normalizedOwner.includes(key)) {
-                    salespersonId = id;
-                    break;
-                }
-            }
-        }
-
-        // Fallback to Aleksei if no match found (or if Alisher etc are not in list), as field is mandatory
-        if (!salespersonId) {
-            salespersonId = "6183693000000293023"; // Aleksei Default
-        }
+        const salespersonId = resolveZohoSalespersonId(booking.ownerName);
 
         // 1. Fetch Vehicle Zoho Item ID
         const { data: vehicleData } = await serviceClient
@@ -351,31 +328,7 @@ export async function createSalesOrderForBooking(bookingId: string): Promise<Cre
         // Add additional Fees if needed (though totalAmount usually implies inclusive? Check domain logic.
         // If totalAmount is the total price, leave it as one line item for simplicity unless breakdown is required.)
 
-        const customFields = [
-            {
-                customfield_id: "6183693000001829012", // Pick Up Date
-                value: booking.startDate?.split("T")[0]
-            },
-            {
-                customfield_id: "6183693000001829002", // Drop Off Date
-                value: booking.endDate?.split("T")[0]
-            },
-            {
-                customfield_id: "6183693000001829066", // Rental Location
-                value: booking.deliveryLocation || booking.pickupLocation || ""
-            },
-            {
-                customfield_id: "6183693000001869037", // KM Limit
-                value: booking.mileageLimit || ""
-            }
-        ];
-
-        if (booking.advancePayment) {
-            customFields.push({
-                customfield_id: "6183693000002201003", // Advance payment
-                value: String(booking.advancePayment)
-            });
-        }
+        const customFields = buildZohoSalesOrderCustomFields(booking);
 
         const TERMS_AND_CONDITIONS = `Thank you for choosing us! To secure your booking, please complete the advance payment using the secure link below.
 
@@ -389,7 +342,7 @@ Need help before paying? We’re here for you—Text us on whatsapp anytime!`;
 
         const orderData = {
             customer_id: contactId,
-            salesperson_id: salespersonId || undefined,
+            salesperson_id: salespersonId,
             date: new Date().toISOString().split("T")[0], // Order Date = Creation Date
             reference_number: booking.code,
             line_items: lineItems,
@@ -654,31 +607,7 @@ export async function updateSalesOrderForBooking(bookingId: string): Promise<{ s
             });
         }
 
-        const customFields = [
-            {
-                customfield_id: "6183693000001829012", // Pick Up Date
-                value: booking.startDate?.split("T")[0]
-            },
-            {
-                customfield_id: "6183693000001829002", // Drop Off Date
-                value: booking.endDate?.split("T")[0]
-            },
-            {
-                customfield_id: "6183693000001829066", // Rental Location
-                value: booking.deliveryLocation || booking.pickupLocation || ""
-            },
-            {
-                customfield_id: "6183693000001869037", // KM Limit
-                value: booking.mileageLimit || ""
-            }
-        ];
-
-        if (booking.advancePayment) {
-            customFields.push({
-                customfield_id: "6183693000002201003", // Advance payment
-                value: String(booking.advancePayment)
-            });
-        }
+        const customFields = buildZohoSalesOrderCustomFields(booking);
 
         const updateData = {
             line_items: lineItems,
