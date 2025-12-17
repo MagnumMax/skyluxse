@@ -421,7 +421,7 @@ Need help before paying? We’re here for you—Text us on whatsapp anytime!`;
 
         // 5. Send Notification (Success)
         await sendNotification('telegram', {
-            message: `✅ <b>Sales Order Created</b>\n\n<b>Booking:</b> ${booking.code}\n<b>Sales Order:</b> <a href="${salesOrderUrl}">Link</a>\n<b>Client:</b> ${client.name}\n<b>Auto:</b> ${booking.carName}\n<b>Plate:</b> ${booking.carPlate || "N/A"}${servicesText}`
+            message: `✅ <b>Sales Order Created</b>\n\n<b>Booking:</b> ${booking.code}\n<b>Sales Order:</b> <a href="${salesOrderUrl}">Link</a>\n<b>Client:</b> ${client.name}\n<b>Auto:</b> ${booking.carName}\n<b>Plate:</b> ${booking.carPlate || "N/A"}\n<b>Amount:</b> ${booking.totalAmount} AED${servicesText}`
         }).catch(err => console.error("Failed to send success notification", err));
 
         return { success: true, data: { salesOrderId, salesOrderUrl } };

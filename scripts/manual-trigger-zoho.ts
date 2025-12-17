@@ -186,7 +186,7 @@ Need help before paying? We’re here for you—Text us on whatsapp anytime!`;
         const servicesText = serviceNames.length > 0 ? `\n<b>Services:</b> ${serviceNames.join(", ")}` : "";
 
         await sendNotification('telegram', {
-            message: `✅ <b>Sales Order Created (Manual)</b>\n\n<b>Booking:</b> ${booking.external_code}\n<b>Sales Order:</b> <a href="${salesOrderUrl}">Link</a>\n<b>Client:</b> ${client.name}\n<b>Auto:</b> ${booking.vehicles?.name || "N/A"}\n<b>Plate:</b> ${booking.vehicles?.plate_number || "N/A"}${servicesText}`
+            message: `✅ <b>Sales Order Created (Manual)</b>\n\n<b>Booking:</b> ${booking.external_code}\n<b>Sales Order:</b> <a href="${salesOrderUrl}">Link</a>\n<b>Client:</b> ${client.name}\n<b>Auto:</b> ${booking.vehicles?.name || "N/A"}\n<b>Plate:</b> ${booking.vehicles?.plate_number || "N/A"}\n<b>Amount:</b> ${booking.total_amount} AED${servicesText}`
         })
     }
 
