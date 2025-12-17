@@ -5,7 +5,7 @@ import Link from "next/link"
 import { useEffect, useMemo, useRef, useState, useTransition } from "react"
 
 import { completeTask, deleteTaskPhoto, signTaskPhotoUrl, submitTaskInputs } from "@/app/(driver)/driver/tasks/actions"
-import { DriverTaskCard } from "@/components/driver-task-card"
+import { DriverTaskCard, TaskStatusBadge } from "@/components/driver-task-card"
 import { ServiceSelector } from "@/components/service-selector"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -204,13 +204,6 @@ export function DriverTaskDetail({
 
       <DriverTaskCard task={taskWithLiveStatus} clickable={false} showEta={false} showClient={false} mapUrl={mapUrl ?? undefined}>
         <div className="flex flex-col gap-2 text-base text-white/80">
-          {task.clientName ? (
-            <div className="flex items-center gap-1.5 text-base font-medium text-white/90">
-              <User className="h-4 w-4 text-white/70" />
-              <span>{task.clientName}</span>
-            </div>
-          ) : null}
-
           {details.length ? (
             <dl className="grid grid-cols-2 gap-4 text-base text-white/70 sm:grid-cols-3">
               {details.map((item) => (
@@ -237,7 +230,9 @@ export function DriverTaskDetail({
                 </a>
               ) : null}
             </div>
-            <div className="flex flex-wrap items-center gap-2"></div>
+            <div className="flex flex-wrap items-center gap-2">
+              <TaskStatusBadge status={status} className="text-[10px] sm:text-xs" />
+            </div>
           </div>
         </div>
       </DriverTaskCard>

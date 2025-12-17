@@ -30,6 +30,29 @@ export const taskStatusLabels: Record<Task["status"], string> = {
   done: "Completed",
 }
 
+export function TaskStatusBadge({ status, className }: { status: Task["status"]; className?: string }) {
+  return (
+    <div
+      className={cn(
+        "flex items-center text-sm font-semibold tracking-[0.18em] sm:tracking-[0.3em]",
+        taskStatusColors[status],
+        className
+      )}
+    >
+      <span className="mr-1.5 inline-flex h-3 w-3 items-center justify-center">
+        {status === "todo" ? (
+          <Hourglass className="h-3 w-3" />
+        ) : status === "inprogress" ? (
+          <ArrowDownToLine className="h-3 w-3" />
+        ) : (
+          <CheckCircle2 className="h-3 w-3" />
+        )}
+      </span>
+      {taskStatusLabels[status]}
+    </div>
+  )
+}
+
 type DriverTaskCardProps = PropsWithChildren<{
   task: Task
   href?: Parameters<typeof Link>[0]["href"]
@@ -73,51 +96,26 @@ export function DriverTaskCard({
     <Card className="rounded-3xl border border-white/15 bg-gradient-to-br from-white/10 via-white/5 to-transparent text-white shadow-lg transition hover:border-white/40">
       <CardHeader className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2 text-sm tracking-[0.18em] text-white/70 sm:text-xs sm:uppercase sm:tracking-[0.3em] sm:text-white/60">
-          <div className="flex flex-wrap items-center gap-2">
-            <span>{taskTypeLabels[task.type]}</span>
-            <Badge
-              variant="outline"
-              className="border-white/30 bg-white/10 px-3 py-1.5 text-sm font-semibold tracking-[0.18em] text-white sm:tracking-[0.3em]"
-            >
-              <span>
-                {formatDateTime(task.deadline, {
-                  month: "short",
-                  day: "numeric",
-                  hour: "2-digit",
-                  minute: "2-digit",
-                  hour12: false,
-                })}
-              </span>
-            </Badge>
-          </div>
-          <div className="flex items-center gap-2">
-            {showStatus ? (
-              <div
-                className={cn(
-                  "flex items-center text-sm font-semibold tracking-[0.18em] sm:tracking-[0.3em]",
-                  taskStatusColors[task.status]
-                )}
-              >
-                <span className="mr-1.5 inline-flex h-3 w-3 items-center justify-center">
-                  {task.status === "todo" ? (
-                    <Hourglass className="h-3 w-3" />
-                  ) : task.status === "inprogress" ? (
-                    <ArrowDownToLine className="h-3 w-3" />
-                  ) : (
-                    <CheckCircle2 className="h-3 w-3" />
-                  )}
-                </span>
-                {taskStatusLabels[task.status]}
-              </div>
-            ) : showEta ? (
-              <span>ETA {task.deadline}</span>
-            ) : null}
-          </div>
-        </div>
-        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+          <span>{taskTypeLabels[task.type]}</span>
           <Badge
             variant="outline"
-            className="border border-white/70 bg-white px-2.5 py-1 text-sm font-semibold uppercase tracking-[0.15em] text-slate-900 shadow-sm sm:px-3.5 sm:py-2 sm:text-base sm:tracking-[0.22em]"
+            className="border-white/30 bg-white/10 px-3 py-1.5 text-sm font-semibold tracking-[0.18em] text-white sm:tracking-[0.3em]"
+          >
+            <span>
+              {formatDateTime(task.deadline, {
+                month: "short",
+                day: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+                hour12: false,
+              })}
+            </span>
+          </Badge>
+        </div>
+        <div className="flex flex-col gap-1">
+          <Badge
+            variant="outline"
+            className="w-fit border border-white/70 bg-white px-2.5 py-1 text-sm font-semibold uppercase tracking-[0.15em] text-slate-900 shadow-sm sm:px-3.5 sm:py-2 sm:text-base sm:tracking-[0.22em]"
           >
             {task.vehiclePlate ?? "N/A"}
           </Badge>
@@ -156,15 +154,9 @@ export function DriverTaskCard({
               ) : null
             })()
           : null}
-        {showClient && task.clientName ? (
-          <div className="flex items-center gap-1.5 text-sm font-medium text-white/90">
-            <User className="h-4 w-4 text-white/70" />
-            <span>{task.clientName}</span>
-          </div>
-        ) : null}
       </CardHeader>
-      <CardContent className="text-sm text-white/75">
-        {children ? <div className="w-full pt-1 text-white">{children}</div> : null}
+      <CardContent className="pt-0 text-sm text-white/75">
+        {children ? <div className="w-full text-white">{children}</div> : null}
       </CardContent>
     </Card>
   )
