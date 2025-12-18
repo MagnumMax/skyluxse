@@ -7,11 +7,12 @@ import { DocumentList } from "@/components/sales-client-workspace"
 import { getLiveClientByIdFromDb } from "@/lib/data/live-data"
 
 type ClientDocumentsPageProps = {
-  params: { clientId: string }
+  params: Promise<{ clientId: string }>
 }
 
 export default async function ClientDocumentsPage({ params }: ClientDocumentsPageProps) {
-  const client = await getLiveClientByIdFromDb(params.clientId)
+  const { clientId } = await params
+  const client = await getLiveClientByIdFromDb(clientId)
   if (!client) {
     notFound()
   }

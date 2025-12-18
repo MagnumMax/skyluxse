@@ -29,8 +29,8 @@ test("getEventGridPlacement uses half-day slots without drifting", () => {
     carId: "car-1",
     type: "rental",
     title: "Test",
-    start: new Date(visibleDates[0].getFullYear(), visibleDates[0].getMonth(), visibleDates[0].getDate(), 9, 0, 0).toISOString(),
-    end: new Date(visibleDates[0].getFullYear(), visibleDates[0].getMonth(), visibleDates[0].getDate(), 13, 0, 0).toISOString(),
+    start: `${visibleDates[0].getFullYear()}-${String(visibleDates[0].getMonth() + 1).padStart(2, "0")}-${String(visibleDates[0].getDate()).padStart(2, "0")}T09:00:00+04:00`,
+    end: `${visibleDates[0].getFullYear()}-${String(visibleDates[0].getMonth() + 1).padStart(2, "0")}-${String(visibleDates[0].getDate()).padStart(2, "0")}T13:00:00+04:00`,
     priority: "medium",
   }
 

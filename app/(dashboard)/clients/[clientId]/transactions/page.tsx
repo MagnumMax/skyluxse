@@ -7,11 +7,12 @@ import { NotificationFeed, PaymentPanel } from "@/components/sales-client-worksp
 import { getLiveClientByIdFromDb } from "@/lib/data/live-data"
 
 type ClientTransactionsPageProps = {
-  params: { clientId: string }
+  params: Promise<{ clientId: string }>
 }
 
 export default async function ClientTransactionsPage({ params }: ClientTransactionsPageProps) {
-  const client = await getLiveClientByIdFromDb(params.clientId)
+  const { clientId } = await params
+  const client = await getLiveClientByIdFromDb(clientId)
   if (!client) {
     notFound()
   }

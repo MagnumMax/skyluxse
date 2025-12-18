@@ -19,8 +19,8 @@ export const metadata: Metadata = {
 
 export default async function DashboardLayout({ children }: { children: ReactNode }) {
   const cookieStore = await cookies()
-  const role = (cookieStore.get("skyluxse_role")?.value as UserRole) ?? "operation"
-  const navGroups = ROLE_NAV_GROUPS[role] ?? ROLE_NAV_GROUPS.operation
+  const role = (cookieStore.get("skyluxse_role")?.value as UserRole) ?? "operations"
+  const navGroups = ROLE_NAV_GROUPS[role] ?? ROLE_NAV_GROUPS.operations
 
   return (
     <DashboardHeaderProvider>
