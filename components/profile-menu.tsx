@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useMemo, useState } from "react"
 import { Check, ChevronDown, LogOut } from "lucide-react"
 import { useRouter } from "next/navigation"
 
@@ -14,7 +15,14 @@ type ProfileMenuProps = {
   hideDetails?: boolean
 }
 
-const profile = {
+type ProfileState = {
+  initials: string
+  name: string
+  role: string
+  email: string
+}
+
+const fallbackProfile: ProfileState = {
   initials: "AK",
   name: "Alex Kim",
   role: "Operations Lead",
@@ -25,8 +33,66 @@ const logoutHref = "/login"
 
 type RouterPushInput = Parameters<ReturnType<typeof useRouter>["push"]>[0]
 
+function toInitials(nameOrEmail: string) {
+  const trimmed = nameOrEmail.trim()
+  const parts = trimmed.split(/\s+/).filter(Boolean)
+  if (parts.length >= 2) {
+    return `${parts[0][0]}${parts[1][0]}`.toUpperCase()
+  }
+  if (trimmed.includes("@")) {
+    const user = trimmed.split("@")[0]
+    if (user.length >= 2) return `${user[0]}${user[1]}`.toUpperCase()
+    if (user.length === 1) return user[0].toUpperCase()
+  }
+  return trimmed[0]?.toUpperCase() || "U"
+}
+
 export function ProfileMenu({ className, placement = "top", onNavigate, hideDetails = false }: ProfileMenuProps) {
   const router = useRouter()
+  const [profile, setProfile] = useState<ProfileState>(fallbackProfile)
+
+  useEffect(() => {
+    let cancelled = false
+    async function load() {
+      try {
+        const mod = await import("@/lib/supabase/browser-client")
+        const client = mod.supabaseBrowser
+        const { data: userData } = await client.auth.getUser()
+        const user = userData?.user
+        if (!user || cancelled) return
+        const { data: staff } = await client
+          .from("staff_accounts")
+          .select("full_name,email,role")
+          .eq("id", user.id)
+          .single()
+        const name = staff?.full_name || user.user_metadata?.full_name || user.email || "User"
+        const email = staff?.email || user.email || ""
+        const role = staff?.role || "staff"
+        const initials = toInitials(name || email || "")
+        if (!cancelled) {
+          setProfile({ initials, name, role, email })
+        }
+      } catch {
+        if (!cancelled) {
+          setProfile(fallbackProfile)
+        }
+      }
+    }
+    load()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const details = useMemo(
+    () => (!hideDetails ? (
+      <span className="hidden min-w-[140px] flex-col text-left leading-tight sm:flex">
+        <span className="text-sm font-semibold text-white">{profile.name}</span>
+        <span className="text-[11px] text-white/70">{profile.role}</span>
+      </span>
+    ) : null),
+    [hideDetails, profile.name, profile.role]
+  )
 
   const handleNavigate = (href: string) => {
     router.push(href as RouterPushInput)
@@ -55,12 +121,7 @@ export function ProfileMenu({ className, placement = "top", onNavigate, hideDeta
               aria-hidden
             />
           </span>
-          {!hideDetails ? (
-            <span className="hidden min-w-[140px] flex-col text-left leading-tight sm:flex">
-              <span className="text-sm font-semibold text-white">{profile.name}</span>
-              <span className="text-[11px] text-white/70">{profile.role}</span>
-            </span>
-          ) : null}
+          {details}
           <ChevronDown className="h-4 w-4 text-white/90 transition-transform group-data-[state=open]:rotate-180" aria-hidden />
         </button>
       </DropdownMenuTrigger>

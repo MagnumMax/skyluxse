@@ -65,7 +65,15 @@ export async function login(formData: FormData) {
     })
   }
 
-  return { success: true, role }
+  // 4. Return session tokens to allow client to set Supabase browser session
+  const tokens = authData.session
+    ? {
+        access_token: authData.session.access_token,
+        refresh_token: authData.session.refresh_token,
+      }
+    : null
+
+  return { success: true, role, session: tokens }
 }
 
 export async function loginAsDriver(email: string) {

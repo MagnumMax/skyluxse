@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
 import { login } from "./actions"
+import { supabaseBrowser } from "@/lib/supabase/browser-client"
 
 const ROLE_ROUTES: Record<string, string> = {
   operations: "/fleet-calendar",
@@ -51,6 +52,17 @@ export function LoginForm() {
       }
 
       if (result.success && result.role) {
+        if (result.session?.access_token && result.session?.refresh_token) {
+          try {
+            await supabaseBrowser.auth.setSession({
+              access_token: result.session.access_token,
+              refresh_token: result.session.refresh_token,
+            })
+          } catch (e) {
+            // Non-blocking: продолжим редирект даже если не удалось установить сессию
+            console.error("[auth] Failed to set browser session", e)
+          }
+        }
         const nextRoute = ROLE_ROUTES[result.role] ?? DEFAULT_ROUTE
         router.push(nextRoute as Route)
       } else {
