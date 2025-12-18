@@ -361,32 +361,34 @@ export function DriverTaskDetail({
         </Card>
       ) : null}
 
-      <Accordion type="single" collapsible className="rounded-xl border border-border bg-card shadow-sm">
-        <AccordionItem value="handover-photos" className="border-none">
-          <AccordionTrigger className="px-6 py-4 hover:no-underline">
-             <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Handover Photos</span>
-          </AccordionTrigger>
-          <AccordionContent className="px-6 pb-4">
-            {handoverPhotos && handoverPhotos.length > 0 ? (
-              <div className="grid gap-2 grid-cols-2 sm:grid-cols-3">
+      {task.type === "pickup" ? (
+        <Accordion type="single" collapsible className="rounded-xl border border-border bg-card shadow-sm">
+          <AccordionItem value="handover-photos" className="border-none">
+            <AccordionTrigger className="px-6 py-4 hover:no-underline">
+              <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Handover Photos</span>
+            </AccordionTrigger>
+            <AccordionContent className="px-6 pb-4">
+              {handoverPhotos && handoverPhotos.length > 0 ? (
+                <div className="grid gap-2 grid-cols-2 sm:grid-cols-3">
                   {handoverPhotos.map((image) => (
-                  <div key={image} className="aspect-[4/3] overflow-hidden rounded-lg border border-border bg-muted">
+                    <div key={image} className="aspect-[4/3] overflow-hidden rounded-lg border border-border bg-muted">
                       <a href={image} target="_blank" rel="noreferrer" className="block h-full w-full">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={image} alt="Handover" className="h-full w-full object-cover" />
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={image} alt="Handover" className="h-full w-full object-cover" />
                       </a>
-                  </div>
+                    </div>
                   ))}
-              </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center py-8 text-center text-muted-foreground">
-                <FileText className="mb-2 h-8 w-8 opacity-50" />
-                <p className="text-sm">No photos available</p>
-              </div>
-            )}
-          </AccordionContent>
-        </AccordionItem>
-      </Accordion>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-8 text-center text-muted-foreground">
+                  <FileText className="mb-2 h-8 w-8 opacity-50" />
+                  <p className="text-sm">No photos available</p>
+                </div>
+              )}
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
+      ) : null}
       
       <DriverTaskForm 
         task={task} 
