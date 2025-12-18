@@ -43,6 +43,7 @@ export function OperationsTaskDetail({ task, additionalServices, availableServic
         entityType="task" 
         initialServices={additionalServices ?? []} 
         availableServices={availableServices ?? []} 
+        readOnly={task.status === "done"}
       />
 
       {handoverPhotos && handoverPhotos.length > 0 ? (

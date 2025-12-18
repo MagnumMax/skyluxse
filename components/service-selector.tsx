@@ -38,9 +38,10 @@ interface ServiceSelectorProps {
   initialServices: ServiceLink[]
   availableServices: AdditionalService[]
   variant?: "default" | "driver"
+  readOnly?: boolean
 }
 
-export function ServiceSelector({ entityId, entityType, initialServices, availableServices, variant = "default" }: ServiceSelectorProps) {
+export function ServiceSelector({ entityId, entityType, initialServices, availableServices, variant = "default", readOnly = false }: ServiceSelectorProps) {
   const [services, setServices] = useState<ServiceLink[]>(initialServices)
   const [isOpen, setIsOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
@@ -193,6 +194,7 @@ export function ServiceSelector({ entityId, entityType, initialServices, availab
       <CardHeader className={headerClassName}>
         <div className="flex items-center justify-between w-full">
             <CardTitle className={titleClassName}>Additional Services</CardTitle>
+            {!readOnly && (
             <Dialog open={isOpen} onOpenChange={(open) => { setIsOpen(open); if(!open) resetForm(); }}>
             <DialogTrigger asChild>
                 <Button size={isDriver ? "sm" : "sm"} variant={addButtonVariant} className={addButtonClassName}>
@@ -253,6 +255,7 @@ export function ServiceSelector({ entityId, entityType, initialServices, availab
                 </DialogFooter>
             </DialogContent>
             </Dialog>
+            )}
         </div>
       </CardHeader>
       <CardContent className={contentClassName}>
@@ -273,6 +276,7 @@ export function ServiceSelector({ entityId, entityType, initialServices, availab
                             <span className={cn("font-medium tabular-nums", isDriver ? "text-white" : "")}>
                                 {(Number(link.price) * link.quantity).toFixed(2)} AED
                             </span>
+                            {!readOnly && (
                             <div className="flex items-center gap-1">
                                 <Button variant="ghost" size="icon" className={cn("h-8 w-8", actionButtonClassName)} onClick={() => openEdit(link)}>
                                     <Pencil className="h-4 w-4" />
@@ -281,6 +285,7 @@ export function ServiceSelector({ entityId, entityType, initialServices, availab
                                     <X className="h-4 w-4" />
                                 </Button>
                             </div>
+                            )}
                         </div>
                     </div>
                 ))}

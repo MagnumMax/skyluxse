@@ -14,6 +14,9 @@ import { cn } from "@/lib/utils"
 import type { Task, TaskRequiredInput, TaskInputValue } from "@/lib/domain/entities"
 import { submitTaskInputs, deleteTaskPhoto } from "@/app/(driver)/driver/tasks/actions"
 
+const sanitizeLabel = (s: string) => s.replace(/\s*\((before|after)\)\s*$/i, "")
+const formatSigned = (n: number) => (n > 0 ? `+${n}` : String(n))
+
 interface DriverTaskFormProps {
   task: Task
   signedPhotoUrls?: Record<string, string[]>
@@ -31,11 +34,11 @@ export function DriverTaskForm({ task, signedPhotoUrls, minOdometer, baselineOdo
   const inputs = task.requiredInputs ?? []
   const values = task.inputValues ?? []
 
-  if (inputs.length === 0) return null
+  const isReadOnly = task.status === "done"
 
+  if (inputs.length === 0) return null
+  
   const getInputValue = (key: string) => values.find((v) => v.key === key)
-  const sanitizeLabel = (s: string) => s.replace(/\s*\((before|after)\)\s*$/i, "")
-  const formatSigned = (n: number) => (n > 0 ? `+${n}` : String(n))
 
   async function handleSubmit(formData: FormData) {
     setIsSubmitting(true)
@@ -133,44 +136,17 @@ export function DriverTaskForm({ task, signedPhotoUrls, minOdometer, baselineOdo
 
             // Odometer
             if (normalizedKey.startsWith("odo") || normalizedKey === "odometer") {
-              const displayLabel = sanitizeLabel(input.label)
               const currentOdo = valueEntry?.valueNumber ?? (valueEntry?.valueText ? Number(valueEntry.valueText) : undefined)
-              const deltaOdo = task.type === "pickup" && baselineOdometer !== undefined && currentOdo !== undefined
-                ? currentOdo - baselineOdometer
-                : undefined
               
               return (
-                <div key={input.key} className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="odometer">
-                      {displayLabel}
-                      {task.type === "pickup" && baselineOdometer !== undefined ? (
-                        <span className="text-muted-foreground font-normal"> (on delivery {baselineOdometer.toLocaleString()})</span>
-                      ) : minOdometer ? (
-                        <span className="text-muted-foreground font-normal"> (min {minOdometer.toLocaleString()})</span>
-                      ) : (
-                        ""
-                      )}
-                      {input.required && "*"}
-                    </Label>
-                    {task.type === "pickup" && baselineOdometer !== undefined && (
-                      <span className="text-xs text-muted-foreground">
-                        {deltaOdo !== undefined
-                          ? `Δ ${formatSigned(deltaOdo)}`
-                          : `Delivery ${baselineOdometer.toLocaleString()}`}
-                      </span>
-                    )}
-                  </div>
-                  <Input
-                    id="odometer"
-                    name="odometer"
-                    type="number"
-                    min={minOdometer}
-                    placeholder="Enter odometer reading"
-                    defaultValue={valueEntry?.valueNumber ?? ""}
-                    required={input.required}
-                  />
-                </div>
+                <OdometerInput
+                  key={input.key}
+                  input={input}
+                  defaultValue={currentOdo}
+                  baselineOdometer={task.type === "pickup" ? baselineOdometer : undefined}
+                  minOdometer={minOdometer}
+                  disabled={isReadOnly}
+                />
               )
             }
 
@@ -181,7 +157,13 @@ export function DriverTaskForm({ task, signedPhotoUrls, minOdometer, baselineOdo
               const defaultValue = currentValue !== undefined && currentValue !== null ? Number(currentValue) : 8
               
               return (
-                <FuelInput key={input.key} input={input} defaultValue={defaultValue} baseline={task.type === "pickup" ? baselineFuel : undefined} />
+                <FuelInput 
+                  key={input.key} 
+                  input={input} 
+                  defaultValue={defaultValue} 
+                  baseline={task.type === "pickup" ? baselineFuel : undefined} 
+                  disabled={isReadOnly}
+                />
               )
             }
 
@@ -197,6 +179,7 @@ export function DriverTaskForm({ task, signedPhotoUrls, minOdometer, baselineOdo
                     placeholder="Enter agreement number"
                     defaultValue={valueEntry?.valueText ?? ""}
                     required={input.required}
+                    disabled={isReadOnly}
                   />
                 </div>
               )
@@ -215,6 +198,7 @@ export function DriverTaskForm({ task, signedPhotoUrls, minOdometer, baselineOdo
                     defaultValue={valueEntry?.valueText ?? ""}
                     required={input.required}
                     className="min-h-[100px]"
+                    disabled={isReadOnly}
                   />
                 </div>
               )
@@ -253,21 +237,30 @@ export function DriverTaskForm({ task, signedPhotoUrls, minOdometer, baselineOdo
                                    <span className="text-[10px] text-center w-full truncate px-1">PDF Document</span>
                                  </a>
                                ) : (
-                                 // eslint-disable-next-line @next/next/no-img-element
-                                 <img src={url} alt={`Saved ${idx}`} className="h-full w-full object-cover" />
+                                 <a 
+                                   href={url} 
+                                   target="_blank" 
+                                   rel="noopener noreferrer" 
+                                   className="block h-full w-full cursor-zoom-in"
+                                 >
+                                   {/* eslint-disable-next-line @next/next/no-img-element */}
+                                   <img src={url} alt={`Saved ${idx}`} className="h-full w-full object-cover" />
+                                 </a>
                                )
                            ) : (
                                <div className="flex h-full w-full items-center justify-center text-muted-foreground">
                                  <Upload className="h-6 w-6" />
                                </div>
                            )}
-                           <button
-                             type="button"
-                             onClick={() => handleDeletePhoto(path)}
-                             className="absolute right-1 top-1 rounded-full bg-black/50 p-1 text-white opacity-0 transition-opacity group-hover:opacity-100"
-                           >
-                             <Trash2 className="h-4 w-4" />
-                           </button>
+                           {!isReadOnly && (
+                             <button
+                               type="button"
+                               onClick={() => handleDeletePhoto(path)}
+                               className="absolute right-1 top-1 rounded-full bg-black/50 p-1 text-white opacity-0 transition-opacity group-hover:opacity-100"
+                             >
+                               <Trash2 className="h-4 w-4" />
+                             </button>
+                           )}
                          </div>
                         )
                     })}
@@ -295,25 +288,29 @@ export function DriverTaskForm({ task, signedPhotoUrls, minOdometer, baselineOdo
                                  </div>
                              )}
                              <div className="absolute inset-0 bg-black/10 pointer-events-none" /> {/* Overlay to indicate pending */}
-                             <button
-                               type="button"
-                               onClick={() => removePendingFile(input.key, idx)}
-                               className="absolute right-1 top-1 rounded-full bg-black/50 p-1 text-white opacity-0 transition-opacity group-hover:opacity-100"
-                             >
-                               <X className="h-4 w-4" />
-                             </button>
+                             {!isReadOnly && (
+                               <button
+                                 type="button"
+                                 onClick={() => removePendingFile(input.key, idx)}
+                                 className="absolute right-1 top-1 rounded-full bg-black/50 p-1 text-white opacity-0 transition-opacity group-hover:opacity-100"
+                               >
+                                 <X className="h-4 w-4" />
+                               </button>
+                             )}
                           </div>
                         )
                     })}
 
                     {/* Add Button */}
-                    <div 
-                        className="flex aspect-square cursor-pointer flex-col items-center justify-center gap-2 rounded-md border border-dashed border-muted-foreground/50 bg-muted/20 hover:bg-muted/40"
-                        onClick={() => document.getElementById(`file-${input.key}`)?.click()}
-                    >
-                        <Camera className="h-6 w-6 text-muted-foreground" />
-                        <span className="text-xs text-muted-foreground">{input.multiple ? "Add" : "Upload"}</span>
-                    </div>
+                    {!isReadOnly && (
+                      <div 
+                          className="flex aspect-square cursor-pointer flex-col items-center justify-center gap-2 rounded-md border border-dashed border-muted-foreground/50 bg-muted/20 hover:bg-muted/40"
+                          onClick={() => document.getElementById(`file-${input.key}`)?.click()}
+                      >
+                          <Camera className="h-6 w-6 text-muted-foreground" />
+                          <span className="text-xs text-muted-foreground">{input.multiple ? "Add" : "Upload"}</span>
+                      </div>
+                    )}
                   </div>
 
                   <Input
@@ -323,6 +320,7 @@ export function DriverTaskForm({ task, signedPhotoUrls, minOdometer, baselineOdo
                     multiple={input.multiple}
                     className="hidden"
                     onChange={(e) => handleFileSelect(input.key, e)}
+                    disabled={isReadOnly}
                   />
                 </div>
               )
@@ -340,6 +338,7 @@ export function DriverTaskForm({ task, signedPhotoUrls, minOdometer, baselineOdo
                     type={input.type}
                     defaultValue={valueEntry?.valueText ?? valueEntry?.valueNumber ?? ""}
                     required={input.required}
+                    disabled={isReadOnly}
                   />
                 </div>
               )
@@ -348,9 +347,9 @@ export function DriverTaskForm({ task, signedPhotoUrls, minOdometer, baselineOdo
             return null
           })}
 
-          <Button type="submit" className="w-full" disabled={isSubmitting}>
+          <Button type="submit" className="w-full" disabled={isSubmitting || task.status === "done"}>
             {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-            Save Changes
+            {task.status === "done" ? "Completed" : "Save Changes"}
           </Button>
         </form>
       </CardContent>
@@ -358,9 +357,9 @@ export function DriverTaskForm({ task, signedPhotoUrls, minOdometer, baselineOdo
   )
 }
 
-function FuelInput({ input, defaultValue, baseline }: { input: TaskRequiredInput, defaultValue?: number, baseline?: number }) {
+function FuelInput({ input, defaultValue, baseline, disabled }: { input: TaskRequiredInput, defaultValue?: number, baseline?: number, disabled?: boolean }) {
   const [value, setValue] = useState(defaultValue ?? 8)
-  const label = input.label.replace(/\s*\((before|after)\)\s*$/i, "")
+  const label = sanitizeLabel(input.label)
   const delta = baseline !== undefined ? value - baseline : undefined
 
   const getLabel = (v: number) => {
@@ -377,9 +376,10 @@ function FuelInput({ input, defaultValue, baseline }: { input: TaskRequiredInput
   }
 
   const percentage = (value / 8) * 100
+  const activeColor = disabled ? "var(--muted-foreground)" : "var(--primary)"
 
   return (
-    <div className="space-y-3">
+    <div className={cn("space-y-3", disabled && "opacity-60 pointer-events-none")}>
       <div className="flex items-center justify-between">
         <Label htmlFor="fuel">{label} {input.required && "*"}</Label>
         <span className="text-sm font-medium text-muted-foreground min-w-[3rem] text-right">
@@ -395,10 +395,11 @@ function FuelInput({ input, defaultValue, baseline }: { input: TaskRequiredInput
             max="8"
             step="1"
             value={value}
+            disabled={disabled}
             onChange={(e) => setValue(Number(e.target.value))}
-            className="h-2 w-full cursor-pointer appearance-none rounded-full bg-secondary accent-primary"
+            className="h-2 w-full cursor-pointer appearance-none rounded-full bg-secondary accent-primary disabled:cursor-not-allowed"
             style={{
-              background: `linear-gradient(to right, var(--primary) ${percentage}%, var(--secondary) ${percentage}%)`
+              background: `linear-gradient(to right, ${activeColor} ${percentage}%, var(--secondary) ${percentage}%)`
             }}
           />
       </div>
@@ -413,6 +414,66 @@ function FuelInput({ input, defaultValue, baseline }: { input: TaskRequiredInput
         <span className="w-4 text-center">·</span>
         <span className="w-4 text-center">F</span>
       </div>
+    </div>
+  )
+}
+
+function OdometerInput({
+  input,
+  defaultValue,
+  baselineOdometer,
+  minOdometer,
+  disabled
+}: {
+  input: TaskRequiredInput
+  defaultValue?: number
+  baselineOdometer?: number
+  minOdometer?: number
+  disabled?: boolean
+}) {
+  const [value, setValue] = useState<number | undefined>(defaultValue)
+  const displayLabel = sanitizeLabel(input.label)
+  
+  const deltaOdo = baselineOdometer !== undefined && value !== undefined
+    ? value - baselineOdometer
+    : undefined
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <Label htmlFor="odometer">
+          {displayLabel}
+          {baselineOdometer !== undefined ? (
+            <span className="text-muted-foreground font-normal"> (on delivery {baselineOdometer.toLocaleString()})</span>
+          ) : minOdometer ? (
+            <span className="text-muted-foreground font-normal"> (min {minOdometer.toLocaleString()})</span>
+          ) : (
+            ""
+          )}
+          {input.required && "*"}
+        </Label>
+        {baselineOdometer !== undefined && (
+          <span className="text-xs text-muted-foreground">
+            {deltaOdo !== undefined
+              ? `Δ ${formatSigned(deltaOdo)}`
+              : `Delivery ${baselineOdometer.toLocaleString()}`}
+          </span>
+        )}
+      </div>
+      <Input
+        id="odometer"
+        name="odometer"
+        type="number"
+        min={minOdometer}
+        placeholder="Enter odometer reading"
+        defaultValue={defaultValue}
+        required={input.required}
+        disabled={disabled}
+        onChange={(e) => {
+          const val = e.target.value === "" ? undefined : Number(e.target.value)
+          setValue(val)
+        }}
+      />
     </div>
   )
 }
