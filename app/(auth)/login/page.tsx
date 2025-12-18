@@ -6,22 +6,8 @@ import { LoginForm } from "./login-form"
 
 export const metadata: Metadata = {
   title: "SkyLuxse ERP · Login",
-  description: "SkyLuxse ERP login screen with role selection and OTP request.",
+  description: "SkyLuxse ERP login screen.",
 }
-
-const roles = [
-  { value: "operation", label: "Operations" },
-  { value: "sale", label: "Sales" },
-  { value: "execution", label: "Execution" },
-  { value: "driver", label: "Driver" },
-] as const
-
-const roleRoutes = {
-  operation: "/fleet-calendar",
-  sale: "/fleet-calendar",
-  execution: "/exec/dashboard",
-  driver: "/driver/tasks",
-} satisfies Record<(typeof roles)[number]["value"], string>
 
 const heroBullets = [
   "Corporate access: bookings, vehicles, and clients in one place.",
@@ -44,7 +30,7 @@ export default function LoginPage() {
             <CardTitle className="text-3xl font-semibold tracking-tight text-foreground">Welcome</CardTitle>
           </CardHeader>
           <CardContent>
-            <LoginForm roles={roles} roleRoutes={roleRoutes} />
+            <LoginForm />
           </CardContent>
         </Card>
 

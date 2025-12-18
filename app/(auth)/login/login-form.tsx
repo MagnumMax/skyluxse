@@ -7,76 +7,68 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
-import { loginAsDriver, loginAsRole } from "./actions"
+import { login } from "./actions"
 
-type RoleOption = {
-  value: string
-  label: string
+const ROLE_ROUTES: Record<string, string> = {
+  operations: "/fleet-calendar",
+  sales: "/fleet-calendar",
+  ceo: "/exec/dashboard",
+  driver: "/driver/tasks",
 }
+const DEFAULT_ROUTE = "/fleet-calendar"
 
-type LoginFormProps = {
-  roles: readonly RoleOption[]
-  roleRoutes: Record<RoleOption["value"], string>
-}
-const DEFAULT_OPERATIONS_ROUTE = "/fleet-calendar"
-
-export function LoginForm({ roles, roleRoutes }: LoginFormProps) {
+export function LoginForm() {
   const router = useRouter()
-  const defaultRole = roles[1]?.value ?? roles[0]?.value ?? "operations"
-  const [selectedRole, setSelectedRole] = useState(defaultRole)
-  const [email, setEmail] = useState("fleet@skyluxse.ae")
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
-
-  const fallbackRoute = roleRoutes.operations ?? DEFAULT_OPERATIONS_ROUTE
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const normalizedEmail = email.trim()
 
-    if (!normalizedEmail) {
-      setError("Enter your work email")
+    if (!normalizedEmail || !password) {
+      setError("Email and password are required")
       return
     }
 
     setError(null)
     setIsSubmitting(true)
 
-    if (selectedRole === "driver") {
-      await loginAsDriver(normalizedEmail)
-    }
-    
-    await loginAsRole(selectedRole)
+    const formData = new FormData()
+    formData.append("email", normalizedEmail)
+    formData.append("password", password)
 
-    const nextRoute = roleRoutes[selectedRole] ?? fallbackRoute
-    router.push(nextRoute as Route)
+    try {
+      const result = await login(formData)
+      
+      if (result.error) {
+        setError(result.error)
+        setIsSubmitting(false)
+        return
+      }
+
+      if (result.success && result.role) {
+        const nextRoute = ROLE_ROUTES[result.role] ?? DEFAULT_ROUTE
+        router.push(nextRoute as Route)
+      } else {
+        // Fallback if something weird happens
+        router.push(DEFAULT_ROUTE as Route)
+      }
+    } catch (err) {
+      console.error(err)
+      setError("An unexpected error occurred")
+      setIsSubmitting(false)
+    }
   }
 
   return (
     <form className="space-y-5" onSubmit={handleSubmit} noValidate>
       <div className="space-y-2">
-        <Label htmlFor="login-role" className="text-sm font-medium text-foreground">
-          Role
-        </Label>
-        <Select value={selectedRole} onValueChange={setSelectedRole}>
-          <SelectTrigger id="login-role" className="h-11 rounded-2xl bg-muted/60">
-            <SelectValue placeholder="Select role" />
-          </SelectTrigger>
-          <SelectContent>
-            {roles.map((role) => (
-              <SelectItem key={role.value} value={role.value}>
-                {role.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div className="space-y-2">
         <Label htmlFor="login-email" className="text-sm font-medium text-foreground">
-          Email/Phone
+          Email
         </Label>
         <Input
           id="login-email"
@@ -84,7 +76,23 @@ export function LoginForm({ roles, roleRoutes }: LoginFormProps) {
           value={email}
           onChange={(event) => setEmail(event.target.value)}
           className="h-11 rounded-2xl bg-muted/60"
-          placeholder="fleet@skyluxse.ae"
+          placeholder="name@skyluxse.ae"
+          autoComplete="email"
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="login-password" className="text-sm font-medium text-foreground">
+          Password
+        </Label>
+        <Input
+          id="login-password"
+          type="password"
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
+          className="h-11 rounded-2xl bg-muted/60"
+          placeholder="Enter your password"
+          autoComplete="current-password"
         />
         {error ? (
           <p className="text-sm text-destructive" role="status">
@@ -93,24 +101,12 @@ export function LoginForm({ roles, roleRoutes }: LoginFormProps) {
         ) : null}
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="otp" className="text-sm font-medium text-foreground">
-          One-time code
-        </Label>
-        <div className="space-y-2">
-          <p className="text-sm text-muted-foreground">MFA support will be available after integration.</p>
-          <Button variant="secondary" type="button" className="h-11 w-full rounded-2xl border border-border/70">
-            Send code
-          </Button>
-        </div>
-      </div>
-
       <Button
         type="submit"
         className="h-11 w-full rounded-2xl text-base font-semibold"
         disabled={isSubmitting}
       >
-        {isSubmitting ? "Redirecting..." : "Sign in"}
+        {isSubmitting ? "Signing in..." : "Sign in"}
       </Button>
     </form>
   )

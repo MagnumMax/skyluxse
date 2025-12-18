@@ -1,6 +1,6 @@
 import { DashboardNavGroup } from "@/components/dashboard-header"
 
-export type UserRole = "driver" | "sale" | "operation" | "execution"
+export type UserRole = "driver" | "sales" | "operations" | "ceo"
 
 export const ROLE_NAV_GROUPS: Record<UserRole, DashboardNavGroup[]> = {
   driver: [
@@ -13,7 +13,7 @@ export const ROLE_NAV_GROUPS: Record<UserRole, DashboardNavGroup[]> = {
       ],
     },
   ],
-  sale: [
+  sales: [
     {
       label: "Sales",
       links: [
@@ -25,7 +25,7 @@ export const ROLE_NAV_GROUPS: Record<UserRole, DashboardNavGroup[]> = {
       ],
     },
   ],
-  operation: [
+  operations: [
     {
       label: "Operations",
       links: [
@@ -37,7 +37,7 @@ export const ROLE_NAV_GROUPS: Record<UserRole, DashboardNavGroup[]> = {
       ],
     },
   ],
-  execution: [
+  ceo: [
     {
       label: "Executive",
       links: [
