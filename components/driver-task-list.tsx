@@ -19,14 +19,14 @@ export function DriverTaskList({ tasks }: { tasks: Task[] }) {
         >
           <div className="flex flex-col gap-3">
             <div className="flex w-full items-center justify-between gap-2">
-              <div className="flex flex-wrap items-center gap-3 text-xs text-white/50">
+              <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
                 <span className="tracking-wider">#{task.bookingCode ?? task.bookingId}</span>
                 {task.zohoSalesOrderUrl ? (
                   <a
                     href={task.zohoSalesOrderUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-1 hover:text-white hover:underline"
+                    className="flex items-center gap-1 hover:text-foreground hover:underline transition-colors"
                     onClick={(e) => e.stopPropagation()}
                   >
                     <ExternalLink className="h-3 w-3" />

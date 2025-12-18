@@ -13,6 +13,7 @@ import {
   getDriverProfileByEmail,
   getLiveBookingById,
   getLiveBookings,
+  getLiveBookingsByIds,
   getStaffAccounts,
   type StaffAccount,
 } from "@/lib/data/live-data"
@@ -99,10 +100,10 @@ export const getDriverTasks = cache(async (): Promise<Task[]> => {
   }
 
   // If we found a driver ID, use it to filter tasks and bookings
-  const [rows, bookings] = await Promise.all([
-    fetchTaskRows({ driverId }),
-    driverId ? getBookingsByDriverId(driverId) : getLiveBookings(),
-  ])
+  const rows = await fetchTaskRows({ driverId })
+  
+  const bookingIds = Array.from(new Set(rows.map((r) => r.booking_id).filter(Boolean) as string[]))
+  const bookings = await getLiveBookingsByIds(bookingIds)
 
   const bookingsById = new Map(bookings.map((booking) => [String(booking.id), booking]))
   const odometerByVehicle = buildOdometerMap(rows)
@@ -138,6 +139,47 @@ export const getBookingRelatedTasks = cache(async (bookingId: string): Promise<T
   const odometerByVehicle = buildOdometerMap(rows)
   const fuelByVehicle = buildFuelMap(rows)
   return rows.map((row) => toBaseTask(row, { bookingsById, odometerByVehicle, fuelByVehicle }))
+})
+
+export const getVehicleMaxOdometer = cache(async (vehicleId: string): Promise<number | null> => {
+  // 1. Try to get max from completed tasks (most reliable recent data)
+  const { data: taskData, error: taskError } = await serviceClient
+    .from("task_required_input_values")
+    .select(`
+      value_number,
+      tasks!inner (
+        vehicle_id,
+        status
+      )
+    `)
+    .eq("tasks.vehicle_id", vehicleId)
+    .eq("tasks.status", "done")
+    .ilike("key", "odo%")
+    .not("value_number", "is", null)
+    .order("value_number", { ascending: false })
+    .limit(1)
+
+  if (taskError) {
+    console.error("Failed to fetch max odometer from tasks", taskError)
+  }
+
+  if (taskData?.[0]?.value_number) {
+    return taskData[0].value_number
+  }
+
+  // 2. Fallback to vehicle registry mileage
+  const { data: vehicleData, error: vehicleError } = await serviceClient
+    .from("vehicles")
+    .select("mileage_km")
+    .eq("id", vehicleId)
+    .single()
+
+  if (vehicleError) {
+    console.error("Failed to fetch vehicle mileage", vehicleError)
+    return null
+  }
+
+  return vehicleData?.mileage_km ?? null
 })
 
 export const getTasksByBookingId = cache(async (bookingId: string): Promise<{ pickupMiles: number; pickupFuel: number; returnMiles: number; returnFuel: number; tasks: OperationsTask[] }> => {

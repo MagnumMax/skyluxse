@@ -4,10 +4,10 @@
   "description": "Современное веб-приложение для управления автопарком с интерактивным интерфейсом.",
   "main": "next.config.mjs",
   "scripts": {
-    "dev": "PORT=${PORT:-6767}; lsof -ti:${PORT} | xargs kill -9 || true; next dev -p ${PORT}",
-    "dev:webpack": "PORT=${PORT:-6767}; lsof -ti:${PORT} | xargs kill -9 || true; NEXT_DISABLE_TURBOPACK=1 next dev -p ${PORT}",
-    "build": "next build",
-    "build:webpack": "next build --webpack",
+    "dev": "PORT=${PORT:-6767}; lsof -ti:${PORT} | xargs kill -9 || true; next dev -p ${PORT} --webpack",
+    "dev:turbopack": "PORT=${PORT:-6767}; lsof -ti:${PORT} | xargs kill -9 || true; next dev -p ${PORT}",
+    "build": "next build --webpack",
+    "build:turbopack": "next build",
     "start": "PORT=${PORT:-6767} next start -p ${PORT}",
     "lint": "eslint . --ext .ts,.tsx --report-unused-disable-directives --max-warnings=0",
     "typecheck": "tsc --noEmit",
@@ -64,6 +64,7 @@
     "vitest": "^4.0.15"
   },
   "dependencies": {
+    "@ducanh2912/next-pwa": "^10.2.9",
     "@hello-pangea/dnd": "^18.0.1",
     "@hookform/resolvers": "^5.2.2",
     "@radix-ui/react-accordion": "^1.2.12",

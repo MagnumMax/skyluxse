@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import type { Task } from "@/lib/domain/entities"
 import { cn } from "@/lib/utils"
-import { ArrowDownToLine, CheckCircle2, Hourglass, Loader2, User, MapPin } from "lucide-react"
+import { ArrowDownToLine, CheckCircle2, Hourglass, Loader2, MapPin } from "lucide-react"
 import { formatDateTime } from "@/lib/formatters"
 
 export const taskTypeLabels: Record<Task["type"], string> = {
@@ -19,9 +19,9 @@ export const taskTypeLabels: Record<Task["type"], string> = {
 }
 
 export const taskStatusColors: Record<Task["status"], string> = {
-  todo: "text-red-400",
-  inprogress: "text-yellow-400",
-  done: "text-green-400",
+  todo: "text-muted-foreground",
+  inprogress: "text-blue-500",
+  done: "text-green-500",
 }
 
 export const taskStatusLabels: Record<Task["status"], string> = {
@@ -34,12 +34,12 @@ export function TaskStatusBadge({ status, className }: { status: Task["status"];
   return (
     <div
       className={cn(
-        "flex items-center text-sm font-semibold tracking-[0.18em] sm:tracking-[0.3em]",
+        "flex items-center text-xs font-medium tracking-wide uppercase",
         taskStatusColors[status],
         className
       )}
     >
-      <span className="mr-1.5 inline-flex h-3 w-3 items-center justify-center">
+      <span className="mr-1.5 inline-flex h-2 w-2 items-center justify-center">
         {status === "todo" ? (
           <Hourglass className="h-3 w-3" />
         ) : status === "inprogress" ? (
@@ -93,33 +93,35 @@ export function DriverTaskCard({
     }
   }, [])
   const card = (
-    <Card className="rounded-3xl border border-white/15 bg-gradient-to-br from-white/10 via-white/5 to-transparent text-white shadow-lg transition hover:border-white/40">
-      <CardHeader className="space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-2 text-sm tracking-[0.18em] text-white/70 sm:text-xs sm:uppercase sm:tracking-[0.3em] sm:text-white/60">
-          <span>{taskTypeLabels[task.type]}</span>
+    <Card className="group relative overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-sm transition-all hover:shadow-md hover:border-primary/20">
+      <CardHeader className="space-y-4 pb-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <Badge
-            variant="outline"
-            className="border-white/30 bg-white/10 px-3 py-1.5 text-sm font-semibold tracking-[0.18em] text-white sm:tracking-[0.3em]"
+            variant="secondary"
+            className="rounded-full px-2.5 py-0.5 text-xs font-medium text-muted-foreground"
           >
-            <span>
-              {formatDateTime(task.deadline, {
-                month: "short",
-                day: "numeric",
-                hour: "2-digit",
-                minute: "2-digit",
-                hour12: false,
-              })}
-            </span>
+            {taskTypeLabels[task.type]}
           </Badge>
+          <span className="text-xs font-medium text-muted-foreground">
+            {formatDateTime(task.deadline, {
+              month: "short",
+              day: "numeric",
+              hour: "2-digit",
+              minute: "2-digit",
+              hour12: false,
+            })}
+          </span>
         </div>
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-col gap-1.5">
           <Badge
             variant="outline"
-            className="w-fit border border-white/70 bg-white px-2.5 py-1 text-sm font-semibold uppercase tracking-[0.15em] text-slate-900 shadow-sm sm:px-3.5 sm:py-2 sm:text-base sm:tracking-[0.22em]"
+            className="w-fit rounded-md border-border px-2 py-0.5 text-xs font-semibold uppercase tracking-wider text-foreground"
           >
             {task.vehiclePlate ?? "N/A"}
           </Badge>
-          <CardTitle className="text-xl text-white sm:text-3xl">{task.vehicleName ?? task.title}</CardTitle>
+          <CardTitle className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
+            {task.vehicleName ?? task.title}
+          </CardTitle>
         </div>
         {showLocationHeader
           ? (() => {
@@ -136,27 +138,27 @@ export function DriverTaskCard({
                     : task.geo.pickup || task.geo.dropoff || ""
               }
               return text ? (
-                <CardDescription className="line-clamp-2 text-sm text-white/80 sm:line-clamp-none sm:whitespace-normal sm:overflow-visible">
+                <CardDescription className="flex items-start gap-1.5 text-sm text-muted-foreground">
+                  <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground/70" />
                   {!clickable && mapUrl ? (
                     <a
                       href={mapUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 hover:underline hover:text-white"
+                      className="hover:text-primary hover:underline"
                     >
-                      <MapPin className="h-4 w-4" />
                       {text}
                     </a>
                   ) : (
-                    text
+                    <span>{text}</span>
                   )}
                 </CardDescription>
               ) : null
             })()
           : null}
       </CardHeader>
-      <CardContent className="pt-0 text-sm text-white/75">
-        {children ? <div className="w-full text-white">{children}</div> : null}
+      <CardContent className="pt-0 text-sm text-muted-foreground">
+        {children ? <div className="w-full">{children}</div> : null}
       </CardContent>
     </Card>
   )
@@ -166,7 +168,7 @@ export function DriverTaskCard({
       <div className="relative">
         <button
           type="button"
-          className="block w-full text-left"
+          className="block w-full text-left transition-transform active:scale-[0.98]"
           onClick={() => {
             if (opening) return
             setOpening(true)
@@ -178,9 +180,9 @@ export function DriverTaskCard({
           {card}
         </button>
         {opening ? (
-          <div className="absolute inset-0 z-10 flex items-center justify-center rounded-3xl bg-black/50 backdrop-blur-sm">
-            <div className="flex items-center gap-3 rounded-full border border-white/30 bg-white/10 px-6 py-3 text-lg font-semibold tracking-[0.18em] text-white">
-              <Loader2 className="h-4 w-4 animate-spin" />
+          <div className="absolute inset-0 z-10 flex items-center justify-center rounded-xl bg-background/50 backdrop-blur-sm">
+            <div className="flex items-center gap-3 rounded-full border border-border bg-background px-6 py-3 text-sm font-medium shadow-lg">
+              <Loader2 className="h-4 w-4 animate-spin text-primary" />
               <span>{isOnline ? "Opening task…" : "No internet connection!"}</span>
             </div>
           </div>

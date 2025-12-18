@@ -26,7 +26,7 @@ export default function DriverLayout({ children }: { children: ReactNode }) {
 
   return (
     <DashboardHeaderProvider>
-      <div className="relative flex min-h-screen w-full flex-col overflow-x-hidden bg-slate-50 text-slate-900">
+      <div className="dark relative flex min-h-screen w-full flex-col overflow-x-hidden bg-background text-foreground">
         <DashboardHeader
           navGroups={navGroups}
           className="fixed inset-x-0 top-0 z-40 w-full"
@@ -35,7 +35,7 @@ export default function DriverLayout({ children }: { children: ReactNode }) {
         <div className="flex flex-1 min-h-0 overflow-hidden lg:pl-16">
           <DashboardSidebar navGroups={navGroups} />
           <main
-            className="relative flex-1 min-h-0 overflow-y-auto border-l border-white/10 bg-slate-950 pb-8 text-white [--dashboard-gutter:1rem]"
+            className="relative flex-1 min-h-0 overflow-y-auto border-l border-border/10 bg-background pb-8 text-foreground [--dashboard-gutter:1rem]"
             style={{
               paddingTop: "calc(var(--dashboard-header-height, 64px) + var(--dashboard-gutter, 1rem))",
               paddingInline: "var(--dashboard-gutter, 1rem)",

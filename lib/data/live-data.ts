@@ -465,6 +465,20 @@ async function fetchBookingRowsByDriverId(driverId: string): Promise<BookingRow[
   return data ?? []
 }
 
+async function fetchBookingRowsByIds(bookingIds: string[]): Promise<BookingRow[]> {
+  const uniqueIds = Array.from(new Set(bookingIds))
+  if (!uniqueIds.length) return []
+  const { data, error } = await serviceClient
+    .from("bookings")
+    .select(BOOKING_SELECT_COLUMNS)
+    .in("id", uniqueIds)
+    .order("start_at", { ascending: false })
+  if (error) {
+    throw new Error(`[supabase] Failed to load bookings by id: ${error.message}`)
+  }
+  return data ?? []
+}
+
 const fetchBookingInvoiceRows = cache(async (): Promise<BookingInvoiceRow[]> => {
   const { data, error } = await serviceClient
     .from("booking_invoices")
@@ -997,6 +1011,57 @@ export const getLiveBookings = cache(async (): Promise<Booking[]> => {
   )
 })
 
+export const getLiveBookingsByIds = cache(async (bookingIds: string[]): Promise<Booking[]> => {
+  const bookingRows = await fetchBookingRowsByIds(bookingIds)
+  if (!bookingRows.length) return []
+
+  const clientIds = new Set<string>()
+  const vehicleIds = new Set<string>()
+  const staffIds = new Set<string>()
+
+  bookingRows.forEach((row) => {
+    if (row.client_id) clientIds.add(row.client_id)
+    if (row.vehicle_id) vehicleIds.add(row.vehicle_id)
+    if (row.owner_id) staffIds.add(row.owner_id)
+    if (row.created_by) staffIds.add(row.created_by)
+  })
+
+  const [clientRows, vehicleRows, invoiceRows, staffRows, pipelineStageRows] = await Promise.all([
+    fetchClientRowsByIds(Array.from(clientIds)),
+    fetchVehicleRowsByIds(Array.from(vehicleIds)),
+    fetchBookingInvoiceRowsByBookingIds(bookingIds),
+    fetchStaffRowsByIds(Array.from(staffIds)),
+    fetchSalesPipelineStageRows(),
+  ])
+
+  const clientsById = new Map<string, ClientRow>()
+  clientRows.forEach((row) => clientsById.set(row.id, row))
+
+  const vehiclesById = new Map<string, VehicleRow>()
+  vehicleRows.forEach((row) => vehiclesById.set(row.id, row))
+
+  const staffById = new Map<string, StaffRow>()
+  staffRows.forEach((row) => staffById.set(row.id, row))
+
+  const invoicesByBooking = new Map<string, BookingInvoice[]>()
+  invoiceRows.forEach((row) => {
+    if (!row.booking_id) return
+    const list = invoicesByBooking.get(row.booking_id) ?? []
+    list.push(mapInvoiceRow(row))
+    invoicesByBooking.set(row.booking_id, list)
+  })
+
+  const stageByKommoStatusId = new Map<string, SalesPipelineStageRow>()
+  pipelineStageRows.forEach((row) => {
+    if (!row.kommo_status_id) return
+    stageByKommoStatusId.set(String(row.kommo_status_id), row)
+  })
+
+  return bookingRows.map((row) =>
+    mapBookingRow(row, { clientsById, vehiclesById, staffById, invoicesByBooking, stageByKommoStatusId })
+  )
+})
+
 export const getLiveBookingById = cache(async (bookingId: string): Promise<Booking | null> => {
   const row = await fetchBookingRowById(bookingId)
   if (!row) return null
@@ -1058,30 +1123,31 @@ export const getLiveDrivers = cache(async (): Promise<Driver[]> => {
 })
 
 export const getDriverProfileByEmail = cache(async (email: string): Promise<DriverProfileRow | null> => {
-  const { data: staff, error: staffError } = await serviceClient
+  const { data: staffData, error: staffError } = await serviceClient
     .from("staff_accounts")
     .select("id")
     .eq("email", email)
     .eq("role", "driver")
-    .maybeSingle()
+    .limit(1)
 
   if (staffError) {
-    console.error("Failed to find staff by email", email, staffError)
+    console.error("Failed to find staff by email", email, JSON.stringify(staffError, null, 2))
     return null
   }
+  const staff = staffData?.[0]
   if (!staff) return null
 
-  const { data: profile, error: profileError } = await serviceClient
+  const { data: profileData, error: profileError } = await serviceClient
     .from("driver_profiles")
     .select("id, status, staff_account_id")
     .eq("staff_account_id", staff.id)
-    .maybeSingle()
+    .limit(1)
 
   if (profileError) {
-    console.error("Failed to find driver profile for staff", staff.id, profileError)
+    console.error("Failed to find driver profile for staff", staff.id, JSON.stringify(profileError, null, 2))
     return null
   }
-  return profile
+  return profileData?.[0] || null
 })
 
 export const getBookingsByDriverId = cache(async (driverId: string): Promise<Booking[]> => {

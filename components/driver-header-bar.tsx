@@ -83,25 +83,25 @@ export function DriverHeaderBar() {
   }
 
   return (
-    <header className="sticky top-0 z-10 border-b border-white/10 bg-linear-to-r from-slate-950 via-slate-900 to-slate-950 px-4 py-4">
+    <header className="sticky top-0 z-10 border-b border-border bg-background/80 px-4 py-4 backdrop-blur-md transition-colors duration-300">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="text-[0.75rem] font-semibold uppercase tracking-[0.5em] text-slate-400">Driver</p>
-          <h1 className="text-2xl font-semibold tracking-tight text-white">SkyLuxse</h1>
+          <p className="text-[0.75rem] font-semibold uppercase tracking-[0.5em] text-muted-foreground">Driver</p>
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">SkyLuxse</h1>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           {isTasksPage ? (
             <TooltipProvider delayDuration={100}>
               <div
-                className="flex flex-wrap items-center gap-2 rounded-full border border-white/15 bg-white/5 px-2 py-1"
+                className="flex flex-wrap items-center gap-2 rounded-full border border-border bg-muted/50 p-1"
                 aria-label="Filters"
               >
                 <ToggleGroup
                   type="single"
                   value={currentFilter}
                   onValueChange={(value) => setFilter((value as FilterValue) || "all")}
-                  className="rounded-full bg-white/5 p-0.5"
-                  size="lg"
+                  className="gap-1"
+                  size="sm"
                   aria-label="Task type"
                 >
                   {filterOptions.map((option) => (
@@ -109,25 +109,26 @@ export function DriverHeaderBar() {
                       <TooltipTrigger asChild>
                         <ToggleGroupItem
                           value={option.value}
-                          size="lg"
-                          className="rounded-full border border-white/30 text-white hover:bg-white/10 data-[state=on]:border-emerald-400 data-[state=on]:bg-emerald-500/20 data-[state=on]:text-emerald-100"
+                          size="sm"
+                          className="h-8 w-8 rounded-full data-[state=on]:bg-background data-[state=on]:text-foreground data-[state=on]:shadow-sm hover:bg-background/50 hover:text-foreground"
                         >
                           {option.icon}
                           <span className="sr-only">{option.label}</span>
                         </ToggleGroupItem>
                       </TooltipTrigger>
-                      <TooltipContent className="bg-slate-800 text-sm text-white" sideOffset={4}>
+                      <TooltipContent sideOffset={4}>
                         {option.label}
                       </TooltipContent>
                     </Tooltip>
                   ))}
                 </ToggleGroup>
+                <div className="h-4 w-px bg-border" />
                 <ToggleGroup
                   type="single"
                   value={currentStatus}
                   onValueChange={(value) => setStatus((value as StatusFilter) || "todo")}
-                  className="rounded-full bg-white/5 p-0.5"
-                  size="lg"
+                  className="gap-1"
+                  size="sm"
                   aria-label="Task status"
                 >
                   {statusOptions.map((option) => (
@@ -135,14 +136,14 @@ export function DriverHeaderBar() {
                       <TooltipTrigger asChild>
                         <ToggleGroupItem
                           value={option.value}
-                          size="lg"
-                          className="rounded-full border border-white/30 text-white hover:bg-white/10 data-[state=on]:border-sky-300 data-[state=on]:bg-sky-500/20 data-[state=on]:text-sky-50"
+                          size="sm"
+                          className="h-8 w-8 rounded-full data-[state=on]:bg-background data-[state=on]:text-foreground data-[state=on]:shadow-sm hover:bg-background/50 hover:text-foreground"
                         >
                           {option.icon}
                           <span className="sr-only">{option.label}</span>
                         </ToggleGroupItem>
                       </TooltipTrigger>
-                      <TooltipContent className="bg-slate-800 text-sm text-white" sideOffset={4}>
+                      <TooltipContent sideOffset={4}>
                         {option.label}
                       </TooltipContent>
                     </Tooltip>
@@ -151,13 +152,13 @@ export function DriverHeaderBar() {
               </div>
             </TooltipProvider>
           ) : null}
-          <button className="flex items-center gap-2 rounded-full border border-white/40 px-3.5 py-1.5 text-[0.75rem] font-semibold uppercase tracking-[0.3em] text-white/80">
+          <div className="flex items-center gap-2 rounded-full border border-border px-3.5 py-1.5 text-[0.75rem] font-semibold uppercase tracking-[0.3em] text-muted-foreground bg-background">
             <span className="relative flex h-2 w-2">
-              <span className={`absolute inline-flex h-full w-full animate-ping rounded-full ${isOnline ? "bg-emerald-400" : "bg-rose-400"} opacity-60`} />
-              <span className={`relative inline-flex h-2 w-2 rounded-full ${isOnline ? "bg-emerald-400" : "bg-rose-400"}`} />
+              <span className={`absolute inline-flex h-full w-full animate-ping rounded-full ${isOnline ? "bg-emerald-500" : "bg-destructive"} opacity-75`} />
+              <span className={`relative inline-flex h-2 w-2 rounded-full ${isOnline ? "bg-emerald-500" : "bg-destructive"}`} />
             </span>
             {isOnline ? "On" : "Off"}
-          </button>
+          </div>
         </div>
       </div>
     </header>

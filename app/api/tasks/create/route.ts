@@ -111,7 +111,7 @@ function buildTaskInsert(row: any, mode: "delivery" | "pickup") {
     status: "todo",
     title: mode === "delivery" ? "Delivery" : "Pickup",
     deadline_at: deadline,
-    assignee_driver_id: row.driver_id,
+    assignee_driver_id: "07c91c85-62c8-44dd-8351-ef78826e633f", // Force assignment to driver@skyluxse.ae
     sla_minutes: 0,
     metadata: {
       scope: "driver",

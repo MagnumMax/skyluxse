@@ -2,24 +2,18 @@
 
 import Image from "next/image"
 import Link from "next/link"
-import { useEffect, useMemo, useRef, useState, useTransition } from "react"
+import { useEffect, useMemo, useState } from "react"
+import { ArrowLeft, AlertTriangle, ExternalLink, FileText, Mail } from "lucide-react"
 
-import { completeTask, deleteTaskPhoto, signTaskPhotoUrl, submitTaskInputs } from "@/app/(driver)/driver/tasks/actions"
 import { DriverTaskCard, TaskStatusBadge } from "@/components/driver-task-card"
-import { ServiceSelector } from "@/components/service-selector"
+import { DriverTaskForm } from "@/components/driver-task-form"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import type { Client, Task } from "@/lib/domain/entities"
 import { AdditionalService, TaskAdditionalService } from "@/lib/domain/additional-services"
-import { supabaseBrowser } from "@/lib/supabase/browser-client"
 import { formatDate } from "@/lib/formatters"
-import { AlertTriangle, MapPin, User, ExternalLink } from "lucide-react"
-
-import { taskTypeLabels } from "./driver-task-card"
-
-type DriverInput = NonNullable<Task["requiredInputs"]>[number]
 
 const DAY_MS = 24 * 60 * 60 * 1000
 const SOON_THRESHOLD_DAYS = (() => {
@@ -57,12 +51,8 @@ function daysSince(expiry?: string, nowTs?: number): number | null {
   return Math.ceil(diff / DAY_MS)
 }
 
-function ruDays(n: number): string {
-  const mod10 = n % 10
-  const mod100 = n % 100
-  if (mod10 === 1 && mod100 !== 11) return "день"
-  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return "дня"
-  return "дней"
+function getDaysLabel(n: number): string {
+  return n === 1 ? "day" : "days"
 }
 
 function normalizeType(value?: string) {
@@ -92,14 +82,12 @@ const KOMMO_BASE_URL = process.env.NEXT_PUBLIC_KOMMO_BASE_URL || process.env.KOM
 
 function buildKommoLeadUrl(bookingCode?: string): string | undefined {
   if (!bookingCode || !KOMMO_BASE_URL) return undefined
-  // Check for K- prefix which indicates Kommo Lead ID
   if (bookingCode.startsWith("K-")) {
     const leadId = bookingCode.slice(2)
     if (!leadId) return undefined
     try {
       const base = new URL(KOMMO_BASE_URL)
       const normalizedPath = base.pathname.endsWith("/") ? base.pathname.slice(0, -1) : base.pathname
-      // Kommo leads URL pattern: /leads/detail/{id}
       base.pathname = `${normalizedPath}/leads/detail/${leadId}`
       return base.toString()
     } catch {
@@ -109,67 +97,142 @@ function buildKommoLeadUrl(bookingCode?: string): string | undefined {
   return undefined
 }
 
-export function DriverTaskDetail({ 
-  task, 
+function buildMapsUrl(type: Task["type"], geo: Task["geo"]) {
+  if (!geo) return null
+  const dest = type === "delivery" ? geo.dropoff : geo.pickup
+  if (!dest) return null
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(dest)}`
+}
+
+function normalizePhone(phone?: string) {
+  if (!phone) return undefined
+  return phone.replace(/\D/g, "")
+}
+
+function buildWhatsAppText(task: Task) {
+  return `Hello, this is regarding your ${task.type} for ${task.vehicleName ?? "vehicle"}.`
+}
+
+function DocumentItem({ doc, client, nowTs }: { doc: any; client: Client; nowTs: number }) {
+  const raw = client?.documentRecognition?.raw
+  const arr = Array.isArray(raw) ? raw : raw ? [raw] : []
+  const docCanon = canonicalType(doc.type)
+  const rec = arr.find((x: any) => canonicalType(x?.doc_type) === docCanon) ?? null
+  const expiryVal = doc.expiry ?? (rec ? rec.expiry_date : undefined) ?? (isIdLike(doc.type) ? client?.expiryDate : undefined)
+  const docNumber = doc.number ?? rec?.document_number ?? (isIdLike(doc.type) ? client?.documentNumber : undefined)
+  const state = expiryVal ? getExpiryState(expiryVal, nowTs) : "none"
+
+  const content = (
+    <>
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <p className="font-medium text-foreground text-sm">{doc.type}</p>
+        </div>
+        <div className="flex items-center gap-2">
+          {docNumber ? (
+            <Badge variant="outline" className="border-border text-[10px] tracking-wider text-muted-foreground">
+              #{docNumber}
+            </Badge>
+          ) : null}
+          {String(doc.status ?? "").toLowerCase() !== "needs_review" ? (
+            <Badge variant="outline" className="text-[10px] uppercase tracking-wider">
+              {(() => {
+                if (state === "expired") return "Expired"
+                if (state === "soon") return "Expiring"
+                return "Active"
+              })()}
+            </Badge>
+          ) : null}
+        </div>
+      </div>
+
+      {(() => {
+        if (!expiryVal) return null
+        if (state === "expired") {
+          const d = daysSince(expiryVal, nowTs) ?? 0
+          return (
+            <p className="mt-1 flex items-center gap-1 text-xs text-destructive">
+              <AlertTriangle className="size-3" />
+              {`Expired ${d} ${getDaysLabel(d)} ago`} ({formatDate(expiryVal, { month: "short", day: "numeric", year: "numeric" })})
+            </p>
+          )
+        }
+        if (state === "soon") {
+          const d = daysUntil(expiryVal, nowTs) ?? 0
+          return (
+            <p className="mt-1 flex items-center gap-1 text-xs text-yellow-600 dark:text-yellow-400">
+              <AlertTriangle className="size-3" />
+              {`Expires in ${d} ${getDaysLabel(d)}`} ({formatDate(expiryVal, { month: "short", day: "numeric", year: "numeric" })})
+            </p>
+          )
+        }
+        return (
+          <p className="mt-1 text-xs text-muted-foreground">
+            Expires {formatDate(expiryVal, { month: "short", day: "numeric", year: "numeric" })}
+          </p>
+        )
+      })()}
+    </>
+  )
+
+  const containerClasses = `block rounded-lg border px-3 py-2 transition-colors hover:bg-muted/50 ${(() => {
+    if (state === "expired") return "border-destructive/30 bg-destructive/5"
+    if (state === "soon") return "border-yellow-500/30 bg-yellow-500/5"
+    return "border-border"
+  })()}`
+
+  return (
+    <li>
+      {doc.url ? (
+        <a href={doc.url} target="_blank" rel="noreferrer" className={containerClasses}>
+          {content}
+        </a>
+      ) : (
+        <div className={containerClasses}>{content}</div>
+      )}
+    </li>
+  )
+}
+
+export function DriverTaskDetail({
+  task,
   client,
   additionalServices,
   availableServices,
   kommoLeadUrl: kommoLeadUrlProp,
   handoverPhotos,
-}: { 
+  signedPhotoUrls,
+  minOdometer,
+  baselineOdometer,
+  baselineFuel,
+}: {
   task: Task
   client?: Client
   additionalServices?: TaskAdditionalService[]
-  availableServices?: AdditionalService[]
+  availableServices?: AdditionalService[] // Kept for interface compatibility
   kommoLeadUrl?: string
   handoverPhotos?: string[]
+  signedPhotoUrls?: Record<string, string[]>
+  minOdometer?: number
+  baselineOdometer?: number
+  baselineFuel?: number
 }) {
   const [status, setStatus] = useState<Task["status"]>(task.status)
   const [isOnline, setIsOnline] = useState<boolean>(typeof window === "undefined" ? true : navigator.onLine)
   const [nowTs] = useState(() => Date.now())
 
-  // Compute initial values from saved task input values
-  const initialValues = useMemo(() => {
-    const values: Record<string, any> = {}
-    task.inputValues?.forEach((iv) => {
-      if (iv.key === "agreement_number") values.agreementNumber = iv.valueText
-      else if (iv.key === "damage_notes") values.damage_notes = iv.valueText
-      else if (iv.key === "odometer" || iv.key.startsWith("odo_")) values.odometer = iv.valueNumber
-      else if (iv.key === "fuel_level" || iv.key.startsWith("fuel_")) values.fuel = iv.valueNumber
-      else if (iv.key === "cleaning_needed") values.cleaning = iv.valueText
-      else if (iv.key === "payment_collected") values.paymentCollected = iv.valueNumber
-      // Add other fields if needed
-    })
-    return values
-  }, [task.inputValues])
+  // Note: Input handling logic was removed as it was not used in the UI.
+  // If needed, restore from previous version or implement Input/Service UI.
 
-  const lastOdometer = task.lastVehicleOdometer ?? undefined
-  
-  // previousOdometer prop logic was: saved ?? last. 
-  // We keep it for backward compatibility if needed, but we prefer specific props now.
-  const previousOdometer = initialValues.odometer ?? lastOdometer
-
-  const previousFuel =
-    task.inputValues?.find((value) => value.key === "fuel_level" || value.key.startsWith("fuel_"))?.valueNumber ??
-    task.lastVehicleFuel ??
-    undefined
-  const existingPhotos =
-    task.inputValues
-      ?.filter((value) => value.storagePaths?.length)
-      .flatMap((value) =>
-        (value.storagePaths ?? []).map((path) => ({
-          path,
-          bucket: value.bucket ?? "task-media",
-          key: value.key,
-        }))
-      ) ?? []
-  const details = [] as { label: string; value: string }[]
   const taskWithLiveStatus = { ...task, status } as Task
-  const isDone = status === "done"
   const mapUrl = buildMapsUrl(task.type, task.geo)
   const phoneDigits = normalizePhone(client?.phone ?? task.clientPhone)
-  const whatsappUrl = phoneDigits ? `https://wa.me/${phoneDigits}?text=${encodeURIComponent(buildWhatsAppText(task))}` : undefined
+  const whatsappUrl = phoneDigits
+    ? `https://wa.me/${phoneDigits}?text=${encodeURIComponent(buildWhatsAppText(task))}`
+    : undefined
   const kommoLeadUrl = kommoLeadUrlProp ?? buildKommoLeadUrl(task.bookingCode)
+
+  const details: { label: string; value: string }[] = [] // Currently empty as per original code
 
   useEffect(() => {
     function onOnline() {
@@ -187,43 +250,53 @@ export function DriverTaskDetail({
   }, [])
 
   return (
-    <div className="space-y-6 text-white">
+    <div className="space-y-6 text-foreground">
       {!isOnline ? (
-        <div className="rounded-2xl border border-white/20 bg-amber-600/20 px-4 py-3 text-base text-amber-100">
+        <div className="rounded-xl border border-yellow-500/20 bg-yellow-500/10 px-4 py-3 text-sm font-medium text-yellow-600 dark:text-yellow-400">
           Offline. Data and photos will be saved when connection is restored.
         </div>
       ) : null}
+      
       <Button
         asChild
-        variant="outline"
-        size="lg"
-        className="w-fit rounded-full border-white/25 bg-white/5 px-5 py-2.5 text-base text-white hover:border-white/40 hover:bg-white/10"
+        variant="ghost"
+        size="sm"
+        className="gap-2 text-muted-foreground hover:text-foreground pl-0 hover:bg-transparent"
       >
-        <Link href="/driver/tasks">← Back to list</Link>
+        <Link href="/driver/tasks">
+          <ArrowLeft className="h-4 w-4" />
+          Back to list
+        </Link>
       </Button>
 
-      <DriverTaskCard task={taskWithLiveStatus} clickable={false} showEta={false} showClient={false} mapUrl={mapUrl ?? undefined}>
-        <div className="flex flex-col gap-2 text-base text-white/80">
+      <DriverTaskCard
+        task={taskWithLiveStatus}
+        clickable={false}
+        showEta={false}
+        showClient={false}
+        mapUrl={mapUrl ?? undefined}
+      >
+        <div className="flex flex-col gap-4">
           {details.length ? (
-            <dl className="grid grid-cols-2 gap-4 text-base text-white/70 sm:grid-cols-3">
+            <dl className="grid grid-cols-2 gap-4 sm:grid-cols-3">
               {details.map((item) => (
                 <div key={item.label} className="space-y-1">
-                  <dt className="text-[0.75rem] uppercase tracking-[0.15em] text-white/60 sm:tracking-[0.28em]">{item.label}</dt>
-                  <dd className="text-lg font-semibold text-white">{item.value}</dd>
+                  <dt className="text-[0.7rem] uppercase tracking-wider text-muted-foreground">{item.label}</dt>
+                  <dd className="text-base font-semibold text-foreground">{item.value}</dd>
                 </div>
               ))}
             </dl>
           ) : null}
 
-          <div className="flex w-full items-center justify-between gap-2">
-            <div className="flex flex-wrap items-center gap-3 text-xs text-white/50">
+          <div className="flex w-full items-center justify-between gap-2 pt-2 border-t border-border">
+            <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
               <span className="tracking-wider">#{task.bookingCode ?? task.bookingId}</span>
               {task.zohoSalesOrderUrl ? (
                 <a
                   href={task.zohoSalesOrderUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-1 hover:text-white hover:underline"
+                  className="flex items-center gap-1 hover:text-foreground hover:underline transition-colors"
                 >
                   <ExternalLink className="h-3 w-3" />
                   <span>Sales order</span>
@@ -238,847 +311,90 @@ export function DriverTaskDetail({
       </DriverTaskCard>
 
       {client ? (
-        <Card className="rounded-3xl border border-white/15 bg-white/5 text-white shadow-lg">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base font-semibold uppercase tracking-[0.35em] text-white/60">Client</CardTitle>
+        <Card className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+          <CardHeader className="border-b border-border bg-muted/30 pb-3">
+            <CardTitle className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+              Client
+            </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="pt-4">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div className="space-y-1">
-                <p className="text-lg font-semibold text-white">{client.name}</p>
+                <p className="text-lg font-semibold text-foreground">{client.name}</p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                <Button asChild size="lg" variant="outline" className="rounded-full border-white/25 bg-white/5 px-4 py-2 text-sm font-semibold text-white hover:border-white/40 hover:bg-white/10" disabled={!kommoLeadUrl && !whatsappUrl}>
-                  <a href={kommoLeadUrl ?? whatsappUrl ?? "#"} target="_blank" rel="noopener noreferrer">Message</a>
+                <Button
+                  asChild
+                  size="sm"
+                  variant="outline"
+                  className="h-8 rounded-full"
+                  disabled={!kommoLeadUrl && !whatsappUrl}
+                >
+                  <a
+                    href={kommoLeadUrl ?? whatsappUrl ?? "#"}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2"
+                  >
+                    <Mail className="h-3.5 w-3.5" />
+                    <span>{kommoLeadUrl ? "Kommo" : "Message"}</span>
+                  </a>
                 </Button>
               </div>
             </div>
-            <div className="mt-4 space-y-3">
-              <h3 className="text-base font-semibold text-white">Documents</h3>
+            <div className="mt-6 space-y-3">
+              <h3 className="text-sm font-medium text-foreground">Documents</h3>
               {client.documents.length ? (
-                <ul className="space-y-3 text-base text-white/80">
+                <ul className="grid gap-3 sm:grid-cols-2">
                   {client.documents.map((doc) => (
-                    <li key={doc.id}>
-                      {doc.url ? (
-                        <a
-                          href={doc.url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className={`block rounded-2xl border px-3 py-2 hover:bg-white/10 ${(() => {
-                            const state = getExpiryState(doc.expiry, nowTs)
-                            if (state === "expired") return "border-rose-400/40 bg-rose-900/20"
-                            if (state === "soon") return "border-amber-400/40 bg-amber-900/20"
-                            return "border-white/15"
-                          })()}`}
-                        >
-                          <div className="flex items-start justify-between gap-2">
-                            <div>
-                              <p className="font-medium text-white text-base">{doc.type}</p>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              {(() => {
-                                const raw = client?.documentRecognition?.raw
-                                const arr = Array.isArray(raw) ? raw : raw ? [raw] : []
-                                const docCanon = canonicalType(doc.type)
-                                const rec = arr.find((x: any) => canonicalType(x?.doc_type) === docCanon) ?? null
-                                const n = doc.number ?? rec?.document_number ?? (isIdLike(doc.type) ? client?.documentNumber : undefined)
-                                return n ? (
-                                  <Badge variant="outline" className="border-white/20 text-[12px] tracking-wider text-white/60">#{n}</Badge>
-                                ) : null
-                              })()}
-                              {String(doc.status ?? "").toLowerCase() !== "needs_review" ? (
-                                <Badge variant="outline" className="text-[12px] uppercase tracking-wider">
-                                  {(() => {
-                                    const raw = client?.documentRecognition?.raw
-                                    const arr = Array.isArray(raw) ? raw : raw ? [raw] : []
-                                    const docCanon = canonicalType(doc.type)
-                                    const rec = arr.find((x: any) => canonicalType(x?.doc_type) === docCanon) ?? null
-                                    const expiryVal = doc.expiry ?? (rec ? rec.expiry_date : undefined) ?? (isIdLike(doc.type) ? client?.expiryDate : undefined)
-                                    const state = getExpiryState(expiryVal, nowTs)
-                                    if (state === "expired") return "Expired"
-                                    if (state === "soon") return "Expiring"
-                                    return "Active"
-                                  })()}
-                                </Badge>
-                              ) : null}
-                            </div>
-                          </div>
-                          
-                          {(() => {
-                            const raw = client?.documentRecognition?.raw
-                            const arr = Array.isArray(raw) ? raw : raw ? [raw] : []
-                            const docCanon = canonicalType(doc.type)
-                            const rec = arr.find((x: any) => canonicalType(x?.doc_type) === docCanon) ?? null
-                            const expiryVal = doc.expiry ?? (rec ? rec.expiry_date : undefined) ?? (isIdLike(doc.type) ? client?.expiryDate : undefined)
-                            if (!expiryVal) return null
-                            const state = getExpiryState(expiryVal, nowTs)
-                            if (state === "expired") {
-                              const d = daysSince(expiryVal, nowTs) ?? 0
-                              return (
-                                <p className="flex items-center gap-1 text-sm text-rose-300">
-                                  <AlertTriangle className="size-3 animate-pulse" />
-                                  {`Expired ${d} ${ruDays(d)} ago`} ({formatDate(expiryVal, { month: "short", day: "numeric", year: "numeric" })})
-                                </p>
-                              )
-                            }
-                            if (state === "soon") {
-                              const d = daysUntil(expiryVal, nowTs) ?? 0
-                              return (
-                                <p className="flex items-center gap-1 text-sm text-amber-300">
-                                  <AlertTriangle className="size-3" />
-                                  {`Expires in ${d} ${ruDays(d)}`} ({formatDate(expiryVal, { month: "short", day: "numeric", year: "numeric" })})
-                                </p>
-                              )
-                            }
-                            return <p className="text-sm text-white/70">Expires {formatDate(expiryVal, { month: "short", day: "numeric", year: "numeric" })}</p>
-                          })()}
-                        </a>
-                      ) : (
-                        <div className={`rounded-2xl border px-3 py-2 ${(() => {
-                          const state = getExpiryState(doc.expiry, nowTs)
-                          if (state === "expired") return "border-rose-400/40 bg-rose-900/20"
-                          if (state === "soon") return "border-amber-400/40 bg-amber-900/20"
-                          return "border-white/15"
-                        })()}`}>
-                          <div className="flex items-start justify-between gap-2">
-                            <div>
-                              <p className="font-medium text-white text-base">{doc.type}</p>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              {(() => {
-                                const raw = client?.documentRecognition?.raw
-                                const arr = Array.isArray(raw) ? raw : raw ? [raw] : []
-                                const docCanon = canonicalType(doc.type)
-                                const rec = arr.find((x: any) => canonicalType(x?.doc_type) === docCanon) ?? null
-                                const n = doc.number ?? rec?.document_number ?? (isIdLike(doc.type) ? client?.documentNumber : undefined)
-                                return n ? (
-                                  <Badge variant="outline" className="border-white/20 text-[12px] tracking-wider text-white/60">#{n}</Badge>
-                                ) : null
-                              })()}
-                              {String(doc.status ?? "").toLowerCase() !== "needs_review" ? (
-                                <Badge variant="outline" className="text-[12px] uppercase tracking-wider">
-                                  {(() => {
-                                    const raw = client?.documentRecognition?.raw
-                                    const arr = Array.isArray(raw) ? raw : raw ? [raw] : []
-                                    const docCanon = canonicalType(doc.type)
-                                    const rec = arr.find((x: any) => canonicalType(x?.doc_type) === docCanon) ?? null
-                                    const expiryVal = doc.expiry ?? (rec ? rec.expiry_date : undefined) ?? (isIdLike(doc.type) ? client?.expiryDate : undefined)
-                                    const state = getExpiryState(expiryVal, nowTs)
-                                    if (state === "expired") return "Expired"
-                                    if (state === "soon") return "Expiring"
-                                    return "Active"
-                                  })()}
-                                </Badge>
-                              ) : null}
-                            </div>
-                          </div>
-                          
-                          {(() => {
-                            const raw = client?.documentRecognition?.raw
-                            const arr = Array.isArray(raw) ? raw : raw ? [raw] : []
-                            const docCanon = canonicalType(doc.type)
-                            const rec = arr.find((x: any) => canonicalType(x?.doc_type) === docCanon) ?? null
-                            const expiryVal = doc.expiry ?? (rec ? rec.expiry_date : undefined) ?? (isIdLike(doc.type) ? client?.expiryDate : undefined)
-                            if (!expiryVal) return null
-                            const state = getExpiryState(expiryVal, nowTs)
-                            if (state === "expired") {
-                              const d = daysSince(expiryVal, nowTs) ?? 0
-                              return (
-                                <p className="flex items-center gap-1 text-sm text-rose-300">
-                                  <AlertTriangle className="size-3 animate-pulse" />
-                                  {`Expired ${d} ${ruDays(d)} ago`} ({formatDate(expiryVal, { month: "short", day: "numeric", year: "numeric" })})
-                                </p>
-                              )
-                            }
-                            if (state === "soon") {
-                              const d = daysUntil(expiryVal, nowTs) ?? 0
-                              return (
-                                <p className="flex items-center gap-1 text-sm text-amber-300">
-                                  <AlertTriangle className="size-3" />
-                                  {`Expires in ${d} ${ruDays(d)}`} ({formatDate(expiryVal, { month: "short", day: "numeric", year: "numeric" })})
-                                </p>
-                              )
-                            }
-                            return <p className="text-sm text-white/70">Expires {formatDate(expiryVal, { month: "short", day: "numeric", year: "numeric" })}</p>
-                          })()}
-                        </div>
-                      )}
-                    </li>
+                    <DocumentItem key={doc.id} doc={doc} client={client} nowTs={nowTs} />
                   ))}
                 </ul>
               ) : (
-                <p className="text-sm text-white/70">No documents uploaded.</p>
+                <div className="flex flex-col items-center justify-center py-8 text-center text-muted-foreground">
+                  <FileText className="mb-2 h-8 w-8 opacity-50" />
+                  <p className="text-sm">No documents found</p>
+                </div>
               )}
             </div>
           </CardContent>
         </Card>
       ) : null}
 
-      <ServiceSelector 
-        entityId={String(task.id)} 
-        entityType="task" 
-        initialServices={additionalServices ?? []} 
-        availableServices={availableServices ?? []} 
-        variant="driver"
-      />
-
-      {handoverPhotos && handoverPhotos.length > 0 ? (
-        <Accordion type="single" collapsible className="rounded-3xl border border-white/15 bg-white/5 px-6">
-          <AccordionItem value="handover-photos" className="border-none">
-            <AccordionTrigger className="hover:no-underline py-6">
-               <span className="text-sm font-semibold uppercase tracking-[0.35em] text-white/60">Handover Photos</span>
-            </AccordionTrigger>
-            <AccordionContent>
-                <div className="grid gap-2 sm:grid-cols-2 pb-6">
-                    {handoverPhotos.map((image) => (
-                    <div key={image} className="overflow-hidden rounded-2xl border border-white/10 bg-black/20">
-                        <a href={image} target="_blank" rel="noreferrer">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={image} alt="Handover" className="h-32 w-full object-cover" />
-                        </a>
-                    </div>
-                    ))}
-                </div>
-            </AccordionContent>
-          </AccordionItem>
-        </Accordion>
-      ) : null}
-
-      <Card className="rounded-3xl border border-white/15 bg-white/5 text-white shadow-lg">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-semibold uppercase tracking-[0.35em] text-white/60">Complete</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <DriverTaskInputs
-            taskId={String(task.id)}
-            inputs={task.requiredInputs ?? []}
-            previousOdometer={previousOdometer}
-            previousFuel={previousFuel}
-            photos={existingPhotos}
-            isDone={isDone}
-            onCompleted={(nextStatus) => setStatus(nextStatus)}
-            taskType={task.type}
-            initialValues={initialValues}
-            lastOdometer={lastOdometer}
-          />
-        </CardContent>
-      </Card>
-    </div>
-  )
-}
-
-type DriverTaskInputsProps = {
-  taskId: string
-  inputs: NonNullable<Task["requiredInputs"]>
-  previousOdometer?: number
-  previousFuel?: number
-  photos?: { path: string; bucket?: string; key?: string }[]
-  isDone?: boolean
-  onCompleted?: (status: Task["status"]) => void
-  taskType?: Task["type"]
-  initialValues?: Record<string, any>
-  lastOdometer?: number
-}
-
-function DriverTaskInputs({
-  taskId,
-  inputs,
-  previousOdometer, // This prop is now considered "last known odometer" if not found in initialValues, or we can use separate props
-  previousFuel,
-  photos = [],
-  isDone = false,
-  onCompleted,
-  taskType,
-  initialValues = {},
-  lastOdometer,
-}: DriverTaskInputsProps) {
-  const [message, setMessage] = useState<string | null>(null)
-  const [isPending, startTransition] = useTransition()
-  const [isDeleting, startDeleteTransition] = useTransition()
-  
-  // Initialize fuel from saved value or previous value
-  const [fuelLevel, setFuelLevel] = useState<number>(() => {
-    if (initialValues.fuel !== undefined) return initialValues.fuel
-    return parseFuelFraction(previousFuel) ?? 8
-  })
-
-  // Initialize odometer from saved value
-  const [odometerValue, setOdometerValue] = useState<number | undefined>(initialValues.odometer)
-  
-  const [existingPhotos, setExistingPhotos] = useState(photos)
-  const [displayPhotos, setDisplayPhotos] = useState<Array<{ path: string; bucket?: string; url?: string; key?: string }>>(photos)
-  const [deletePending, setDeletePending] = useState<string | null>(null)
-  const [localFiles, setLocalFiles] = useState<
-    Array<{ id: string; url: string; file: File; name: string; kind: string }>
-  >([])
-  const [fileInputResetKey, setFileInputResetKey] = useState(0)
-  const localFilesRef = useRef(localFiles)
-  const fieldCardBase = "rounded-2xl border border-white/15 bg-slate-950/40 px-4 py-4 shadow-sm"
-  const returnPhotosCardClass = "rounded-2xl border border-white/15 bg-white/5 px-4 py-4 space-y-3"
-  const labelClass = "text-base font-semibold text-white/90"
-
-  // Sync existingPhotos with photos prop when it changes (revalidation)
-  useEffect(() => {
-    setExistingPhotos(photos)
-  }, [photos])
-
-  const normalizedInputs: DriverInput[] = useMemo(() => {
-    const filtered = (inputs ?? []).filter(
-      (input) => !isSignatureInput(input) && !isCleaningInput(input)
-    )
-    if (!filtered.length) {
-      return [
-        { key: "odometer", label: "Odometer", type: "number", required: true },
-        { key: "fuel", label: "Fuel/charge", type: "select", required: true, options: ["Full", "3/4", "1/2", "1/4", "Empty"] },
-        { key: "photos", label: "Photos", type: "file", required: true, multiple: true, accept: "image/*" },
-        { key: "damage_notes", label: "Damage notes", type: "text", required: false },
-      ]
-    }
-    return filtered
-  }, [inputs])
-
-  const handleSubmit = (formData: FormData) => {
-    if (isDone) return
-    setMessage(null)
-    startTransition(async () => {
-      formData.set("taskId", taskId)
-      
-      // Clear file inputs from formData to prevent duplicates (as we append localFiles manually)
-      normalizedInputs.forEach((input) => {
-        if (input.type === "file") {
-          formData.delete(input.key)
-        }
-      })
-      
-      formData.delete("photos")
-      formData.delete("damage_photos")
-      localFiles.forEach((item) => {
-        formData.append(item.name, item.file, item.file.name)
-      })
-      const saveResult = await submitTaskInputs(formData)
-      if (!saveResult.success) {
-        setMessage(saveResult.message ?? "Failed to save data")
-        return
-      }
-      
-      // Move state updates here to prevent duplicate uploads if completeTask fails
-      {
-        const appended = (saveResult.paths ?? []).map(({ path, bucket, key }) => ({ path, bucket, key }))
-        if (appended.length) {
-          setExistingPhotos((prev) => [...prev, ...appended])
-        }
-      }
-      setLocalFiles((prev) => {
-        prev.forEach((item) => URL.revokeObjectURL(item.url))
-        return []
-      })
-      setFileInputResetKey((prev) => prev + 1)
-
-      const completeResult = await completeTask({ taskId })
-      if (!completeResult.success) {
-        setMessage(completeResult.message ?? "Data saved, but failed to complete task")
-        return
-      }
-      
-      onCompleted?.("done")
-      setMessage("Task completed")
-  })
-}
-
-  const handleDeletePhoto = (photo: { path: string; bucket?: string }) => {
-    if (isDone) return
-    setMessage(null)
-    setDeletePending(photo.path)
-    startDeleteTransition(async () => {
-      const result = await deleteTaskPhoto({ taskId, path: photo.path, bucket: photo.bucket ?? "task-media" })
-      if (!result.success) {
-        setMessage(result.message ?? "Failed to delete photo")
-        setDeletePending(null)
-        return
-      }
-      setExistingPhotos((prev) => prev.filter((item) => item.path !== photo.path))
-      setDeletePending(null)
-    })
-  }
-
-  const handleRemoveLocal = (id?: string) => {
-    if (isDone) return
-    if (!id) return
-    setLocalFiles((prev) => {
-      const match = prev.find((item) => item.id === id)
-      if (match) URL.revokeObjectURL(match.url)
-      return prev.filter((item) => item.id !== id)
-    })
-    setFileInputResetKey((prev) => prev + 1)
-  }
-
-  useEffect(() => {
-    localFilesRef.current = localFiles
-  }, [localFiles])
-
-  useEffect(() => {
-    return () => {
-      localFilesRef.current.forEach((item) => URL.revokeObjectURL(item.url))
-    }
-  }, [])
-
-  useEffect(() => {
-    let cancelled = false
-    async function hydrateUrls() {
-      const resolved = await Promise.all(
-        existingPhotos.map(async (photo) => {
-          const bucket = photo.bucket ?? "task-media"
-          try {
-            const { data, error } = await supabaseBrowser.storage.from(bucket).createSignedUrl(photo.path, 3600)
-            if (error || !data?.signedUrl) {
-              const serverSigned = await signTaskPhotoUrl({ bucket, path: photo.path })
-              if (serverSigned.success && serverSigned.url) return { ...photo, url: serverSigned.url }
-              return { ...photo, url: undefined }
-            }
-            return { ...photo, url: data.signedUrl }
-          } catch {
-            const serverSigned = await signTaskPhotoUrl({ bucket, path: photo.path })
-            if (serverSigned.success && serverSigned.url) return { ...photo, url: serverSigned.url }
-            return { ...photo, url: undefined }
-          }
-        })
-      )
-      if (!cancelled) setDisplayPhotos(resolved)
-    }
-    void hydrateUrls()
-    return () => {
-      cancelled = true
-    }
-  }, [existingPhotos])
-
-  if (!normalizedInputs.length) {
-    return (
-      <div className="space-y-5">
-        <p className="text-sm text-white/70">No required inputs. Press the button to complete the task.</p>
-        <Button
-          type="button"
-          disabled={isPending}
-          onClick={() => handleSubmit(new FormData())}
-          className="rounded-full bg-white/90 px-4 py-2 text-sm font-semibold text-slate-900 transition hover:bg-white"
-        >
-          {isPending ? "Saving…" : "Complete task"}
-        </Button>
-        {message ? <p className="text-sm text-emerald-100">{message}</p> : null}
-      </div>
-    )
-  }
-
-  return (
-    <form action={handleSubmit} className="space-y-8">
-      <input type="hidden" name="taskId" value={taskId} />
-      <div className="space-y-6">
-        {normalizedInputs.map((input) => {
-          const labelText = adjustOdometerLabel(input.label, lastOdometer, input.key)
-          const fuelLabel = adjustFuelLabel(input.label, input.key)
-          const isDamage = isDamageKey(input.key)
-          const localFileKind = isDamage ? "damage" : input.key
-          const hasPhotos = isDamage
-            ? displayPhotos.some((p) => isDamageKey(p.key ?? "")) || localFiles.some((f) => f.kind === "damage")
-            : displayPhotos.some((p) => p.key === input.key) || localFiles.some((f) => f.kind === input.key)
-          const isOdometer = isOdometerKey(input.key)
-          const isFuel = isFuelKey(input.key)
-          const delta =
-            isOdometer && lastOdometer !== undefined && odometerValue !== undefined
-              ? formatOdometerDelta(odometerValue, lastOdometer)
-              : isFuel && previousFuel !== undefined
-                  ? formatFuelDelta(fuelLevel, previousFuel)
-                  : null
-          const isOdometerField = input.type === "number" && isOdometer
-          const isNotesField = input.type === "text" && input.key === "damage_notes"
-          const isReturnPhotos = input.type === "file" && !isDamage
-          const shouldWrapWithCard = !isOdometerField && !isNotesField && !isReturnPhotos
-          const fieldLabel = fuelLabel ?? labelText
-          const renderFieldContent = () => {
-            if (input.type === "number") {
-              return (
-                <input
-                  name="odometer"
-                  type="number"
-                  inputMode="numeric"
-                  required={input.required}
-                  min={lastOdometer ?? 0}
-                  className="w-full rounded-2xl border border-white/20 bg-white/10 px-3 py-3 text-base text-white placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-white/60"
-                  placeholder={
-                    lastOdometer !== undefined
-                      ? `Last value: ${lastOdometer}`
-                      : "For example, 25000"
-                  }
-                  value={odometerValue ?? ""}
-                  disabled={isDone}
-                  onChange={(e) => {
-                    const value = e.target.value
-                    if (value === "") {
-                      setOdometerValue(undefined)
-                    } else {
-                      const num = Number(value)
-                      if (!Number.isNaN(num)) setOdometerValue(num)
-                    }
-                  }}
-                />
-              )
-            }
-            if (input.type === "select" && input.key.startsWith("fuel")) {
-              return (
-                <div className="space-y-2">
-                  <input
-                    type="range"
-                    name="fuel_slider"
-                    min={0}
-                    max={8}
-                    step={1}
-                    value={fuelLevel}
-                    onChange={(e) => setFuelLevel(Number(e.target.value))}
-                    className="w-full accent-white"
-                    disabled={isDone}
-                    aria-label="Fuel level in eighths"
-                    required={input.required}
-                  />
-                  <input type="hidden" name="fuel" value={fuelLevel} />
-                  <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.25em] text-white/60">
-                    {[0, 1, 2, 3, 4, 5, 6, 7, 8].map((value) => (
-                      <span key={value} className={value === fuelLevel ? "text-white" : undefined}>
-                        {value}/8
-                      </span>
-                    ))}
+      <Accordion type="single" collapsible className="rounded-xl border border-border bg-card shadow-sm">
+        <AccordionItem value="handover-photos" className="border-none">
+          <AccordionTrigger className="px-6 py-4 hover:no-underline">
+             <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Handover Photos</span>
+          </AccordionTrigger>
+          <AccordionContent className="px-6 pb-4">
+            {handoverPhotos && handoverPhotos.length > 0 ? (
+              <div className="grid gap-2 grid-cols-2 sm:grid-cols-3">
+                  {handoverPhotos.map((image) => (
+                  <div key={image} className="aspect-[4/3] overflow-hidden rounded-lg border border-border bg-muted">
+                      <a href={image} target="_blank" rel="noreferrer" className="block h-full w-full">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={image} alt="Handover" className="h-full w-full object-cover" />
+                      </a>
                   </div>
-                </div>
-              )
-            }
-            if (input.type === "select" && !input.key.startsWith("fuel")) {
-              return (
-                <select
-                  name={input.key === "cleaning_needed" ? "cleaning" : input.key}
-                  required={input.required}
-                  className="w-full rounded-2xl border border-white/20 bg-white/10 px-3 py-3 text-base text-white placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-white/60"
-                  disabled={isDone}
-                  defaultValue={initialValues.cleaning}
-                >
-                  <option value="">Select</option>
-                  {(input.options ?? ["Full", "3/4", "1/2", "1/4", "Empty"]).map((opt) => (
-                    <option key={opt} value={opt}>
-                      {opt}
-                    </option>
                   ))}
-                </select>
-              )
-            }
-            if (input.type === "text") {
-              return (
-                <textarea
-                  name={input.key === "damage_notes" ? "notes" : input.key}
-                  required={input.required}
-                  className="w-full rounded-2xl border border-white/20 bg-white/10 px-3 py-3 text-base text-white placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-white/60"
-                  rows={3}
-                  placeholder="Add a comment"
-                  disabled={isDone}
-                  defaultValue={initialValues.damage_notes ?? initialValues.notes}
-                />
-              )
-            }
-            if (input.type === "file") {
-              const galleryOptions = isDamage
-                ? {}
-                : { frame: "inline" as const, hideTitle: true }
-              const currentDisplayPhotos = isDamage
-                ? displayPhotos.filter((p) => isDamageKey(p.key ?? ""))
-                : displayPhotos.filter((p) => p.key === input.key)
-              const currentLocalFiles = isDamage
-                ? localFiles.filter((f) => f.kind === "damage")
-                : localFiles.filter((f) => f.kind === input.key)
-
-              return (
-                <>
-                  <input
-                    key={`${input.key}-${fileInputResetKey}`}
-                    name={input.key}
-                    type="file"
-                    multiple={input.multiple}
-                    accept={input.accept}
-                    required={input.required && !hasPhotos}
-                    className="block w-full text-base text-white file:mr-3 file:rounded-lg file:border-0 file:bg-white/80 file:px-4 file:py-2.5 file:text-base file:font-semibold file:text-slate-900 hover:file:bg-white"
-                    disabled={isDone}
-                    onChange={(event) => {
-                      const files = event.target.files
-                      if (!files) return
-                      const previews = Array.from(files).map((file, idx) => ({
-                        id: `${input.key}-${Date.now()}-${idx}`,
-                        url: URL.createObjectURL(file),
-                        file,
-                        name: input.key,
-                        kind: localFileKind,
-                      }))
-                      setLocalFiles((prev) => [...prev, ...previews])
-                    }}
-                  />
-                  {renderGallerySection(
-                    input.label,
-                    currentDisplayPhotos,
-                    currentLocalFiles,
-                    {
-                      isDone,
-                      isDeleting,
-                      deletePending,
-                      isPending,
-                      onRemoveLocal: handleRemoveLocal,
-                      onDeleteStored: handleDeletePhoto,
-                      ...galleryOptions,
-                    }
-                  )}
-                </>
-              )
-            }
-            return null
-          }
-          return (
-            <div key={input.key} className="space-y-4">
-              {input.type === "text" && input.key === "damage_notes" && taskType === "delivery" ? (
-                <>
-                  <div className="flex items-center justify-between">
-                    <span className={labelClass}>
-                      Agreement Number
-                      <span className="text-rose-200"> *</span>
-                    </span>
-                  </div>
-                  <input
-                    name="agreementNumber"
-                    type="text"
-                    required
-                    className="w-full rounded-2xl border border-white/20 bg-white/10 px-3 py-2 text-white placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-white/60"
-                    placeholder="Enter agreement number"
-                    disabled={isDone}
-                    defaultValue={initialValues.agreementNumber}
-                  />
-                </>
-              ) : null}
-              <div className="flex items-center justify-between">
-                <span className={labelClass}>
-                  {fieldLabel}
-                  {input.required ? <span className="text-rose-200"> *</span> : null}
-                </span>
-                {delta ? <span className="text-xs text-white/70">Δ {delta}</span> : null}
               </div>
-              {isReturnPhotos ? (
-                <div className={returnPhotosCardClass}>
-                  {renderFieldContent()}
-                </div>
-              ) : shouldWrapWithCard ? (
-                <div className={`${fieldCardBase} ${input.type === "file" ? "space-y-4" : "space-y-3"}`}>
-                  {renderFieldContent()}
-                </div>
-              ) : (
-                renderFieldContent()
-              )}
-            </div>
-          )
-        })}
-      </div>
-      <div className="space-y-3">
-        <Button
-          type="submit"
-          disabled={isPending || isDone}
-          size="lg"
-          className="rounded-full bg-white/90 px-5 py-2.5 text-base font-semibold text-slate-900 transition hover:bg-white"
-        >
-          {isPending ? "Saving…" : "Complete task"}
-        </Button>
-        {message ? <p className="text-sm text-emerald-100">{message}</p> : null}
-      </div>
-    </form>
-  )
-}
-
-function isSignatureInput(input: DriverInput) {
-  const normalized = `${input?.key ?? ""} ${input?.label ?? ""}`.toLowerCase()
-  return normalized.includes("signature")
-}
-
-function isCleaningInput(input: DriverInput) {
-  const normalized = `${input?.key ?? ""} ${input?.label ?? ""}`.toLowerCase()
-  return normalized.includes("cleaning")
-}
-
-function isDamageKey(key: string) {
-  return key.toLowerCase().includes("damage")
-}
-
-function adjustOdometerLabel(label: string, previous?: number, key?: string) {
-  const isOdometer = `${label} ${key ?? ""}`.toLowerCase().includes("odo")
-  if (!isOdometer) return label
-  const base = label.replace(/\(.*(before|after).*?\)/gi, "").trim() || "Odometer"
-  const suffix = previous !== undefined ? `(more than ${previous})` : "(more than last value)"
-  return `${base} ${suffix}`.trim()
-}
-
-function adjustFuelLabel(label: string, key?: string) {
-  const isFuel = `${label} ${key ?? ""}`.toLowerCase().includes("fuel")
-  if (!isFuel) return null
-  const base = label.replace(/\(.*(before|after).*?\)/gi, "").trim() || "Fuel/charge level"
-  return base
-}
-
-function parseFuelFraction(value?: string | number | null) {
-  if (value === null || value === undefined) return undefined
-  if (typeof value === "number") return value
-  const match = value.match(/(\d+)\s*\/\s*8/)
-  if (match) {
-    const num = Number(match[1])
-    if (Number.isFinite(num)) return Math.max(0, Math.min(8, num))
-  }
-  return undefined
-}
-
-function formatFuelFraction(value: number) {
-  const clamped = Math.max(0, Math.min(8, Math.round(value)))
-  return `${clamped}/8`
-}
-
-function isOdometerKey(key: string) {
-  return key.toLowerCase().includes("odo")
-}
-
-function isFuelKey(key: string) {
-  return key.toLowerCase().includes("fuel")
-}
-
-function formatOdometerDelta(current: number, previous: number) {
-  const diff = current - previous
-  const sign = diff >= 0 ? "+" : ""
-  return `${sign}${diff}`
-}
-
-function formatFuelDelta(currentSteps: number, previousSteps?: number) {
-  if (previousSteps === undefined || Number.isNaN(previousSteps)) return null
-  const diff = currentSteps - previousSteps
-  if (diff === 0) return null
-  const sign = diff >= 0 ? "+" : ""
-  return `${sign}${diff}/8`
-}
-
-function toPublicStorageUrl(bucket: string, path: string) {
-  if (path.startsWith("http") || path.startsWith("blob:") || path.startsWith("data:")) return path
-  return ""
-}
-
-function renderGallerySection(
-  title: string,
-  stored: Array<{ path: string; bucket?: string; url?: string; key?: string }>,
-  local: Array<{ id: string; url: string; kind: string; name?: string }>,
-  opts: {
-    isDone: boolean
-    isDeleting: boolean
-    deletePending: string | null
-    isPending: boolean
-    onRemoveLocal: (id?: string) => void
-    onDeleteStored: (photo: { path: string; bucket?: string }) => void
-    frame?: "card" | "inline"
-    hideTitle?: boolean
-  }
-) {
-  if (!stored.length && !local.length) return null
-  const grid = (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-      {[
-        ...stored.map((photo) => ({ ...photo, local: false, id: undefined })),
-        ...local.map((p) => ({ path: p.url, bucket: "local", local: true, id: p.id, url: p.url })),
-      ].map((photo) => {
-        const publicUrl = photo.url ?? toPublicStorageUrl(photo.bucket ?? "task-media", photo.path)
-        return (
-          <div
-            key={photo.id ?? photo.path}
-            className="group relative h-36 overflow-hidden rounded-2xl border border-white/15 bg-white/5"
-          >
-            {publicUrl ? (
-              <Image
-                src={publicUrl}
-                alt="Task photo"
-                fill
-                sizes="(min-width: 640px) 33vw, 50vw"
-                className="object-cover"
-                unoptimized
-              />
             ) : (
-              <div className="flex h-full items-center justify-center text-xs text-white/60">No preview</div>
+              <div className="flex flex-col items-center justify-center py-8 text-center text-muted-foreground">
+                <FileText className="mb-2 h-8 w-8 opacity-50" />
+                <p className="text-sm">No photos available</p>
+              </div>
             )}
-            <button
-              type="button"
-              onClick={() => {
-                if (photo.local) {
-                  opts.onRemoveLocal(photo.id)
-                } else {
-                  opts.onDeleteStored(photo)
-                }
-              }}
-              disabled={
-                opts.isDone ||
-                (!photo.local && (opts.isDeleting || opts.deletePending === photo.path)) ||
-                opts.isPending
-              }
-              className="absolute right-2 top-2 rounded-full bg-black/60 px-3.5 py-1.5 text-sm font-semibold text-white transition hover:bg-black/80 disabled:opacity-50"
-            >
-              {photo.local
-                ? "Remove"
-                : opts.deletePending === photo.path
-                  ? "Deleting…"
-                  : "Delete"}
-            </button>
-          </div>
-        )
-      })}
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
+      
+      <DriverTaskForm 
+        task={task} 
+        signedPhotoUrls={signedPhotoUrls} 
+        minOdometer={minOdometer} 
+        baselineOdometer={baselineOdometer}
+        baselineFuel={baselineFuel}
+      />
     </div>
   )
-  const titleElement = opts.hideTitle ? null : (
-    <div className="text-[0.75rem] uppercase tracking-[0.35em] text-white/60">{title}</div>
-  )
-  if (opts.frame === "inline") {
-    return (
-      <div className="space-y-2">
-        {titleElement}
-        {grid}
-      </div>
-    )
-  }
-  return (
-    <div className="rounded-2xl border border-white/15 bg-white/5 p-3.5 space-y-3">
-      {titleElement}
-      {grid}
-    </div>
-  )
-}
-
-function normalizePhone(value?: string) {
-  if (!value) return undefined
-  const digits = value.replace(/\D+/g, "")
-  if (!digits.length) return undefined
-  return digits
-}
-
-function buildMapsUrl(type: Task["type"], geo?: { pickup?: string; dropoff?: string }) {
-  const destination = (() => {
-    if (!geo) return undefined
-    if (type === "delivery") return geo.dropoff?.trim()
-    if (type === "pickup") return geo.pickup?.trim()
-    return geo.pickup?.trim() || geo.dropoff?.trim()
-  })()
-  if (destination) {
-    return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}`
-  }
-  const query = geo?.pickup?.trim() || geo?.dropoff?.trim()
-  if (query) {
-    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`
-  }
-  return undefined
-}
-
-function buildWhatsAppText(task: Task) {
-  const code = task.bookingCode ?? String(task.bookingId ?? "")
-  const title = task.vehicleName ?? task.title
-  const pickup = task.geo?.pickup ?? ""
-  const dropoff = task.geo?.dropoff ?? ""
-  const parts = [code ? `#${code}` : "", title || "", pickup && dropoff ? `${pickup} → ${dropoff}` : pickup || dropoff || ""]
-  return parts.filter(Boolean).join(" · ")
 }

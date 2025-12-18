@@ -34,9 +34,10 @@ export default async function OperationsTaskDetailPage({ params }: PageProps) {
     const deliveryTask = bookingTasks.find((t) => t.type === "delivery")
     if (deliveryTask?.inputValues) {
       const photosInput = deliveryTask.inputValues.find((v) => v.key === "handover_photos")
-      if (photosInput?.storagePaths?.length && photosInput.bucket) {
+      if (photosInput?.storagePaths?.length) {
+        const bucket = photosInput.bucket ?? "task-media"
         const urls = await Promise.all(
-          photosInput.storagePaths.map(path => createSignedUrl(photosInput.bucket, path))
+          photosInput.storagePaths.map(path => createSignedUrl(bucket, path))
         )
         handoverPhotos = urls.filter((url): url is string => !!url)
       }
