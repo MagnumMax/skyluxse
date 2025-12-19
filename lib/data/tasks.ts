@@ -347,7 +347,6 @@ function extractRequiredInputs(metadata: Record<string, any>): TaskRequiredInput
       const key = String(entry.key ?? "")
       const label = String(entry.label ?? entry.key ?? "Input")
       const normalized = `${key} ${label}`.toLowerCase()
-      if (normalized.includes("cleaning_needed") || normalized.includes("cleaning")) return null
       if (shouldSkipSignatureField(key, label)) return null
       return {
         key,

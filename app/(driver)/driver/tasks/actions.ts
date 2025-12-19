@@ -155,35 +155,26 @@ export async function completeTask(input: z.infer<typeof CompleteTaskSchema>): P
 }
 
 export async function submitTaskInputs(formData: FormData): Promise<ActionResult> {
-  const submission = SubmitInputsSchema.safeParse({
-    taskId: formData.get("taskId"),
-    odometer: formData.get("odometer"),
-    fuel: formData.get("fuel"),
-    notes: formData.get("notes"),
-    agreementNumber: formData.get("agreementNumber"),
-    cleaning: formData.get("cleaning"),
-  })
-
-  if (!submission.success) {
-    const message = submission.error.issues.map((issue) => issue.message).join(", ") || "Invalid input submission"
-    return { success: false, message }
+  const taskId = formData.get("taskId")?.toString()
+  
+  if (!taskId) {
+    return { success: false, message: "Task ID is required" }
   }
-
-  const { taskId, odometer, fuel, notes, agreementNumber, paymentCollected, cleaning } = submission.data
 
   try {
     const { requiredInputs, previousOdometer, taskType } = await getTaskMetadata(taskId)
     
-    if (taskType === "delivery" && !agreementNumber) {
-      return { success: false, message: "Agreement Number is required for Delivery tasks" }
+    // Validate Agreement Number for Delivery
+    // We need to find if there is an agreement number input in metadata
+    const agreementInput = requiredInputs.find(i => i.key === "agreementNumber" || i.key === "agreement_number")
+    if (taskType === "delivery" && agreementInput) {
+       const val = formData.get(agreementInput.key)
+       if (!val || val.toString().trim() === "") {
+          return { success: false, message: "Agreement Number is required for Delivery tasks" }
+       }
     }
 
     const filteredInputs = filterSignatureInputs(requiredInputs)
-    if (odometer !== undefined && previousOdometer !== undefined && odometer < previousOdometer) {
-      return { success: false, message: `Пробег не может быть меньше ${previousOdometer}` }
-    }
-    const savedPaths: { path: string; bucket?: string; key?: string }[] = []
-
     const rows: Array<{
       task_id: string
       key: string
@@ -194,27 +185,10 @@ export async function submitTaskInputs(formData: FormData): Promise<ActionResult
       bucket?: string | null
     }> = []
 
-    if (odometer !== undefined) {
-      rows.push({ task_id: taskId, key: odometerKey(filteredInputs), value_number: odometer })
-    }
-    if (fuel !== undefined) {
-      rows.push({ task_id: taskId, key: fuelKey(filteredInputs), value_number: fuel })
-    }
-    if (notes !== undefined) {
-      rows.push({ task_id: taskId, key: "damage_notes", value_text: notes })
-    }
-    if (agreementNumber !== undefined) {
-      rows.push({ task_id: taskId, key: "agreement_number", value_text: agreementNumber })
-    }
-    if (paymentCollected !== undefined) {
-      rows.push({ task_id: taskId, key: "payment_collected", value_number: paymentCollected })
-    }
-    if (cleaning !== undefined) {
-      rows.push({ task_id: taskId, key: "cleaning_needed", value_text: String(cleaning) })
-    }
-
     const bucket = "task-media"
+    const savedPaths: { path: string; bucket?: string; key?: string }[] = []
 
+    // Helper to upload files
     async function uploadFiles(files: File[], key: string) {
       if (!files.length) return
       const paths: string[] = []
@@ -225,31 +199,48 @@ export async function submitTaskInputs(formData: FormData): Promise<ActionResult
         paths.push(path)
         savedPaths.push({ path, bucket, key })
       }
-      rows.push({ task_id: taskId, key, storage_paths: paths, bucket })
+      rows.push({ task_id: taskId!, key, storage_paths: paths, bucket })
     }
 
-    const fileInputs = filteredInputs.filter((i: any) => i.type === "file")
-    for (const input of fileInputs) {
+    // Process all required inputs dynamically
+    for (const input of filteredInputs) {
       const key = input.key
-      const files = formData.getAll(key).filter((item): item is File => item instanceof File && item.size > 0)
-      await uploadFiles(files, key)
+      const rawValue = formData.get(key)
+      const rawValues = formData.getAll(key)
+
+      // Files
+      if (input.type === "file") {
+        const files = rawValues.filter((item): item is File => item instanceof File && item.size > 0)
+        await uploadFiles(files, key)
+        continue
+      }
+
+      // Skip if empty (unless it's a file which we handled, or required check needed?)
+      // We rely on HTML5 'required' attribute for client-side, but could add server-side check here.
+      if (rawValue === null || rawValue === "" || rawValue === undefined) continue
+
+      // Number inputs (Odometer, Fuel, Payment)
+      if (input.type === "number" || key.startsWith("odo") || key.startsWith("fuel") || key.includes("payment")) {
+         const numVal = Number(rawValue)
+         if (!isNaN(numVal)) {
+            // Odometer Validation
+            if (key.startsWith("odo") && previousOdometer !== undefined && numVal < previousOdometer) {
+                return { success: false, message: `Пробег не может быть меньше ${previousOdometer}` }
+            }
+            rows.push({ task_id: taskId, key, value_number: numVal })
+         }
+         continue
+      }
+
+      // Text / Select
+      rows.push({ task_id: taskId, key, value_text: String(rawValue) })
     }
 
-    // Fallback for legacy "photos" and "damage_photos" if they are not in metadata but sent?
-    // Or if metadata has "photos" key but UI sent it as "photos".
-    // The loop above covers it if "photos" is in metadata.
-    // If "damage_photos" is in metadata, it covers it.
-    
-    // We should double check if we need to explicitly handle "damage_photos" if it was hardcoded in UI but not in metadata?
-    // But if it's not in metadata, how would the UI render it? 
-    // The UI renders based on metadata. So it must be in metadata.
-    
-    // However, previously `uploadFiles(photoFiles, photoKey(filteredInputs))` used `photoKey` helper.
-    // `photoKey` looks for "photo" in key.
-    // If metadata has `key: "vehicle_photos"`, `photoKey` finds it.
-    // Loop above finds `key: "vehicle_photos"`. `formData.getAll("vehicle_photos")`.
-    // My UI change will send `name="vehicle_photos"`.
-    // So this aligns.
+    // Fallback/Legacy handling: if form sends "odometer" but metadata expects "odo_after"
+    // This handles the transition or mismatches if we don't update form perfectly.
+    // However, we plan to update the form to use dynamic keys.
+    // So we don't strictly need this, but it might be safe to check for "odometer" in formData if "odo_..." wasn't found?
+    // Let's stick to dynamic keys for cleanliness.
 
     if (rows.length) {
       const { error } = await serviceClient

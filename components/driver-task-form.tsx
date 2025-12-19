@@ -142,6 +142,7 @@ export function DriverTaskForm({ task, signedPhotoUrls, minOdometer, baselineOdo
                 <OdometerInput
                   key={input.key}
                   input={input}
+                  name={input.key}
                   defaultValue={currentOdo}
                   baselineOdometer={task.type === "pickup" ? baselineOdometer : undefined}
                   minOdometer={minOdometer}
@@ -159,7 +160,8 @@ export function DriverTaskForm({ task, signedPhotoUrls, minOdometer, baselineOdo
               return (
                 <FuelInput 
                   key={input.key} 
-                  input={input} 
+                  input={input}
+                  name={input.key}
                   defaultValue={defaultValue} 
                   baseline={task.type === "pickup" ? baselineFuel : undefined} 
                   disabled={isReadOnly}
@@ -172,10 +174,10 @@ export function DriverTaskForm({ task, signedPhotoUrls, minOdometer, baselineOdo
                const displayLabel = sanitizeLabel(input.label)
                return (
                 <div key={input.key} className="space-y-2">
-                  <Label htmlFor="agreementNumber">{displayLabel} {input.required && "*"}</Label>
+                  <Label htmlFor={input.key}>{displayLabel} {input.required && "*"}</Label>
                   <Input
-                    id="agreementNumber"
-                    name="agreementNumber"
+                    id={input.key}
+                    name={input.key}
                     placeholder="Enter agreement number"
                     defaultValue={valueEntry?.valueText ?? ""}
                     required={input.required}
@@ -190,10 +192,10 @@ export function DriverTaskForm({ task, signedPhotoUrls, minOdometer, baselineOdo
                const displayLabel = sanitizeLabel(input.label)
                return (
                 <div key={input.key} className="space-y-2">
-                  <Label htmlFor="notes">{displayLabel} {input.required && "*"}</Label>
+                  <Label htmlFor={input.key}>{displayLabel} {input.required && "*"}</Label>
                   <Textarea
-                    id="notes"
-                    name="notes"
+                    id={input.key}
+                    name={input.key}
                     placeholder="Add notes..."
                     defaultValue={valueEntry?.valueText ?? ""}
                     required={input.required}
@@ -326,6 +328,28 @@ export function DriverTaskForm({ task, signedPhotoUrls, minOdometer, baselineOdo
               )
             }
 
+            // Select inputs
+            if (input.type === "select" && input.options) {
+               const displayLabel = sanitizeLabel(input.label)
+               return (
+                <div key={input.key} className="space-y-2">
+                  <Label htmlFor={input.key}>{displayLabel} {input.required && "*"}</Label>
+                  <Select name={input.key} defaultValue={valueEntry?.valueText ?? ""} disabled={isReadOnly} required={input.required}>
+                    <SelectTrigger id={input.key}>
+                      <SelectValue placeholder="Select..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {input.options.map((opt) => (
+                        <SelectItem key={opt} value={opt}>
+                          {opt}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )
+            }
+
             // Fallback for text inputs
             if (input.type === "text" || input.type === "number") {
                const displayLabel = sanitizeLabel(input.label)
@@ -357,7 +381,7 @@ export function DriverTaskForm({ task, signedPhotoUrls, minOdometer, baselineOdo
   )
 }
 
-function FuelInput({ input, defaultValue, baseline, disabled }: { input: TaskRequiredInput, defaultValue?: number, baseline?: number, disabled?: boolean }) {
+function FuelInput({ input, name, defaultValue, baseline, disabled }: { input: TaskRequiredInput, name?: string, defaultValue?: number, baseline?: number, disabled?: boolean }) {
   const [value, setValue] = useState(defaultValue ?? 8)
   const label = sanitizeLabel(input.label)
   const delta = baseline !== undefined ? value - baseline : undefined
@@ -381,15 +405,15 @@ function FuelInput({ input, defaultValue, baseline, disabled }: { input: TaskReq
   return (
     <div className={cn("space-y-3", disabled && "opacity-60 pointer-events-none")}>
       <div className="flex items-center justify-between">
-        <Label htmlFor="fuel">{label} {input.required && "*"}</Label>
+        <Label htmlFor={name || "fuel"}>{label} {input.required && "*"}</Label>
         <span className="text-sm font-medium text-muted-foreground min-w-[3rem] text-right">
             {getLabel(value)}
         </span>
       </div>
       <div className="relative flex items-center w-full touch-none select-none py-2">
           <input
-            id="fuel"
-            name="fuel"
+            id={name || "fuel"}
+            name={name || "fuel"}
             type="range"
             min="0"
             max="8"
@@ -420,12 +444,14 @@ function FuelInput({ input, defaultValue, baseline, disabled }: { input: TaskReq
 
 function OdometerInput({
   input,
+  name,
   defaultValue,
   baselineOdometer,
   minOdometer,
   disabled
 }: {
   input: TaskRequiredInput
+  name?: string
   defaultValue?: number
   baselineOdometer?: number
   minOdometer?: number
@@ -441,7 +467,7 @@ function OdometerInput({
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <Label htmlFor="odometer">
+        <Label htmlFor={name || "odometer"}>
           {displayLabel}
           {baselineOdometer !== undefined ? (
             <span className="text-muted-foreground font-normal"> (on delivery {baselineOdometer.toLocaleString()})</span>
@@ -461,8 +487,8 @@ function OdometerInput({
         )}
       </div>
       <Input
-        id="odometer"
-        name="odometer"
+        id={name || "odometer"}
+        name={name || "odometer"}
         type="number"
         min={minOdometer}
         placeholder="Enter odometer reading"
