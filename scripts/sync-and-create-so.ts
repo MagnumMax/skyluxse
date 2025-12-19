@@ -368,6 +368,7 @@ Need help before paying? We’re here for you—Text us on whatsapp anytime!`;
         reference_number: externalCode,
         line_items: lineItems,
         custom_fields: customFields,
+        status: "draft",
         terms: TERMS_AND_CONDITIONS
     };
 

@@ -58,6 +58,7 @@ async function verifyBooks() {
         const orderData: any = {
             customer_id: contactId,
             date: new Date().toISOString().split('T')[0],
+            status: "draft",
             line_items: [
                 {
                     name: "Test Product",

@@ -93,6 +93,7 @@ async function main() {
         salesperson_id: "6183693000000293023", // Aleksei (Verified)
         date: bookingRaw.start_at ? bookingRaw.start_at.split("T")[0] : new Date().toISOString().split("T")[0],
         reference_number: bookingRaw.external_code + "-TEST-ITEM",
+        status: "draft",
         line_items: lineItems,
         custom_fields: customFields
     };
