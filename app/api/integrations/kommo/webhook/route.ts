@@ -4,6 +4,7 @@ import { serviceClient } from "@/lib/supabase/service-client"
 import { recognizeLatestClientDocument } from "@/lib/ai/document-recognition"
 import { createSalesOrderForBooking } from "@/app/actions/zoho"
 import { KOMMO_STATUSES_FOR_SALES_ORDER } from "@/lib/constants/bookings"
+import { sendNotification } from "@/lib/notifications"
 
 const SIGNATURE_HEADER = "x-kommo-signature"
 const REQUIRE_SIGNATURE = false
@@ -373,6 +374,7 @@ type BookingOptions = {
     kommoStatusId?: number | null
     ownerId?: string | null
     mileageLimit?: string | null
+    totalAmount?: number | null
 }
 
 async function upsertBooking(
@@ -412,6 +414,7 @@ async function upsertBooking(
     if (options.advancePayment !== undefined) payload.advance_payment = options.advancePayment
     if (options.salesOrderUrl !== undefined) payload.sales_order_url = options.salesOrderUrl
     if (options.agreementNumber !== undefined) payload.agreement_number = options.agreementNumber
+    if (options.totalAmount !== undefined && options.totalAmount !== null) payload.total_amount = options.totalAmount
 
     // Only update owner if explicitly provided (found via mapping)
     if (options.ownerId) payload.owner_id = options.ownerId
@@ -461,6 +464,7 @@ type HandleResult = {
     skipped?: boolean
     statusId: string | null
     statusLabel: string | null
+    leadData?: any
 }
 
 function asString(value: unknown): string | null {
@@ -565,6 +569,7 @@ function buildBookingOptions(
         agreementNumber: extractStringField(lead, KOMMO_FIELD_IDS.agreementNumber),
         mileageLimit: extractStringField(lead, KOMMO_FIELD_IDS.kmLimit),
         kommoStatusId: base.kommoStatusId ?? null,
+        totalAmount: lead.price !== undefined ? Number(lead.price) : null,
     }
 }
 
@@ -993,6 +998,15 @@ async function handleStatusChange(event: any): Promise<HandleResult> {
         kommoStatusId: Number(statusId), // Use resolved statusId, not raw event.status_id
         ownerId,
     })
+
+    // Check for Zero Amount on confirmed statuses
+    const CONFIRMED_STATUSES = ["98035992", "75440391", "75440395", "75440399"];
+    if (statusId && CONFIRMED_STATUSES.includes(statusId) && (!bookingOptions.totalAmount || bookingOptions.totalAmount <= 0)) {
+         await sendNotification('telegram', {
+             message: `⚠️ <b>Zero Amount Warning</b>\nBooking: ${bookingOptions.agreementNumber ?? 'Unknown'}\nLead: ${lead.id}\nStatus: ${statusLabel}\nAmount: ${bookingOptions.totalAmount ?? 0}`
+        })
+    }
+
     const statusIdForTimeline = statusId ?? "unknown"
     const pipelineForTimeline = pipelineId ?? event.pipeline_id ?? "unknown"
     const bookingId = await upsertBooking(lead, clientId, bookingStatus, bookingOptions)
@@ -1033,9 +1047,15 @@ async function handleStatusChange(event: any): Promise<HandleResult> {
                         `Failed to create Zoho Sales Order: ${result.error}`,
                         pipelineForTimeline
                     )
+                    await sendNotification('telegram', {
+                        message: `❌ <b>Sales Order Failed</b>\nLead: ${lead.id}\nError: ${result.error}`
+                    })
                 }
             } catch (error) {
                 console.error("Error executing createSalesOrderForBooking", error)
+                await sendNotification('telegram', {
+                    message: `❌ <b>Sales Order Exception</b>\nLead: ${lead.id}\nError: ${error instanceof Error ? error.message : "Unknown error"}`
+                })
                 await logBookingTimelineEvent(
                     bookingId,
                     statusIdForTimeline,
@@ -1059,7 +1079,7 @@ async function handleStatusChange(event: any): Promise<HandleResult> {
         })
     }
 
-    return { leadId: event.id, processed: true, statusId, statusLabel }
+    return { leadId: event.id, processed: true, statusId, statusLabel, leadData: lead }
 }
 
 type PathToken = string | number
@@ -1175,6 +1195,7 @@ export async function POST(req: Request) {
                 await serviceClient.from("kommo_webhook_events").insert({
                     source_payload_id: String(event.id),
                     payload,
+                    fetched_data: result?.leadData ?? null,
                     hmac_validated: true,
                     status: result?.skipped ? "skipped" : "processed",
                     kommo_status_id: result?.statusId ?? String(event.status_id ?? ""),
@@ -1192,6 +1213,9 @@ export async function POST(req: Request) {
                     kommo_status_id: String(event.status_id ?? ""),
                     kommo_status_label: resolveKommoStatusLabel(String(event.status_id ?? "")),
                     error_message: errorMessage,
+                })
+                await sendNotification('telegram', {
+                    message: `🚨 <b>Webhook Error</b>\nLead: ${event.id}\nError: ${errorMessage}`
                 })
                 results.push({ leadId: event.id, error: errorMessage })
             }

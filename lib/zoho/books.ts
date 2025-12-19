@@ -12,6 +12,24 @@ function getSupabase() {
     return supabase;
 }
 
+async function fetchWithRetry(url: string, options: RequestInit, retries = 3, backoff = 500): Promise<Response> {
+    try {
+        const res = await fetch(url, options);
+        // Retry on server errors (5xx)
+        if (!res.ok && res.status >= 500) {
+            throw new Error(`Server error: ${res.status}`);
+        }
+        return res;
+    } catch (err) {
+        if (retries > 0) {
+            console.warn(`Fetch failed, retrying (${retries} left)... Error: ${err instanceof Error ? err.message : String(err)}`);
+            await new Promise(resolve => setTimeout(resolve, backoff));
+            return fetchWithRetry(url, options, retries - 1, backoff * 2);
+        }
+        throw err;
+    }
+}
+
 async function getAccessToken() {
     // 1. Try to get from DB
     // We assume the first token in the table is the one we want, or filter by user_mail if needed
@@ -42,7 +60,7 @@ async function getAccessToken() {
     }
 
     const url = `https://accounts.zoho.com/oauth/v2/token?refresh_token=${refreshToken}&client_id=${process.env.ZOHO_CLIENT_ID}&client_secret=${process.env.ZOHO_CLIENT_SECRET}&grant_type=refresh_token`;
-    const response = await fetch(url, { method: 'POST' });
+    const response = await fetchWithRetry(url, { method: 'POST' });
     const tokens = await response.json();
 
     if (tokens.error) {
@@ -76,7 +94,7 @@ export async function getBooksClient() {
             const url = new URL(`${baseUrl}${path}`);
             if (orgId) url.searchParams.append("organization_id", orgId);
 
-            const res = await fetch(url.toString(), {
+            const res = await fetchWithRetry(url.toString(), {
                 headers: { Authorization: `Zoho-oauthtoken ${token}` }
             });
             return res.json();
@@ -85,7 +103,7 @@ export async function getBooksClient() {
             const url = new URL(`${baseUrl}${path}`);
             if (orgId) url.searchParams.append("organization_id", orgId);
 
-            const res = await fetch(url.toString(), {
+            const res = await fetchWithRetry(url.toString(), {
                 method: 'POST',
                 headers: {
                     Authorization: `Zoho-oauthtoken ${token}`,
@@ -99,7 +117,7 @@ export async function getBooksClient() {
             const url = new URL(`${baseUrl}${path}`);
             if (orgId) url.searchParams.append("organization_id", orgId);
 
-            const res = await fetch(url.toString(), {
+            const res = await fetchWithRetry(url.toString(), {
                 method: 'PUT',
                 headers: {
                     Authorization: `Zoho-oauthtoken ${token}`,
