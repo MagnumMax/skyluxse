@@ -92,3 +92,39 @@ export function fromDubaiDate(shiftedDate: Date): Date {
 
   return new Date(`${year}-${month}-${day}T${hour}:${minute}:${second}+04:00`)
 }
+
+export function formatZohoDate(value?: string | Date) {
+  if (!value) return undefined
+  try {
+    const d = new Date(value)
+    // Format to YYYY-MM-DD in Dubai time
+    return new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Dubai",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(d)
+  } catch {
+    return undefined
+  }
+}
+
+export function formatZohoDateTime(value?: string | Date) {
+  if (!value) return ""
+  try {
+    const d = new Date(value)
+    // Format to dd.MM.yyyy HH:mm in Dubai time
+    const formatter = new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Asia/Dubai",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    })
+    return formatter.format(d).replace(/\//g, ".").replace(",", "")
+  } catch {
+    return ""
+  }
+}

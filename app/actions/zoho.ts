@@ -212,7 +212,8 @@ export async function createSalesOrderForBooking(bookingId: string): Promise<Cre
             `)
             .eq("booking_id", bookingId);
 
-        const { differenceInDays, parseISO, format } = await import("date-fns");
+        const { differenceInDays, parseISO } = await import("date-fns");
+        const { formatZohoDateTime, formatZohoDate } = await import("@/lib/formatters");
 
         let quantity = 1;
         let startStr = "";
@@ -224,8 +225,8 @@ export async function createSalesOrderForBooking(bookingId: string): Promise<Cre
             const days = differenceInDays(end, start);
             if (days > 0) quantity = days;
 
-            startStr = format(start, "dd.MM.yyyy HH:mm");
-            endStr = format(end, "dd.MM.yyyy HH:mm");
+            startStr = formatZohoDateTime(booking.startDate);
+            endStr = formatZohoDateTime(booking.endDate);
         }
 
         const rate = booking.priceDaily || (booking.totalAmount ? booking.totalAmount / quantity : 0);
@@ -343,7 +344,7 @@ Need help before paying? We’re here for you—Text us on whatsapp anytime!`;
         const orderData = {
             customer_id: contactId,
             salesperson_id: salespersonId,
-            date: new Date().toISOString().split("T")[0], // Order Date = Creation Date
+            date: formatZohoDate(new Date()), // Order Date = Creation Date
             reference_number: booking.code,
             line_items: lineItems,
             custom_fields: customFields,
@@ -495,7 +496,8 @@ export async function updateSalesOrderForBooking(bookingId: string): Promise<{ s
             `)
             .eq("booking_id", bookingId);
 
-        const { differenceInDays, parseISO, format } = await import("date-fns");
+        const { differenceInDays, parseISO } = await import("date-fns");
+        const { formatZohoDateTime, formatZohoDate } = await import("@/lib/formatters");
 
         let quantity = 1;
         let startStr = "";
@@ -507,8 +509,8 @@ export async function updateSalesOrderForBooking(bookingId: string): Promise<{ s
             const days = differenceInDays(end, start);
             if (days > 0) quantity = days;
 
-            startStr = format(start, "dd.MM.yyyy HH:mm");
-            endStr = format(end, "dd.MM.yyyy HH:mm");
+            startStr = formatZohoDateTime(booking.startDate);
+            endStr = formatZohoDateTime(booking.endDate);
         }
 
         const rate = booking.priceDaily || (booking.totalAmount ? booking.totalAmount / quantity : 0);

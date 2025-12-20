@@ -1,3 +1,5 @@
+import { formatZohoDate } from "@/lib/formatters"
+
 export type ZohoSalesOrderCustomField = {
   customfield_id: string
   value: string | number | undefined
@@ -12,8 +14,6 @@ export type BookingForZohoSalesOrder = {
   advancePayment?: string | number | null
   ownerName?: string | null
 }
-
-const toDateOnly = (value: string | null | undefined) => value?.split("T")[0]
 
 // Extracted from Zoho Salespersons list.
 const SALESPERSON_MAP: Record<string, string> = {
@@ -40,11 +40,11 @@ export function buildZohoSalesOrderCustomFields(
   const customFields: ZohoSalesOrderCustomField[] = [
     {
       customfield_id: "6183693000001829012", // Pick Up Date
-      value: toDateOnly(booking.startDate),
+      value: formatZohoDate(booking.startDate || undefined),
     },
     {
       customfield_id: "6183693000001829002", // Drop Off Date
-      value: toDateOnly(booking.startDate),
+      value: formatZohoDate(booking.startDate || undefined),
     },
     {
       customfield_id: "6183693000001829066", // Rental Location
