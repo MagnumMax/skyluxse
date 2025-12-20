@@ -74,7 +74,7 @@ export function OperationsBookingDetail({
         availableServices={availableServices ?? []} 
       />
 
-      <BookingTasksSection tasks={tasks ?? []} />
+      <BookingTasksSection tasks={tasks ?? []} bookingId={String(booking.id)} />
 
       <BookingServiceConflicts booking={booking} services={services ?? []} />
 
@@ -90,12 +90,12 @@ export function OperationsBookingDetail({
   )
 }
 
-function BookingTasksSection({ tasks }: { tasks: OperationsTask[] }) {
+function BookingTasksSection({ tasks, bookingId }: { tasks: OperationsTask[], bookingId: string }) {
   if (!tasks.length) return null
   return (
     <section className="space-y-3">
       <h2 className="text-lg font-semibold tracking-tight">Linked Tasks</h2>
-      <BookingTaskList tasks={tasks} />
+      <BookingTaskList tasks={tasks} backHref={`/bookings/${bookingId}`} />
     </section>
   )
 }

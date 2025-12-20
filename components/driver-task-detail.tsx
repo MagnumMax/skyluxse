@@ -205,6 +205,7 @@ export function DriverTaskDetail({
   minOdometer,
   baselineOdometer,
   baselineFuel,
+  backHref,
 }: {
   task: Task
   client?: Client
@@ -216,6 +217,7 @@ export function DriverTaskDetail({
   minOdometer?: number
   baselineOdometer?: number
   baselineFuel?: number
+  backHref?: string
 }) {
   const [status, setStatus] = useState<Task["status"]>(task.status)
   const [isOnline, setIsOnline] = useState<boolean>(typeof window === "undefined" ? true : navigator.onLine)
@@ -263,9 +265,9 @@ export function DriverTaskDetail({
         size="sm"
         className="gap-2 text-muted-foreground hover:text-foreground pl-0 hover:bg-transparent"
       >
-        <Link href="/driver/tasks">
+        <Link href={toRoute(backHref ?? "/driver/tasks")}>
           <ArrowLeft className="h-4 w-4" />
-          Back to list
+          {backHref ? "Back" : "Back to list"}
         </Link>
       </Button>
 
@@ -389,14 +391,10 @@ export function DriverTaskDetail({
           </AccordionItem>
         </Accordion>
       ) : null}
-      
-      <DriverTaskForm 
-        task={task} 
-        signedPhotoUrls={signedPhotoUrls} 
-        minOdometer={minOdometer} 
-        baselineOdometer={baselineOdometer}
-        baselineFuel={baselineFuel}
-      />
     </div>
   )
+}
+
+function toRoute(path: string) {
+  return path as Parameters<typeof Link>[0]["href"]
 }

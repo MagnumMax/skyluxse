@@ -70,7 +70,7 @@ const fetchTaskRows = cache(async (filters?: { driverId?: string; bookingId?: st
   return data ?? []
 })
 
-export const getOperationsTasks = cache(async (): Promise<OperationsTask[]> => {
+export const getOperationsTasks = cache(async (options?: { includeDriverTasks?: boolean }): Promise<OperationsTask[]> => {
   const [rows, bookings, staff] = await Promise.all([fetchTaskRows(), getLiveBookings(), getStaffAccounts()])
   const bookingsById = new Map(bookings.map((booking) => [String(booking.id), booking]))
   const odometerByVehicle = buildOdometerMap(rows)
@@ -78,12 +78,12 @@ export const getOperationsTasks = cache(async (): Promise<OperationsTask[]> => {
   const staffById = buildStaffMap(staff)
 
   return rows
-    .filter((row) => !isDriverTaskRow(row))
+    .filter((row) => options?.includeDriverTasks || !isDriverTaskRow(row))
     .map((row) => toOperationsTask(row, { bookingsById, staffById, odometerByVehicle, fuelByVehicle }))
 })
 
 export const getOperationsTaskById = cache(async (taskId: string): Promise<OperationsTask | null> => {
-  const tasks = await getOperationsTasks()
+  const tasks = await getOperationsTasks({ includeDriverTasks: true })
   return tasks.find((task) => String(task.id) === taskId) ?? null
 })
 
