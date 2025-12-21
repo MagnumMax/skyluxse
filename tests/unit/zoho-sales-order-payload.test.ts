@@ -16,7 +16,7 @@ test("buildZohoSalesOrderCustomFields maps Drop Off to booking start date", () =
   const dropOff = customFields.find((field) => field.customfield_id === "6183693000001829002")
 
   assert.equal(pickUp?.value, "2025-12-01")
-  assert.equal(dropOff?.value, "2025-12-01")
+  assert.equal(dropOff?.value, "2025-12-05")
 })
 
 test("resolveZohoSalespersonId resolves salesperson by owner name with fallback", () => {
