@@ -3,7 +3,7 @@ import { resolveBookingViewVariant, type BookingViewVariant } from "@/lib/utils"
 import { getLiveBookingById, getLiveClientById, getLiveDrivers } from "./live-data"
 import { getVehicleServices } from "./fleet-data"
 import { getTasksByBookingId } from "./tasks"
-import { getBookingServices, getAdditionalServices } from "@/app/actions/additional-services"
+import { getBookingServices, getAdditionalServices } from "@/lib/data/additional-services"
 import { AdditionalService, BookingAdditionalService } from "@/lib/domain/additional-services"
 
 export type LoadedBookingDetail = {

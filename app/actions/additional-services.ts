@@ -7,16 +7,6 @@ import { AdditionalService, BookingAdditionalService, TaskAdditionalService } fr
 import { updateSalesOrderForBooking } from "@/app/actions/zoho"
 
 // Services CRUD
-export async function getAdditionalServices() {
-  const { data, error } = await serviceClient
-    .from("additional_services")
-    .select("*")
-    .order("name")
-  
-  if (error) throw error
-  return data as AdditionalService[]
-}
-
 export async function createAdditionalService(service: Partial<AdditionalService>) {
   const { data, error } = await serviceClient
     .from("additional_services")
@@ -53,16 +43,6 @@ export async function deleteAdditionalService(id: string) {
 }
 
 // Booking Links
-export async function getBookingServices(bookingId: string) {
-    const { data, error } = await serviceClient
-        .from("booking_additional_services")
-        .select("*, service:additional_services(*)")
-        .eq("booking_id", bookingId)
-        
-    if (error) throw error
-    return data as BookingAdditionalService[]
-}
-
 export async function addServiceToBooking(bookingId: string, serviceId: string, overrides: { price?: number, description?: string, quantity?: number } = {}) {
     // Fetch default if not provided
     let price = overrides.price
@@ -134,16 +114,6 @@ export async function removeServiceFromBooking(linkId: string, bookingId: string
 }
 
 // Task Links
-export async function getTaskServices(taskId: string) {
-    const { data, error } = await serviceClient
-        .from("task_additional_services")
-        .select("*, service:additional_services(*)")
-        .eq("task_id", taskId)
-        
-    if (error) throw error
-    return data as TaskAdditionalService[]
-}
-
 export async function addServiceToTask(taskId: string, serviceId: string, overrides: { price?: number, description?: string, quantity?: number } = {}) {
     // Fetch default if not provided
     let price = overrides.price

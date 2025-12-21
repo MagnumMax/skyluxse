@@ -5,7 +5,7 @@ import { OperationsBookingDetail } from "@/components/operations-booking-detail"
 import { loadBookingDetail } from "@/lib/data/load-booking-detail"
 import { getLiveBookingById } from "@/lib/data/live-data"
 import { resolveBookingViewVariant } from "@/lib/utils"
-import { getAdditionalServices, getBookingServices } from "@/app/actions/additional-services"
+import { getAdditionalServices, getBookingServices } from "@/lib/data/additional-services"
 
 export const dynamic = "force-dynamic"
 

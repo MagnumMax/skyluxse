@@ -1,6 +1,6 @@
 
 import { Suspense } from "react"
-import { getAdditionalServices } from "@/app/actions/additional-services"
+import { getAdditionalServices } from "@/lib/data/additional-services"
 import { getKommoStages } from "@/app/actions/kommo-stages"
 import { ServicesManager } from "./services-manager"
 import { KommoStagesManager } from "./kommo-stages-manager"
