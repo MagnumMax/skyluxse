@@ -283,6 +283,14 @@ export async function createSalesOrderForBooking(bookingId: string): Promise<Cre
 
         const { differenceInDays, parseISO } = await import("date-fns");
         const { formatZohoDateTime, formatZohoDate } = await import("@/lib/formatters");
+        const { resolveFee } = await import("@/lib/pricing/booking-totals");
+        const { 
+            KOMMO_DELIVERY_FEE_MAP, 
+            KOMMO_INSURANCE_FEE_MAP, 
+            KOMMO_REFUNDABLE_DEPOSIT_IDS,
+            KOMMO_DELIVERY_LABEL_TO_ID,
+            KOMMO_INSURANCE_LABEL_TO_ID
+        } = await import("@/lib/integrations/kommo/fee-mapping");
 
         let quantity = 1;
         let startStr = "";
@@ -343,42 +351,55 @@ export async function createSalesOrderForBooking(bookingId: string): Promise<Cre
             });
         }
 
-        // Helper to extract fee amount from label (e.g. "Delivery Fee- 200 aed" -> 200)
-        function extractFee(label: string | null | undefined): number {
-            if (!label) return 0;
-            const match = label.match(/(\d+)/);
-            return match ? parseInt(match[1], 10) : 0;
-        }
-
         // Delivery Fee
         const ITEM_DELIVERY_CHARGE_ID = "6183693000000251070";
-        if (booking.deliveryFeeLabel) {
-            const deliveryFee = extractFee(booking.deliveryFeeLabel);
-            if (deliveryFee > 0) {
-                lineItems.push({
-                    item_id: ITEM_DELIVERY_CHARGE_ID,
-                    name: "Delivery Charge", // Optional, Zoho fills it
-                    description: "",
-                    rate: deliveryFee,
-                    quantity: 1,
-                    tax_id: "6183693000000229181"
-                });
-            }
+        const deliveryFee = resolveFee(booking.deliveryFeeLabel, KOMMO_DELIVERY_FEE_MAP);
+        
+        if (deliveryFee > 0) {
+            lineItems.push({
+                item_id: ITEM_DELIVERY_CHARGE_ID,
+                name: "Delivery Charge", 
+                description: "",
+                rate: deliveryFee,
+                quantity: 1,
+                tax_id: "6183693000000229181"
+            });
         }
 
-        // No Deposit Fee
+        // Insurance / Security Deposit Logic
         const ITEM_NO_DEPOSIT_FEE_ID = "6183693000000251092";
-        if (booking.insuranceFeeLabel && booking.insuranceFeeLabel.toLowerCase().includes("no deposit")) {
-            const noDepositFee = extractFee(booking.insuranceFeeLabel);
-            if (noDepositFee > 0) {
-                lineItems.push({
-                    item_id: ITEM_NO_DEPOSIT_FEE_ID,
-                    name: "No Deposit Fixed Fee", // Optional
-                    description: "",
-                    rate: noDepositFee,
+        const insuranceLabel = booking.insuranceFeeLabel;
+        const insuranceAmount = resolveFee(insuranceLabel, KOMMO_INSURANCE_FEE_MAP);
+
+        if (insuranceAmount > 0) {
+            // Check if it's a refundable deposit
+            // We check by ID (from map) or by text (legacy fallback)
+            const isRefundable = (insuranceLabel && KOMMO_REFUNDABLE_DEPOSIT_IDS.has(insuranceLabel)) || 
+                                 (insuranceLabel?.toLowerCase().includes("security deposit"));
+
+            if (isRefundable) {
+                 // Security Deposit (Refundable) - NO TAX (Zero Rate)
+                 lineItems.push({
+                    item_id: undefined, 
+                    name: "Security Deposit (Refundable)",
+                    description: "Refundable upon vehicle return",
+                    rate: insuranceAmount,
                     quantity: 1,
-                    tax_id: "6183693000000229181"
-                });
+                    tax_id: "6183693000000229189" // Zero Rate 0%
+                 });
+            } else {
+                 // Non-Refundable Fee (e.g. No Deposit Fee) - TAXABLE (5%)
+                 const isNoDeposit = insuranceLabel?.toLowerCase().includes("no deposit");
+                 const itemId = isNoDeposit ? ITEM_NO_DEPOSIT_FEE_ID : undefined;
+                 
+                 lineItems.push({
+                    item_id: itemId,
+                    name: isNoDeposit ? "No Deposit Fixed Fee" : "Insurance Fee",
+                    description: "",
+                    rate: insuranceAmount,
+                    quantity: 1,
+                    tax_id: "6183693000000229181" // 5% VAT
+                 });
             }
         }
 
@@ -567,6 +588,8 @@ export async function updateSalesOrderForBooking(bookingId: string): Promise<{ s
 
         const { differenceInDays, parseISO } = await import("date-fns");
         const { formatZohoDateTime, formatZohoDate } = await import("@/lib/formatters");
+        const { resolveFee } = await import("@/lib/pricing/booking-totals");
+        const { KOMMO_DELIVERY_FEE_MAP, KOMMO_INSURANCE_FEE_MAP, KOMMO_REFUNDABLE_DEPOSIT_IDS } = await import("@/lib/integrations/kommo/fee-mapping");
 
         let quantity = 1;
         let startStr = "";

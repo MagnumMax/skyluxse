@@ -250,6 +250,18 @@ function extractStringField(entity: any, fieldId: number) {
     return String(entry.value)
 }
 
+function extractEnumId(entity: any, fieldId: number) {
+    const field = findCustomField(entity, fieldId)
+    if (!field || !Array.isArray(field.values) || !field.values.length) return null
+    const entry = field.values[0]
+    if (entry?.enum_id !== undefined && entry?.enum_id !== null) {
+        return String(entry.enum_id)
+    }
+    // Fallback to extractStringField logic if no enum_id (e.g. text field)
+    // But for ID extraction we specifically want the ID.
+    return null
+}
+
 function extractNumericField(entity: any, fieldId: number) {
     const raw = extractStringField(entity, fieldId)
     if (!raw) return null
@@ -557,12 +569,12 @@ function buildBookingOptions(
         vehicleId: base.vehicleId ?? null,
         startAt: base.startAt ?? null,
         endAt: base.endAt ?? null,
-        deliveryFeeLabel: extractStringField(lead, KOMMO_FIELD_IDS.deliveryFee),
+        deliveryFeeLabel: extractEnumId(lead, KOMMO_FIELD_IDS.deliveryFee) ?? extractStringField(lead, KOMMO_FIELD_IDS.deliveryFee),
         deliveryLocation: extractStringField(lead, KOMMO_FIELD_IDS.deliveryLocation),
         collectLocation: extractStringField(lead, KOMMO_FIELD_IDS.collectLocation),
         rentalDurationDays: extractIntegerField(lead, KOMMO_FIELD_IDS.durationDays),
         priceDaily: extractNumericField(lead, KOMMO_FIELD_IDS.priceDaily),
-        insuranceFeeLabel: extractStringField(lead, KOMMO_FIELD_IDS.insuranceFee),
+        insuranceFeeLabel: extractEnumId(lead, KOMMO_FIELD_IDS.insuranceFee) ?? extractStringField(lead, KOMMO_FIELD_IDS.insuranceFee),
         fullInsuranceFee: extractNumericField(lead, KOMMO_FIELD_IDS.fullInsuranceFee),
         advancePayment: extractNumericField(lead, KOMMO_FIELD_IDS.advancePayment),
         salesOrderUrl: extractStringField(lead, KOMMO_FIELD_IDS.salesOrderUrl),

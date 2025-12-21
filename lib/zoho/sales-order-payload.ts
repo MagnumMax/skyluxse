@@ -10,6 +10,7 @@ export type BookingForZohoSalesOrder = {
   endDate?: string | null
   deliveryLocation?: string | null
   pickupLocation?: string | null
+  collectLocation?: string | null
   mileageLimit?: string | number | null
   advancePayment?: string | number | null
   ownerName?: string | null
@@ -44,11 +45,11 @@ export function buildZohoSalesOrderCustomFields(
     },
     {
       customfield_id: "6183693000001829002", // Drop Off Date
-      value: formatZohoDate(booking.startDate || undefined),
+      value: formatZohoDate(booking.endDate || undefined),
     },
     {
       customfield_id: "6183693000001829066", // Rental Location
-      value: booking.deliveryLocation || booking.pickupLocation || "",
+      value: booking.deliveryLocation || booking.pickupLocation || booking.collectLocation || "",
     },
     {
       customfield_id: "6183693000001869037", // KM Limit

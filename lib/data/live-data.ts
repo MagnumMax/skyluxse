@@ -1279,7 +1279,7 @@ function mapBookingRow(
     deliveryFeeLabel: row.delivery_fee_label,
     insuranceFeeLabel: row.insurance_fee_label,
     insuranceFeeAmount: row.full_insurance_fee,
-    depositOptionLabel: row.insurance_fee_label,
+    depositOptionLabel: null,
   })
   const totalAmount = pricingTotals?.total ?? numberOrZero(row.total_amount)
   const paidAmount = numberOrZero(row.advance_payment ?? row.deposit_amount ?? 0)
