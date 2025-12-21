@@ -151,10 +151,24 @@ export async function createInvoice(invoiceData: any) {
     return client.post("/invoices", invoiceData, orgId);
 }
 
-export async function createContact(contactData: any) {
+export async function createContact(contactData: any, customFields?: any[]) {
     const orgId = await getOrganizationId();
     const client = await getBooksClient();
-    return client.post("/contacts", contactData, orgId);
+    const payload = { ...contactData };
+    if (customFields && customFields.length > 0) {
+        payload.custom_fields = customFields;
+    }
+    return client.post("/contacts", payload, orgId);
+}
+
+export async function updateContact(contactId: string, contactData: any, customFields?: any[]) {
+    const orgId = await getOrganizationId();
+    const client = await getBooksClient();
+    const payload = { ...contactData };
+    if (customFields && customFields.length > 0) {
+        payload.custom_fields = customFields;
+    }
+    return client.put(`/contacts/${contactId}`, payload, orgId);
 }
 
 export async function createSalesOrder(orderData: any) {

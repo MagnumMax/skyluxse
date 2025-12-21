@@ -84,6 +84,73 @@ export async function createSalesOrderAction(orderData: any) {
     }
 }
 
+export function mapClientToZohoCustomFields(client: any): any[] {
+    const fields: any[] = [];
+    
+    // Helper to format date to YYYY-MM-DD
+    const formatDate = (date: string | undefined | null) => {
+        if (!date) return undefined;
+        // Handle ISO string or simple date string
+        return date.split('T')[0];
+    };
+
+    // 1. Try to extract from doc_raw (if array)
+    let passportData = null;
+    let licenseData = null;
+    let nationality = client.nationality;
+    let dob = client.dateOfBirth;
+
+    const rawDocs = client.documentRecognition?.raw;
+    if (Array.isArray(rawDocs)) {
+        passportData = rawDocs.find((d: any) => d.doc_type?.toLowerCase().includes('passport'));
+        licenseData = rawDocs.find((d: any) => d.doc_type?.toLowerCase().includes('license') || d.doc_type?.toLowerCase().includes('dl'));
+        
+        // Try to get nationality/dob from passport first, then license
+        if (passportData) {
+            if (!nationality && passportData.nationality) nationality = passportData.nationality;
+            if (!dob && passportData.date_of_birth) dob = passportData.date_of_birth;
+        }
+         if (licenseData) {
+            if (!nationality && licenseData.nationality) nationality = licenseData.nationality;
+             if (!dob && licenseData.date_of_birth) dob = licenseData.date_of_birth;
+        }
+    }
+
+    // 2. Add Nationality & DOB
+    if (nationality) fields.push({ label: "Nationality", value: nationality });
+    if (dob) fields.push({ label: "Date of Birth", value: formatDate(dob) });
+
+    const docType = client.documentRecognition?.docType?.toLowerCase() || "";
+    // Check if docType suggests a license
+    const isLicense = docType.includes("license") || docType.includes("dl");
+
+    // 3. Add Passport Fields
+    if (passportData) {
+        if (passportData.document_number) fields.push({ label: "Passport Number", value: passportData.document_number });
+        if (passportData.issue_date) fields.push({ label: "Passport Issue Date", value: formatDate(passportData.issue_date) });
+        if (passportData.expiry_date) fields.push({ label: "Passport Expiry Date", value: formatDate(passportData.expiry_date) });
+    } else if (!isLicense && client.documentNumber) {
+        // Fallback: If not explicitly a license, we map generic document fields to Passport
+        fields.push({ label: "Passport Number", value: client.documentNumber });
+        if (client.issueDate) fields.push({ label: "Passport Issue Date", value: formatDate(client.issueDate) });
+        if (client.expiryDate) fields.push({ label: "Passport Expiry Date", value: formatDate(client.expiryDate) });
+    }
+    
+    // 4. Add Driving License Fields
+    if (licenseData) {
+        if (licenseData.document_number) fields.push({ label: "Driving License Number", value: licenseData.document_number });
+        if (licenseData.issue_date) fields.push({ label: "Driving License Issue Date", value: formatDate(licenseData.issue_date) });
+        if (licenseData.expiry_date) fields.push({ label: "Driving License Expiry Date", value: formatDate(licenseData.expiry_date) });
+    } else if (isLicense && client.documentNumber) {
+        // Fallback
+        fields.push({ label: "Driving License Number", value: client.documentNumber });
+        if (client.issueDate) fields.push({ label: "Driving License Issue Date", value: formatDate(client.issueDate) });
+        if (client.expiryDate) fields.push({ label: "Driving License Expiry Date", value: formatDate(client.expiryDate) });
+    }
+
+    return fields;
+}
+
 export async function createSalesOrderForBooking(bookingId: string): Promise<CreateSalesOrderResult> {
     let booking: any = null;
     let client: any = null;
@@ -161,7 +228,9 @@ export async function createSalesOrderForBooking(bookingId: string): Promise<Cre
                     is_primary_contact: true
                 }]
             };
-            const newContactRes = await createContact(contactData);
+            
+            const customFields = mapClientToZohoCustomFields(client);
+            const newContactRes = await createContact(contactData, customFields);
             if (newContactRes.code === 0) {
                 contactId = newContactRes.contact.contact_id;
             } else {
