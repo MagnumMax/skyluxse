@@ -1,7 +1,7 @@
 import { serviceClient } from "@/lib/supabase/service-client"
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.GOOGLE_GEMINI_API_KEY
-const GEMINI_FLASH_MODEL = "gemini-2.5-flash"
+const GEMINI_FLASH_MODEL = "gemini-3-flash"
 const GEMINI_PRO_MODEL = "gemini-3-pro-preview"
 const GEMINI_API_ROOT = "https://generativelanguage.googleapis.com/v1beta/models"
 const GEMINI_TIMEOUT_MS = Number(process.env.GEMINI_TIMEOUT_MS ?? 30000)
@@ -74,7 +74,7 @@ export async function recognizeLatestClientDocument(clientId: string, opts: Reco
     return { status: "done", model: clientRow.doc_status, confidence: clientRow.doc_confidence ?? null, error: null }
   }
 
-  const results = []
+  const results: any[] = []
   for (const link of links) {
     const single = await processSingleDocument(link, opts)
     results.push(single)
@@ -83,6 +83,25 @@ export async function recognizeLatestClientDocument(clientId: string, opts: Reco
   // запишем главным тот, что первый (самый свежий)
   const primaryResult = results[0]
   const payloadArray = results.map((r) => r.payload)
+
+  // Identify specific document types for better data merging
+  const passportResult = results.find(r => 
+    r.payload?.doc_type?.toLowerCase().includes('passport') || 
+    r.docType?.toLowerCase().includes('passport')
+  );
+  
+  const licenseResult = results.find(r => 
+    r.payload?.doc_type?.toLowerCase().includes('license') || 
+    r.docType?.toLowerCase().includes('license') ||
+    r.payload?.doc_type?.toLowerCase().includes('dl')
+  );
+
+  // Helper to get value from specific result or fallback to primary or any
+  const getValue = (key: string, preferredSource?: any) => {
+      return preferredSource?.payload?.[key] ?? 
+             primaryResult.payload?.[key] ?? 
+             results.find(r => r.payload?.[key])?.payload?.[key];
+  }
 
   const issuingCountry =
     primaryResult.payload?.issuing_country ??
@@ -103,18 +122,34 @@ export async function recognizeLatestClientDocument(clientId: string, opts: Reco
   }
 
   // Map document fields to standard client fields
-  if (primaryResult.payload?.full_name) update.name = primaryResult.payload.full_name
-  if (primaryResult.payload?.first_name) update.first_name = primaryResult.payload.first_name
-  if (primaryResult.payload?.last_name) update.last_name = primaryResult.payload.last_name
-  if (primaryResult.payload?.middle_name) update.middle_name = primaryResult.payload.middle_name
+  // 1. Personal Details: Prefer Passport -> Primary -> Any
+  const fullName = getValue('full_name', passportResult);
+  if (fullName) update.name = fullName;
 
-  const dob = normalizeDate(primaryResult.payload?.date_of_birth, issuingCountry)
-  if (dob) update.date_of_birth = dob
+  const firstName = getValue('first_name', passportResult);
+  if (firstName) update.first_name = firstName;
 
-  if (primaryResult.payload?.nationality) update.nationality = primaryResult.payload.nationality
+  const lastName = getValue('last_name', passportResult);
+  if (lastName) update.last_name = lastName;
+
+  const middleName = getValue('middle_name', passportResult);
+  if (middleName) update.middle_name = middleName;
+
+  const rawDob = getValue('date_of_birth', passportResult);
+  const dob = normalizeDate(rawDob, issuingCountry);
+  if (dob) update.date_of_birth = dob;
+
+  const nationality = getValue('nationality', passportResult);
+  if (nationality) update.nationality = nationality;
+
+  // 2. Address: Any (prefer Primary/Latest)
   if (primaryResult.payload?.address) update.address = primaryResult.payload.address
-  if (primaryResult.payload?.document_number) update.document_number = primaryResult.payload.document_number
+  else if (passportResult?.payload?.address) update.address = passportResult.payload.address
 
+  // 3. Document Details (Number, Dates, Country): Keep strictly from Primary (Latest)
+  // We want these fields to represent the "current" document being processed/viewed as primary.
+  if (primaryResult.payload?.document_number) update.document_number = primaryResult.payload.document_number
+  
   const issueDate = normalizeDate(primaryResult.payload?.issue_date, issuingCountry)
   if (issueDate) update.issue_date = issueDate
 
@@ -122,9 +157,16 @@ export async function recognizeLatestClientDocument(clientId: string, opts: Reco
   if (expiryDate) update.expiry_date = expiryDate
 
   if (issuingCountry) update.issuing_country = issuingCountry
-  if (primaryResult.payload?.driver_class) update.driver_license_class = primaryResult.payload.driver_class
-  if (primaryResult.payload?.driver_restrictions) update.driver_license_restrictions = primaryResult.payload.driver_restrictions
-  if (primaryResult.payload?.driver_endorsements) update.driver_license_endorsements = primaryResult.payload.driver_endorsements
+
+  // 4. Driver Details: Prefer License -> Primary -> Any
+  const driverClass = getValue('driver_class', licenseResult);
+  if (driverClass) update.driver_license_class = driverClass;
+
+  const driverRestrictions = getValue('driver_restrictions', licenseResult);
+  if (driverRestrictions) update.driver_license_restrictions = driverRestrictions;
+
+  const driverEndorsements = getValue('driver_endorsements', licenseResult);
+  if (driverEndorsements) update.driver_license_endorsements = driverEndorsements;
 
   const { error: updateError } = await serviceClient.from("clients").update(update).eq("id", clientId)
   if (updateError) throw updateError
@@ -206,7 +248,10 @@ async function processSingleDocument(
 function buildPrompt(docType?: string | null, issuingCountry?: string | null) {
   const label = docType ? docType.replace(/[_-]/g, " ") : "identity document"
   const country = issuingCountry ? issuingCountry.toUpperCase() : "unknown"
-  return `Extract identity fields for car rental compliance. Document type: ${label}. Issuing country: ${country}. If the document shows dates in a local format, respect it (US-style uses MM/DD/YYYY; other countries typically use DD/MM/YYYY or DD.MM.YYYY); output all dates as ISO yyyy-mm-dd. Return strict JSON per schema; set missing values to null; include licence classes/restrictions if present; prefer ISO country codes.`
+  return `Extract identity fields for car rental compliance. Document type: ${label}. Issuing country: ${country}.
+CRITICAL: You MUST extract the Document Number and Expiry Date if they are visible.
+If the document shows dates in a local format, respect it (US-style uses MM/DD/YYYY; other countries typically use DD/MM/YYYY or DD.MM.YYYY); output all dates as ISO yyyy-mm-dd.
+Return strict JSON per schema; set missing values to null; include licence classes/restrictions if present; prefer ISO country codes.`
 }
 
 function buildSchema() {
