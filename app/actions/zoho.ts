@@ -84,7 +84,7 @@ export async function createSalesOrderAction(orderData: any) {
     }
 }
 
-export function mapClientToZohoCustomFields(client: any): any[] {
+function mapClientToZohoCustomFields(client: any): any[] {
     const fields: any[] = [];
     
     // Helper to format date to YYYY-MM-DD
