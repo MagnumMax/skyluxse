@@ -38,10 +38,19 @@ export function OperationsTaskCard({ task, className }: OperationsTaskCardProps)
             Booking #{task.bookingCode ?? task.bookingId}
           </Badge>
         ) : null}
+        {task.clientName && task.clientName !== "Unassigned" ? (
+          <Badge
+            variant="outline"
+            className="rounded-full border-border/60 px-2 py-0.5 text-[10px] font-semibold font-normal"
+          >
+            {task.clientName}
+          </Badge>
+        ) : null}
       </div>
       <div className="flex items-center justify-between text-xs text-muted-foreground">
         <div>
           <p className="font-semibold text-foreground">{task.owner}</p>
+          <p className="text-[10px] uppercase tracking-[0.1em] text-muted-foreground/70">Assignee</p>
         </div>
         <div className="text-right">
           <p>{formatDate(task.createdAt)}</p>

@@ -52,14 +52,21 @@ type GroupBy = "none" | "bodyStyle" | "manufacturer"
 
 export function useFleetCalendarController(
   initialViewId: CalendarViewOption["id"] = "week",
-  initialGrouping: GroupBy = "bodyStyle"
+  initialGrouping: GroupBy = "bodyStyle",
+  initialDateStr?: string
 ) {
   const fallback = calendarViewOptions.find((option) => option.id === initialViewId) ?? calendarViewOptions[1]
   const customDefaultDays = calendarViewOptions.find((option) => option.id === "custom")?.days ?? 7
   const [viewId, setViewId] = useState<CalendarViewOption["id"]>(fallback.id)
   const [offset, setOffset] = useState(0)
   const [grouping, setGrouping] = useState<GroupBy>(initialGrouping)
-  const [baseDate, setBaseDate] = useState(() => getStartOfToday())
+  const [baseDate, setBaseDate] = useState(() => {
+    if (initialDateStr) {
+      const [y, m, d] = initialDateStr.split("-").map(Number)
+      return new Date(y, m - 1, d)
+    }
+    return getStartOfToday()
+  })
   const [customRange, setCustomRangeState] = useState<DateRange | null>(null)
   const [lastPresetViewId, setLastPresetViewId] = useState<CalendarViewOption["id"]>(
     fallback.id === "custom" ? calendarViewOptions[1].id : fallback.id

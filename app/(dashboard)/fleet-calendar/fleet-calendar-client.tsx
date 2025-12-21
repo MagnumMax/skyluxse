@@ -53,6 +53,7 @@ interface OperationsFleetCalendarClientProps {
   bookings: Booking[]
   events: CalendarEvent[]
   initialVehicleId?: string | null
+  initialDateStr?: string
 }
 
 export function OperationsFleetCalendarClient({
@@ -60,9 +61,10 @@ export function OperationsFleetCalendarClient({
   bookings,
   events,
   initialVehicleId,
+  initialDateStr,
 }: OperationsFleetCalendarClientProps) {
   const router = useRouter()
-  const calendarController = useFleetCalendarController("fortnight", "none")
+  const calendarController = useFleetCalendarController("fortnight", "none", initialDateStr)
   const sanitizedEvents = useMemo(
     () => events.filter((event) => !isLostCalendarEvent(event)),
     [events]

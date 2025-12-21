@@ -1,5 +1,8 @@
 import type { ReactNode } from "react"
 import Link from "next/link"
+import { ArrowLeft } from "lucide-react"
+
+import { Button } from "@/components/ui/button"
 
 import type { Booking, Client, Driver, VehicleMaintenanceEntry, OperationsTask } from "@/lib/domain/entities"
 import { resolveBookingTotalWithVat } from "@/lib/pricing/booking-totals"
@@ -56,6 +59,15 @@ export function OperationsBookingDetail({
   const statusTone = getStatusTone(booking.status)
   return (
     <DashboardPageShell>
+      <div className="flex items-center gap-2">
+        <Button variant="ghost" size="sm" asChild>
+          <Link href="/bookings">
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back
+          </Link>
+        </Button>
+      </div>
+
       <BookingOverviewSection
         booking={booking}
         client={client}

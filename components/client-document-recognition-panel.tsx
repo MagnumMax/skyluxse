@@ -51,11 +51,13 @@ export function ClientDocumentRecognitionPanel({ client }: Props) {
     ? `Processed ${formatDateTime(localRecognition.processedAt)}`
     : "Not processed yet"
 
-  const rawItems = Array.isArray(localRecognition?.raw)
-    ? localRecognition?.raw ?? []
-    : localRecognition?.raw
-      ? [localRecognition.raw]
-      : []
+  const rawItems = (
+    Array.isArray(localRecognition?.raw)
+      ? localRecognition?.raw ?? []
+      : localRecognition?.raw
+        ? [localRecognition.raw]
+        : []
+  ).filter((item) => !!item)
 
   const derivedItems = rawItems.length
     ? rawItems

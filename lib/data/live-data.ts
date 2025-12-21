@@ -304,11 +304,24 @@ const fetchClientRows = cache(async (): Promise<ClientRow[]> => {
 async function fetchClientRowsByIds(clientIds: string[]): Promise<ClientRow[]> {
   const uniqueIds = Array.from(new Set(clientIds.filter((id) => isUuidLike(id))))
   if (!uniqueIds.length) return []
-  const { data, error } = await serviceClient.from("clients").select(CLIENT_SELECT_COLUMNS).in("id", uniqueIds)
-  if (error) {
-    throw new Error(`[supabase] Failed to load clients by id: ${error.message}`)
+
+  const CHUNK_SIZE = 200
+  const chunks = []
+  for (let i = 0; i < uniqueIds.length; i += CHUNK_SIZE) {
+    chunks.push(uniqueIds.slice(i, i + CHUNK_SIZE))
   }
-  return coerceRows<ClientRow>(data)
+
+  const results = await Promise.all(
+    chunks.map(async (chunkIds) => {
+      const { data, error } = await serviceClient.from("clients").select(CLIENT_SELECT_COLUMNS).in("id", chunkIds)
+      if (error) {
+        throw new Error(`[supabase] Failed to load clients by id: ${error.message}`)
+      }
+      return coerceRows<ClientRow>(data)
+    })
+  )
+
+  return results.flat()
 }
 
 async function fetchClientRowById(clientId: string): Promise<ClientRow | null> {
@@ -974,9 +987,11 @@ export async function getLiveBookingsByVehicleId(vehicleId: string): Promise<Boo
 }
 
 export const getLiveBookings = cache(async (): Promise<Booking[]> => {
-  const [bookingRows, clientRows, vehicleRows, invoiceRows, staffRows, pipelineStageRows] = await Promise.all([
-    fetchBookingRows(),
-    fetchClientRows(),
+  const bookingRows = await fetchBookingRows()
+  const clientIds = bookingRows.map((b) => b.client_id).filter((id): id is string => !!id)
+
+  const [clientRows, vehicleRows, invoiceRows, staffRows, pipelineStageRows] = await Promise.all([
+    fetchClientRowsByIds(clientIds),
     fetchVehicleRows(),
     fetchBookingInvoiceRows(),
     fetchStaffRows(),
@@ -1151,9 +1166,11 @@ export const getDriverProfileByEmail = cache(async (email: string): Promise<Driv
 })
 
 export const getBookingsByDriverId = cache(async (driverId: string): Promise<Booking[]> => {
-  const [bookingRows, clientRows, vehicleRows] = await Promise.all([
-    fetchBookingRowsByDriverId(driverId),
-    fetchClientRows(),
+  const bookingRows = await fetchBookingRowsByDriverId(driverId)
+  const clientIds = bookingRows.map((b) => b.client_id).filter((id): id is string => !!id)
+
+  const [clientRows, vehicleRows] = await Promise.all([
+    fetchClientRowsByIds(clientIds),
     fetchVehicleRows(),
   ])
 
