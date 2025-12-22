@@ -36,6 +36,20 @@ type TaskRow = {
   updated_at: string | null
   task_required_input_values: TaskInputValueRow[] | null
   clients: { name: string | null }[] | null
+  bookings: {
+    external_code: string | null
+    total_amount: number | null
+    deposit_amount: number | null
+    advance_payment: number | null
+    zoho_sales_order_id: string | null
+    sales_order_url: string | null
+    client_id: string | null
+    vehicle_id: string | null
+  }[] | null
+  vehicles: {
+    name: string | null
+    plate_number: string | null
+  }[] | null
 }
 
 type TaskInputValueRow = {
@@ -51,7 +65,11 @@ const fetchTaskRows = cache(async (filters?: { driverId?: string; bookingId?: st
   let query = serviceClient
     .from("tasks")
     .select(
-      "id, title, task_type, status, deadline_at, booking_id, vehicle_id, client_id, assignee_driver_id, created_by, sla_minutes, metadata, created_at, updated_at, task_required_input_values(key, value_number, value_text, value_json, storage_paths, bucket), clients(name)"
+      `id, title, task_type, status, deadline_at, booking_id, vehicle_id, client_id, assignee_driver_id, created_by, sla_minutes, metadata, created_at, updated_at, 
+      task_required_input_values(key, value_number, value_text, value_json, storage_paths, bucket), 
+      clients(name),
+      bookings:booking_id(external_code, total_amount, deposit_amount, advance_payment, zoho_sales_order_id, sales_order_url, client_id, vehicle_id),
+      vehicles:vehicle_id(name, plate_number)`
     )
     .order("deadline_at", { ascending: true, nullsFirst: false })
 
@@ -101,11 +119,7 @@ export const getDriverTasks = cache(async (): Promise<Task[]> => {
 
   // If we found a driver ID, use it to filter tasks and bookings
   const rows = await fetchTaskRows({ driverId })
-  
-  const bookingIds = Array.from(new Set(rows.map((r) => r.booking_id).filter(Boolean) as string[]))
-  const bookings = await getLiveBookingsByIds(bookingIds)
 
-  const bookingsById = new Map(bookings.map((booking) => [String(booking.id), booking]))
   const odometerByVehicle = buildOdometerMap(rows)
   const fuelByVehicle = buildFuelMap(rows)
 
@@ -119,7 +133,7 @@ export const getDriverTasks = cache(async (): Promise<Task[]> => {
       // Ideally we should return empty if not logged in, but let's keep it safe for now
       return isDriverTaskRow(row)
     })
-    .map((row) => toBaseTask(row, { bookingsById, odometerByVehicle, fuelByVehicle }))
+    .map((row) => toBaseTask(row, { odometerByVehicle, fuelByVehicle }))
 })
 
 export const getDriverTaskById = cache(async (taskId: string): Promise<Task | null> => {
@@ -275,10 +289,13 @@ function toOperationsTask(
 
 function toBaseTask(
   row: TaskRow,
-  context: { bookingsById: Map<string, Booking>; odometerByVehicle: Map<string, number>; fuelByVehicle: Map<string, { value: number; ts: number }> }
+  context: { bookingsById?: Map<string, Booking>; odometerByVehicle: Map<string, number>; fuelByVehicle: Map<string, { value: number; ts: number }> }
 ): Task {
   const metadata = sanitizeMetadata(row.metadata)
-  const booking = row.booking_id ? context.bookingsById.get(row.booking_id) : null
+  const booking = row.booking_id && context.bookingsById ? context.bookingsById.get(row.booking_id) : null
+  const joinedBooking = row.bookings?.[0]
+  const joinedVehicle = row.vehicles?.[0]
+
   const requiredInputs = extractRequiredInputs(metadata)
   const inputValues = mergeInputValues(row.task_required_input_values)
   const odometer = extractOdometerValue(row.task_required_input_values)
@@ -298,9 +315,16 @@ function toBaseTask(
     }
   }
 
-  const zohoSalesOrderId = booking?.zohoSalesOrderId
+  const zohoSalesOrderId = booking?.zohoSalesOrderId ?? joinedBooking?.zoho_sales_order_id
   const zohoOrgId = process.env.ZOHO_ORG_ID
-  const zohoSalesOrderUrl = booking?.salesOrderUrl ?? (zohoSalesOrderId && zohoOrgId ? `https://books.zoho.com/app/${zohoOrgId}#/salesorders/${zohoSalesOrderId}` : undefined)
+  const zohoSalesOrderUrl =
+    booking?.salesOrderUrl ??
+    joinedBooking?.sales_order_url ??
+    (zohoSalesOrderId && zohoOrgId ? `https://books.zoho.com/app/${zohoOrgId}#/salesorders/${zohoSalesOrderId}` : undefined)
+
+  const outstandingAmount = booking
+    ? Math.max(0, (booking.totalAmount ?? 0) - (booking.paidAmount ?? 0))
+    : Math.max(0, (joinedBooking?.total_amount ?? 0) - ((joinedBooking?.advance_payment ?? 0) + (joinedBooking?.deposit_amount ?? 0)))
 
   return {
     id: row.id,
@@ -310,11 +334,11 @@ function toBaseTask(
     status: normalizeTaskStatus(row.status),
     deadline: formatDeadline(row.deadline_at),
     bookingId: booking?.id ?? row.booking_id ?? undefined,
-    bookingCode: booking?.code,
+    bookingCode: booking?.code ?? joinedBooking?.external_code ?? undefined,
     clientId: booking?.clientId ?? row.client_id ?? undefined,
-    clientName: booking?.clientName ?? row.clients?.[0]?.name ?? undefined,
-    vehicleName: booking?.carName,
-    vehiclePlate: booking?.carPlate ?? undefined,
+    clientName: booking?.clientName ?? row.clients?.[0]?.name ?? "Unassigned",
+    vehicleName: (booking?.carName ?? joinedVehicle?.name) || undefined,
+    vehiclePlate: booking?.carPlate ?? joinedVehicle?.plate_number ?? undefined,
     vehicleId: row.vehicle_id ?? undefined,
     lastVehicleOdometer: row.vehicle_id ? context.odometerByVehicle.get(row.vehicle_id) : undefined,
     lastVehicleFuel: row.vehicle_id ? context.fuelByVehicle.get(row.vehicle_id)?.value ?? undefined : undefined,
@@ -324,7 +348,7 @@ function toBaseTask(
     slaMinutes: row.sla_minutes ?? 0,
     requiredInputs,
     inputValues,
-    outstandingAmount: booking ? Math.max(0, (booking.totalAmount ?? 0) - (booking.paidAmount ?? 0)) : undefined,
+    outstandingAmount,
     currency: booking?.billing?.currency ?? "AED",
     zohoSalesOrderId: zohoSalesOrderId ?? undefined,
     zohoSalesOrderUrl: zohoSalesOrderUrl ?? undefined,

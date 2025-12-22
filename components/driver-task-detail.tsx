@@ -391,6 +391,14 @@ export function DriverTaskDetail({
           </AccordionItem>
         </Accordion>
       ) : null}
+
+      <DriverTaskForm
+        task={taskWithLiveStatus}
+        signedPhotoUrls={signedPhotoUrls}
+        minOdometer={minOdometer}
+        baselineOdometer={baselineOdometer}
+        baselineFuel={baselineFuel}
+      />
     </div>
   )
 }
