@@ -156,13 +156,14 @@ export async function completeTask(input: z.infer<typeof CompleteTaskSchema>): P
 
 export async function submitTaskInputs(formData: FormData): Promise<ActionResult> {
   const taskId = formData.get("taskId")?.toString()
+  const actionType = formData.get("actionType")?.toString() ?? "save"
   
   if (!taskId) {
     return { success: false, message: "Task ID is required" }
   }
 
   try {
-    const { requiredInputs, previousOdometer, taskType } = await getTaskMetadata(taskId)
+    const { requiredInputs, previousOdometer, taskType, status } = await getTaskMetadata(taskId)
     
     // Validate Agreement Number for Delivery
     // We need to find if there is an agreement number input in metadata
@@ -248,6 +249,21 @@ export async function submitTaskInputs(formData: FormData): Promise<ActionResult
         .upsert(rows, { onConflict: "task_id,key" })
       if (error) {
         return { success: false, message: error.message }
+      }
+    }
+
+    if (actionType === "complete") {
+      return await completeTask({ taskId })
+    }
+
+    if (status === "todo") {
+      const { error } = await serviceClient
+        .from("tasks")
+        .update({ status: "inprogress" })
+        .eq("id", taskId)
+      
+      if (error) {
+        console.error("Failed to update task status to inprogress", error)
       }
     }
 

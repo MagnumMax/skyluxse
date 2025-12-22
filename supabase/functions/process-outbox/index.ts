@@ -27,6 +27,116 @@ async function isFeatureFlagEnabled(client: SupabaseClient, flag: string) {
   return data?.is_enabled ?? false
 }
 
+async function sendTelegramMessage(message: string) {
+  const botToken = Deno.env.get("TELEGRAM_BOT_TOKEN") || '7719759217:AAEwerFTBeo3erPBfFHNWA-b62Iu-NpN-94'
+  const chatId = Deno.env.get("TELEGRAM_DEFAULT_CHAT_ID") || '-1003305843739'
+
+  const response = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      chat_id: chatId,
+      text: message,
+      parse_mode: 'HTML',
+    }),
+  })
+
+  const data = await response.json()
+  if (!data.ok) {
+    throw new Error(`Telegram API Error: ${JSON.stringify(data)}`)
+  }
+}
+
+async function handleTelegramJob(supabase: SupabaseClient, eventType: string, payload: any) {
+  if (eventType === 'task_created') {
+    const taskId = payload.task_id
+    if (!taskId) throw new Error("Missing task_id in payload")
+
+    // Fetch task details
+    const { data: task, error } = await supabase
+      .from('tasks')
+      .select(`
+        *,
+        bookings ( external_code ),
+        vehicles ( name, plate_number ),
+        clients ( name )
+      `)
+      .eq('id', taskId)
+      .single()
+
+    if (error || !task) throw new Error(`Task not found: ${error?.message}`)
+
+    // Construct message
+    const taskType = task.task_type === 'delivery' ? 'Delivery' : (task.task_type === 'pickup' ? 'Pickup' : task.task_type)
+    const title = task.title || 'Untitled Task'
+    const bookingCode = task.bookings?.external_code || 'N/A'
+    const vehicleName = task.vehicles?.name || 'Unknown Vehicle'
+    const plateNumber = task.vehicles?.plate_number || 'No Plate'
+    const clientName = task.clients?.name || 'Unknown Client'
+    const deadline = task.deadline_at ? new Date(task.deadline_at).toLocaleString('ru-RU', { timeZone: 'Asia/Dubai' }) : 'No Deadline'
+
+    const message = `
+🆕 <b>New Task Created</b>
+
+<b>Type:</b> ${taskType}
+<b>Title:</b> ${title}
+<b>Booking:</b> ${bookingCode}
+<b>Vehicle:</b> ${vehicleName} (${plateNumber})
+<b>Client:</b> ${clientName}
+<b>Deadline:</b> ${deadline}
+`.trim()
+    await sendTelegramMessage(message)
+    return
+  }
+
+  if (eventType === 'sales_order_linked') {
+    const bookingId = payload.booking_id
+    const salesOrderId = payload.sales_order_id
+    const salesOrderUrl = payload.sales_order_url
+    const isNew = payload.is_new
+
+    if (!bookingId) throw new Error("Missing booking_id in payload")
+
+    // Fetch booking details
+    const { data: booking, error } = await supabase
+      .from('bookings')
+      .select(`
+        external_code,
+        vehicles ( name, plate_number ),
+        clients ( name ),
+        total_amount
+      `)
+      .eq('id', bookingId)
+      .single()
+
+    if (error || !booking) throw new Error(`Booking not found: ${error?.message}`)
+
+    const bookingCode = booking.external_code || 'N/A'
+    const vehicleName = booking.vehicles?.name || 'Unknown Vehicle'
+    const plateNumber = booking.vehicles?.plate_number || 'No Plate'
+    const clientName = booking.clients?.name || 'Unknown Client'
+    const amount = booking.total_amount ? `${booking.total_amount} AED` : 'N/A'
+    const action = isNew ? 'Created' : 'Updated'
+    const icon = isNew ? '✅' : '🔄'
+
+    const message = `
+${icon} <b>Sales Order ${action}</b>
+
+<b>Booking:</b> ${bookingCode}
+<b>Sales Order:</b> <a href="${salesOrderUrl}">Link</a>
+<b>Client:</b> ${clientName}
+<b>Auto:</b> ${vehicleName}
+<b>Plate:</b> ${plateNumber}
+<b>Amount:</b> ${amount}
+`.trim()
+
+    await sendTelegramMessage(message)
+    return
+  }
+
+  throw new Error(`Unknown event type: ${eventType}`)
+}
+
 serve(async () => {
   try {
     const supabase = getServiceClient()
@@ -63,6 +173,43 @@ serve(async () => {
         continue
       }
 
+      // Handle Telegram Jobs
+      if (job.target_system === 'telegram') {
+        try {
+          await handleTelegramJob(supabase, job.event_type, job.payload)
+          
+          const { error: successError } = await supabase
+            .from("integrations_outbox")
+            .update({
+              status: "succeeded",
+              attempts: job.attempts + 1,
+              response: { mode: "live", processed_at: new Date().toISOString() },
+            })
+            .eq("id", job.id)
+
+          if (successError) {
+             console.error("Failed to update telegram job success", { jobId: job.id, successError })
+          }
+          results.push({ id: job.id, status: "succeeded", mode: "live" })
+        } catch (err: any) {
+          console.error("Failed to process Telegram job", err)
+          const { error: updateError } = await supabase
+            .from("integrations_outbox")
+            .update({
+              status: "pending", // Retry
+              attempts: job.attempts + 1,
+              last_error: err.message,
+              next_run_at: new Date(Date.now() + 60000).toISOString() // Retry in 1 min
+            })
+            .eq("id", job.id)
+            
+          if (updateError) console.error("Failed to update job status", updateError)
+          results.push({ id: job.id, status: "retrying", error: err.message })
+        }
+        continue
+      }
+
+      // Handle Zoho Jobs (Stubbed or Live)
       if (!enableZoho) {
         const { error: stubError } = await supabase
           .from("integrations_outbox")

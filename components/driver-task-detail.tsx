@@ -219,14 +219,12 @@ export function DriverTaskDetail({
   baselineFuel?: number
   backHref?: string
 }) {
-  const [status, setStatus] = useState<Task["status"]>(task.status)
   const [isOnline, setIsOnline] = useState<boolean>(typeof window === "undefined" ? true : navigator.onLine)
   const [nowTs] = useState(() => Date.now())
 
   // Note: Input handling logic was removed as it was not used in the UI.
   // If needed, restore from previous version or implement Input/Service UI.
 
-  const taskWithLiveStatus = { ...task, status } as Task
   const mapUrl = buildMapsUrl(task.type, task.geo)
   const phoneDigits = normalizePhone(client?.phone ?? task.clientPhone)
   const whatsappUrl = phoneDigits
@@ -272,7 +270,7 @@ export function DriverTaskDetail({
       </Button>
 
       <DriverTaskCard
-        task={taskWithLiveStatus}
+        task={task}
         clickable={false}
         showEta={false}
         showClient={false}
@@ -306,7 +304,7 @@ export function DriverTaskDetail({
               ) : null}
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <TaskStatusBadge status={status} className="text-[10px] sm:text-xs" />
+              <TaskStatusBadge status={task.status} className="text-[10px] sm:text-xs" />
             </div>
           </div>
         </div>
@@ -393,7 +391,7 @@ export function DriverTaskDetail({
       ) : null}
 
       <DriverTaskForm
-        task={taskWithLiveStatus}
+        task={task}
         signedPhotoUrls={signedPhotoUrls}
         minOdometer={minOdometer}
         baselineOdometer={baselineOdometer}

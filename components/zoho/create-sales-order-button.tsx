@@ -22,12 +22,12 @@ export function CreateSalesOrderButton({ bookingId }: { bookingId: string }) {
     return (
         <Button
             onClick={handleCreate}
-            disabled={isPending}
+            isLoading={isPending}
             variant="outline"
             size="sm"
             className="text-xs font-medium uppercase tracking-wider"
         >
-            {isPending ? "Creating..." : "Create Sales Order in Zoho"}
+            Create Sales Order in Zoho
         </Button>
     )
 }

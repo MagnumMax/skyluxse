@@ -45,8 +45,20 @@ type TaskRow = {
     sales_order_url: string | null
     client_id: string | null
     vehicle_id: string | null
+  } | {
+    external_code: string | null
+    total_amount: number | null
+    deposit_amount: number | null
+    advance_payment: number | null
+    zoho_sales_order_id: string | null
+    sales_order_url: string | null
+    client_id: string | null
+    vehicle_id: string | null
   }[] | null
   vehicles: {
+    name: string | null
+    plate_number: string | null
+  } | {
     name: string | null
     plate_number: string | null
   }[] | null
@@ -293,8 +305,8 @@ function toBaseTask(
 ): Task {
   const metadata = sanitizeMetadata(row.metadata)
   const booking = row.booking_id && context.bookingsById ? context.bookingsById.get(row.booking_id) : null
-  const joinedBooking = row.bookings?.[0]
-  const joinedVehicle = row.vehicles?.[0]
+  const joinedBooking = Array.isArray(row.bookings) ? (row.bookings as any)[0] : row.bookings
+  const joinedVehicle = Array.isArray(row.vehicles) ? (row.vehicles as any)[0] : row.vehicles
 
   const requiredInputs = extractRequiredInputs(metadata)
   const inputValues = mergeInputValues(row.task_required_input_values)

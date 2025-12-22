@@ -110,8 +110,8 @@ export function SalesServiceForm({ action, bookingId, initialRating, initialFeed
 function SubmitButton({ disabled }: { disabled?: boolean }) {
   const { pending } = useFormStatus()
   return (
-    <Button type="submit" variant="secondary" disabled={pending || disabled} className="sm:self-end">
-      {pending ? "Saving…" : "Save score"}
+    <Button type="submit" variant="secondary" disabled={disabled} isLoading={pending} className="sm:self-end">
+      Save score
     </Button>
   )
 }

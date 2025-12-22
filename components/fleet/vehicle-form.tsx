@@ -381,8 +381,8 @@ export function VehicleForm({
 
         {renderActions ? (
           <div className="flex items-center justify-end">
-            <Button type="submit" disabled={submitting}>
-              {submitting ? "Saving..." : mode === "create" ? "Create vehicle" : "Save changes"}
+            <Button type="submit" isLoading={submitting}>
+              {mode === "create" ? "Create vehicle" : "Save changes"}
             </Button>
           </div>
         ) : null}

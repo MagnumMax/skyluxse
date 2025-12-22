@@ -1,8 +1,8 @@
 "use client"
 
-import { useRef, useState } from "react"
+import { useRef, useState, useEffect } from "react"
 import { toast } from "sonner"
-import { Camera, Loader2, Trash2, Upload, X, FileText } from "lucide-react"
+import { Camera, Trash2, Upload, X, FileText, Check } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -27,7 +27,9 @@ interface DriverTaskFormProps {
 
 export function DriverTaskForm({ task, signedPhotoUrls, minOdometer, baselineOdometer, baselineFuel }: DriverTaskFormProps) {
   const formRef = useRef<HTMLFormElement>(null)
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+  const [isCompleting, setIsCompleting] = useState(false)
+  const [showSavedLabel, setShowSavedLabel] = useState(false)
   const [pendingFiles, setPendingFiles] = useState<Record<string, File[]>>({})
   const [previews, setPreviews] = useState<Record<string, string[]>>({})
 
@@ -41,7 +43,14 @@ export function DriverTaskForm({ task, signedPhotoUrls, minOdometer, baselineOdo
   const getInputValue = (key: string) => values.find((v) => v.key === key)
 
   async function handleSubmit(formData: FormData) {
-    setIsSubmitting(true)
+    const actionType = formData.get("actionType")?.toString()
+    if (actionType === "complete") {
+      setIsCompleting(true)
+    } else {
+      setIsSaving(true)
+      setShowSavedLabel(false)
+    }
+
     try {
       // Append pending files to formData
       Object.entries(pendingFiles).forEach(([key, files]) => {
@@ -52,7 +61,13 @@ export function DriverTaskForm({ task, signedPhotoUrls, minOdometer, baselineOdo
 
       const result = await submitTaskInputs(formData)
       if (result.success) {
-        toast.success("Saved successfully")
+        if (actionType === "complete") {
+            toast.success("Task completed")
+        } else {
+            toast.success("Saved successfully")
+            setShowSavedLabel(true)
+            setTimeout(() => setShowSavedLabel(false), 3000)
+        }
         setPendingFiles({})
         // Optional: clear file inputs visually or handle optimistic updates
       } else {
@@ -61,7 +76,8 @@ export function DriverTaskForm({ task, signedPhotoUrls, minOdometer, baselineOdo
     } catch (error) {
       toast.error("Something went wrong")
     } finally {
-      setIsSubmitting(false)
+      setIsSaving(false)
+      setIsCompleting(false)
     }
   }
 
@@ -371,10 +387,36 @@ export function DriverTaskForm({ task, signedPhotoUrls, minOdometer, baselineOdo
             return null
           })}
 
-          <Button type="submit" className="w-full" disabled={isSubmitting || task.status === "done"}>
-            {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-            {task.status === "done" ? "Completed" : "Save Changes"}
-          </Button>
+          <div className="flex flex-row gap-3 sm:gap-4">
+            <Button 
+              type="submit" 
+              name="actionType" 
+              value="save" 
+              variant="secondary" 
+              className="w-full flex-1" 
+              disabled={task.status === "done" || isCompleting}
+              isLoading={isSaving}
+            >
+              {showSavedLabel ? (
+                <>
+                  <Check className="mr-2 h-4 w-4" />
+                  Saved!
+                </>
+              ) : (
+                "Save"
+              )}
+            </Button>
+            <Button 
+              type="submit" 
+              name="actionType" 
+              value="complete" 
+              className="w-full flex-1 bg-green-600 hover:bg-green-700 text-white" 
+              disabled={task.status === "done" || isSaving}
+              isLoading={isCompleting}
+            >
+              Complete
+            </Button>
+          </div>
         </form>
       </CardContent>
     </Card>
