@@ -9,9 +9,9 @@
   "prefer_related_applications": false,
   "icons": [
     {
-      "src": "/icons/icon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
+      "src": "/icons/icon.png",
+      "sizes": "300x300",
+      "type": "image/png",
       "purpose": "any maskable"
     }
   ]
