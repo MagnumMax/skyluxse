@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 
 import { serviceClient } from "@/lib/supabase/service-client"
+import { sendTaskCreatedNotification } from "@/lib/notifications/task-notifications"
 
 type Payload = { bookingId?: string; modes?: ("delivery" | "pickup")[] }
 

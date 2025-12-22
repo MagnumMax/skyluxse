@@ -144,13 +144,14 @@ async function upsertTask(payload: any) {
   }
 
   if (exists.data?.id) {
-    return
+    return null
   }
 
-  const { error } = await client.from("tasks").insert(payload)
+  const { data, error } = await client.from("tasks").insert(payload).select("id").single()
   if (error) {
     throw new Error(`Failed to insert task: ${error.message}`)
   }
+  return data.id
 }
 
 main().catch((e) => {
