@@ -19,12 +19,6 @@ export default async function BookingsPage({ searchParams }: PageProps) {
   const heading = getBookingBoardHeading(variant)
   return (
     <DashboardPageShell>
-      <header className="space-y-2">
-        <div className="flex flex-wrap items-baseline gap-3">
-          <h1 className="text-3xl font-semibold tracking-tight">{heading}</h1>
-        </div>
-      </header>
-
       <BookingsClient bookings={bookings} drivers={drivers} stages={stages} readOnly={variant === "exec"} />
     </DashboardPageShell>
   )

@@ -250,7 +250,7 @@ export function SalesBookingsBoard({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="h-full space-y-6 rounded-2xl bg-slate-50/50 p-4 lg:p-6">
       {showFilters ? (
         <div className="rounded-2xl border border-border/60 bg-card/60 p-4 shadow-sm">
           <div className="flex flex-wrap gap-4">
@@ -321,61 +321,68 @@ export function SalesBookingsBoard({
             {(
               [...visibleStageOrder, ...(grouped.fallback.length ? ["fallback" as const] : [])] as StageBucketId[]
             ).map((stageId) => {
-            const meta = resolveStageMeta(stageId)
-            const columnBookings = grouped[stageId]
-            return (
-              <Droppable
-                droppableId={stageId}
-                key={stageId}
-                isDropDisabled={stageId === "fallback"}
-              >
-                {(provided) => (
-                  <section
-                    ref={provided.innerRef}
-                    {...provided.droppableProps}
-                    className="flex flex-col rounded-2xl border border-border/70 bg-background lg:w-[320px] lg:flex-shrink-0"
-                  >
-                    <header
-                      className="border-b px-4 py-3"
-                      style={{ backgroundColor: meta.headerColor, borderColor: meta.borderColor }}
+              const meta = resolveStageMeta(stageId)
+              const columnBookings = grouped[stageId]
+              const totalAmount = columnBookings.reduce((sum, b) => sum + (resolveBookingTotalWithVat(b) ?? b.totalAmount ?? 0), 0)
+              
+              return (
+                <Droppable
+                  droppableId={stageId}
+                  key={stageId}
+                  isDropDisabled={stageId === "fallback"}
+                >
+                  {(provided) => (
+                    <section
+                      ref={provided.innerRef}
+                      {...provided.droppableProps}
+                      className="flex flex-col rounded-xl bg-white lg:w-[320px] lg:flex-shrink-0"
                     >
-                      <div className="flex items-center justify-between">
-                        <h2 className="text-base font-semibold text-slate-900">{meta.label}</h2>
-                        <span className="text-sm text-muted-foreground">{columnBookings.length}</span>
+                      <header
+                        className="border-t-[3px] px-3 py-3"
+                        style={{ borderTopColor: meta.headerColor }}
+                      >
+                        <div className="flex flex-col gap-1">
+                          <h2 className="text-sm font-bold text-slate-900">{meta.label}</h2>
+                          <div className="text-xs text-muted-foreground">
+                            <span className="font-medium text-slate-900">{currencyFormatter.format(totalAmount)}</span>
+                            <span className="mx-1">•</span>
+                            <span>{columnBookings.length} {columnBookings.length === 1 ? 'Deal' : 'Deals'}</span>
+                          </div>
+                        </div>
+                      </header>
+                      <div className="flex-1 space-y-2 overflow-y-auto px-2 pb-4">
+                        {columnBookings.length === 0 ? (
+                          <div className="flex h-40 items-center justify-center">
+                            <p className="text-sm text-muted-foreground/50">
+                              This stage is empty
+                            </p>
+                          </div>
+                        ) : (
+                          columnBookings.map((booking, index) => (
+                            <Draggable
+                              draggableId={booking.id.toString()}
+                              index={index}
+                              key={booking.id}
+                              isDragDisabled={readOnly}
+                            >
+                              {(dragProvided, snapshot) => (
+                                <KanbanCard
+                                  ref={dragProvided.innerRef}
+                                  booking={booking}
+                                  draggableProps={dragProvided.draggableProps}
+                                  dragHandleProps={readOnly ? null : dragProvided.dragHandleProps}
+                                  isDragging={snapshot.isDragging && !readOnly}
+                                />
+                              )}
+                            </Draggable>
+                          ))
+                        )}
+                        {provided.placeholder}
                       </div>
-                      <p className="text-xs text-slate-600/80">{meta.description}</p>
-                    </header>
-                    <div className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
-                      {columnBookings.length === 0 ? (
-                        <p className="rounded-lg border border-dashed border-border/70 px-3 py-8 text-center text-xs text-muted-foreground">
-                          No bookings in this stage
-                        </p>
-                      ) : (
-                        columnBookings.map((booking, index) => (
-                          <Draggable
-                            draggableId={booking.id.toString()}
-                            index={index}
-                            key={booking.id}
-                            isDragDisabled={readOnly}
-                          >
-                            {(dragProvided, snapshot) => (
-                          <KanbanCard
-                            ref={dragProvided.innerRef}
-                            booking={booking}
-                            draggableProps={dragProvided.draggableProps}
-                            dragHandleProps={readOnly ? null : dragProvided.dragHandleProps}
-                            isDragging={snapshot.isDragging && !readOnly}
-                          />
-                            )}
-                          </Draggable>
-                        ))
-                      )}
-                      {provided.placeholder}
-                    </div>
-                  </section>
-                )}
-              </Droppable>
-            )
+                    </section>
+                  )}
+                </Droppable>
+              )
             })}
           </div>
         </div>
@@ -432,10 +439,16 @@ const dateTimeFormatter = new Intl.DateTimeFormat("en-CA", {
   hour: "2-digit",
   minute: "2-digit",
 })
+
+const shortDateFormatter = new Intl.DateTimeFormat("en-US", {
+  month: "short",
+  day: "numeric",
+})
+
 const currencyFormatter = new Intl.NumberFormat("en-CA", {
   style: "currency",
   currency: "AED",
-  maximumFractionDigits: 0,
+  maximumFractionDigits: 2,
 })
 
 type KanbanCardProps = {
@@ -447,74 +460,60 @@ type KanbanCardProps = {
 
 const KanbanCard = forwardRef<HTMLDivElement, KanbanCardProps>(
   ({ booking, dragHandleProps, draggableProps, isDragging }, ref) => {
-  const router = useRouter()
-  const startLabel = formatDateTimeLabel(booking.startTime ?? booking.startDate)
-  const endLabel = formatDateTimeLabel(booking.endTime ?? booking.endDate)
-  const dateRange = startLabel && endLabel ? `${startLabel} – ${endLabel}` : startLabel ?? endLabel ?? "—"
-  const plateLabel = booking.carPlate?.trim().length ? booking.carPlate : null
-  const agreementNumber = booking.agreementNumber?.trim().length ? booking.agreementNumber : null
-  const totalWithVat = resolveBookingTotalWithVat(booking)
-  const amountLabel = currencyFormatter.format(totalWithVat ?? booking.totalAmount ?? 0)
-  const handleClick = () => {
-    if (isDragging) return
-    const bookingId = String(booking.id)
+    const router = useRouter()
+    
+    // Formatting
+    const totalWithVat = resolveBookingTotalWithVat(booking)
+    const amountLabel = currencyFormatter.format(totalWithVat ?? booking.totalAmount ?? 0)
+    
+    const dateStr = booking.createdAt ? shortDateFormatter.format(new Date(booking.createdAt)) : "—"
+    
+    // Interaction
+    const handleClick = () => {
+      if (isDragging) return
+      const bookingId = String(booking.id)
       const detailUrl = `/bookings/${bookingId}?view=operations`
       router.push(detailUrl as RouterPushInput)
-  }
-  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault()
-      handleClick()
     }
-  }
-  return (
-    <article
-      ref={ref}
-      {...draggableProps}
-      {...dragHandleProps}
-      onClick={handleClick}
-      onKeyDown={handleKeyDown}
-      role="button"
-      tabIndex={0}
-      className={cn(
-        "space-y-3 rounded-2xl border border-border bg-card/80 p-4 shadow-sm transition cursor-pointer",
-        isDragging && "ring-2 ring-primary shadow-lg"
-      )}
-      data-booking-id={booking.id}
-    >
-      <div className="flex items-start justify-between gap-4">
-        <div className="space-y-1">
-          <p className="text-sm font-semibold text-foreground">{booking.carName}</p>
-          <p className="text-xs text-muted-foreground">{plateLabel ?? "—"}</p>
+    const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault()
+        handleClick()
+      }
+    }
+
+    return (
+      <article
+        ref={ref}
+        {...draggableProps}
+        {...dragHandleProps}
+        onClick={handleClick}
+        onKeyDown={handleKeyDown}
+        role="button"
+        tabIndex={0}
+        className={cn(
+          "flex flex-col gap-2 rounded-lg border border-border/40 bg-white p-3 shadow-sm transition hover:shadow-md cursor-pointer",
+          isDragging && "ring-2 ring-primary shadow-lg rotate-2"
+        )}
+        data-booking-id={booking.id}
+      >
+        <div className="flex flex-col gap-0.5">
+          <p className="text-sm font-bold text-slate-900 line-clamp-1">
+            {booking.carName}
+            {booking.carPlate ? ` • ${booking.carPlate}` : ""}
+          </p>
+          <p className="text-xs text-slate-500 line-clamp-1">{booking.clientName}</p>
         </div>
-        <div className="flex flex-col items-end gap-1 text-right text-xs">
-          <span className="text-[11px] font-semibold uppercase tracking-[0.25em] text-slate-700">
-            {agreementNumber ?? "—"}
+        
+        <div className="flex items-center gap-1.5 text-xs text-slate-600 mt-1">
+          <span className="font-medium text-slate-900">{amountLabel}</span>
+          <span className="text-slate-300">•</span>
+          <span className={booking.createdAt ? "text-red-400" : "text-slate-400"}>
+             {dateStr}
           </span>
         </div>
-      </div>
-      <div className="space-y-1 text-xs text-muted-foreground">
-        <p className="text-sm font-medium text-foreground">{booking.clientName}</p>
-        <p>{dateRange}</p>
-        <p className="text-sm font-semibold text-foreground">{amountLabel}</p>
-        {booking.pickupLocation ? (
-          <p>
-            <span className="font-medium text-foreground">Route:</span> {booking.pickupLocation}
-            {booking.dropoffLocation ? ` → ${booking.dropoffLocation}` : ""}
-          </p>
-        ) : null}
-      </div>
-      {booking.tags?.length ? (
-        <div className="flex flex-wrap gap-1 text-[11px] text-muted-foreground">
-          {booking.tags.map((tag) => (
-            <span key={tag} className="rounded-md bg-muted px-2 py-0.5">
-              #{tag}
-            </span>
-          ))}
-        </div>
-      ) : null}
-    </article>
-  )
+      </article>
+    )
   }
 )
 
