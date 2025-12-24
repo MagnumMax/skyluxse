@@ -15,7 +15,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { ClientAiPanel } from "@/components/sales-client-ai-panel"
 import { ParameterList, type ParameterListItem } from "@/components/parameter-list"
-import { CreateSalesOrderButton } from "@/components/zoho/create-sales-order-button"
 import { AdditionalService, BookingAdditionalService } from "@/lib/domain/additional-services"
 import { ServiceSelector } from "@/components/service-selector"
 import { BookingTaskList } from "@/components/booking-task-list"
@@ -290,11 +289,6 @@ function BookingLogisticsFinancialSection({ booking, outstanding, advancePayment
         </a>
       ),
       helper: booking.salesOrderUrl,
-    })
-  } else {
-    financialMeta.push({
-      label: "Sales order",
-      value: <CreateSalesOrderButton bookingId={String(booking.id)} />,
     })
   }
   return (

@@ -160,7 +160,7 @@ export async function createSalesOrderForBooking(bookingId: string): Promise<Cre
         const { createSalesOrder, findContactByEmail, createContact, getOrganizationId } = await import("@/lib/zoho/books");
         const { serviceClient } = await import("@/lib/supabase/service-client");
         const { revalidatePath } = await import("next/cache");
-        const { updateKommoLeadStatus } = await import("@/lib/kommo/client");
+        const { updateKommoLead } = await import("@/lib/kommo/client");
         const { KOMMO_STATUSES_FOR_SALES_ORDER } = await import("@/lib/constants/bookings");
         const { sendNotification } = await import("@/lib/notifications");
 
@@ -181,29 +181,37 @@ export async function createSalesOrderForBooking(bookingId: string): Promise<Cre
             };
         }
 
-        // Check sync status to prevent race conditions
-        const { data: syncStatus } = await serviceClient
-            .from("bookings")
-            .select("zoho_sync_status")
-            .eq("id", bookingId)
-            .single();
 
-        if (syncStatus?.zoho_sync_status === "in_progress" || syncStatus?.zoho_sync_status === "synced") {
+
+        // Check sync status to prevent race conditions
+        // We use an atomic update to acquire the lock. 
+        // Only update if status is null, pending, or failed.
+        const { data: lockedBooking } = await serviceClient
+            .from("bookings")
+            .update({ zoho_sync_status: "in_progress" })
+            .eq("id", bookingId)
+            .or("zoho_sync_status.is.null,zoho_sync_status.eq.pending,zoho_sync_status.eq.failed")
+            .select("id")
+            .maybeSingle();
+
+        if (!lockedBooking) {
+            // Could not acquire lock, meaning it's already in progress or synced
+            // We fetch the current status to return appropriate message
+            const { data: currentStatus } = await serviceClient
+                .from("bookings")
+                .select("zoho_sales_order_id, sales_order_url, zoho_sync_status")
+                .eq("id", bookingId)
+                .single();
+
             return {
                 success: true,
                 data: {
-                    salesOrderId: booking.zohoSalesOrderId || "",
-                    salesOrderUrl: booking.salesOrderUrl || "",
+                    salesOrderId: currentStatus?.zoho_sales_order_id || "",
+                    salesOrderUrl: currentStatus?.sales_order_url || "",
                     message: "Sales Order creation is already in progress or completed",
                 },
             };
         }
-
-        // Acquire lock
-        await serviceClient
-            .from("bookings")
-            .update({ zoho_sync_status: "in_progress" })
-            .eq("id", bookingId);
 
         client = booking.clientId ? await getLiveClientById(String(booking.clientId)) : null;
         if (!client) throw new Error("Client not found for this booking");
@@ -459,7 +467,8 @@ Need help before paying? We’re here for you—Text us on whatsapp anytime!`;
             .from("bookings")
             .update({
                 zoho_sales_order_id: salesOrderId,
-                sales_order_url: salesOrderUrl
+                sales_order_url: salesOrderUrl,
+                zoho_sync_status: "synced"
             })
             .eq("id", bookingId);
 
@@ -468,11 +477,11 @@ Need help before paying? We’re here for you—Text us on whatsapp anytime!`;
             // We don't fail the action because the SO was created, but we log it.
         }
 
-        // 4. Update Kommo Status
+        // 4. Update Kommo Status & Fields
         try {
             const { data: bookingRaw } = await serviceClient
                 .from("bookings")
-                .select("source_payload_id, advance_payment")
+                .select("source_payload_id, advance_payment, external_code")
                 .eq("id", bookingId)
                 .single();
 
@@ -483,8 +492,22 @@ Need help before paying? We’re here for you—Text us on whatsapp anytime!`;
                 // Logic: if advance_payment > 0 -> Payment Pending (96150292), else Confirmed (75440391)
                 const targetStatusId = advancePayment > 0 ? "96150292" : "75440391";
                 
-                console.log(`Updating Kommo Lead ${leadId} to status ${targetStatusId} (Advance: ${advancePayment})`);
-                await updateKommoLeadStatus(leadId, targetStatusId);
+                const kommoPayload = {
+                    status_id: Number(targetStatusId),
+                    custom_fields_values: [
+                        {
+                            field_id: 1224030, // Sales order URL
+                            values: [{ value: salesOrderUrl }]
+                        },
+                        {
+                            field_id: 1234159, // erp_deal_id
+                            values: [{ value: bookingRaw.external_code || booking.code }]
+                        }
+                    ]
+                };
+
+                console.log(`Updating Kommo Lead ${leadId} with status ${targetStatusId} and SO details`);
+                await updateKommoLead(leadId, kommoPayload);
             }
         } catch (kommoError) {
             console.error("Failed to update Kommo status:", kommoError);

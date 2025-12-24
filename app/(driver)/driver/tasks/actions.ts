@@ -131,13 +131,16 @@ export async function completeTask(input: z.infer<typeof CompleteTaskSchema>): P
           .upsert(bookingServices, { onConflict: "booking_id, service_id" })
 
         if (!copyError) {
-          // Try to create/sync sales order
+          // Try to sync sales order (update only)
           try {
-            const { createSalesOrderForBooking } = await import("@/app/actions/zoho")
+            const { updateSalesOrderForBooking } = await import("@/app/actions/zoho")
             // We don't await this to not block the UI response, or maybe we should?
             // The user wants "these records must be added to sale Order".
             // Let's await it to ensure it happens, or log error.
-            await createSalesOrderForBooking(String(task.booking_id))
+            const res = await updateSalesOrderForBooking(String(task.booking_id))
+            if (!res.success) {
+               console.warn("Update Sales Order warning:", res.error)
+            }
           } catch (e) {
             console.error("Failed to sync sales order from task completion:", e)
           }

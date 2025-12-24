@@ -35,3 +35,38 @@ export async function updateKommoLeadStatus(leadId: string, statusId: string) {
         return { success: false, error: error instanceof Error ? error.message : "Unknown error" }
     }
 }
+
+export async function updateKommoLead(leadId: string, payload: Record<string, any>) {
+    const KOMMO_BASE_URL = process.env.KOMMO_BASE_URL
+    const KOMMO_ACCESS_TOKEN = process.env.KOMMO_ACCESS_TOKEN
+
+    if (!KOMMO_BASE_URL || !KOMMO_ACCESS_TOKEN) {
+        console.error("Missing Kommo Env Vars")
+        return { success: false, error: "Missing Kommo credentials" }
+    }
+
+    const url = `${KOMMO_BASE_URL}/api/v4/leads/${leadId}`
+    
+    try {
+        const response = await fetch(url, {
+            method: "PATCH",
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${KOMMO_ACCESS_TOKEN}`,
+            },
+            body: JSON.stringify(payload),
+        })
+
+        if (!response.ok) {
+            const text = await response.text()
+            console.error(`Failed to update Kommo lead ${leadId}: ${response.status} ${text}`)
+            return { success: false, error: `Kommo API error: ${response.status}` }
+        }
+
+        const data = await response.json()
+        return { success: true, data }
+    } catch (error) {
+        console.error("Error updating Kommo lead:", error)
+        return { success: false, error: error instanceof Error ? error.message : "Unknown error" }
+    }
+}
