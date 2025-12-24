@@ -52,6 +52,19 @@ export default async function OperationsTaskDetailPage({ params, searchParams }:
     }
   }
 
+  const signedPhotoUrls: Record<string, string[]> = {}
+  if (task.inputValues) {
+    for (const val of task.inputValues) {
+      if (val.storagePaths?.length) {
+        const bucket = val.bucket ?? "task-media"
+        const urls = await Promise.all(
+          val.storagePaths.map((path) => createSignedUrl(bucket, path))
+        )
+        signedPhotoUrls[val.key] = urls.map((url) => url ?? "")
+      }
+    }
+  }
+
   return (
     <DriverTaskDetail 
         task={task} 
@@ -59,9 +72,9 @@ export default async function OperationsTaskDetailPage({ params, searchParams }:
         additionalServices={additionalServices} 
         availableServices={availableServices}
         handoverPhotos={handoverPhotos}
+        signedPhotoUrls={signedPhotoUrls}
         minOdometer={minOdometer ?? undefined}
         backHref={backHref}
     />
   )
 }
-

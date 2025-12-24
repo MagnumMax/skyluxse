@@ -66,6 +66,7 @@ export function SalesBookingsBoard({
   const resolvedSearchTerm = searchTerm ?? localSearchTerm
   const handleSearchChange = onSearchTermChange ?? setLocalSearchTerm
   const activeStageFilters = stageFilters ?? BOOKING_STAGE_FILTER_DEFAULTS
+  const normalizedSearchTerm = normalizeSearchTerm(resolvedSearchTerm)
 
   const stageOrder = useMemo(() => stages.map((s) => s.id), [stages])
   const visibleStageOrder = useMemo(
@@ -189,12 +190,30 @@ export function SalesBookingsBoard({
           .join(" ")
           .toLowerCase()
         if (!haystack.includes(resolvedSearchTerm.toLowerCase())) {
-          return false
+          const normalizedTargets = [
+            booking.carPlate ?? "",
+            booking.carExternalRef ?? "",
+            booking.code ?? "",
+            String(booking.id),
+          ]
+            .map(normalizeSearchTerm)
+            .join(" ")
+          if (!normalizedSearchTerm || !normalizedTargets.includes(normalizedSearchTerm)) {
+            return false
+          }
         }
       }
       return true
     })
-  }, [activeStageFilters, boardBookings, driverFilter, resolvedSearchTerm, resolveBookingStageKey, typeFilter])
+  }, [
+    activeStageFilters,
+    boardBookings,
+    driverFilter,
+    normalizedSearchTerm,
+    resolvedSearchTerm,
+    resolveBookingStageKey,
+    typeFilter,
+  ])
 
   const grouped = useMemo(() => {
     const initialEntries = [...stageOrder, "fallback" as const].map((stageId) => [stageId, [] as Booking[]])
@@ -430,6 +449,10 @@ function buildBookingComparator(sortOption: BookingSortOption) {
         return a.code.localeCompare(b.code)
     }
   }
+}
+
+function normalizeSearchTerm(value: string) {
+  return value.trim().toLowerCase().replace(/[^a-z0-9]/g, "")
 }
 
 const dateTimeFormatter = new Intl.DateTimeFormat("en-CA", {
