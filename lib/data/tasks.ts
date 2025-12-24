@@ -344,7 +344,7 @@ function toBaseTask(
     type: normalizeTaskType(row.task_type),
     category: metadata.category ?? row.task_type ?? "general",
     status: normalizeTaskStatus(row.status),
-    deadline: formatDeadline(row.deadline_at),
+    deadline: row.deadline_at ?? "",
     bookingId: booking?.id ?? row.booking_id ?? undefined,
     bookingCode: booking?.code ?? joinedBooking?.external_code ?? undefined,
     clientId: booking?.clientId ?? row.client_id ?? undefined,
@@ -553,21 +553,6 @@ function normalizePriority(value: string | null | undefined): "High" | "Medium" 
   }
 }
 
-function formatDeadline(value: string | null): string {
-  if (!value) return "—"
-  try {
-    return new Intl.DateTimeFormat("en-CA", {
-      timeZone: "Asia/Dubai",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-    }).format(new Date(value))
-  } catch {
-    return value
-  }
-}
 
 function isDriverTaskRow(row: TaskRow): boolean {
   if (row.assignee_driver_id) return true

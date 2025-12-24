@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { ParameterList, type ParameterListItem } from "@/components/parameter-list"
 import { AdditionalService, TaskAdditionalService } from "@/lib/domain/additional-services"
+import { formatDateTime } from "@/lib/formatters"
 import { ServiceSelector } from "@/components/service-selector"
 
 export function OperationsTaskDetail({ task, additionalServices, availableServices, handoverPhotos }: { task: OperationsTask; additionalServices?: TaskAdditionalService[]; availableServices?: AdditionalService[], handoverPhotos?: string[] }) {
@@ -112,7 +113,7 @@ function buildTaskParameters(task: OperationsTask, priorityLabel: string): Param
     { label: "Owner", value: task.owner, helper: task.ownerRole },
     { label: "Priority", value: priorityLabel },
     { label: "Status", value: task.status },
-    { label: "Deadline", value: task.deadline, helper: `SLA ${task.slaMinutes} minutes` },
+    { label: "Deadline", value: formatDateTime(task.deadline), helper: `SLA ${task.slaMinutes} minutes` },
     {
       label: "Related booking",
       value: task.bookingId ? (
