@@ -76,13 +76,13 @@ function buildTaskInsert(row: any, mode: "delivery" | "pickup") {
       ? [
           { key: "odo_before", label: "Odometer (before)", type: "number", required: true },
           { key: "fuel_before", label: "Fuel/charge level (before)", type: "select", required: true, options: ["Full", "3/4", "1/2", "1/4", "Empty"] },
-          { key: "handover_photos", label: "Handover photos", type: "file", required: true, multiple: true, accept: "image/*" },
+          { key: "handover_photos", label: "Handover photos", type: "file", required: true, multiple: true },
           { key: "damage_notes", label: "Notes on condition/damages", type: "text", required: false },
         ]
       : [
           { key: "odo_after", label: "Odometer (after)", type: "number", required: true },
           { key: "fuel_after", label: "Fuel/charge level (after)", type: "select", required: true, options: ["Full", "3/4", "1/2", "1/4", "Empty"] },
-          { key: "photos_return", label: "Return photos", type: "file", required: true, multiple: true, accept: "image/*" },
+          { key: "photos_return", label: "Return photos", type: "file", required: true, multiple: true },
           { key: "damage_notes", label: "Notes on condition/damages", type: "text", required: true },
         ]
   const checklist =

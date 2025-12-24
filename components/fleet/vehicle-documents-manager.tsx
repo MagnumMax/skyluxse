@@ -149,7 +149,6 @@ export function VehicleDocumentsManager({ vehicleId, documents }: VehicleDocumen
                 </Button>
                 <input
                   type="file"
-                  accept="image/*,application/pdf"
                   className="hidden"
                   ref={fileInputRef}
                   onChange={(event) => {

@@ -334,7 +334,6 @@ export function DriverTaskForm({ task, signedPhotoUrls, minOdometer, baselineOdo
                   <Input
                     id={`file-${input.key}`}
                     type="file"
-                    accept={input.accept ?? "image/*,.pdf"}
                     multiple={input.multiple}
                     className="hidden"
                     onChange={(e) => handleFileSelect(input.key, e)}

@@ -156,7 +156,6 @@ export function VehicleGalleryManager({ vehicleId, documents }: VehicleGalleryMa
             </Button>
             <input
               type="file"
-              accept="image/*"
               multiple
               className="hidden"
               ref={fileInputRef}
@@ -168,7 +167,7 @@ export function VehicleGalleryManager({ vehicleId, documents }: VehicleGalleryMa
               }}
             />
           </label>
-          <p className="text-xs text-muted-foreground">Images supported, up to 10 MB each.</p>
+          <p className="text-xs text-muted-foreground">Files supported, up to 10 MB each.</p>
           {pending.length ? (
             <p className="text-xs text-muted-foreground">
               Uploading: {pending.map((p) => p.name).join(", ")}

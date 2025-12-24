@@ -130,7 +130,7 @@ Build a unified, automation-forward operations hub where premium car-rental team
 3. **User Stories**:
    - Driver uploads before/after photos; cannot mark complete until odometer + doc verification done.
    - Driver records collected cash; finance notified.
-4. **Acceptance Criteria**: Offline mode caches tasks up to 12h; SLA timer visible; media upload compresses <2MB per photo; completion event updates booking timeline.
+4. **Acceptance Criteria**: Offline mode caches tasks up to 12h; SLA timer visible; media upload compresses <2MB per photo; file uploads accept any file type; completion event updates booking timeline.
 5. **Technical Constraints**: Next.js App Router with mobile layout; use PWA features; Supabase Storage for media; tailwindcss animate for micro-interactions.
 6. **Dependencies**: `tasks`, `task_checklist_items`, `task_required_inputs`, `driver_profiles`.
 7. **Priority**: P1.
