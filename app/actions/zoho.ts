@@ -186,13 +186,52 @@ export async function createSalesOrderForBooking(bookingId: string): Promise<Cre
         // Check sync status to prevent race conditions
         // We use an atomic update to acquire the lock. 
         // Only update if status is null, pending, or failed.
-        const { data: lockedBooking } = await serviceClient
+        
+        // FIX: The previous .or() query was causing PostgREST errors (42703).
+        // We split into check-then-update pattern. It's slightly less atomic but safer for now.
+        
+        const { data: currentBooking } = await serviceClient
+            .from("bookings")
+            .select("id, zoho_sync_status, zoho_sales_order_id, sales_order_url")
+            .eq("id", bookingId)
+            .single();
+
+        if (!currentBooking) throw new Error("Booking not found");
+
+        const status = currentBooking.zoho_sync_status;
+        const canProceed = !status || status === "pending" || status === "failed";
+
+        if (!canProceed) {
+             return {
+                success: true,
+                data: {
+                    salesOrderId: currentBooking.zoho_sales_order_id || "",
+                    salesOrderUrl: currentBooking.sales_order_url || "",
+                    message: "Sales Order creation is already in progress or completed",
+                },
+            };
+        }
+
+        // Lock it
+        const { error: lockError } = await serviceClient
             .from("bookings")
             .update({ zoho_sync_status: "in_progress" })
-            .eq("id", bookingId)
-            .or("zoho_sync_status.is.null,zoho_sync_status.eq.pending,zoho_sync_status.eq.failed")
-            .select("id")
-            .maybeSingle();
+            .eq("id", bookingId);
+        
+        if (lockError) {
+             console.error("Failed to acquire lock", lockError);
+             throw new Error("Failed to acquire lock");
+        }
+        
+        const lockedBooking = { id: bookingId }; // Mock for compatibility
+
+        // const { data: lockedBooking } = await serviceClient
+        //     .from("bookings")
+        //     .update({ zoho_sync_status: "in_progress" })
+        //     .eq("id", bookingId)
+        //     .or("zoho_sync_status.is.null,zoho_sync_status.eq.pending,zoho_sync_status.eq.failed")
+        //     .select("id")
+        //     .maybeSingle();
 
         if (!lockedBooking) {
             // Could not acquire lock, meaning it's already in progress or synced

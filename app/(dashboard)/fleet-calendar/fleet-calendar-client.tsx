@@ -21,6 +21,7 @@ import { calendarEventTypes } from "@/lib/constants/calendar"
 import {
   createDefaultBookingStageFilters,
   KOMMO_PIPELINE_STAGE_META,
+  resolveStageKeyFromKommoStatus,
   type BookingStageKey,
   type KommoPipelineStageId,
 } from "@/lib/constants/bookings"
@@ -749,24 +750,5 @@ function resolveStageKey(event: CalendarEvent): StageKey {
   if (event.type === "maintenance") {
     return "in-rent"
   }
-  const kommoId = event.kommoStatusId ? String(event.kommoStatusId) : null
-  if (!kommoId) return "other"
-
-  switch (kommoId) {
-    case "75440391": // Confirmed Bookings
-      return "confirmed"
-    case "75440395": // Delivery Within 24 Hours
-      return "delivery"
-    case "75440399": // Car with Customers
-      return "in-rent"
-    case "76475495": // Pick Up Within 24 Hours
-      return "pickup"
-    case "142": // Closed · Won
-    case "75440643": // Refund Deposit
-    case "78486287": // Objections
-      return "closed"
-    case "96150292": // Waiting for Payment
-    default:
-      return "other"
-  }
+  return resolveStageKeyFromKommoStatus(event.kommoStatusId)
 }
