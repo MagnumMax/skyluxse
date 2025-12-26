@@ -203,7 +203,7 @@ export const FALLBACK_KOMMO_STAGE_META: FallbackKommoStageMeta = {
   bookingStatus: "settlement",
 }
 
-export type BookingStageKey = "confirmed" | "delivery" | "in-rent" | "pickup" | "closed" | "other"
+export type BookingStageKey = "confirmed" | "delivery" | "in-rent" | "pickup" | "closed" | "maintenance" | "other"
 
 export const BOOKING_STAGE_FILTER_DEFAULTS: Record<BookingStageKey, boolean> = {
   confirmed: true,
@@ -211,6 +211,7 @@ export const BOOKING_STAGE_FILTER_DEFAULTS: Record<BookingStageKey, boolean> = {
   "in-rent": true,
   pickup: true,
   closed: true,
+  maintenance: true,
   other: false,
 }
 

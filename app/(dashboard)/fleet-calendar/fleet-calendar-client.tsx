@@ -125,27 +125,16 @@ export function OperationsFleetCalendarClient({
 
     const filteredEvents = sanitizedEvents
       .filter((event) => {
-        // Special handling for maintenance events - show if maintenance layer is enabled OR "Car with customer" stage is enabled
-        const isMaintenanceEvent = event.type === "maintenance"
-        const shouldShowMaintenance = layerFilters.maintenance || stageFilters["in-rent"]
-
-        if (isMaintenanceEvent) {
-          if (!shouldShowMaintenance) return false
-        } else {
-          if (!layerFilters[event.type as CalendarLayer]) return false
-        }
+        // Filter by Layer
+        const layer = event.type as CalendarLayer
+        if (!layerFilters[layer]) return false
 
         if (!visibleVehicleIds.has(String(event.carId))) return false
 
+        // Filter by Stage
         const stageKey = resolveStageKey(event)
-
-        // Skip stage filtering for maintenance events when shown due to "Car with customer"
-        if (isMaintenanceEvent && stageFilters["in-rent"] && !layerFilters.maintenance) {
-          // Maintenance shown due to "Car with customer" - skip stage filter
-          return true
-        }
-
         if (stageKey && !stageFilters[stageKey]) return false
+
         return true
       })
       .filter((event) => {
@@ -747,8 +736,8 @@ function buildUtilizationMap(events: CalendarEvent[], rangeStart: Date, rangeEnd
 }
 
 function resolveStageKey(event: CalendarEvent): StageKey {
-  if (event.type === "maintenance") {
-    return "in-rent"
+  if (event.type === "maintenance" || event.type === "repair") {
+    return "maintenance"
   }
   return resolveStageKeyFromKommoStatus(event.kommoStatusId)
 }

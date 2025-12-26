@@ -19,6 +19,7 @@ const STAGE_META: Record<BookingStageKey, { label: string; description: string }
   "in-rent": { label: "Car with Customers", description: "Vehicle with client; monitor trip and SLA" },
   pickup: { label: "Pick up within 24h", description: "Schedule pickup and closing logistics" },
   closed: { label: "Closed", description: "Deal completed or cancelled" },
+  maintenance: { label: "Maintenance", description: "Vehicle maintenance or repair" },
   other: { label: "Other", description: "Waiting for payment or other statuses" },
 }
 
