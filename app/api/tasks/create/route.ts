@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server"
 
 import { serviceClient } from "@/lib/supabase/service-client"
+
+export const runtime = "edge"
+
 import { sendTaskCreatedNotification } from "@/lib/notifications/task-notifications"
 import { validateApiKey } from "@/lib/auth/api-key"
 

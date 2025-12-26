@@ -1,4 +1,5 @@
 import Link from "next/link"
+import NextImage from "next/image"
 
 import type { OperationsTask } from "@/lib/domain/entities"
 import { BOOKING_PRIORITIES } from "@/lib/constants/bookings"
@@ -56,10 +57,9 @@ export function OperationsTaskDetail({ task, additionalServices, availableServic
             <AccordionContent>
                 <div className="grid gap-2 sm:grid-cols-2 pb-6">
                     {handoverPhotos.map((image) => (
-                    <div key={image} className="overflow-hidden rounded-2xl border border-border/60 bg-muted/50">
-                        <a href={image} target="_blank" rel="noreferrer">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={image} alt="Handover" className="h-32 w-full object-cover" />
+                    <div key={image} className="overflow-hidden rounded-2xl border border-border/60 bg-muted/50 relative h-32">
+                        <a href={image} target="_blank" rel="noreferrer" className="block h-full w-full relative">
+                        <NextImage src={image} alt="Handover" fill className="object-cover" sizes="(max-width: 768px) 100vw, 33vw" />
                         </a>
                     </div>
                     ))}

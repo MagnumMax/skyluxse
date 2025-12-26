@@ -1,6 +1,7 @@
 "use client"
 
 import { useRef, useState, useEffect } from "react"
+import NextImage from "next/image"
 import { toast } from "sonner"
 import { Camera, Trash2, Upload, X, FileText, Check } from "lucide-react"
 
@@ -259,10 +260,15 @@ export function DriverTaskForm({ task, signedPhotoUrls, minOdometer, baselineOdo
                                    href={url} 
                                    target="_blank" 
                                    rel="noopener noreferrer" 
-                                   className="block h-full w-full cursor-zoom-in"
+                                   className="block h-full w-full cursor-zoom-in relative"
                                  >
-                                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                                   <img src={url} alt={`Saved ${idx}`} className="h-full w-full object-cover" />
+                                   <NextImage 
+                                     src={url} 
+                                     alt={`Saved ${idx}`} 
+                                     fill
+                                     className="object-cover"
+                                     sizes="(max-width: 768px) 50vw, 33vw"
+                                   />
                                  </a>
                                )
                            ) : (
