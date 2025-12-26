@@ -397,15 +397,8 @@ export async function createSalesOrderForBooking(bookingId: string): Promise<Cre
                                     (insuranceLabel?.toLowerCase().includes("security deposit"));
 
                 if (isRefundable) {
-                    // Security Deposit (Refundable) - NO TAX (Zero Rate)
-                    lineItems.push({
-                        item_id: undefined, 
-                        name: "Security Deposit (Refundable)",
-                        description: "Refundable upon vehicle return",
-                        rate: insuranceAmount,
-                        quantity: 1,
-                        tax_id: "6183693000000229189" // Zero Rate 0%
-                    });
+                    // Security Deposit (Refundable) - Skipped as per requirement
+                    // We do not add refundable deposits to the Sales Order line items anymore.
                 } else {
                     // Non-Refundable Fee (e.g. No Deposit Fee) - TAXABLE (5%)
                     const isNoDeposit = insuranceLabel?.toLowerCase().includes("no deposit");
