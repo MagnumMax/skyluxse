@@ -167,29 +167,7 @@ export async function createSalesOrderForBooking(bookingId: string): Promise<Cre
         booking = await getLiveBookingById(bookingId);
         if (!booking) throw new Error("Booking not found");
 
-        // Check if sales order already exists
-        if (booking.zohoSalesOrderId) {
-            const orgId = await getOrganizationId();
-            const existingSalesOrderUrl = `https://books.zoho.com/app/${orgId}#/salesorders/${booking.zohoSalesOrderId}`;
-            return {
-                success: true,
-                data: {
-                    salesOrderId: booking.zohoSalesOrderId,
-                    salesOrderUrl: booking.salesOrderUrl || existingSalesOrderUrl,
-                    message: "Sales Order already exists",
-                },
-            };
-        }
-
-
-
         // Check sync status to prevent race conditions
-        // We use an atomic update to acquire the lock. 
-        // Only update if status is null, pending, or failed.
-        
-        // FIX: The previous .or() query was causing PostgREST errors (42703).
-        // We split into check-then-update pattern. It's slightly less atomic but safer for now.
-        
         const { data: currentBooking } = await serviceClient
             .from("bookings")
             .select("id, zoho_sync_status, zoho_sales_order_id, sales_order_url")
@@ -198,96 +176,54 @@ export async function createSalesOrderForBooking(bookingId: string): Promise<Cre
 
         if (!currentBooking) throw new Error("Booking not found");
 
-        const status = currentBooking.zoho_sync_status;
-        const canProceed = !status || status === "pending" || status === "failed";
-
-        if (!canProceed) {
-             return {
-                success: true,
-                data: {
-                    salesOrderId: currentBooking.zoho_sales_order_id || "",
-                    salesOrderUrl: currentBooking.sales_order_url || "",
-                    message: "Sales Order creation is already in progress or completed",
-                },
-            };
-        }
-
-        // Lock it
-        const { error: lockError } = await serviceClient
-            .from("bookings")
-            .update({ zoho_sync_status: "in_progress" })
-            .eq("id", bookingId);
-        
-        if (lockError) {
-             console.error("Failed to acquire lock", lockError);
-             throw new Error("Failed to acquire lock");
-        }
-        
-        const lockedBooking = { id: bookingId }; // Mock for compatibility
-
-        // const { data: lockedBooking } = await serviceClient
-        //     .from("bookings")
-        //     .update({ zoho_sync_status: "in_progress" })
-        //     .eq("id", bookingId)
-        //     .or("zoho_sync_status.is.null,zoho_sync_status.eq.pending,zoho_sync_status.eq.failed")
-        //     .select("id")
-        //     .maybeSingle();
-
-        if (!lockedBooking) {
-            // Could not acquire lock, meaning it's already in progress or synced
-            // We fetch the current status to return appropriate message
-            const { data: currentStatus } = await serviceClient
+        // Check if sales order already exists
+        if (booking.zohoSalesOrderId) {
+            const orgId = await getOrganizationId();
+            const existingSalesOrderUrl = `https://books.zoho.com/app/${orgId}#/salesorders/${booking.zohoSalesOrderId}`;
+            
+            // If already synced, we are done
+            if (currentBooking.zoho_sync_status === 'synced') {
+                return {
+                    success: true,
+                    data: {
+                        salesOrderId: booking.zohoSalesOrderId,
+                        salesOrderUrl: booking.salesOrderUrl || existingSalesOrderUrl,
+                        message: "Sales Order already exists",
+                    },
+                };
+            }
+            // If not synced but has SO ID, we proceed to update logic (skipping creation)
+        } else {
+            const status = currentBooking.zoho_sync_status;
+            const canProceed = !status || status === "pending" || status === "failed";
+    
+            if (!canProceed) {
+                    return {
+                    success: true,
+                    data: {
+                        salesOrderId: currentBooking.zoho_sales_order_id || "",
+                        salesOrderUrl: currentBooking.sales_order_url || "",
+                        message: "Sales Order creation is already in progress or completed",
+                    },
+                };
+            }
+    
+            // Lock it
+            const { error: lockError } = await serviceClient
                 .from("bookings")
-                .select("zoho_sales_order_id, sales_order_url, zoho_sync_status")
-                .eq("id", bookingId)
-                .single();
-
-            return {
-                success: true,
-                data: {
-                    salesOrderId: currentStatus?.zoho_sales_order_id || "",
-                    salesOrderUrl: currentStatus?.sales_order_url || "",
-                    message: "Sales Order creation is already in progress or completed",
-                },
-            };
+                .update({ zoho_sync_status: "in_progress" })
+                .eq("id", bookingId);
+            
+            if (lockError) {
+                    console.error("Failed to acquire lock", lockError);
+                    throw new Error("Failed to acquire lock");
+            }
         }
 
         client = booking.clientId ? await getLiveClientById(String(booking.clientId)) : null;
         if (!client) throw new Error("Client not found for this booking");
 
         if (!client.email) throw new Error("Client email is missing");
-
-        // 1. Find or Create Contact in Zoho
-        let contactId = null;
-        const existingContact = await findContactByEmail(client.email);
-
-        if (existingContact) {
-            contactId = existingContact.contact_id;
-        } else {
-            // Create new contact
-            const contactData = {
-                contact_name: client.name,
-                contact_persons: [{
-                    first_name: client.name.split(" ")[0],
-                    last_name: client.name.split(" ").slice(1).join(" ") || "Client",
-                    email: client.email,
-                    phone: client.phone,
-                    is_primary_contact: true
-                }]
-            };
-            
-            const customFields = mapClientToZohoCustomFields(client);
-            const newContactRes = await createContact(contactData, customFields);
-            if (newContactRes.code === 0) {
-                contactId = newContactRes.contact.contact_id;
-            } else {
-                throw new Error("Failed to create Zoho Contact: " + newContactRes.message);
-            }
-        }
-
-        // 2. Create Sales Order
-
-        const salespersonId = resolveZohoSalespersonId(booking.ownerName);
 
         // 1. Fetch Vehicle Zoho Item ID
         const { data: vehicleData } = await serviceClient
@@ -328,179 +264,218 @@ export async function createSalesOrderForBooking(bookingId: string): Promise<Cre
             `)
             .eq("booking_id", bookingId);
 
-        const { differenceInDays, parseISO } = await import("date-fns");
-        const { formatZohoDateTime, formatZohoDate } = await import("@/lib/formatters");
-        const { resolveFee } = await import("@/lib/pricing/booking-totals");
-        const { 
-            KOMMO_DELIVERY_FEE_MAP, 
-            KOMMO_INSURANCE_FEE_MAP, 
-            KOMMO_REFUNDABLE_DEPOSIT_IDS,
-            KOMMO_DELIVERY_LABEL_TO_ID,
-            KOMMO_INSURANCE_LABEL_TO_ID
-        } = await import("@/lib/integrations/kommo/fee-mapping");
+        let salesOrderId = booking.zohoSalesOrderId;
+        let salesOrderUrl = booking.salesOrderUrl;
 
-        let quantity = 1;
-        let startStr = "";
-        let endStr = "";
+        if (!salesOrderId) {
+            // 1. Find or Create Contact in Zoho
+            let contactId = null;
+            const existingContact = await findContactByEmail(client.email);
 
-        if (booking.startDate && booking.endDate) {
-            const start = parseISO(booking.startDate);
-            const end = parseISO(booking.endDate);
-            const days = differenceInDays(end, start);
-            if (days > 0) quantity = days;
-
-            startStr = formatZohoDateTime(booking.startDate);
-            endStr = formatZohoDateTime(booking.endDate);
-        }
-
-        const rate = booking.priceDaily || (booking.totalAmount ? booking.totalAmount / quantity : 0);
-
-        const lineItems = [
-            {
-                item_id: zohoItemId || undefined, // Use Item ID if available
-                ...(zohoItemId ? {} : { name: `Car Rental - ${booking.carName}` }), // Only send name if no Item ID (let Zoho use default)
-                description: `${startStr} - ${endStr}`,
-                rate: rate,
-                quantity: quantity,
-                tax_id: "6183693000000229181" // Standard Rate 5%
+            if (existingContact) {
+                contactId = existingContact.contact_id;
+            } else {
+                // Create new contact
+                const contactData = {
+                    contact_name: client.name,
+                    contact_persons: [{
+                        first_name: client.name.split(" ")[0],
+                        last_name: client.name.split(" ").slice(1).join(" ") || "Client",
+                        email: client.email,
+                        phone: client.phone,
+                        is_primary_contact: true
+                    }]
+                };
+                
+                const customFields = mapClientToZohoCustomFields(client);
+                const newContactRes = await createContact(contactData, customFields);
+                if (newContactRes.code === 0) {
+                    contactId = newContactRes.contact.contact_id;
+                } else {
+                    throw new Error("Failed to create Zoho Contact: " + newContactRes.message);
+                }
             }
-        ];
 
-        // Add additional services from booking
-        if (bookingServices && bookingServices.length > 0) {
-            bookingServices.forEach((as: any) => {
+            // 2. Create Sales Order
+
+            const salespersonId = resolveZohoSalespersonId(booking.ownerName);
+
+            const { differenceInDays, parseISO } = await import("date-fns");
+            const { formatZohoDateTime, formatZohoDate } = await import("@/lib/formatters");
+            const { resolveFee } = await import("@/lib/pricing/booking-totals");
+            const { 
+                KOMMO_DELIVERY_FEE_MAP, 
+                KOMMO_INSURANCE_FEE_MAP, 
+                KOMMO_REFUNDABLE_DEPOSIT_IDS,
+                KOMMO_DELIVERY_LABEL_TO_ID,
+                KOMMO_INSURANCE_LABEL_TO_ID
+            } = await import("@/lib/integrations/kommo/fee-mapping");
+
+            let quantity = 1;
+            let startStr = "";
+            let endStr = "";
+
+            if (booking.startDate && booking.endDate) {
+                const start = parseISO(booking.startDate);
+                const end = parseISO(booking.endDate);
+                const days = differenceInDays(end, start);
+                if (days > 0) quantity = days;
+
+                startStr = formatZohoDateTime(booking.startDate);
+                endStr = formatZohoDateTime(booking.endDate);
+            }
+
+            const rate = booking.priceDaily || (booking.totalAmount ? booking.totalAmount / quantity : 0);
+
+            const lineItems = [
+                {
+                    item_id: zohoItemId || undefined, // Use Item ID if available
+                    ...(zohoItemId ? {} : { name: `Car Rental - ${booking.carName}` }), // Only send name if no Item ID (let Zoho use default)
+                    description: `${startStr} - ${endStr}`,
+                    rate: rate,
+                    quantity: quantity,
+                    tax_id: "6183693000000229181" // Standard Rate 5%
+                }
+            ];
+
+            // Add additional services from booking
+            if (bookingServices && bookingServices.length > 0) {
+                bookingServices.forEach((as: any) => {
+                    lineItems.push({
+                        item_id: undefined, // We don't have item_id for dynamic services yet
+                        name: as.service?.name || "Additional Service",
+                        description: as.description || "",
+                        rate: as.price,
+                        quantity: as.quantity || 1,
+                        tax_id: "6183693000000229181"
+                    });
+                });
+            }
+
+            // Add additional services from tasks
+            if (taskServices && taskServices.length > 0) {
+                taskServices.forEach((task: any) => {
+                    if (task.services && task.services.length > 0) {
+                        task.services.forEach((as: any) => {
+                            lineItems.push({
+                                item_id: undefined,
+                                name: `${as.service?.name || "Task Service"} (Task: ${task.title})`,
+                                description: as.description || "",
+                                rate: as.price,
+                                quantity: as.quantity || 1,
+                                tax_id: "6183693000000229181"
+                            });
+                        });
+                    }
+                });
+            }
+
+            // Delivery Fee
+            const ITEM_DELIVERY_CHARGE_ID = "6183693000000251070";
+            const deliveryFee = resolveFee(booking.deliveryFeeLabel, KOMMO_DELIVERY_FEE_MAP);
+            
+            if (deliveryFee > 0) {
                 lineItems.push({
-                    item_id: undefined, // We don't have item_id for dynamic services yet
-                    name: as.service?.name || "Additional Service",
-                    description: as.description || "",
-                    rate: as.price,
-                    quantity: as.quantity || 1,
+                    item_id: ITEM_DELIVERY_CHARGE_ID,
+                    name: "Delivery Charge", 
+                    description: "",
+                    rate: deliveryFee,
+                    quantity: 1,
                     tax_id: "6183693000000229181"
                 });
-            });
-        }
+            }
 
-        // Add additional services from tasks
-        if (taskServices && taskServices.length > 0) {
-            taskServices.forEach((task: any) => {
-                if (task.services && task.services.length > 0) {
-                    task.services.forEach((as: any) => {
-                        lineItems.push({
-                            item_id: undefined,
-                            name: `${as.service?.name || "Task Service"} (Task: ${task.title})`,
-                            description: as.description || "",
-                            rate: as.price,
-                            quantity: as.quantity || 1,
-                            tax_id: "6183693000000229181"
-                        });
+            // Insurance / Security Deposit Logic
+            const ITEM_NO_DEPOSIT_FEE_ID = "6183693000000251092";
+            const insuranceLabel = booking.insuranceFeeLabel;
+            const insuranceAmount = resolveFee(insuranceLabel, KOMMO_INSURANCE_FEE_MAP);
+
+            if (insuranceAmount > 0) {
+                // Check if it's a refundable deposit
+                // We check by ID (from map) or by text (legacy fallback)
+                const isRefundable = (insuranceLabel && KOMMO_REFUNDABLE_DEPOSIT_IDS.has(insuranceLabel)) || 
+                                    (insuranceLabel?.toLowerCase().includes("security deposit"));
+
+                if (isRefundable) {
+                    // Security Deposit (Refundable) - NO TAX (Zero Rate)
+                    lineItems.push({
+                        item_id: undefined, 
+                        name: "Security Deposit (Refundable)",
+                        description: "Refundable upon vehicle return",
+                        rate: insuranceAmount,
+                        quantity: 1,
+                        tax_id: "6183693000000229189" // Zero Rate 0%
+                    });
+                } else {
+                    // Non-Refundable Fee (e.g. No Deposit Fee) - TAXABLE (5%)
+                    const isNoDeposit = insuranceLabel?.toLowerCase().includes("no deposit");
+                    const itemId = isNoDeposit ? ITEM_NO_DEPOSIT_FEE_ID : undefined;
+                    
+                    lineItems.push({
+                        item_id: itemId,
+                        name: isNoDeposit ? "No Deposit Fixed Fee" : "Insurance Fee",
+                        description: "",
+                        rate: insuranceAmount,
+                        quantity: 1,
+                        tax_id: "6183693000000229181" // 5% VAT
                     });
                 }
-            });
-        }
-
-        // Delivery Fee
-        const ITEM_DELIVERY_CHARGE_ID = "6183693000000251070";
-        const deliveryFee = resolveFee(booking.deliveryFeeLabel, KOMMO_DELIVERY_FEE_MAP);
-        
-        if (deliveryFee > 0) {
-            lineItems.push({
-                item_id: ITEM_DELIVERY_CHARGE_ID,
-                name: "Delivery Charge", 
-                description: "",
-                rate: deliveryFee,
-                quantity: 1,
-                tax_id: "6183693000000229181"
-            });
-        }
-
-        // Insurance / Security Deposit Logic
-        const ITEM_NO_DEPOSIT_FEE_ID = "6183693000000251092";
-        const insuranceLabel = booking.insuranceFeeLabel;
-        const insuranceAmount = resolveFee(insuranceLabel, KOMMO_INSURANCE_FEE_MAP);
-
-        if (insuranceAmount > 0) {
-            // Check if it's a refundable deposit
-            // We check by ID (from map) or by text (legacy fallback)
-            const isRefundable = (insuranceLabel && KOMMO_REFUNDABLE_DEPOSIT_IDS.has(insuranceLabel)) || 
-                                 (insuranceLabel?.toLowerCase().includes("security deposit"));
-
-            if (isRefundable) {
-                 // Security Deposit (Refundable) - NO TAX (Zero Rate)
-                 lineItems.push({
-                    item_id: undefined, 
-                    name: "Security Deposit (Refundable)",
-                    description: "Refundable upon vehicle return",
-                    rate: insuranceAmount,
-                    quantity: 1,
-                    tax_id: "6183693000000229189" // Zero Rate 0%
-                 });
-            } else {
-                 // Non-Refundable Fee (e.g. No Deposit Fee) - TAXABLE (5%)
-                 const isNoDeposit = insuranceLabel?.toLowerCase().includes("no deposit");
-                 const itemId = isNoDeposit ? ITEM_NO_DEPOSIT_FEE_ID : undefined;
-                 
-                 lineItems.push({
-                    item_id: itemId,
-                    name: isNoDeposit ? "No Deposit Fixed Fee" : "Insurance Fee",
-                    description: "",
-                    rate: insuranceAmount,
-                    quantity: 1,
-                    tax_id: "6183693000000229181" // 5% VAT
-                 });
             }
+
+            // CDW Insurance (Full Insurance Fee)
+            const ITEM_CDW_INSURANCE_ID = "6183693000002576237";
+            if (booking.fullInsuranceFee && booking.fullInsuranceFee > 0) {
+                lineItems.push({
+                    item_id: ITEM_CDW_INSURANCE_ID,
+                    name: "CDW Insurance",
+                    description: "",
+                    rate: booking.fullInsuranceFee,
+                    quantity: 1,
+                    tax_id: "6183693000000229181"
+                });
+            }
+
+            // Add additional Fees if needed (though totalAmount usually implies inclusive? Check domain logic.
+            // If totalAmount is the total price, leave it as one line item for simplicity unless breakdown is required.)
+
+            const customFields = buildZohoSalesOrderCustomFields(booking);
+
+            const TERMS_AND_CONDITIONS = `Thank you for choosing us! To secure your booking, please complete the advance payment using the secure link below.
+
+    Cancellation Policy:
+    Free cancellation 7 days before pickup → Full refund.
+    Non-refundable if cancelled 7 days before pickup.
+
+    By proceeding, you agree to these terms and authorize us to hold the vehicle just for you.
+
+    Need help before paying? We’re here for you—Text us on whatsapp anytime!`;
+
+            const orderData = {
+                customer_id: contactId,
+                salesperson_id: salespersonId,
+                date: formatZohoDate(new Date()), // Order Date = Creation Date
+                reference_number: booking.code,
+                line_items: lineItems,
+                custom_fields: customFields,
+                status: "draft",
+                terms: TERMS_AND_CONDITIONS
+            };
+
+            const orderRes = await createSalesOrder(orderData);
+
+            if (orderRes.code !== 0) {
+                throw new Error("Failed to create Sales Order: " + orderRes.message);
+            }
+
+            salesOrderId = orderRes.salesorder.salesorder_id;
+            // Construct URL - standard US/EU data center URL structure usually, but for zoho.com it might vary.
+            // Usually it's https://books.zoho.com/app/<orgId>#/salesorders/<salesOrderId>
+            const orgId = await getOrganizationId();
+            salesOrderUrl = `https://books.zoho.com/app/${orgId}#/salesorders/${salesOrderId}`;
+        } else {
+            const orgId = await getOrganizationId();
+            salesOrderUrl = booking.salesOrderUrl || `https://books.zoho.com/app/${orgId}#/salesorders/${salesOrderId}`;
         }
-
-        // CDW Insurance (Full Insurance Fee)
-        const ITEM_CDW_INSURANCE_ID = "6183693000002576237";
-        if (booking.fullInsuranceFee && booking.fullInsuranceFee > 0) {
-            lineItems.push({
-                item_id: ITEM_CDW_INSURANCE_ID,
-                name: "CDW Insurance",
-                description: "",
-                rate: booking.fullInsuranceFee,
-                quantity: 1,
-                tax_id: "6183693000000229181"
-            });
-        }
-
-        // Add additional Fees if needed (though totalAmount usually implies inclusive? Check domain logic.
-        // If totalAmount is the total price, leave it as one line item for simplicity unless breakdown is required.)
-
-        const customFields = buildZohoSalesOrderCustomFields(booking);
-
-        const TERMS_AND_CONDITIONS = `Thank you for choosing us! To secure your booking, please complete the advance payment using the secure link below.
-
-Cancellation Policy:
-Free cancellation 7 days before pickup → Full refund.
-Non-refundable if cancelled 7 days before pickup.
-
-By proceeding, you agree to these terms and authorize us to hold the vehicle just for you.
-
-Need help before paying? We’re here for you—Text us on whatsapp anytime!`;
-
-        const orderData = {
-            customer_id: contactId,
-            salesperson_id: salespersonId,
-            date: formatZohoDate(new Date()), // Order Date = Creation Date
-            reference_number: booking.code,
-            line_items: lineItems,
-            custom_fields: customFields,
-            status: "draft",
-            terms: TERMS_AND_CONDITIONS
-        };
-
-        const orderRes = await createSalesOrder(orderData);
-
-        if (orderRes.code !== 0) {
-            throw new Error("Failed to create Sales Order: " + orderRes.message);
-        }
-
-        const salesOrderId = orderRes.salesorder.salesorder_id;
-        // Construct URL - standard US/EU data center URL structure usually, but for zoho.com it might vary.
-        // Usually it's https://books.zoho.com/app/<orgId>#/salesorders/<salesOrderId>
-        const orgId = await getOrganizationId();
-        const salesOrderUrl = `https://books.zoho.com/app/${orgId}#/salesorders/${salesOrderId}`;
-
         // 3. Update Booking in Supabase
         const { error: updateError } = await serviceClient
             .from("bookings")
