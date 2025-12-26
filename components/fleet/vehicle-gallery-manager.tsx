@@ -48,21 +48,29 @@ export function VehicleGalleryManager({ vehicleId, documents }: VehicleGalleryMa
         const formData = new FormData()
         formData.append("file", file)
         formData.append("doc_type", "gallery")
-        const response = await fetch(`/api/fleet/vehicles/${vehicleId}/documents`, { method: "POST", body: formData })
-        if (!response.ok) {
-          const msg = await readError(response)
-          toast({ title: `Failed to upload ${file.name}`, description: msg ?? undefined, variant: "destructive" })
+        try {
+          const response = await fetch(`/api/fleet/vehicles/${vehicleId}/documents`, { method: "POST", body: formData })
+          if (!response.ok) {
+            const msg = await readError(response)
+            toast({ title: `Failed to upload ${file.name}`, description: msg ?? undefined, variant: "destructive" })
+            URL.revokeObjectURL(tempUrl)
+            setItems((prev) => prev.filter((doc) => doc.id !== tempId))
+            setPending((prev) => prev.filter((p) => p.id !== `pending-${timestamp}-${index}`))
+            return
+          }
+          const { document } = (await response.json()) as { document: VehicleDocument }
+          URL.revokeObjectURL(tempUrl)
+          setItems((prev) =>
+            prev.map((doc) => (doc.id === tempId ? { ...document, status: "uploaded" } : doc))
+          )
+          setPending((prev) => prev.filter((p) => p.id !== `pending-${timestamp}-${index}`))
+        } catch (error) {
+          console.error(error)
+          toast({ title: `Error uploading ${file.name}`, description: "Network request failed", variant: "destructive" })
           URL.revokeObjectURL(tempUrl)
           setItems((prev) => prev.filter((doc) => doc.id !== tempId))
           setPending((prev) => prev.filter((p) => p.id !== `pending-${timestamp}-${index}`))
-          return
         }
-        const { document } = (await response.json()) as { document: VehicleDocument }
-        URL.revokeObjectURL(tempUrl)
-        setItems((prev) =>
-          prev.map((doc) => (doc.id === tempId ? { ...document, status: "uploaded" } : doc))
-        )
-        setPending((prev) => prev.filter((p) => p.id !== `pending-${timestamp}-${index}`))
       })
     )
     toast({ title: "Photos added", variant: "success" })
@@ -75,29 +83,40 @@ export function VehicleGalleryManager({ vehicleId, documents }: VehicleGalleryMa
 
   const handleDelete = async (doc: VehicleDocument) => {
     setItems((prev) => prev.filter((item) => item.id !== doc.id))
-    const response = await fetch(`/api/fleet/vehicles/${vehicleId}/documents/${doc.id}`, { method: "DELETE" })
-    if (!response.ok) {
-      const message = await readError(response)
-      toast({ title: "Failed to delete photo", description: message ?? undefined, variant: "destructive" })
+    try {
+      const response = await fetch(`/api/fleet/vehicles/${vehicleId}/documents/${doc.id}`, { method: "DELETE" })
+      if (!response.ok) {
+        const message = await readError(response)
+        toast({ title: "Failed to delete photo", description: message ?? undefined, variant: "destructive" })
+        setItems((prev) => [...prev, doc])
+        return
+      }
+      toast({ title: "Photo deleted", variant: "success" })
+    } catch (error) {
+      console.error(error)
+      toast({ title: "Error deleting photo", description: "Network request failed", variant: "destructive" })
       setItems((prev) => [...prev, doc])
-      return
     }
-    toast({ title: "Photo deleted", variant: "success" })
   }
 
   const handleSetHero = async (doc: VehicleDocument) => {
     if (!doc.bucket || !doc.storagePath) return
-    const response = await fetch(`/api/fleet/vehicles/${vehicleId}/image`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ bucket: doc.bucket, storagePath: doc.storagePath }),
-    })
-    if (!response.ok) {
-      const message = await readError(response)
-      toast({ title: "Failed to set as main", description: message ?? undefined, variant: "destructive" })
-      return
+    try {
+      const response = await fetch(`/api/fleet/vehicles/${vehicleId}/image`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bucket: doc.bucket, storagePath: doc.storagePath }),
+      })
+      if (!response.ok) {
+        const message = await readError(response)
+        toast({ title: "Failed to set as main", description: message ?? undefined, variant: "destructive" })
+        return
+      }
+      toast({ title: "Main photo updated", variant: "success" })
+    } catch (error) {
+      console.error(error)
+      toast({ title: "Error updating main photo", description: "Network request failed", variant: "destructive" })
     }
-    toast({ title: "Main photo updated", variant: "success" })
   }
 
   return (

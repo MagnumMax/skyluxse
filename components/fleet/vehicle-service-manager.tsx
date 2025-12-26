@@ -52,93 +52,124 @@ export function VehicleServiceManager({ vehicleId, services: initialServices }: 
       return
     }
     setSubmitting(true)
-    const response = await fetch(`/api/fleet/vehicles/${vehicleId}/services`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    })
-    setSubmitting(false)
-    if (!response.ok) {
-      const message = await readError(response)
-      toast({ title: "Failed to add service", description: message ?? undefined, variant: "destructive" })
-      return
+    try {
+      const response = await fetch(`/api/fleet/vehicles/${vehicleId}/services`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      })
+      if (!response.ok) {
+        const message = await readError(response)
+        toast({ title: "Failed to add service", description: message ?? undefined, variant: "destructive" })
+        return
+      }
+      const data = (await response.json()) as { services?: VehicleMaintenanceEntry[] }
+      if (data.services) {
+        setServices(sortServices(data.services))
+      }
+      setDraft(buildDefaultDraft())
+      toast({ title: "Service saved", description: "Maintenance/repair window created." })
+    } catch (error) {
+      console.error(error)
+      toast({ title: "Error adding service", description: "Network request failed", variant: "destructive" })
+    } finally {
+      setSubmitting(false)
     }
-    const data = (await response.json()) as { services?: VehicleMaintenanceEntry[] }
-    if (data.services) {
-      setServices(sortServices(data.services))
-    }
-    setDraft(buildDefaultDraft())
-    toast({ title: "Service saved", description: "Maintenance/repair window created." })
   }
 
   const handleUpdate = async (serviceId: string, payload: ServiceUpdatePayload) => {
-    const response = await fetch(`/api/fleet/vehicles/${vehicleId}/services/${serviceId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    })
-    if (!response.ok) {
-      const message = await readError(response)
-      toast({ title: "Failed to update service", description: message ?? undefined, variant: "destructive" })
-      throw new Error(message ?? "Update failed")
+    try {
+      const response = await fetch(`/api/fleet/vehicles/${vehicleId}/services/${serviceId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      })
+      if (!response.ok) {
+        const message = await readError(response)
+        toast({ title: "Failed to update service", description: message ?? undefined, variant: "destructive" })
+        throw new Error(message ?? "Update failed")
+      }
+      const data = (await response.json()) as { services?: VehicleMaintenanceEntry[] }
+      if (data.services) {
+        setServices(sortServices(data.services))
+      }
+      toast({ title: "Service updated" })
+    } catch (error) {
+      console.error(error)
+      // Re-throw if it's the error we threw above, otherwise wrap
+      if (error instanceof Error && error.message === "Update failed") throw error
+      toast({ title: "Error updating service", description: "Network request failed", variant: "destructive" })
+      throw error
     }
-    const data = (await response.json()) as { services?: VehicleMaintenanceEntry[] }
-    if (data.services) {
-      setServices(sortServices(data.services))
-    }
-    toast({ title: "Service updated" })
   }
 
   const handleDelete = async (serviceId: string) => {
     const confirmDelete = window.confirm("Delete this service and its documents?")
     if (!confirmDelete) return
-    const response = await fetch(`/api/fleet/vehicles/${vehicleId}/services/${serviceId}`, { method: "DELETE" })
-    if (!response.ok) {
-      const message = await readError(response)
-      toast({ title: "Failed to delete service", description: message ?? undefined, variant: "destructive" })
-      return
+    try {
+      const response = await fetch(`/api/fleet/vehicles/${vehicleId}/services/${serviceId}`, { method: "DELETE" })
+      if (!response.ok) {
+        const message = await readError(response)
+        toast({ title: "Failed to delete service", description: message ?? undefined, variant: "destructive" })
+        return
+      }
+      const data = (await response.json()) as { services?: VehicleMaintenanceEntry[] }
+      if (data.services) {
+        setServices(sortServices(data.services))
+      }
+      toast({ title: "Service deleted" })
+    } catch (error) {
+      console.error(error)
+      toast({ title: "Error deleting service", description: "Network request failed", variant: "destructive" })
     }
-    const data = (await response.json()) as { services?: VehicleMaintenanceEntry[] }
-    if (data.services) {
-      setServices(sortServices(data.services))
-    }
-    toast({ title: "Service deleted" })
   }
 
   const handleUploadDocument = async (serviceId: string, file: File) => {
     const formData = new FormData()
     formData.append("file", file)
-    const response = await fetch(`/api/fleet/vehicles/${vehicleId}/services/${serviceId}/documents`, {
-      method: "POST",
-      body: formData,
-    })
-    if (!response.ok) {
-      const message = await readError(response)
-      toast({ title: "Failed to upload document", description: message ?? undefined, variant: "destructive" })
-      throw new Error(message ?? "Upload failed")
+    try {
+      const response = await fetch(`/api/fleet/vehicles/${vehicleId}/services/${serviceId}/documents`, {
+        method: "POST",
+        body: formData,
+      })
+      if (!response.ok) {
+        const message = await readError(response)
+        toast({ title: "Failed to upload document", description: message ?? undefined, variant: "destructive" })
+        throw new Error(message ?? "Upload failed")
+      }
+      const data = (await response.json()) as { services?: VehicleMaintenanceEntry[] }
+      if (data.services) {
+        setServices(sortServices(data.services))
+      }
+      toast({ title: "Document added" })
+    } catch (error) {
+      console.error(error)
+      toast({ title: "Error uploading document", description: "Network request failed", variant: "destructive" })
+      throw error
     }
-    const data = (await response.json()) as { services?: VehicleMaintenanceEntry[] }
-    if (data.services) {
-      setServices(sortServices(data.services))
-    }
-    toast({ title: "Document added" })
   }
 
   const handleDeleteDocument = async (serviceId: string, documentId: string) => {
-    const response = await fetch(
-      `/api/fleet/vehicles/${vehicleId}/services/${serviceId}/documents/${documentId}`,
-      { method: "DELETE" }
-    )
-    if (!response.ok) {
-      const message = await readError(response)
-      toast({ title: "Failed to delete document", description: message ?? undefined, variant: "destructive" })
-      throw new Error(message ?? "Delete failed")
+    try {
+      const response = await fetch(
+        `/api/fleet/vehicles/${vehicleId}/services/${serviceId}/documents/${documentId}`,
+        { method: "DELETE" }
+      )
+      if (!response.ok) {
+        const message = await readError(response)
+        toast({ title: "Failed to delete document", description: message ?? undefined, variant: "destructive" })
+        throw new Error(message ?? "Delete failed")
+      }
+      const data = (await response.json()) as { services?: VehicleMaintenanceEntry[] }
+      if (data.services) {
+        setServices(sortServices(data.services))
+      }
+      toast({ title: "Document deleted" })
+    } catch (error) {
+      console.error(error)
+      toast({ title: "Error deleting document", description: "Network request failed", variant: "destructive" })
+      throw error
     }
-    const data = (await response.json()) as { services?: VehicleMaintenanceEntry[] }
-    if (data.services) {
-      setServices(sortServices(data.services))
-    }
-    toast({ title: "Document deleted" })
   }
 
   return (

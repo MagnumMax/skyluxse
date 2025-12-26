@@ -33,26 +33,32 @@ export function VehicleDocumentsManager({ vehicleId, documents }: VehicleDocumen
     const formData = new FormData()
     formData.append("file", selectedFile)
     formData.append("doc_type", docType)
-    const response = await fetch(`/api/fleet/vehicles/${vehicleId}/documents`, {
-      method: "POST",
-      body: formData,
-    })
 
-    setUploading(false)
+    try {
+      const response = await fetch(`/api/fleet/vehicles/${vehicleId}/documents`, {
+        method: "POST",
+        body: formData,
+      })
 
-    if (!response.ok) {
-      const message = await readError(response)
-      toast({ title: "Failed to upload document", description: message ?? undefined, variant: "destructive" })
-      return
-    }
+      if (!response.ok) {
+        const message = await readError(response)
+        toast({ title: "Failed to upload document", description: message ?? undefined, variant: "destructive" })
+        return
+      }
 
-    const { document } = (await response.json()) as { document: VehicleDocument }
-    setItems((prev) => [...prev, document])
-    toast({ title: "Document added", variant: "success" })
-    setFileName("Choose file")
-    setDocType("insurance")
-    if (fileInputRef.current) {
-      fileInputRef.current.value = ""
+      const { document } = (await response.json()) as { document: VehicleDocument }
+      setItems((prev) => [...prev, document])
+      toast({ title: "Document added", variant: "success" })
+      setFileName("Choose file")
+      setDocType("insurance")
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ""
+      }
+    } catch (error) {
+      console.error(error)
+      toast({ title: "Error", description: "Failed to upload document. Network error.", variant: "destructive" })
+    } finally {
+      setUploading(false)
     }
   }
 
@@ -60,18 +66,24 @@ export function VehicleDocumentsManager({ vehicleId, documents }: VehicleDocumen
     const prevItems = items
     setItems((current) => current.filter((doc) => doc.id !== documentId))
 
-    const response = await fetch(`/api/fleet/vehicles/${vehicleId}/documents/${documentId}`, { method: "DELETE" })
-    if (!response.ok) {
-      const message = await readError(response)
-      toast({
-        title: "Failed to delete document",
-        description: message ?? undefined,
-        variant: "destructive",
-      })
+    try {
+      const response = await fetch(`/api/fleet/vehicles/${vehicleId}/documents/${documentId}`, { method: "DELETE" })
+      if (!response.ok) {
+        const message = await readError(response)
+        toast({
+          title: "Failed to delete document",
+          description: message ?? undefined,
+          variant: "destructive",
+        })
+        setItems(prevItems)
+        return
+      }
+      toast({ title: "Document deleted", variant: "success" })
+    } catch (error) {
+      console.error(error)
+      toast({ title: "Error", description: "Failed to delete document. Network error.", variant: "destructive" })
       setItems(prevItems)
-      return
     }
-    toast({ title: "Document deleted", variant: "success" })
   }
 
   return (

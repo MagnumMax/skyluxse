@@ -54,27 +54,33 @@ export function VehicleForm({
     const endpoint = mode === "create" ? "/api/fleet/vehicles" : `/api/fleet/vehicles/${vehicle?.id}`
     const method = mode === "create" ? "POST" : "PATCH"
 
-    const response = await fetch(endpoint, {
-      method,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(values),
-    })
+    try {
+      const response = await fetch(endpoint, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(values),
+      })
 
-    if (!response.ok) {
-      const message = (await safeErrorMessage(response)) ?? "Failed to save data"
-      toast({ title: "Error", description: message, variant: "destructive" })
+      if (!response.ok) {
+        const message = (await safeErrorMessage(response)) ?? "Failed to save data"
+        toast({ title: "Error", description: message, variant: "destructive" })
+        setSubmitting(false)
+        return
+      }
+
+      const { id } = (await response.json()) as { id: string }
+      toast({
+        title: mode === "create" ? "Vehicle created" : "Changes saved",
+        variant: "success",
+      })
+      router.push(`/fleet/${id}`)
+      router.refresh()
+    } catch (error) {
+      console.error(error)
+      toast({ title: "Error", description: "Network request failed. Please check your connection.", variant: "destructive" })
+    } finally {
       setSubmitting(false)
-      return
     }
-
-    const { id } = (await response.json()) as { id: string }
-    toast({
-      title: mode === "create" ? "Vehicle created" : "Changes saved",
-      variant: "success",
-    })
-    router.push(`/fleet/${id}`)
-    router.refresh()
-    setSubmitting(false)
   }
 
   return (
