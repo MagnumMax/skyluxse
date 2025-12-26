@@ -4,7 +4,7 @@ This API provides access to the SkyLuxse fleet, vehicle details, and availabilit
 
 ## Base URL
 ```
-https://skyluxse.ae
+https://skyluxse.vercel.app
 ```
 
 ## Authentication
