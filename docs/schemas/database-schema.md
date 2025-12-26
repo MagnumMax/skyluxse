@@ -1,580 +1,577 @@
 # Database Schema
 
-_Last updated: 28 Nov 2025_
+_Last updated: 27 Dec 2025_
 
-This schema proposal is derived from the production requirements captured in `docs/prd-foundations.md` and the live SPA prototype in `/beta`. It is designed for Supabase/PostgreSQL, keeps App Router friendly URL structures in mind, and documents the structure in a DBML-friendly way, following the Holistics DBML guidelines for table, column, and relationship definitions.
+This schema reflects the current state of the Supabase/PostgreSQL database. It covers operations, sales, fleet management, and integrations.
 
-## Modelling goals
-- Unify **operations**, **sales**, **executive**, and **driver** workflows around a single source of truth for fleet, bookings, pipeline, and task data.
-- Preserve auditability of SLA timers, payment status, and document approvals that currently live inside the SPA mock data.
-- Keep the schema extensible for Supabase real-time subscriptions and RLS policies (per-role access control defined in `ROLES_CONFIG`).
+## Entity Overview
 
-## Conventions
-- Primary keys use UUID (`uuid` default `gen_random_uuid()`) unless a natural key already exists (e.g., booking codes like `BK-1052`).
-- Every table has `created_at timestamptz default now()` and `updated_at timestamptz default now()` triggers.
-- Monetary amounts use `numeric(12,2)`; percentages/fractions use `numeric(5,2)`.
-- Geospatial waypoints are stored as `jsonb` (`{"label":"SkyLuxse HQ","lat":25.2,"lng":55.27}`) until we decide to add PostGIS.
-- Enumerations are implemented as Postgres enums for referential integrity but mirrored in the app layer TypeScript unions.
+- **Identity & Staff**: `staff_accounts`, `driver_profiles`, `profiles` (customer profiles).
+- **Clients & Contacts**: `clients`, `client_notifications`.
+- **Fleet & Maintenance**: `vehicles`, `vehicle_reminders`, `vehicle_inspections`, `maintenance_jobs`, `additional_services`.
+- **Documents**: `documents`, `document_links`, `profile_documents`, `application_documents`.
+- **Bookings**: `bookings`, `booking_additional_services`, `booking_invoices`, `booking_timeline_events`.
+- **Calendar & Tasks**: `calendar_events`, `tasks`, `task_checklist_items`, `task_required_inputs`, `task_required_input_values`, `task_additional_services`.
+- **Sales & Deals**: `sales_leads`, `sales_pipeline_stages`, `deals`, `deal_events`, `applications`, `ai_feedback_events`.
+- **Integrations**: `kommo_import_runs`, `kommo_pipeline_stages`, `kommo_webhook_events`, `kommo_webhook_stats`, `integrations_outbox`, `zoho_tokens`.
+- **System**: `system_settings`, `system_feature_flags`, `system_logs`, `kpi_snapshots`.
 
-## Entity overview
-- **Identity & roles**: `staff_accounts`, `driver_profiles`, `staff_sessions`.
-- **Clients & contacts**: `clients`, `client_notifications`, `client_preferences`.
-- **Fleet & maintenance**: `vehicles`, `vehicle_reminders`, `vehicle_inspections`, `maintenance_jobs`.
-- **Documents & media**: `documents` (files) + contextual `document_links` for clients, vehicles, bookings, tasks, and leads.
-- **Bookings & rentals**: `bookings`, `booking_addons`, `booking_invoices`, `booking_timeline_events`, `booking_tags`, `booking_extensions`.
-- **Calendar & field work**: `calendar_events`, `tasks`, `task_checklist_items`, `task_required_inputs`, `task_required_input_values`, `task_media`.
-- **Sales pipeline**: `sales_pipeline_stages`, `sales_leads`, `sales_lead_financials`, `sales_lead_vehicle_matches`, `sales_lead_conflicts`, `sales_lead_timeline_events`, `sales_lead_tasks`, `sales_lead_offers`, `sales_lead_playbook_steps`.
-- **Analytics & knowledge**: `kpi_snapshots`, `knowledge_base_articles`.
+## Detailed Tables
 
-## Detailed tables
+### Staff & Identity
 
-### Staff & roles
 **staff_accounts**
+Internal staff members (operations, sales, drivers).
 | Column | Type | Notes |
 | --- | --- | --- |
-| id | uuid pk | Supabase auth UID (can mirror). |
-| full_name | text | Display name. |
-| email | citext unique | Login + notifications. |
-| phone | text | Optional contact. |
-| role | role_type enum | `operations`, `sales`, `ceo`, `driver`. |
+| id | uuid pk | Supabase Auth ID references `auth.users.id`. |
+| full_name | text | |
+| email | citext unique | |
+| phone | text | |
+| role | role_type enum | `operations`, `sales`, `ceo`, `driver`, `integration`. |
 | locale | text | e.g., `en-CA`. |
 | timezone | text | e.g., `Asia/Dubai`. |
-| default_route | text | App Router landing page per role. |
-| is_active | boolean default true | Soft disable.
+| default_route | text | |
+| is_active | boolean | default `true`. |
+| external_crm_id | text | e.g. Kommo User ID. |
+| created_at/updated_at | timestamptz | |
 
-**driver_profiles** (extends staff driver accounts)
+**driver_profiles**
+Extends `staff_accounts` for drivers.
 | Column | Type | Notes |
 | --- | --- | --- |
 | id | uuid pk | |
-| staff_account_id | uuid fk staff_accounts(id) unique | Nullable for contractor drivers. |
+| staff_account_id | uuid fk staff_accounts | |
 | status | driver_status enum | `available`, `on_task`, `standby`. |
 | experience_years | int | |
-| current_lat | numeric(9,6) | Last reported location. |
-| current_lng | numeric(9,6) | |
-| languages | text[] | `{"English","Arabic"}`. |
-| notes | text | Certifications, partnerships. |
-| last_status_at | timestamptz | SLA monitoring.
+| current_lat/lng | numeric | |
+| languages | text[] | |
+| notes | text | |
+| last_status_at | timestamptz | |
 
-**staff_sessions** records the role + device used for each login (mirrors prototype login role selector).
-
-### Clients & contacts
-**clients**
+**profiles**
+Customer/User profiles (likely for client portal/app).
 | Column | Type | Notes |
 | --- | --- | --- |
 | id | uuid pk | |
-| kommo_contact_id | text | Original Kommo contact ID. |
-| zoho_contact_id | text | Zoho CRM contact reference. |
+| user_id | uuid | Link to auth.users? |
+| status | user_status enum | `pending`, `active`, `suspended`, `archived`. |
+| full_name | text | |
+| first_name/last_name | text | |
+| phone | text | |
+| emirates_id | text | |
+| passport_number | text | |
+| nationality | text | |
+| residency_status | text | |
+| date_of_birth | date | |
+| address | jsonb | |
+| employment_info | jsonb | |
+| financial_profile | jsonb | |
+
+### Clients & Contacts
+
+**clients**
+CRM contacts/clients.
+| Column | Type | Notes |
+| --- | --- | --- |
+| id | uuid pk | |
+| kommo_contact_id | text unique | |
+| zoho_contact_id | text | |
 | name | text | |
 | phone | text | |
 | email | citext | |
-| residency_country | text | ISO code. |
-| tier | client_tier enum | Автопересчёт от LTV (сумма `bookings.total_amount`): `VIP ≥ 50k`, `Gold ≥ 35k`, `Silver < 15k`. |
-| segment | client_segment enum | Автосегментация по давности последнего букинга и LTV: `premier_loyalist`, `dormant_vip`, `growth_gold`, `at_risk`, `new_rising`, `high_value_dormant`, `general`. |
-| gender | text | Normalised value (`Male`, `Female`, `Non-binary`, etc.). |
-| birth_date | date | Optional. |
-| outstanding_amount | numeric(12,2) | Live balance. |
-| nps_score | smallint | Latest NPS rating. |
-| preferred_channels | text[] | e.g., `{email,sms}`. |
-| preferred_language | text | `ru`, `en`, `ar`. |
+| residency_country | text | |
+| tier | client_tier enum | `vip`, `gold`, `silver`. |
+| segment | client_segment enum | `resident`, `tourist`, `premier_loyalist`, etc. |
+| gender | text | |
+| date_of_birth | date | |
+| outstanding_amount | numeric | |
+| nps_score | smallint | |
+| preferred_channels | text[] | |
+| preferred_language | text | |
 | timezone | text | |
-| doc_status | text | `pending`, `processing`, `done`, `failed`, `fallback_pro`. |
-| doc_confidence | numeric(5,2) | Gemini confidence (0–1). |
-| doc_model | text | Last successful model: `gemini-2.5-flash` or `gemini-2.5-pro`. |
-| doc_document_id | uuid fk documents(id) | Source document processed. |
-| doc_raw | jsonb | Full structured output from Gemini. |
-| doc_type | text | passport / id / driver_licence / idl. |
-| doc_full_name | text | Concatenated name as seen on the document. |
-| doc_first_name | text | Parsed name parts. |
-| doc_last_name | text | Parsed name parts. |
-| doc_middle_name | text | Optional. |
-| doc_date_of_birth | date | |
-| doc_nationality | text | Country code/string. |
-| doc_address | text | Full postal/residence address. |
-| doc_document_number | text | Passport/ID/licence number. |
-| doc_issue_date | date | |
-| doc_expiry_date | date | |
-| doc_issuing_country | text | |
-| doc_driver_class | text | Licence class/category. |
-| doc_driver_restrictions | text | Text block of restrictions. |
-| doc_driver_endorsements | text | Endorsements/permissions. |
-| doc_processed_at | timestamptz | Last recognition timestamp. |
-| doc_error | text | Last error message (if failed). |
-| created_by | uuid fk staff_accounts | Nullable; операции/боты могут оставлять `NULL`. |
-| updated_by | uuid fk staff_accounts | Nullable; фиксирует последнего редактора. |
-| created_at | timestamptz | Default `timezone('utc', now())`. |
-| updated_at | timestamptz | Updated via `set_updated_at()`. |
+| doc_status | text | Document recognition status. |
+| doc_confidence | numeric | |
+| doc_model | text | |
+| doc_data | fields | `doc_document_id`, `doc_raw`, `first_name`, `last_name`, `nationality`, `document_number`, etc. |
+| created_by/updated_by | uuid fk staff_accounts | |
 
-**client_notifications** keep the historical feed currently mocked under each client (`NT-101` etc.). Columns: `id`, `client_id`, `channel`, `subject`, `content`, `sent_at`, `status`, `meta jsonb`.
+**client_notifications**
+History of notifications sent to clients.
 
-**client_preferences** holds structured boolean flags (marketing opt-in, VIP concierge assignment) separate from the high-churn `clients` row.
+### Fleet & Maintenance
 
-> `tier` и `segment` пересчитываются функцией `refresh_client_tier_from_booking()` после любого изменения в `bookings`. LTV считается как сумма всех `bookings.total_amount` по клиенту, `tier` = `VIP ≥ 50k`, `Gold ≥ 35k`, `Silver < 15k`, а `segment` выбирается по правилам:
-> - `premier_loyalist`: VIP и букинг был ≤ 30 дней назад.
-> - `dormant_vip`: VIP, но букинг отсутствует > 60 дней.
-> - `growth_gold`: Gold, букинг ≤ 45 дней.
-> - `at_risk`: Gold/Silver, букинг > 90 дней.
-> - `new_rising`: Silver, букинг ≤ 30 дней, LTV < 15k.
-> - `high_value_dormant`: LTV ≥ 35k и букинг > 45 дней.
-> - иначе `general`.
-> Хелперы: `calculate_client_lifetime_value`, `calculate_client_last_booking_at`, `refresh_client_metrics_for_ids`. Не пишите `tier`/`segment` напрямую из внешних импортов.
-
-### Fleet & maintenance
 **vehicles**
 | Column | Type | Notes |
 | --- | --- | --- |
-| id | uuid pk | Mirrors SPA IDs 1-5 via `external_ref`. |
-| external_ref | text unique | Existing numeric ID to keep history. |
-| name | text | Display label (e.g., `Rolls-Royce Ghost`). |
-| kommo_vehicle_id | text unique | Nullable CRM ID from Kommo select lists. |
-| make | text | OEM brand (Audi, BMW, etc.). |
-| model | text | Model or trim code (Q8, X6, etc.). |
-| vin | text unique | Optional unique VIN; nullable for unknown/SOLD stock. |
-| model_year | smallint | Guard-railed between 1980 and 2100. |
-| exterior_color | text | Marketing colour name (e.g., Mango Blue). |
-| interior_color | text | Cabin palette (Black/Red, Beige, etc.). |
+| id | uuid pk | |
+| external_ref | text unique | Legacy ID. |
+| name | text | |
+| make/model/year | text/int | |
+| vin | text unique | |
 | plate_number | text | |
-| body_style | text | SUV, Sedan, Convertible, etc. |
 | status | vehicle_status enum | `available`, `in_rent`, `maintenance`, `reserved`, `sold`, `service_car`. |
-| class | text | `Luxury`, `SUV`, `Sport`. |
-| segment | text | Coupe, Sedan, etc. |
-| seating_capacity | smallint | 1-20 seats. |
-| engine_displacement_l | numeric(4,2) | Litres; parser normalises commas to dots. |
-| power_hp | smallint | Horsepower (50-1200). |
-| cylinders | smallint | 2-16 cylinders; `NULL` for EV variants. |
-| zero_to_hundred_sec | numeric(4,2) | 0-100 km/h time in seconds. |
-| transmission | text | e.g., Automatic, DCT, AMT. |
-| mileage_km | int | Current reading. |
-| utilization_pct | numeric(5,2) | Derived metric. |
-| revenue_ytd | numeric(12,2) | |
-| location | text | Base location / depot label for hero metadata. |
-| image_url | text | Optional hero background for vehicle profile. |
-| created_by | uuid fk staff_accounts | Nullable; `NULL` для Kommo импорта. |
-| updated_by | uuid fk staff_accounts | Nullable; последний оператор. |
-| created_at | timestamptz | Default `timezone('utc', now())`. |
-| updated_at | timestamptz | Updated via `set_updated_at()`. |
+| class | text | |
+| segment | text | |
+| specs | fields | `body_style`, `seating_capacity`, `engine_displacement_l`, `power_hp`, `cylinders`, `transmission`, `zero_to_hundred_sec`, `exterior_color`, `interior_color`. |
+| mileage_km | int | |
+| utilization_pct | numeric | |
+| revenue_ytd | numeric | |
+| location | text | |
+| image_url | text | |
+| kommo_vehicle_id | text unique | |
+| zoho_item_id | text | |
+| rental_prices | jsonb | Daily/weekly/monthly rates. |
 
-> `utilization_pct` пересчитывается функцией `refresh_vehicle_utilization_from_booking()` после любого `INSERT/UPDATE/DELETE` в `bookings`. Формула повторяет runtime-метрику в приложении: суммируется перекрытие активных букингов за последние 30 дней и нормализуется в диапазон 0—1 (хранится в decimal с точностью до двух знаков). Не записывайте значение вручную — используйте `refresh_vehicle_utilization(<vehicle_id>)` или правьте buкінги.
-
-**vehicle_reminders** track entries such as `RM-huracan-service` with columns `vehicle_id`, `reminder_type`, `due_date`, `status`, `severity`, `created_by`.
+**vehicle_reminders**
 | Column | Type | Notes |
 | --- | --- | --- |
 | id | uuid pk | |
-| vehicle_id | uuid fk `vehicles.id` | Cascade delete when vehicle gone. |
-| reminder_type | text | e.g., `insurance`, `mulkiya`, `maintenance`. |
-| due_date | date | Shown in Reminders card. |
-| status | text | `scheduled`, `warning`, `critical`. |
-| severity | text | visual tone; default `info`. |
-| notes | text | Optional operator note. |
-| created_by | uuid fk `staff_accounts.id` | nullable. |
-| created_at/updated_at | timestamptz | `set_updated_at()` trigger. |
+| vehicle_id | uuid fk vehicles | |
+| reminder_type | text | `insurance`, `service`, etc. |
+| due_date | date | |
+| status | text | |
+| severity | text | |
+| notes | text | |
 
-**vehicle_inspections** capture the inspection cards shown in fleet detail.
+**vehicle_inspections**
 | Column | Type | Notes |
 | --- | --- | --- |
 | id | uuid pk | |
-| vehicle_id | uuid fk `vehicles.id` | |
-| inspection_date | date | Displayed in Inspection highlights. |
-| driver_id | uuid fk `driver_profiles.id` | nullable. |
-| performed_by | text | Snapshot of staff/contractor name. |
-| notes | text | optional remarks. |
-| photo_document_ids | uuid[] | Document IDs stored in `documents`/`document_links`. |
+| vehicle_id | uuid fk vehicles | |
+| inspection_date | date | |
+| driver_id | uuid fk driver_profiles | |
+| performed_by | text | |
+| notes | text | |
+| photo_document_ids | uuid[] | |
+
+**maintenance_jobs**
+| Column | Type | Notes |
+| --- | --- | --- |
+| id | uuid pk | |
+| vehicle_id | uuid fk vehicles | |
+| booking_id | uuid fk bookings | Optional link to booking. |
+| job_type | maintenance_job_type enum | `maintenance`, `repair`, `detailing`. |
+| status | maintenance_job_status enum | `scheduled`, `in_progress`, `done`, `cancelled`. |
+| scheduled_start/end | timestamptz | |
+| actual_start/end | timestamptz | |
+| odometer_start/end | int | |
+| vendor | text | |
+| cost_estimate | numeric | |
+| description | text | |
+| location | text | |
+
+**additional_services**
+Global catalog of additional services (e.g. Child Seat, WiFi).
+| Column | Type | Notes |
+| --- | --- | --- |
+| id | uuid pk | |
+| name | text | |
+| description | text | |
+| default_price | numeric | |
+| is_active | boolean | default `true`. |
 | created_at/updated_at | timestamptz | |
 
-**maintenance_jobs** unify maintenance + repair schedules.
+### Documents
+
+**documents**
+Central file registry (Supabase Storage metadata).
 | Column | Type | Notes |
 | --- | --- | --- |
 | id | uuid pk | |
-| vehicle_id | uuid fk `vehicles.id` | required. |
-| booking_id | uuid fk `bookings.id` | nullable reference to job-triggering booking. |
-| job_type | text | `maintenance`, `repair`, `detailing`. |
-| status | text | `scheduled`, `in_progress`, `done`, `cancelled`. |
-| scheduled_start / scheduled_end | timestamptz | planned window. |
-| actual_start / actual_end | timestamptz | actual window. |
-| odometer_start / odometer_end | integer | km readings. |
-| vendor | text | preferred supplier. |
-| location | text | service location (free text). |
-| cost_estimate | numeric(12,2) | optional. |
-| description | text | job summary. |
-| created_at/updated_at | timestamptz | |
-
-### Documents & media
-**documents** own the binary metadata once instead of duplicating arrays per entity.
-| Column | Type | Notes |
-| --- | --- | --- |
-| id | uuid pk | References SPA registry IDs (`doc-*`). |
-| bucket | text | Supabase Storage bucket (`documents`, `client-documents`, ...). |
-| storage_path | text | Supabase Storage key. |
-| file_name | text | Sanitized stored file name. |
-| original_name | text | Human label. |
+| bucket | text | |
+| storage_path | text | |
+| file_name | text | |
+| original_name | text | |
 | mime_type | text | |
 | size_bytes | bigint | |
-| checksum | text | Optional integrity check. |
-| status | document_status enum | `verified`, `needs_review`, `expired`. |
-| source | text | `Kommo`, `Client upload`, etc. |
-| expires_at | date | For licenses/mulkiya. |
-| metadata | jsonb | Upstream descriptors (Kommo IDs, numbers, expiry overrides). |
-| created_by | uuid fk staff_accounts | Nullable (system imports). |
+| checksum | text | |
+| status | document_status enum | `needs_review`, `verified`, `expired`. |
+| source | text | |
+| expires_at | date | |
+| metadata | jsonb | |
 
-**document_links** map each file to a domain entity with polymorphic fields: `document_id`, `entity_type` (`client`,`vehicle`,`booking`,`task`,`lead`), `entity_id`, `doc_type`, `notes`, `created_at`.
+**document_links**
+Polymorphic links between documents and entities.
 | Column | Type | Notes |
 | --- | --- | --- |
 | id | uuid pk | |
-| document_id | uuid fk `documents.id` | |
+| document_id | uuid fk documents | |
 | scope | document_scope enum | `client`, `vehicle`, `booking`, `task`, `lead`, `maintenance_job`. |
-| entity_id | uuid | |
-| doc_type | text | e.g., `insurance`, `mulkiya`, `gallery`, `inspection`. |
-| notes | text | optional description/tooltips. |
-| metadata | jsonb | unchanged. |
-| created_at | timestamptz | |
+| entity_id | uuid | ID of the linked entity. |
+| doc_type | text | e.g. `passport`, `contract`. |
+| notes | text | |
 
-### Bookings & rentals
+**profile_documents**
+Documents linked to `profiles`.
+| Column | Type | Notes |
+| --- | --- | --- |
+| id | uuid pk | |
+| profile_id | uuid | |
+| document_type | text | |
+| document_category | text | |
+| title | text | |
+| storage_path | text | |
+| mime_type | text | |
+| file_size | bigint | |
+| status | text | `uploaded` |
+| metadata | jsonb | |
+| uploaded_at | timestamptz | |
+| verified_at | timestamptz | |
+| verified_by | uuid | |
+
+**application_documents**
+Documents linked to financing `applications`.
+| Column | Type | Notes |
+| --- | --- | --- |
+| id | uuid pk | |
+| application_id | uuid | |
+| document_type | text | |
+| document_category | text | |
+| original_filename | text | |
+| stored_filename | text | |
+| storage_path | text | |
+| mime_type | text | |
+| file_size | int | |
+| checksum | text | |
+| status | text | |
+| verification_data | jsonb | |
+| uploaded_at | timestamptz | |
+| verified_at | timestamptz | |
+| verified_by | uuid | |
+
+### Bookings & Rentals
+
 **bookings**
 | Column | Type | Notes |
 | --- | --- | --- |
-| id | uuid pk | Store SPA numeric ID inside `external_code`. |
-| external_code | text unique | `BK-1052`. |
+| id | uuid pk | |
+| external_code | text unique | `BK-...` |
 | client_id | uuid fk clients | |
 | vehicle_id | uuid fk vehicles | |
-| driver_id | uuid fk driver_profiles | nullable. |
-| owner_id | uuid fk staff_accounts | Sales owner (Anna, Max, Sara). |
-| status | booking_status enum | `new`, `preparation`, `delivery`, `in_rent`, `settlement`. |
-| booking_type | booking_type enum | `vip`, `short`, `corporate`. |
-| channel | text | `Kommo`, `Website`, etc. |
-| source_payload_id | text | Upstream identifier from Kommo webhook. |
-| kommo_status_id | bigint | Raw Kommo stage ID used for audit/filtering. |
-| priority | priority_level enum | `high`, `medium`, `low`. |
-| segment | client_segment enum | mirrors sales analytics. |
-| start_at | timestamptz | Combines date + time. |
-| end_at | timestamptz | |
-| pickup_location | jsonb | {"label":...,"address":...}. |
-| dropoff_location | jsonb | |
-| sla_minutes | int | Default from KANBAN meta. |
-| promised_at | timestamptz | service level target. |
-| actual_at | timestamptz | actual delivery time. |
-| total_amount | numeric(12,2) | Calculated as `daily_rate × rental_duration_days + delivery_fee + full_insurance_fee + deposit_options` (pre-VAT). |
-| full_insurance_fee | numeric(12,2) | Value из поля Kommo **Full Insurance Fee** (AED); fallback по label возможен только для исторических данных. |
-| paid_amount | numeric(12,2) | |
-| deposit_amount | numeric(12,2) | |
-| currency | text | default `AED`. |
-| pickup_mileage | int | |
-| pickup_fuel_level | text | `Full`, `3/4`, etc. |
-| return_mileage | int | nullable. |
-| return_fuel_level | text | nullable. |
-| sales_service_rating | smallint | 1-10 leadership score logged post-delivery. |
-| sales_service_feedback | text | Optional qualitative feedback for sales follow-up. |
-| sales_service_rated_by | text | Actor label (role, staff id, or system source). |
-| sales_service_rated_at | timestamptz | Timestamp when the score was last updated. |
-| zoho_sales_order_id | text | Linked Zoho Sales Order reference. |
-| zoho_sync_status | text | `pending`,`synced`,`failed`. |
-| zoho_sync_error | text | Last error payload for Zoho integration. |
-
-**booking_addons** describe `chauffeur`, `insurance-premium`, etc. Columns: `id`, `booking_id`, `label`, `amount`, `category` (`base`,`addon`,`discount`).
-
-**booking_invoices** map to entries like `INV-1052-1`: `id`, `booking_id`, `label`, `invoice_type`, `amount`, `status`, `issued_at`, `due_at`, `scope` (`rental`, `deposit`, `extension`), `external_ref`.
-
-**booking_timeline_events** log workflow events + SLA: `booking_id`, `event_ts`, `status`, `note`, `actor_type` (`system`,`staff`,`driver`), `actor_id`.
-
-**booking_tags** + `booking_tag_links` let us store `vip`, `long-rent`, etc.
-
-**booking_extensions** capture nested structures such as `EXT-1052-1`: columns include `booking_id`, `label`, `start_at`, `end_at`, `status`, `note`, `pricing_base`, `pricing_addons`, `pricing_fees`, `pricing_discounts`, `pricing_total`, `currency`, `deposit_adjustment`, `created_by`, `created_at`.
-
-**extension_notifications** and **extension_tasks** keep WhatsApp/email alerts and operational follow-ups generated per extension, referencing `booking_extensions`.
-
-### Calendar & field work
-**calendar_events** unify rental, maintenance, and repair rows shown in fleet calendar.
-| Column | Type | Notes |
-| --- | --- | --- |
-| id | uuid pk | Could reuse `EVT-*` codes in `external_ref`. |
-| vehicle_id | uuid fk vehicles | |
-| booking_id | uuid fk bookings | nullable. |
-| maintenance_job_id | uuid fk maintenance_jobs | nullable. |
-| event_type | calendar_event_type enum | `rental`,`maintenance`,`repair`. |
-| title | text | |
-| description | text | |
-| start_at | timestamptz | |
-| end_at | timestamptz | |
-| status | event_status enum | `scheduled`,`in_progress`,`completed`. |
+| driver_id | uuid fk driver_profiles | |
+| owner_id | uuid fk staff_accounts | |
+| status | booking_status enum | `lead`, `confirmed`, `delivery`, `in_progress`, `completed`, `cancelled`. |
+| booking_type | booking_type enum | `rental`, `chauffeur`, `transfer`. |
+| start_at/end_at | timestamptz | |
+| rental_duration_days | int | |
+| price_daily | numeric | |
+| total_amount | numeric | |
+| deposit_amount | numeric | |
+| advance_payment | numeric | |
+| full_insurance_fee | numeric | |
+| channel | text | |
 | priority | priority_level enum | |
-| color_token | text | for calendar rendering. |
+| kommo_status_id | bigint | |
+| zoho_sales_order_id | text | |
+| zoho_sync_status | text | |
+| sales_service_rating | smallint | |
+| sales_service_feedback | text | |
 
-**calendar_events_expanded (view)** unions `calendar_events` with any `bookings` row that has both a vehicle and at least one timestamp, translating booking statuses (`lead/confirmed/in_progress/...`) into `event_status`. This keeps maintenance/repair entries in their dedicated table while surfacing Kommo-imported rentals in the same grid without duplicating rows. Columns mirror `calendar_events` (`id`, `vehicle_id`, `booking_id`, `event_type`, `start_at`, `end_at`, `status`).
-
-**tasks** correspond to the operations board and driver mobile cards.
+**booking_additional_services** (formerly booking_addons)
 | Column | Type | Notes |
 | --- | --- | --- |
 | id | uuid pk | |
-| booking_id | uuid fk bookings | nullable. |
-| vehicle_id | uuid fk vehicles | nullable. |
-| client_id | uuid fk clients | nullable. |
-| extension_id | uuid fk booking_extensions | nullable. |
-| task_type | task_type enum | `delivery`,`pickup`,`maintenance`,`documents`. |
-| category | task_category enum | `logistics`,`maintenance`,`operations`. |
-| status | task_status enum | `todo`,`inprogress`,`done`. |
-| priority | priority_level enum | |
-| title | text | |
+| booking_id | uuid fk bookings | |
+| service_id | uuid | |
+| price | numeric | |
+| quantity | int | |
 | description | text | |
-| deadline_at | timestamptz | matches prototype deadlines. |
-| sla_minutes | int | e.g., 30 for deliveries. |
-| geo_pickup | jsonb | |
-| geo_dropoff | jsonb | |
-| route_distance_km | numeric(6,2) | |
-| assignee_driver_id | uuid fk driver_profiles | nullable. |
-| assignee_staff_id | uuid fk staff_accounts | nullable. |
-| created_by | uuid fk staff_accounts | |
-| started_at | timestamptz | |
-| completed_at | timestamptz | |
-| completion_notes | text | |
 
-**task_checklist_items**: `task_id`, `label`, `required boolean`, `position`, `completed boolean`, `completed_by`, `completed_at`.
-
-**task_required_inputs**: capture definitions (odometer, fuel, photos). Columns: `task_id`, `key`, `label`, `input_type` (`number`,`text`,`select`,`file`), `accept`, `multiple`, `required`, `options[]`.
-
-**task_required_input_values** store submissions for each definition, including `value_text`, `value_number`, `value_json`, `storage_paths[]` (bucket `task-media`), `captured_by`, `captured_at`.
-
-**task_media** simply references `documents` with entity_type = `task` for photos/videos.
-
-**Auto-create driver tasks from calendar events**
-- Trigger function `create_task_from_calendar_event(mode)` runs on `calendar_events` insert/update when `event_type = 'booking'`.
-- Two triggers (`delivery`, `pickup`) look at `start_at`/`end_at` respectively; if the deadline falls within the configurable lead window, a `tasks` row is created when none exists for that booking/task_type in `todo`/`inprogress`.
-- Lead windows read from `system_settings`: `tasks.deliveryLeadHours` and `tasks.pickupLeadHours` (default 12h). SLA is disabled (`sla_minutes = 0`), but `deadline_at` mirrors the calendar window.
-- Inserted tasks inherit `booking_id/vehicle_id/client_id`, pull `assignee_driver_id` from the booking, set `scope='driver'`, `priority` (`high` for delivery, `medium` for pickup), `category='logistics'`, `channel='Auto'`, geo from `bookings.collect_location`/`delivery_location`, and seed a checklist + required inputs in `metadata` (odometer, fuel, photos, signature/damage notes). Values persist in `task_required_input_values`.
-
-**system_settings** stores JSON runtime configuration:
+**booking_invoices**
 | Column | Type | Notes |
 | --- | --- | --- |
-| key | text pk | e.g., `tasks.deliveryLeadHours`, `tasks.pickupLeadHours`. |
-| value | jsonb | Shape `{ "hours": 12 }` for lead windows (extensible). |
-| description | text | |
-| updated_at | timestamptz | Managed by `set_updated_at` trigger. |
+| id | uuid pk | |
+| booking_id | uuid fk bookings | |
+| label | text | |
+| invoice_type | text | |
+| amount | numeric | |
+| status | text | |
+| issued_at | timestamptz | |
+| due_at | timestamptz | |
 
-### Sales pipeline
-**sales_pipeline_stages** keep the stage metadata now stored in `MOCK_DATA.salesPipeline.stages`: columns `id` (`new`), `name`, `probability`, `sla_days`, `badge_color`, plus Kommo linkage fields `kommo_pipeline_id`, `kommo_status_id`, `booking_status`. `(kommo_pipeline_id, kommo_status_id)` is unique (partial index) so Edge Functions can resolve a stage/booking status without hard-coded maps. `booking_status` is constrained to `lead`, `confirmed`, `delivery`, `in_progress`, `completed`, `cancelled` and feeds `bookings.status` during webhook ingestion.
-
-**sales_leads** mirror `LD-1201` etc.
+**booking_timeline_events**
+Audit log for bookings.
 | Column | Type | Notes |
 | --- | --- | --- |
-| id | uuid pk | store external `lead_code`. |
-| lead_code | text unique | `LD-1201`. |
-| client_id | uuid fk clients | nullable (lead may predate client record). |
+| id | uuid pk | |
+| booking_id | uuid fk bookings | |
+| event_type | text | |
+| message | text | |
+| payload | jsonb | |
+| occurred_at | timestamptz | |
+
+### Calendar & Tasks
+
+**calendar_events**
+| Column | Type | Notes |
+| --- | --- | --- |
+| id | uuid pk | |
+| vehicle_id | uuid fk vehicles | |
+| booking_id | uuid fk bookings | |
+| maintenance_job_id | uuid fk maintenance_jobs | |
+| event_type | calendar_event_type enum | `booking`, `maintenance`, `logistics`. |
+| start_at/end_at | timestamptz | |
+| status | event_status enum | `scheduled`, `in_progress`, `done`, `cancelled`. |
+
+**tasks**
+Operational tasks (deliveries, pickups, etc.).
+| Column | Type | Notes |
+| --- | --- | --- |
+| id | uuid pk | |
+| booking_id | uuid fk bookings | |
+| vehicle_id | uuid fk vehicles | |
+| client_id | uuid fk clients | |
+| task_type | task_type enum | `pickup`, `delivery`, `inspection`, `document`, `custom`. |
+| status | task_status enum | `todo`, `inprogress`, `done`, `blocked`. |
 | title | text | |
-| company | text | |
-| owner_id | uuid fk staff_accounts | Sales owner. |
-| stage_id | text fk sales_pipeline_stages(id) | |
-| value_amount | numeric(12,2) | |
-| currency | text | `AED`. |
-| probability_override | numeric(5,2) | allows manual tweaks. |
-| source | text | `Kommo`, `Website`, `Referral`. |
-| created_at | timestamptz | |
+| deadline_at | timestamptz | |
+| assignee_driver_id | uuid fk driver_profiles | |
+| sla_minutes | int | |
+| metadata | jsonb | |
+
+**task_checklist_items**
+| Column | Type | Notes |
+| --- | --- | --- |
+| id | uuid pk | |
+| task_id | uuid fk tasks | |
+| label | text | |
+| is_required | boolean | |
+| is_complete | boolean | |
+
+**task_required_inputs**
+Definitions of inputs required for a task.
+| Column | Type | Notes |
+| --- | --- | --- |
+| id | uuid pk | |
+| task_id | uuid fk tasks | |
+| key | text | |
+| label | text | |
+| input_type | text | |
+| required | boolean | |
+| options | text[] | |
+
+**task_required_input_values**
+Values submitted for task inputs.
+| Column | Type | Notes |
+| --- | --- | --- |
+| id | uuid pk | |
+| task_id | uuid fk tasks | |
+| key | text | |
+| value_text | text | |
+| value_number | numeric | |
+| value_json | jsonb | |
+| storage_paths | text[] | For media/files. |
+| captured_by | uuid fk staff_accounts | |
+| captured_at | timestamptz | |
+
+**task_additional_services**
+Services linked to specific tasks (e.g. payment collection).
+| Column | Type | Notes |
+| --- | --- | --- |
+| id | uuid pk | |
+| task_id | uuid fk tasks | |
+| service_id | uuid | |
+| price | numeric | |
+| quantity | int | |
+| description | text | |
+
+### Sales & Deals (New)
+
+**sales_leads**
+Early stage leads.
+| Column | Type | Notes |
+| --- | --- | --- |
+| id | uuid pk | |
+| lead_code | text | |
+| client_id | uuid fk clients | |
+| owner_id | uuid fk staff_accounts | |
+| stage_id | text | |
+| value_amount | numeric | |
 | expected_close_at | timestamptz | |
-| requested_start_at | timestamptz | |
-| requested_end_at | timestamptz | |
-| fleet_size | smallint | |
-| next_action | text | |
-| velocity_days | int | age vs stage SLA. |
-| status | lead_status enum | `active`,`won`,`lost`. |
-| loss_reason | text | nullable until close.
+| ai_summary | jsonb | |
 
-Supporting tables keep the detailed workspace sections:
-- **sales_lead_financials**: outstanding vs upcoming payments (`lead_id`, `label`, `amount`, `due_at`, `status`).
-- **sales_lead_documents**: link to `documents` with `source` and verification timestamps.
-- **sales_lead_vehicle_matches**: `lead_id`, `vehicle_id`, `fit_score`.
-- **sales_lead_conflicts**: `lead_id`, `conflict_type` (`vehicle`,`delivery`,`maintenance`), `severity`, `message`.
-- **sales_lead_pricing_items**: `lead_id`, `label`, `amount`, `category` (`base`,`addon`,`discount`).
-- **sales_lead_timeline_events**: `lead_id`, `event_ts`, `event_type` (`system`,`call`,`proposal`,`task`), `label`, `owner_id`.
-- **sales_lead_tasks**: `lead_id`, `label`, `due_date`, `status`. Reuses board statuses for pipeline follow-ups.
-- **sales_lead_offers**: `lead_id`, `name`, `description`, `price`, `margin_pct`.
-- **sales_lead_playbook_steps**: `lead_id`, `label`, `position`, `is_done boolean`.
+**sales_pipeline_stages**
+Definitions of stages in the sales pipeline.
+| Column | Type | Notes |
+| --- | --- | --- |
+| id | text pk | |
+| name | text | |
+| probability | numeric | |
+| sla_days | int | |
+| kommo_pipeline_id | text | |
+| kommo_status_id | text | |
+| booking_status | text | |
 
-### Analytics & knowledge
-- **kpi_snapshots** store dashboard metrics per day/week: `snapshot_date`, `fleet_utilization`, `sla_compliance`, `driver_availability`, `tasks_completed`, `pending_documents`, `client_nps`, `avg_revenue_per_car`, `active_bookings`.
-- **knowledge_base_articles** back the SPA knowledge base cards: `id`, `category`, `title`, `body`, `updated_at`, `owner_id`.
-- **integrations_outbox** queues downstream sync tasks so OLTP requests stay non-blocking. Columns: `id uuid pk`, `entity_type` (`client`,`booking`,`lead`), `entity_id uuid`, `target_system` (`kommo`,`zoho`), `event_type` (`contact.upsert`,`sales_order.create`,`booking.retry`), `payload jsonb`, `status` (`pending`,`processing`,`succeeded`,`failed`), `attempts int`, `last_error text`, `next_run_at timestamptz`, `created_at`, `updated_at`. Workers consume pending rows, call external APIs, and update associated `clients.zoho_contact_id` or `bookings.zoho_sales_order_id` on success.
+**applications**
+Financing/Leasing applications.
+| Column | Type | Notes |
+| --- | --- | --- |
+| id | uuid pk | |
+| application_number | text | |
+| user_id | uuid | |
+| vehicle_id | uuid fk vehicles | |
+| status | application_status enum | `draft`, `submitted`, `in_review`, `approved`, `rejected`, etc. |
+| requested_amount | numeric | |
+| term_months | int | |
+| personal_info | jsonb | |
+| financial_info | jsonb | |
+| scoring_results | jsonb | |
 
-## Enumerations
-- `role_type`: `operations`, `sales`, `ceo`, `driver`.
-- `driver_status`: `available`, `on_task`, `standby`.
-- `client_tier`: `vip`, `gold`, `silver`.
-- `client_segment`: `resident`, `tourist`, `business_traveller`, `special`.
-- `vehicle_status`: `available`, `in_rent`, `maintenance`.
-- `booking_status`: `new`, `preparation`, `delivery`, `in_rent`, `settlement`.
-- `booking_type`: `vip`, `short`, `corporate`.
-- `priority_level`: `high`, `medium`, `low`.
-- `calendar_event_type`: `rental`, `maintenance`, `repair`.
-- `event_status`: `scheduled`, `in_progress`, `completed`.
-- `task_type`: `delivery`, `pickup`, `maintenance`, `documents`.
-- `task_category`: `logistics`, `maintenance`, `operations`.
-- `task_status`: `todo`, `inprogress`, `done`.
-- `document_status`: `verified`, `needs_review`, `expired`.
-- `lead_status`: `active`, `won`, `lost`.
+**deals**
+Active deals/contracts.
+| Column | Type | Notes |
+| --- | --- | --- |
+| id | uuid pk | |
+| deal_number | text | |
+| application_id | uuid fk applications | |
+| vehicle_id | uuid fk vehicles | |
+| client_id | uuid fk clients | |
+| status | deal_status enum | `draft`, `active`, `completed`, `defaulted`, etc. |
+| contract_terms | jsonb | |
+| financial_fields | numeric | `principal_amount`, `monthly_payment`, `interest_rate`, `security_deposit`, etc. |
+| contract_dates | date | `contract_start_date`, `contract_end_date`, `first_payment_date`. |
 
-## DBML excerpt (authoritative view)
-```dbml
-Table staff_accounts {
-  id uuid [pk]
-  full_name text
-  email citext [unique]
-  phone text
-  role role_type
-  locale text
-  timezone text
-  default_route text
-  is_active boolean
-  created_at timestamptz
-  updated_at timestamptz
-}
+**deal_events**
+Audit log for deals.
+| Column | Type | Notes |
+| --- | --- | --- |
+| id | uuid pk | |
+| deal_id | uuid | |
+| event_type | text | |
+| payload | jsonb | |
+| created_by | uuid | |
+| created_at | timestamptz | |
 
-Table driver_profiles {
-  id uuid [pk]
-  staff_account_id uuid [unique, ref: > staff_accounts.id]
-  status driver_status
-  experience_years int
-  current_lat numeric(9,6)
-  current_lng numeric(9,6)
-  languages text
-  notes text
-  last_status_at timestamptz
-}
+**ai_feedback_events**
+AI recommendations and feedback tracking.
+| Column | Type | Notes |
+| --- | --- | --- |
+| id | uuid pk | |
+| entity_type | text | |
+| entity_id | uuid | |
+| model | text | |
+| recommendation | text | |
+| rating | text | |
+| comment | text | |
+| payload | jsonb | |
+| created_by | uuid | |
+| created_at | timestamptz | |
 
-Table clients {
-  id uuid [pk]
-  external_crm_id text
-  name text
-  phone text
-  email citext
-  residency_country text
-  tier client_tier
-  segment client_segment
-  outstanding_amount numeric(12,2)
-  nps_score smallint
-  preferred_channels text
-  preferred_language text
-  timezone text
-}
+### Integrations
 
-Table vehicles {
-  id uuid [pk]
-  external_ref text [unique]
-  name text
-  plate_number text
-  status vehicle_status
-  class text
-  segment text
-  mileage_km int
-  utilization_pct numeric(5,2)
-  revenue_ytd numeric(12,2)
-}
+**kommo_import_runs**
+Tracks import jobs from Kommo CRM.
+| Column | Type | Notes |
+| --- | --- | --- |
+| id | uuid pk | |
+| triggered_by | uuid | |
+| status | text | `running`, `completed`, `failed`. |
+| started_at/finished_at | timestamptz | |
+| leads_count | int | |
+| contacts_count | int | |
+| vehicles_count | int | |
+| error | text | |
 
-Table bookings {
-  id uuid [pk]
-  external_code text [unique]
-  client_id uuid [ref: > clients.id]
-  vehicle_id uuid [ref: > vehicles.id]
-  driver_id uuid [ref: > driver_profiles.id]
-  owner_id uuid [ref: > staff_accounts.id]
-  status booking_status
-  booking_type booking_type
-  channel text
-  kommo_status_id bigint
-  priority priority_level
-  start_at timestamptz
-  end_at timestamptz
-  total_amount numeric(12,2)
-  deposit_amount numeric(12,2)
-}
+**kommo_webhook_events**
+Raw webhook payloads from Kommo.
+| Column | Type | Notes |
+| --- | --- | --- |
+| id | uuid pk | |
+| source_payload_id | text | |
+| hmac_validated | boolean | |
+| status | text | `received` |
+| payload | jsonb | |
+| error_message | text | |
+| created_at | timestamptz | |
+| kommo_status_id | text | |
+| kommo_status_label | text | |
+| fetched_data | jsonb | |
 
-Table booking_invoices {
-  id uuid [pk]
-  booking_id uuid [ref: > bookings.id]
-  label text
-  invoice_type text
-  amount numeric(12,2)
-  status text
-  issued_at timestamptz
-  due_at timestamptz
-}
+**kommo_webhook_stats**
+Aggregated statistics for Kommo webhooks.
+| Column | Type | Notes |
+| --- | --- | --- |
+| bucket_start | timestamptz | |
+| event_type | text | |
+| total_events | int | |
+| processed_events | int | |
+| failed_events | int | |
+| last_event_at | timestamptz | |
 
-Table calendar_events {
-  id uuid [pk]
-  vehicle_id uuid [ref: > vehicles.id]
-  booking_id uuid [ref: > bookings.id]
-  event_type calendar_event_type
-  start_at timestamptz
-  end_at timestamptz
-  status event_status
-}
+**kommo_pipeline_stages**
+Mirrors Kommo pipeline structure.
+| Column | Type | Notes |
+| --- | --- | --- |
+| id | text pk | |
+| label | text | |
+| group_name | text | |
+| description | text | |
+| header_color | text | |
+| booking_status | text | |
+| is_active | boolean | |
+| order_index | int | |
 
-Table tasks {
-  id uuid [pk]
-  booking_id uuid [ref: > bookings.id]
-  vehicle_id uuid [ref: > vehicles.id]
-  client_id uuid [ref: > clients.id]
-  task_type task_type
-  category task_category
-  status task_status
-  priority priority_level
-  title text
-  deadline_at timestamptz
-  sla_minutes int
-  metadata jsonb
-  assignee_driver_id uuid [ref: > driver_profiles.id]
-}
+**integrations_outbox**
+Queue for outgoing integration events (reliable delivery).
+| Column | Type | Notes |
+| --- | --- | --- |
+| id | uuid pk | |
+| entity_type | text | |
+| entity_id | uuid | |
+| target_system | text | |
+| event_type | text | |
+| payload | jsonb | |
+| status | text | `pending`, `processed`, `failed`. |
+| attempts | int | |
+| last_error | text | |
+| next_run_at | timestamptz | |
+| response | jsonb | |
 
-Table task_required_inputs {
-  id uuid [pk]
-  task_id uuid [ref: > tasks.id]
-  key text
-  label text
-  input_type text
-  accept text
-  multiple boolean
-  required boolean
-  options text
-  created_at timestamptz
-  updated_at timestamptz
-}
+**zoho_tokens**
+Auth tokens for Zoho integration.
+| Column | Type | Notes |
+| --- | --- | --- |
+| id | bigint pk | |
+| user_mail | text | |
+| client_id | text | |
+| refresh_token | text | |
+| access_token | text | |
+| grant_token | text | |
+| expiry_time | text | |
 
-Table task_required_input_values {
-  id uuid [pk]
-  task_id uuid [ref: > tasks.id]
-  key text
-  value_text text
-  value_number numeric
-  value_json jsonb
-  storage_paths text
-  bucket text
-  captured_at timestamptz
-}
+### System
 
-Table system_settings {
-  key text [pk]
-  value jsonb
-  description text
-  updated_at timestamptz
-}
+**system_settings**
+Global configuration.
+| Column | Type | Notes |
+| --- | --- | --- |
+| key | text pk | |
+| value | jsonb | |
+| description | text | |
 
-Table sales_pipeline_stages {
-  id text [pk]
-  name text
-  probability numeric(5,2)
-  sla_days int
-}
+**system_feature_flags**
+Feature toggles.
+| Column | Type | Notes |
+| --- | --- | --- |
+| flag | text pk | |
+| is_enabled | boolean | |
 
-Table sales_leads {
-  id uuid [pk]
-  lead_code text [unique]
-  client_id uuid [ref: > clients.id]
-  owner_id uuid [ref: > staff_accounts.id]
-  stage_id text [ref: > sales_pipeline_stages.id]
-  value_amount numeric(12,2)
-  expected_close_at timestamptz
-}
+**system_logs**
+Centralized logging.
+| Column | Type | Notes |
+| --- | --- | --- |
+| id | uuid pk | |
+| level | system_log_level enum | `info`, `warning`, `error`, `critical`. |
+| category | system_log_category enum | `system`, `kommo`, `zoho`, `auth`, `booking`, `task`. |
+| message | text | |
+| metadata | jsonb | |
 
-Ref: bookings.client_id > clients.id
-Ref: bookings.vehicle_id > vehicles.id
-Ref: bookings.driver_id > driver_profiles.id
-Ref: tasks.booking_id > bookings.id
-Ref: sales_leads.client_id > clients.id
-Ref: sales_leads.stage_id > sales_pipeline_stages.id
-```
-
-The DBML excerpt can be copied into dbdiagram.io/dbdocs for visualization or converted into SQL migrations. As per DBML best practices, table-level and column-level settings (primary keys, unique constraints, default values) are included inline, and referential actions (`on delete cascade`) can be appended once we finalise RLS policies.
+**kpi_snapshots**
+Daily/Periodic snapshots of key performance indicators.
+| Column | Type | Notes |
+| --- | --- | --- |
+| id | uuid pk | |
+| snapshot_date | date | |
+| metrics | jsonb | |
+| created_at | timestamptz | |
