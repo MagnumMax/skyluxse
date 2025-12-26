@@ -216,12 +216,14 @@ async function updateKommoStatus(booking: any, salesOrderUrl?: string) {
         const { serviceClient } = await import("@/lib/supabase/service-client");
         const { updateKommoLead } = await import("@/lib/kommo/client");
 
+        console.log("DEBUG: updateKommoStatus fetching booking data for booking.id:", booking.id);
         const { data: bookingRaw } = await serviceClient
             .from("bookings")
             .select("source_payload_id, advance_payment, external_code")
             .eq("id", booking.id)
             .single();
 
+        console.log("DEBUG: bookingRaw:", bookingRaw);
         if (bookingRaw?.source_payload_id?.startsWith("kommo:")) {
             const leadId = bookingRaw.source_payload_id.replace("kommo:", "");
             const advancePayment = Number(bookingRaw.advance_payment || 0);
@@ -254,6 +256,8 @@ async function updateKommoStatus(booking: any, salesOrderUrl?: string) {
 
             console.log(`Updating Kommo Lead ${leadId} with status ${targetStatusId}`);
             await updateKommoLead(leadId, kommoPayload);
+        } else {
+            console.log("DEBUG: source_payload_id not found or doesn't start with 'kommo:', skipping update");
         }
     } catch (kommoError) {
         console.error("Failed to update Kommo status:", kommoError);
@@ -517,6 +521,15 @@ export async function createSalesOrderForBooking(bookingId: string): Promise<Cre
                     entityId: bookingId,
                     entityType: "booking"
                 });
+
+                // Update Kommo status even when lock is active (status update is fast and safe)
+                console.log("DEBUG: updateKommoStatus called for booking", { id: booking.id, code: booking.code, sourcePayloadId: booking.sourcePayloadId });
+                let finalUrl = freshStatus?.sales_order_url;
+                if (!finalUrl && freshStatus?.zoho_sales_order_id) {
+                    const orgId = await getOrganizationId();
+                    finalUrl = `https://books.zoho.com/app/${orgId}#/salesorders/${freshStatus.zoho_sales_order_id}`;
+                }
+                await updateKommoStatus(booking, finalUrl || "");
 
                 return {
                     success: true,
