@@ -458,7 +458,7 @@ export async function createSalesOrderForBooking(bookingId: string): Promise<Cre
                 .from("bookings")
                 .update({ zoho_sync_status: "in_progress" })
                 .eq("id", bookingId)
-                .or("zoho_sync_status.is.null,zoho_sync_status.eq.pending,zoho_sync_status.eq.failed")
+                .in("zoho_sync_status", ["pending", "failed"])
                 .select("id")
                 .maybeSingle();
             
