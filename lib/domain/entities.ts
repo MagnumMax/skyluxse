@@ -415,6 +415,12 @@ export interface FleetCar {
   imageUrl?: string
   location?: string
   kommoVehicleId?: string
+  rentalPrices?: {
+    daily?: number
+    weekly?: number
+    monthly?: number
+    minimumDays?: number
+  } | null
   createdAt?: string
   updatedAt?: string
   createdBy?: string

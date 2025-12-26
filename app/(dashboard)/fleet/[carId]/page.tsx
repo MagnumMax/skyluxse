@@ -10,6 +10,7 @@ import { VehicleDocumentsCard } from "@/components/fleet/vehicle-documents-card"
 import { VehicleInspectionsCard } from "@/components/fleet/vehicle-inspections-card"
 import { VehicleGalleryCard } from "@/components/fleet/vehicle-gallery-card"
 import { VehicleSpecCard } from "@/components/fleet/vehicle-spec-card"
+import { VehiclePricingCard } from "@/components/fleet/vehicle-pricing-card"
 import { VehicleServiceManager } from "@/components/fleet/vehicle-service-manager"
 import { deriveBookingHighlights } from "@/lib/fleet/booking-utils"
 
@@ -41,6 +42,7 @@ export default async function OperationsFleetDetailPage({ params }: PageProps) {
       </div>
 
       <VehicleSpecCard vehicle={car} />
+      <VehiclePricingCard vehicle={car} />
       <VehicleStatsGrid vehicle={car} />
       <VehicleGalleryCard images={car.documentGallery ?? []} />
 

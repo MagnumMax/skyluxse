@@ -126,6 +126,12 @@ type VehicleRow = {
   zero_to_hundred_sec: number | null
   transmission: string | null
   kommo_vehicle_id: string | null
+  rental_prices: {
+    daily?: number
+    weekly?: number
+    monthly?: number
+    minimumDays?: number
+  } | null
   updated_at: string | null
   created_at: string | null
   created_by: string | null
@@ -362,6 +368,7 @@ const VEHICLE_SELECT_COLUMNS = [
   "location",
   "image_url",
   "kommo_vehicle_id",
+  "rental_prices",
   "created_by",
   "updated_by",
   "updated_at",
@@ -1262,6 +1269,7 @@ function mapVehicleRow(row: VehicleRow, options?: { staffById?: Map<string, Staf
     maintenanceHistory: [],
     imageUrl: row.image_url ?? undefined,
     kommoVehicleId: row.kommo_vehicle_id ?? undefined,
+    rentalPrices: row.rental_prices,
     createdAt: row.created_at ?? undefined,
     updatedAt: row.updated_at ?? undefined,
     createdBy,

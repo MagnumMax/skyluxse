@@ -85,6 +85,64 @@ export function VehicleForm({
             <CardTitle className="text-sm uppercase tracking-[0.35em] text-muted-foreground">Vehicle details</CardTitle>
           </CardHeader>
           <CardContent className="grid gap-4 md:grid-cols-2">
+            <div className="col-span-2 space-y-4">
+              <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Rental Prices (AED)</h4>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <FormField
+                  control={form.control}
+                  name="rentalPrices.daily"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Daily Price</FormLabel>
+                      <FormControl>
+                        <Input type="number" min={0} placeholder="e.g. 1000" {...field} value={field.value ?? ""} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="rentalPrices.weekly"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Weekly Price</FormLabel>
+                      <FormControl>
+                        <Input type="number" min={0} placeholder="e.g. 6000" {...field} value={field.value ?? ""} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="rentalPrices.monthly"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Monthly Price</FormLabel>
+                      <FormControl>
+                        <Input type="number" min={0} placeholder="e.g. 25000" {...field} value={field.value ?? ""} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="rentalPrices.minimumDays"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Min. Days</FormLabel>
+                      <FormControl>
+                        <Input type="number" min={1} placeholder="e.g. 1" {...field} value={field.value ?? ""} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </div>
+
             <FormField
               control={form.control}
               name="name"
@@ -412,6 +470,12 @@ function toFormDefaults(vehicle?: FleetCar): VehicleFormValues {
     mileageKm: vehicle?.mileage ?? 0,
     make: vehicle?.make ?? undefined,
     model: vehicle?.model ?? undefined,
+    rentalPrices: {
+      daily: vehicle?.rentalPrices?.daily ?? undefined,
+      weekly: vehicle?.rentalPrices?.weekly ?? undefined,
+      monthly: vehicle?.rentalPrices?.monthly ?? undefined,
+      minimumDays: vehicle?.rentalPrices?.minimumDays ?? undefined,
+    }
   }
 }
 

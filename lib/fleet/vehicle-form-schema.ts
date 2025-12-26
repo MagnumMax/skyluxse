@@ -59,6 +59,12 @@ export const vehicleFormSchema = z.object({
   mileageKm: optionalNumber(0),
   make: optionalTrimmedString,
   model: optionalTrimmedString,
+  rentalPrices: z.object({
+    daily: optionalNumber(0),
+    weekly: optionalNumber(0),
+    monthly: optionalNumber(0),
+    minimumDays: optionalNumber(1, 365),
+  }).optional(),
 })
 
 export type VehicleFormInput = z.input<typeof vehicleFormSchema>
@@ -85,5 +91,6 @@ export function mapVehicleFormToDb(values: VehicleFormValues) {
     location: values.location ?? null,
     kommo_vehicle_id: values.kommoVehicleId ?? null,
     mileage_km: values.mileageKm ?? null,
+    rental_prices: values.rentalPrices ?? null,
   }
 }
