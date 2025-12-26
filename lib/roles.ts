@@ -47,6 +47,8 @@ export const ROLE_NAV_GROUPS: Record<UserRole, DashboardNavGroup[]> = {
         { href: "/fleet", label: "Fleet", icon: "fleet" },
         { href: "/clients", label: "Clients", icon: "clients" },
         { href: "/exec/services", label: "Services", icon: "services" },
+        { href: "/exec/integrations", label: "Integrations", icon: "analytics" },
+        { href: "/exec/logs", label: "System Logs", icon: "tasks" },
       ],
     },
   ],

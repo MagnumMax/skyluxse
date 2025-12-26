@@ -5,6 +5,7 @@ import { recognizeLatestClientDocument } from "@/lib/ai/document-recognition"
 import { createSalesOrderForBooking } from "@/app/actions/zoho"
 import { KOMMO_STATUSES_FOR_SALES_ORDER } from "@/lib/constants/bookings"
 import { sendNotification } from "@/lib/notifications"
+import { logSystemEvent } from "@/lib/system-log"
 
 const SIGNATURE_HEADER = "x-kommo-signature"
 const REQUIRE_SIGNATURE = false
@@ -1090,6 +1091,14 @@ async function handleStatusChange(event: any): Promise<HandleResult> {
                 await sendNotification('telegram', {
                     message: `❌ <b>Sales Order Exception</b>\nLead: ${lead.id}\nError: ${error instanceof Error ? error.message : "Unknown error"}`
                 })
+                await logSystemEvent({
+                    level: "error",
+                    category: "zoho",
+                    message: "Exception calling createSalesOrderForBooking",
+                    entityId: bookingId,
+                    entityType: "booking",
+                    metadata: { error: error instanceof Error ? error.message : "Unknown error" }
+                })
                 await logBookingTimelineEvent(
                     bookingId,
                     statusIdForTimeline,
@@ -1182,6 +1191,12 @@ export async function POST(req: Request) {
 
         const validation = await validateSignature(rawBody, signature)
         if (!validation.ok) {
+            await logSystemEvent({
+                level: "error",
+                category: "kommo",
+                message: "Invalid Kommo signature",
+                metadata: { reason: validation.reason, expectedPrefix: validation.expected?.slice(0, 12) }
+            })
             console.error("Invalid Kommo signature", {
                 reason: validation.reason,
                 provided: validation.provided,
@@ -1215,6 +1230,17 @@ export async function POST(req: Request) {
 
         const statusEventsRaw = payload?.leads?.status
         const statusEvents = Array.isArray(statusEventsRaw) ? statusEventsRaw : []
+
+        await logSystemEvent({
+            level: "info",
+            category: "kommo",
+            message: `Webhook received (${statusEvents.length} events)`,
+            metadata: { 
+                eventCount: statusEvents.length,
+                events: statusEvents.map((e: any) => ({ id: e.id, status_id: e.status_id }))
+            }
+        })
+
         if (!Array.isArray(statusEventsRaw)) {
             console.warn("Kommo status payload without iterable status array", {
                 hasLeads: Boolean(payload?.leads),
@@ -1235,6 +1261,20 @@ export async function POST(req: Request) {
                     kommo_status_id: result?.statusId ?? String(event.status_id ?? ""),
                     kommo_status_label: result?.statusLabel ?? null,
                 })
+
+                await logSystemEvent({
+                    level: "info",
+                    category: "kommo",
+                    message: `Processed event for lead ${event.id}`,
+                    entityId: String(event.id),
+                    entityType: "lead",
+                    metadata: { 
+                        statusId: result?.statusId, 
+                        statusLabel: result?.statusLabel,
+                        processed: true
+                    }
+                })
+
                 results.push(result)
             } catch (error) {
                 const errorMessage = formatError(error)
@@ -1248,6 +1288,16 @@ export async function POST(req: Request) {
                     kommo_status_label: resolveKommoStatusLabel(String(event.status_id ?? "")),
                     error_message: errorMessage,
                 })
+                
+                await logSystemEvent({
+                    level: "error",
+                    category: "kommo",
+                    message: `Failed to process event for lead ${event.id}`,
+                    entityId: String(event.id),
+                    entityType: "lead",
+                    metadata: { error: errorMessage }
+                })
+
                 await sendNotification('telegram', {
                     message: `🚨 <b>Webhook Error</b>\nLead: ${event.id}\nError: ${errorMessage}`
                 })
@@ -1259,6 +1309,14 @@ export async function POST(req: Request) {
     } catch (error) {
         const message = formatError(error)
         console.error("kommo-webhook fatal error", message, error)
+        
+        await logSystemEvent({
+            level: "critical",
+            category: "kommo",
+            message: "Fatal webhook error",
+            metadata: { error: message }
+        })
+
         return NextResponse.json({ error: "Internal server error", details: message }, { status: 500 })
     }
 }

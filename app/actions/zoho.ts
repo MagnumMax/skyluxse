@@ -396,6 +396,8 @@ function mapClientToZohoCustomFields(client: any): any[] {
     return fields;
 }
 
+import { logSystemEvent } from "@/lib/system-log";
+
 export async function createSalesOrderForBooking(bookingId: string): Promise<CreateSalesOrderResult> {
     let booking: any = null;
     let client: any = null;
@@ -406,6 +408,14 @@ export async function createSalesOrderForBooking(bookingId: string): Promise<Cre
         const { serviceClient } = await import("@/lib/supabase/service-client");
         const { revalidatePath } = await import("next/cache");
         const { sendNotification } = await import("@/lib/notifications");
+
+        await logSystemEvent({
+            level: "info",
+            category: "zoho",
+            message: "Starting Sales Order creation process",
+            entityId: bookingId,
+            entityType: "booking"
+        });
 
         // 1. Fetch all required data
         const fullData = await fetchBookingFullData(bookingId);
@@ -461,6 +471,14 @@ export async function createSalesOrderForBooking(bookingId: string): Promise<Cre
                     .single();
 
                 if (freshStatus?.zoho_sync_status === 'synced' || freshStatus?.zoho_sales_order_id) {
+                     await logSystemEvent({
+                        level: "info",
+                        category: "zoho",
+                        message: "Sales Order creation skipped (already exists)",
+                        entityId: bookingId,
+                        entityType: "booking",
+                        metadata: { salesOrderId: freshStatus.zoho_sales_order_id }
+                    });
                      return {
                         success: true,
                         data: {
@@ -470,6 +488,14 @@ export async function createSalesOrderForBooking(bookingId: string): Promise<Cre
                         },
                     };
                 }
+
+                await logSystemEvent({
+                    level: "warning",
+                    category: "zoho",
+                    message: "Sales Order creation skipped (lock active)",
+                    entityId: bookingId,
+                    entityType: "booking"
+                });
 
                 return {
                     success: true,
@@ -553,10 +579,42 @@ export async function createSalesOrderForBooking(bookingId: string): Promise<Cre
             message: `✅ <b>Sales Order Created</b>\n\n<b>Booking:</b> ${booking.code}\n<b>Sales Order:</b> <a href="${salesOrderUrl}">Link</a>\n<b>Client:</b> ${client.name}\n<b>Auto:</b> ${booking.carName}\n<b>Plate:</b> ${booking.carPlate || "N/A"}\n<b>Amount:</b> ${booking.totalAmount} AED${servicesText}`
         }).catch(err => console.error("Failed to send success notification", err));
 
-        return { success: true, data: { salesOrderId, salesOrderUrl } };
+        await logSystemEvent({
+            level: "info",
+            category: "zoho",
+            message: "Sales Order created successfully",
+            entityId: bookingId,
+            entityType: "booking",
+            metadata: { salesOrderId, salesOrderUrl }
+        });
+
+        return {
+            success: true,
+            data: {
+                salesOrderId,
+                salesOrderUrl,
+                message: "Sales Order created successfully",
+            },
+        };
 
     } catch (error: any) {
         console.error("createSalesOrderForBooking failed:", error);
+        
+        // Release Lock on Error
+        const { serviceClient } = await import("@/lib/supabase/service-client");
+        await serviceClient
+            .from("bookings")
+            .update({ zoho_sync_status: null })
+            .eq("id", bookingId);
+
+        await logSystemEvent({
+            level: "error",
+            category: "zoho",
+            message: "Sales Order creation failed",
+            entityId: bookingId,
+            entityType: "booking",
+            metadata: { error: error.message || String(error) }
+        });
         
         const { sendNotification } = await import("@/lib/notifications");
         await sendNotification('telegram', {
