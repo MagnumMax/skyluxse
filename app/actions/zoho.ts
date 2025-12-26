@@ -211,7 +211,7 @@ async function findOrCreateZohoContact(client: any, books: any) {
     }
 }
 
-async function updateKommoStatus(booking: any, salesOrderUrl: string) {
+async function updateKommoStatus(booking: any, salesOrderUrl?: string) {
     try {
         const { serviceClient } = await import("@/lib/supabase/service-client");
         const { updateKommoLead } = await import("@/lib/kommo/client");
@@ -229,21 +229,30 @@ async function updateKommoStatus(booking: any, salesOrderUrl: string) {
             // Logic: if advance_payment > 0 -> Payment Pending (96150292), else Confirmed (75440391)
             const targetStatusId = advancePayment > 0 ? "96150292" : "75440391";
             
-            const kommoPayload = {
-                status_id: Number(targetStatusId),
-                custom_fields_values: [
-                    {
-                        field_id: 1224030, // Sales order URL
-                        values: [{ value: salesOrderUrl }]
-                    },
-                    {
-                        field_id: 1234159, // erp_deal_id
-                        values: [{ value: bookingRaw.external_code || booking.code }]
-                    }
-                ]
-            };
+            const customFieldsValues: any[] = [];
+            
+            // Only add sales_order_url if provided
+            if (salesOrderUrl) {
+                customFieldsValues.push({
+                    field_id: 1224030, // Sales order URL
+                    values: [{ value: salesOrderUrl }]
+                });
+            }
+            
+            customFieldsValues.push({
+                field_id: 1234159, // erp_deal_id
+                values: [{ value: bookingRaw.external_code || booking.code }]
+            });
 
-            console.log(`Updating Kommo Lead ${leadId} with status ${targetStatusId} and SO details`);
+            const kommoPayload: any = {
+                status_id: Number(targetStatusId)
+            };
+            
+            if (customFieldsValues.length > 0) {
+                kommoPayload.custom_fields_values = customFieldsValues;
+            }
+
+            console.log(`Updating Kommo Lead ${leadId} with status ${targetStatusId}`);
             await updateKommoLead(leadId, kommoPayload);
         }
     } catch (kommoError) {
@@ -526,7 +535,11 @@ export async function createSalesOrderForBooking(bookingId: string): Promise<Cre
         let salesOrderId = booking.zohoSalesOrderId;
         let salesOrderUrl = booking.salesOrderUrl;
 
-        // 2. Create Order if needed
+        // 2. Update Kommo status FIRST (before Zoho creation)
+        // This ensures lead status is updated even if Zoho/DB operations fail later
+        await updateKommoStatus(booking);
+
+        // 3. Create Order if needed
         if (!salesOrderId) {
             // Find or Create Contact
             const contactId = await findOrCreateZohoContact(client, books);
@@ -562,7 +575,7 @@ export async function createSalesOrderForBooking(bookingId: string): Promise<Cre
             salesOrderUrl = booking.salesOrderUrl || `https://books.zoho.com/app/${orgId}#/salesorders/${salesOrderId}`;
         }
 
-        // 3. Update Supabase
+        // 4. Update Supabase
         const { error: updateError } = await serviceClient
             .from("bookings")
             .update({
@@ -574,10 +587,10 @@ export async function createSalesOrderForBooking(bookingId: string): Promise<Cre
 
         if (updateError) console.error("Failed to update booking with sales order info:", updateError);
 
-        // 4. Update Kommo
+        // 5. Update Kommo with URL
         await updateKommoStatus(booking, salesOrderUrl);
 
-        // 5. Notifications
+        // 6. Notifications
         revalidatePath(`/bookings/${bookingId}`);
 
         // Prepare service names for notification
