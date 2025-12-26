@@ -30,7 +30,7 @@ async function fetchWithRetry(url: string, options: RequestInit, retries = 3, ba
     }
 }
 
-async function getAccessToken() {
+export async function getAccessToken() {
     // 1. Try to get from DB
     // We assume the first token in the table is the one we want, or filter by user_mail if needed
     const { data } = await getSupabase().from('zoho_tokens').select('*').limit(1).maybeSingle();
@@ -126,6 +126,18 @@ export async function getBooksClient() {
                 body: JSON.stringify(body)
             });
             return res.json();
+        },
+        delete: async (path: string, orgId?: string) => {
+            const url = new URL(`${baseUrl}${path}`);
+            if (orgId) url.searchParams.append("organization_id", orgId);
+
+            const res = await fetchWithRetry(url.toString(), {
+                method: 'DELETE',
+                headers: {
+                    Authorization: `Zoho-oauthtoken ${token}`
+                }
+            });
+            return res.json();
         }
     };
 
@@ -181,6 +193,22 @@ export async function updateSalesOrder(salesOrderId: string, orderData: any) {
     const orgId = await getOrganizationId();
     const client = await getBooksClient();
     return client.put(`/salesorders/${salesOrderId}`, orderData, orgId);
+}
+
+export async function deleteSalesOrder(salesOrderId: string) {
+    const orgId = await getOrganizationId();
+    const client = await getBooksClient();
+    return client.delete(`/salesorders/${salesOrderId}`, orgId);
+}
+
+export async function getSalesOrders(params: { customer_name?: string, email?: string } = {}) {
+    const orgId = await getOrganizationId();
+    const client = await getBooksClient();
+    const searchParams = new URLSearchParams();
+    if (params.customer_name) searchParams.append('customer_name', params.customer_name);
+    if (params.email) searchParams.append('email', params.email);
+    
+    return client.get(`/salesorders?${searchParams.toString()}`, orgId);
 }
 
 export async function findContactByEmail(email: string) {
