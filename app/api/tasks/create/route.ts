@@ -2,10 +2,15 @@ import { NextResponse } from "next/server"
 
 import { serviceClient } from "@/lib/supabase/service-client"
 import { sendTaskCreatedNotification } from "@/lib/notifications/task-notifications"
+import { validateApiKey } from "@/lib/auth/api-key"
 
 type Payload = { bookingId?: string; modes?: ("delivery" | "pickup")[] }
 
 export async function POST(request: Request) {
+  if (!(await validateApiKey())) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
   const body = await readJson(request)
   const bookingId = body.bookingId?.trim()
   const modes = Array.isArray(body.modes) && body.modes.length ? body.modes : ["delivery", "pickup"]

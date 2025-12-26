@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Пакет Закрывающей Документации: Skyluxse ERP 2.0</title>
+    <style>
+        :root {
+            --primary-color: #0F172A; /* Slate 900 */
+            --secondary-color: #64748B; /* Slate 500 */
+            --border-color: #E2E8F0;
+        }
+        body {
+            font-family: "Times New Roman", Times, serif;
+            line-height: 1.5;
+            color: #000;
+            max-width: 210mm; /* A4 width */
+            margin: 0 auto;
+            padding: 20px;
+            background: #fff;
+        }
+        @media print {
+            body {
+                width: 100%;
+                margin: 0;
+                padding: 0;
+            }
+            .page-break {
+                page-break-after: always;
+            }
+            .no-print {
+                display: none;
+            }
+            a {
+                text-decoration: none;
+                color: #000;
+            }
+        }
+        h1, h2, h3, h4 {
+            color: var(--primary-color);
+            margin-top: 1.5em;
+            margin-bottom: 0.8em;
+            font-weight: bold;
+        }
+        h1 {
+            font-size: 24pt;
+            text-align: center;
+            text-transform: uppercase;
+            border-bottom: 2px solid #000;
+            padding-bottom: 10px;
+        }
+        h2 {
+            font-size: 18pt;
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 5px;
+            margin-top: 40px;
+        }
+        h3 {
+            font-size: 14pt;
+        }
+        p {
+            margin-bottom: 1em;
+            text-align: justify;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+            font-size: 11pt;
+        }
+        th, td {
+            border: 1px solid #000;
+            padding: 8px;
+            text-align: left;
+            vertical-align: top;
+        }
+        th {
+            background-color: #f0f0f0;
+            font-weight: bold;
+        }
+        .signature-block {
+            margin-top: 50px;
+            display: flex;
+            justify-content: space-between;
+            page-break-inside: avoid;
+        }
+        .signature-box {
+            width: 45%;
+        }
+        .signature-line {
+            border-top: 1px solid #000;
+            margin-top: 40px;
+            padding-top: 5px;
+            font-style: italic;
+        }
+        .warning {
+            background-color: #fff3cd;
+            border: 1px solid #ffeeba;
+            padding: 10px;
+            margin: 10px 0;
+            font-family: Arial, sans-serif;
+            font-size: 10pt;
+        }
+        .code-block {
+            font-family: "Courier New", Courier, monospace;
+            background-color: #f5f5f5;
+            padding: 10px;
+            border: 1px solid #ddd;
+            display: block;
+            white-space: pre-wrap;
+            font-size: 10pt;
+        }
+        .status-passed {
+            color: green;
+            font-weight: bold;
+        }
+        .meta-info {
+            font-family: Arial, sans-serif;
+            font-size: 10pt;
+            color: #666;
+            text-align: center;
+            margin-bottom: 40px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- COVER PAGE -->
+    <div style="text-align: center; margin-top: 200px;">
+        <h1>ПАКЕТ ЗАКРЫВАЮЩЕЙ ДОКУМЕНТАЦИИ</h1>
+        <h2>ПРОЕКТ: SKYLUXSE ERP 2.0</h2>
+        <p><strong>Система управления автопарком и автоматизации аренды</strong></p>
+        <br><br>
+        <p><strong>ДАТА:</strong> 26 Декабря 2025</p>
+        <p><strong>ВЕРСИЯ:</strong> 1.0 (ФИНАЛЬНАЯ)</p>
+        <br><br><br>
+        <p>Подготовлено для:</p>
+        <p><strong>[НАЗВАНИЕ КЛИЕНТА]</strong></p>
+    </div>
+
+    <div class="page-break"></div>
+
+    <!-- 1. PROJECT COMPLETION REPORT -->
+    <h2>1. ОТЧЕТ О ЗАВЕРШЕНИИ ПРОЕКТА (PROJECT COMPLETION REPORT)</h2>
+    
+    <h3>1.1. Общие сведения</h3>
+    <table>
+        <tr>
+            <td width="30%"><strong>Наименование проекта:</strong></td>
+            <td>Skyluxse ERP 2.0 — Система автоматизации аренды премиальных автомобилей</td>
+        </tr>
+        <tr>
+            <td><strong>Дата начала:</strong></td>
+            <td>[ДАТА НАЧАЛА]</td>
+        </tr>
+        <tr>
+            <td><strong>Дата завершения:</strong></td>
+            <td>26.12.2025</td>
+        </tr>
+        <tr>
+            <td><strong>Исполнитель:</strong></td>
+            <td>[НАИМЕНОВАНИЕ ИСПОЛНИТЕЛЯ]</td>
+        </tr>
+    </table>
+
+    <h3>1.2. Подтверждение объема работ (Scope Confirmation)</h3>
+    <p>Настоящим подтверждается, что все модули, согласованные в Техническом Задании (PRD), были разработаны, протестированы и развернуты:</p>
+    <table>
+        <tr>
+            <th>Модуль</th>
+            <th>Описание</th>
+            <th>Статус</th>
+        </tr>
+        <tr>
+            <td><strong>M1. Kommo Intake</strong></td>
+            <td>Автоматический импорт бронирований через вебхуки Kommo CRM. Дедупликация клиентов.</td>
+            <td><span class="status-passed">ВЫПОЛНЕНО</span></td>
+        </tr>
+        <tr>
+            <td><strong>M2. Booking Lifecycle</strong></td>
+            <td>Управление статусами бронирования, SLA таймеры, загрузка документов.</td>
+            <td><span class="status-passed">ВЫПОЛНЕНО</span></td>
+        </tr>
+        <tr>
+            <td><strong>M3. Fleet Calendar</strong></td>
+            <td>Календарь занятости автопарка, автоматизация напоминаний о ТО.</td>
+            <td><span class="status-passed">ВЫПОЛНЕНО</span></td>
+        </tr>
+        <tr>
+            <td><strong>M4. Sales Workspace</strong></td>
+            <td>Рабочее место менеджера продаж с AI-аналитикой лидов.</td>
+            <td><span class="status-passed">ВЫПОЛНЕНО</span></td>
+        </tr>
+        <tr>
+            <td><strong>M5. Driver App</strong></td>
+            <td>Мобильное веб-приложение для водителей (Offline-first), чек-листы, фотофиксация.</td>
+            <td><span class="status-passed">ВЫПОЛНЕНО</span></td>
+        </tr>
+        <tr>
+            <td><strong>M6. Analytics Hub</strong></td>
+            <td>Дашборды для руководства (Utilisation, Revenue), KPI в реальном времени.</td>
+            <td><span class="status-passed">ВЫПОЛНЕНО</span></td>
+        </tr>
+        <tr>
+            <td><strong>M7. Integrations Outbox</strong></td>
+            <td>Двусторонняя синхронизация с Zoho CRM/Books с системой очередей (Outbox pattern).</td>
+            <td><span class="status-passed">ВЫПОЛНЕНО</span></td>
+        </tr>
+    </table>
+
+    <h3>1.3. Заключение</h3>
+    <p>Проект завершен в полном объеме. Система развернута в продуктивной среде (Production Environment) и готова к промышленной эксплуатации.</p>
+
+    <div class="signature-block">
+        <div class="signature-box">
+            <p><strong>От Исполнителя:</strong></p>
+            <div class="signature-line">Подпись / Дата</div>
+        </div>
+        <div class="signature-box">
+            <p><strong>От Заказчика:</strong></p>
+            <div class="signature-line">Подпись / Дата</div>
+        </div>
+    </div>
+
+    <div class="page-break"></div>
+
+    <!-- 2. DELIVERY & ACCEPTANCE ACT -->
+    <h2>2. АКТ ПРИЕМА-ПЕРЕДАЧИ (DELIVERY & ACCEPTANCE ACT)</h2>
+    
+    <p>г. [ГОРОД], «26» декабря 2025 г.</p>
+
+    <p>Мы, нижеподписавшиеся, <strong>[НАИМЕНОВАНИЕ ЗАКАЗЧИКА]</strong>, именуемое в дальнейшем «Заказчик», с одной стороны, и <strong>[НАИМЕНОВАНИЕ ИСПОЛНИТЕЛЯ]</strong>, именуемое в дальнейшем «Исполнитель», составили настоящий Акт о нижеследующем:</p>
+
+    <ol>
+        <li>Исполнитель передал, а Заказчик принял результаты работ по разработке программного обеспечения <strong>Skyluxse ERP 2.0</strong>.</li>
+        <li>В состав переданных результатов входят:
+            <ul>
+                <li>Исходный код приложения (Next.js, React, Tailwind, Supabase Functions).</li>
+                <li>База данных (схемы PostgreSQL, миграции, триггеры).</li>
+                <li>Настроенная облачная инфраструктура (Vercel, Supabase).</li>
+                <li>Техническая документация и инструкции пользователей.</li>
+            </ul>
+        </li>
+        <li>Работы выполнены в полном объеме, в установленные сроки и с надлежащим качеством.</li>
+        <li>Заказчик не имеет претензий к объему, качеству и срокам выполнения работ.</li>
+        <li>Настоящий Акт является основанием для проведения окончательных финансовых расчетов по Договору № [НОМЕР] от [ДАТА].</li>
+    </ol>
+
+    <div class="signature-block">
+        <div class="signature-box">
+            <p><strong>СДАЛ (Исполнитель):</strong></p>
+            <br>
+            <div class="signature-line">М.П.</div>
+        </div>
+        <div class="signature-box">
+            <p><strong>ПРИНЯЛ (Заказчик):</strong></p>
+            <br>
+            <div class="signature-line">М.П.</div>
+        </div>
+    </div>
+
+    <div class="page-break"></div>
+
+    <!-- 3. UAT SIGN-OFF -->
+    <h2>3. ПРОТОКОЛ ПРИЕМОЧНОГО ТЕСТИРОВАНИЯ (UAT SIGN-OFF)</h2>
+
+    <p>Нижеприведенная таблица подтверждает успешное прохождение пользовательского приемочного тестирования (User Acceptance Testing) по ключевым бизнес-сценариям.</p>
+
+    <table>
+        <tr>
+            <th>ID</th>
+            <th>Сценарий тестирования</th>
+            <th>Критерии приемки</th>
+            <th>Результат</th>
+        </tr>
+        <tr>
+            <td>UAT-01</td>
+            <td>Создание бронирования через Kommo</td>
+            <td>Вебхук Kommo успешно создает запись в таблице `bookings`. Клиент дедуплицируется.</td>
+            <td><span class="status-passed">ПРИНЯТО</span></td>
+        </tr>
+        <tr>
+            <td>UAT-02</td>
+            <td>Управление автопарком (Fleet Calendar)</td>
+            <td>Отображение занятости машин. Корректное определение конфликтов бронирования.</td>
+            <td><span class="status-passed">ПРИНЯТО</span></td>
+        </tr>
+        <tr>
+            <td>UAT-03</td>
+            <td>Работа водителя (Driver App)</td>
+            <td>Водитель видит задачи. Загрузка фото работает. Приложение работает без сети (offline).</td>
+            <td><span class="status-passed">ПРИНЯТО</span></td>
+        </tr>
+        <tr>
+            <td>UAT-04</td>
+            <td>Финансовая синхронизация (Zoho)</td>
+            <td>При смене статуса на "Completed", данные уходят в Zoho Books. Очередь (Outbox) очищается.</td>
+            <td><span class="status-passed">ПРИНЯТО</span></td>
+        </tr>
+        <tr>
+            <td>UAT-05</td>
+            <td>AI-аналитика лидов</td>
+            <td>AI генерирует саммари по лиду в Sales Workspace.</td>
+            <td><span class="status-passed">ПРИНЯТО</span></td>
+        </tr>
+    </table>
+
+    <p><strong>Заявление о приемке:</strong></p>
+    <p>Заказчик подтверждает, что Система функционирует в соответствии с заявленными требованиями. Все критические дефекты устранены.</p>
+
+    <div class="signature-line">Подпись ответственного лица Заказчика</div>
+
+    <div class="page-break"></div>
+
+    <!-- 4. FINAL DELIVERY STATEMENT -->
+    <h2>4. ЗАЯВЛЕНИЕ О ФИНАЛЬНОЙ ПЕРЕДАЧЕ (INVOICE TRIGGER)</h2>
+
+    <p>Настоящим документом Исполнитель официально уведомляет о завершении всех контрактных обязательств по проекту <strong>Skyluxse ERP 2.0</strong>.</p>
+    
+    <p>В соответствии с пунктом [X.X] Договора, подписание данного пакета документов:</p>
+    <ol>
+        <li>Подтверждает переход прав на интеллектуальную собственность (код, дизайн, базы данных) к Заказчику.</li>
+        <li>Активирует гарантийный период.</li>
+        <li><strong>Является основанием для выставления финального счета на оплату.</strong></li>
+    </ol>
+
+    <div class="page-break"></div>
+
+    <!-- 5. TECHNICAL HANDOVER -->
+    <h2>5. ТЕХНИЧЕСКИЙ ПАСПОРТ (TECHNICAL HANDOVER)</h2>
+
+    <h3>5.1. Архитектура Системы</h3>
+    <ul>
+        <li><strong>Frontend / Backend Framework:</strong> Next.js 15 (App Router).</li>
+        <li><strong>Database:</strong> PostgreSQL (через Supabase).</li>
+        <li><strong>Styling:</strong> Tailwind CSS + Shadcn/UI.</li>
+        <li><strong>Hosting:</strong> Vercel (Frontend/Functions) + Supabase (DB/Auth/Storage).</li>
+    </ul>
+
+    <h3>5.2. Репозиторий кода</h3>
+    <p>Полный исходный код передан в репозиторий Заказчика:</p>
+    <p class="code-block">URL: https://github.com/[ORGANIZATION]/skyluxse.git
+Branch: main (Production)</p>
+
+    <h3>5.3. Передача доступов (Credentials Handover)</h3>
+    <p>Все ключи доступа переданы через защищенный канал (например, 1Password/LastPass). Ниже приведен список переданных учетных записей:</p>
+    <table>
+        <tr>
+            <th>Сервис</th>
+            <th>Тип доступа</th>
+            <th>Уровень прав</th>
+        </tr>
+        <tr>
+            <td>Vercel</td>
+            <td>Team Account</td>
+            <td>Owner</td>
+        </tr>
+        <tr>
+            <td>Supabase</td>
+            <td>Organization Dashboard</td>
+            <td>Owner</td>
+        </tr>
+        <tr>
+            <td>Kommo CRM</td>
+            <td>Integration API Key</td>
+            <td>Admin</td>
+        </tr>
+        <tr>
+            <td>Zoho CRM/Books</td>
+            <td>OAuth Client ID/Secret</td>
+            <td>API Access</td>
+        </tr>
+        <tr>
+            <td>Telegram Bot</td>
+            <td>Bot Token</td>
+            <td>Admin</td>
+        </tr>
+    </table>
+
+    <h3>5.4. Внешние зависимости</h3>
+    <ul>
+        <li><strong>Supabase:</strong> Тариф Pro (рекомендуется для Production).</li>
+        <li><strong>Vercel:</strong> Тариф Pro.</li>
+        <li><strong>OpenAI/LLM Provider:</strong> API Key для AI-функций.</li>
+    </ul>
+
+    <div class="page-break"></div>
+
+    <!-- 6. DEPLOYMENT & OPERATIONS -->
+    <h2>6. РУКОВОДСТВО ПО РАЗВЕРТЫВАНИЮ (DEPLOYMENT GUIDE)</h2>
+
+    <h3>6.1. Требования к окружению</h3>
+    <ul>
+        <li>Node.js v20+</li>
+        <li>npm / pnpm</li>
+        <li>PostgreSQL 15+</li>
+    </ul>
+
+    <h3>6.2. Процесс развертывания (Deployment Pipeline)</h3>
+    <p>Проект настроен на автоматический деплой через Vercel при пуше в ветку <code>main</code>.</p>
+    <p><strong>Ручная сборка и запуск:</strong></p>
+    <div class="code-block">
+# Установка зависимостей
+npm install
+
+# Применение миграций БД
+npx supabase migration up
+
+# Сборка проекта
+npm run build
+
+# Запуск
+npm run start
+    </div>
+
+    <h3>6.3. Резервное копирование (Backup)</h3>
+    <p>Настроено автоматическое ежедневное резервное копирование базы данных средствами Supabase (Point-in-Time Recovery). Период хранения: 7 дней (на тарифе Pro).</p>
+
+    <h3>6.4. Мониторинг</h3>
+    <ul>
+        <li><strong>Ошибки приложения:</strong> Vercel Logs / Sentry (если подключен).</li>
+        <li><strong>Статус интеграций:</strong> Таблица <code>integrations_outbox</code> в БД (проверка поля <code>status</code>).</li>
+    </ul>
+
+    <div class="page-break"></div>
+
+    <!-- 7. MANUALS -->
+    <h2>7. ИНСТРУКЦИИ ПОЛЬЗОВАТЕЛЯ (USER MANUALS)</h2>
+
+    <h3>7.1. Руководство Администратора (Admin Guide)</h3>
+    <p><strong>Доступ:</strong> <code>/exec/dashboard</code></p>
+    <ul>
+        <li><strong>Управление бронированиями:</strong> Перейдите в раздел "Bookings". Канбан-доска отображает текущий статус. Для смены статуса перетащите карточку.</li>
+        <li><strong>Календарь автопарка:</strong> Раздел "Fleet Calendar" показывает доступность машин. Конфликты подсвечиваются красным.</li>
+        <li><strong>Синхронизация с Zoho:</strong> Происходит автоматически. В случае ошибки, статус виден в "Integrations Dashboard".</li>
+    </ul>
+
+    <h3>7.2. Руководство Водителя (Driver Guide)</h3>
+    <p><strong>Доступ:</strong> <code>/driver/tasks</code> (оптимизировано для мобильных устройств)</p>
+    <ol>
+        <li>Войдите в систему под своим аккаунтом.</li>
+        <li>На главном экране выберите активную задачу (Task).</li>
+        <li>Заполните чек-лист (Checklist).</li>
+        <li>Загрузите фото (до/после аренды) и укажите пробег/топливо.</li>
+        <li>Нажмите "Complete Task". Данные синхронизируются с офисом автоматически.</li>
+    </ol>
+    <p><em>Примечание: Приложение работает без интернета. Данные отправятся, как только связь появится.</em></p>
+
+    <div class="page-break"></div>
+
+    <!-- 8. TESTING REPORT -->
+    <h2>8. ОТЧЕТ О КАЧЕСТВЕ И ТЕСТИРОВАНИИ (QA REPORT)</h2>
+
+    <h3>8.1. Виды тестирования</h3>
+    <ul>
+        <li><strong>Unit Testing (Vitest):</strong> Проверена бизнес-логика (расчет стоимости, валидация данных).</li>
+        <li><strong>E2E Testing (Playwright):</strong> Проверены полные пользовательские сценарии (Login -> Booking -> Driver Task).</li>
+        <li><strong>Manual Testing:</strong> Проверены UI/UX и мобильная верстка.</li>
+    </ul>
+
+    <h3>8.2. Известные проблемы (Known Issues)</h3>
+    <ul>
+        <li><em>Отсутствуют критические ошибки (Blocker/Critical).</em></li>
+        <li>Minor: Возможны задержки отображения PDF при медленном интернете (будет исправлено в v2.1).</li>
+    </ul>
+
+    <h3>8.3. Заключение QA</h3>
+    <p>Продукт соответствует требованиям качества и готов к релизу.</p>
+
+    <div class="page-break"></div>
+
+    <!-- 9. POST-PROJECT NOTES -->
+    <h2>9. ПОСТ-ПРОЕКТНОЕ ОБСЛУЖИВАНИЕ</h2>
+
+    <h3>9.1. Гарантийный период</h3>
+    <p>Исполнитель предоставляет гарантию на разработанное ПО сроком на <strong>30 календарных дней</strong> с даты подписания Акта приема-передачи. В этот период исправление выявленных багов (ошибок кода) производится бесплатно.</p>
+
+    <h3>9.2. Техническая поддержка (SLA)</h3>
+    <p>После завершения гарантийного периода предлагается заключить договор SLA (Service Level Agreement) на следующих условиях (опционально):</p>
+    <ul>
+        <li>Мониторинг доступности 24/7.</li>
+        <li>Обновление зависимостей безопасности.</li>
+        <li>Поддержка изменений в API интеграций (Kommo/Zoho).</li>
+    </ul>
+
+    <hr style="margin-top: 50px;">
+    <p style="text-align: center; font-size: 10pt; color: #999;">Конец документа</p>
+
+</body>
+</html>

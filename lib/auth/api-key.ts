@@ -22,6 +22,28 @@ export async function validateApiKey() {
 
   if (!providedKey) return false
 
-  // Constant time comparison would be better but simple string compare is okay for this scope
-  return providedKey === ENV_API_KEY
+  // Constant time comparison to prevent timing attacks
+  const encoder = new TextEncoder()
+  const a = encoder.encode(providedKey)
+  const b = encoder.encode(ENV_API_KEY)
+
+  if (a.length !== b.length) {
+    return false
+  }
+
+  // crypto.timingSafeEqual requires buffers of equal length
+  // In Edge runtime or browser environments where crypto.timingSafeEqual might differ, 
+  // we can use a custom implementation or standard crypto if available.
+  // Next.js runs in Node/Edge. 
+  try {
+    // @ts-ignore - timingSafeEqual is not in the standard Web Crypto API type definition but available in some environments
+    return crypto.timingSafeEqual(a, b)
+  } catch (e) {
+    // Fallback for environments where timingSafeEqual might fail or strict types
+    let result = 0
+    for (let i = 0; i < a.length; i++) {
+      result |= a[i] ^ b[i]
+    }
+    return result === 0
+  }
 }

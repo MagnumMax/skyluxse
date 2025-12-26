@@ -77,20 +77,26 @@ export async function login(formData: FormData) {
 }
 
 export async function loginAsDriver(email: string) {
+  if (process.env.NODE_ENV !== "development") {
+    throw new Error("This action is only available in development mode")
+  }
   const cookieStore = await cookies()
   cookieStore.set("skyluxse_driver_email", email, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: false, // We verified it's development above
     path: "/",
     maxAge: 60 * 60 * 24 * 7, // 1 week
   })
 }
 
 export async function loginAsRole(role: string) {
+  if (process.env.NODE_ENV !== "development") {
+    throw new Error("This action is only available in development mode")
+  }
   const cookieStore = await cookies()
   cookieStore.set("skyluxse_role", role, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: false, // We verified it's development above
     path: "/",
     maxAge: 60 * 60 * 24 * 7, // 1 week
   })

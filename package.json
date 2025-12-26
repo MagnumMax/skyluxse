@@ -9,7 +9,7 @@
     "build": "next build --webpack",
     "build:turbopack": "next build",
     "start": "PORT=${PORT:-6767} next start -p ${PORT}",
-    "lint": "eslint . --ext .ts,.tsx --report-unused-disable-directives --max-warnings=0",
+    "lint": "eslint . --report-unused-disable-directives --max-warnings=0",
     "typecheck": "tsc --noEmit",
     "test:unit": "tsx --test --tsconfig tsconfig.json --import ./tests/setup.ts tests/unit/calendar-grid.test.ts tests/unit/fleet-booking-utils.test.ts tests/unit/sanity.test.mjs tests/unit/zoho-sales-order-payload.test.ts",
     "test:watch": "tsx --test --watch --tsconfig tsconfig.json --import ./tests/setup.ts \"tests/unit/**/*.test.ts\" \"tests/unit/**/*.test.tsx\" \"tests/unit/**/*.test.mjs\"",
@@ -125,7 +125,8 @@
       "path-to-regexp": "^6.3.0"
     },
     "path-to-regexp": "^6.3.0",
-    "undici": "^7.16.0"
+    "undici": "^7.16.0",
+    "form-data": "4.0.0"
   },
   "lint-staged": {
     "*.{ts,tsx}": [
