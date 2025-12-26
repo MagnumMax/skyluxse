@@ -438,6 +438,9 @@ export async function createSalesOrderForBooking(bookingId: string): Promise<Cre
             const existingSalesOrderUrl = `https://books.zoho.com/app/${orgId}#/salesorders/${booking.zohoSalesOrderId}`;
             
             if (currentBooking.zoho_sync_status === 'synced') {
+                // Ensure Kommo status is correct even if we skip creation
+                await updateKommoStatus(booking, booking.salesOrderUrl || existingSalesOrderUrl);
+
                 return {
                     success: true,
                     data: {
@@ -455,7 +458,7 @@ export async function createSalesOrderForBooking(bookingId: string): Promise<Cre
                 .from("bookings")
                 .update({ zoho_sync_status: "in_progress" })
                 .eq("id", bookingId)
-                .is("zoho_sync_status", null)
+                .or("zoho_sync_status.is.null,zoho_sync_status.eq.pending,zoho_sync_status.eq.failed")
                 .select("id")
                 .maybeSingle();
             
@@ -479,11 +482,20 @@ export async function createSalesOrderForBooking(bookingId: string): Promise<Cre
                         entityType: "booking",
                         metadata: { salesOrderId: freshStatus.zoho_sales_order_id }
                     });
+
+                     // Ensure Kommo status is updated
+                     let finalUrl = freshStatus.sales_order_url;
+                     if (!finalUrl && freshStatus.zoho_sales_order_id) {
+                        const orgId = await getOrganizationId();
+                        finalUrl = `https://books.zoho.com/app/${orgId}#/salesorders/${freshStatus.zoho_sales_order_id}`;
+                     }
+                     await updateKommoStatus(booking, finalUrl || "");
+
                      return {
                         success: true,
                         data: {
                             salesOrderId: freshStatus.zoho_sales_order_id,
-                            salesOrderUrl: freshStatus.sales_order_url || "",
+                            salesOrderUrl: finalUrl || "",
                             message: "Sales Order already exists",
                         },
                     };
