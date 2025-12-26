@@ -30,7 +30,7 @@
 
 ### 4. Security Configuration (VULN-005, VULN-006)
 **Action:** 
-- Create `middleware.ts` to implement:
+- Create `proxy.ts` to implement:
     - Security Headers (CSP, HSTS, Referrer-Policy, etc.)
     - Rate Limiting (Token Bucket algorithm)
 - Install `eslint-plugin-security` and configure it.
