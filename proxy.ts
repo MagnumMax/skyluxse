@@ -6,7 +6,7 @@ import type { NextRequest } from "next/server";
 // For production, use Redis (e.g., Upstash) or Vercel KV.
 const rateLimitMap = new Map();
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const ip = (request as any).ip || "127.0.0.1";
   const limit = 100; // 100 requests per minute
   const windowMs = 60 * 1000;
