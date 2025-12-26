@@ -1237,7 +1237,8 @@ export async function POST(req: Request) {
             message: `Webhook received (${statusEvents.length} events)`,
             metadata: { 
                 eventCount: statusEvents.length,
-                events: statusEvents.map((e: any) => ({ id: e.id, status_id: e.status_id }))
+                events: statusEvents,
+                fullPayload: payload // Optional: log full payload if needed for context
             }
         })
 
