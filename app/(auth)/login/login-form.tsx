@@ -7,6 +7,13 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 import { login } from "./actions"
 import { supabaseBrowser } from "@/lib/supabase/browser-client"
@@ -19,12 +26,29 @@ const ROLE_ROUTES: Record<string, string> = {
 }
 const DEFAULT_ROUTE = "/fleet-calendar"
 
+const DEV_PROFILES = [
+  { label: "CEO", email: "ceo@skyluxse.ae", password: "password123", role: "ceo" },
+  { label: "Operations", email: "ops@skyluxse.ae", password: "password123", role: "operations" },
+  { label: "Sales", email: "sales@skyluxse.ae", password: "password123", role: "sales" },
+  { label: "Driver", email: "driver@skyluxse.ae", password: "password123", role: "driver" },
+]
+
 export function LoginForm() {
   const router = useRouter()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const isDev = process.env.NODE_ENV === "development"
+
+  const handleProfileSelect = (value: string) => {
+    const profile = DEV_PROFILES.find((p) => p.role === value)
+    if (profile) {
+      setEmail(profile.email)
+      setPassword(profile.password)
+    }
+  }
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -78,6 +102,26 @@ export function LoginForm() {
 
   return (
     <form className="space-y-5" onSubmit={handleSubmit} noValidate>
+      {isDev && (
+        <div className="mb-6 rounded-lg border border-yellow-200 bg-yellow-50 p-4">
+          <Label className="mb-2 block text-xs font-semibold uppercase text-yellow-800">
+            Dev Mode: Quick Login
+          </Label>
+          <Select onValueChange={handleProfileSelect}>
+            <SelectTrigger className="bg-white">
+              <SelectValue placeholder="Select profile..." />
+            </SelectTrigger>
+            <SelectContent>
+              {DEV_PROFILES.map((profile) => (
+                <SelectItem key={profile.role} value={profile.role}>
+                  {profile.label} ({profile.email})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
       <div className="space-y-2">
         <Label htmlFor="login-email" className="text-sm font-medium text-foreground">
           Email
