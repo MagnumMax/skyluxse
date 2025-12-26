@@ -14,6 +14,7 @@
     "test:unit": "tsx --test --tsconfig tsconfig.json --import ./tests/setup.ts tests/unit/calendar-grid.test.ts tests/unit/fleet-booking-utils.test.ts tests/unit/sanity.test.mjs tests/unit/zoho-sales-order-payload.test.ts",
     "test:watch": "tsx --test --watch --tsconfig tsconfig.json --import ./tests/setup.ts \"tests/unit/**/*.test.ts\" \"tests/unit/**/*.test.tsx\" \"tests/unit/**/*.test.mjs\"",
     "test:component": "vitest run",
+    "test:cleanup": "tsx scripts/cleanup-test-data.ts",
     "test:e2e": "npx playwright test",
     "test": "npm run test:unit && npm run test:component && npm run test:e2e",
     "check": "npm run lint && npm run typecheck && npm run test",

@@ -18,6 +18,7 @@ import {
   BOOKING_TYPES,
   FALLBACK_KOMMO_STAGE_META,
   BOOKING_STAGE_FILTER_DEFAULTS,
+  resolveStageKeyFromKommoStatus,
   type BookingStageKey,
 } from "@/lib/constants/bookings"
 import { cn } from "@/lib/utils"
@@ -84,8 +85,12 @@ export function SalesBookingsBoard({
 
   const resolveBookingStageKey = useCallback(
     (booking: Pick<Booking, "kommoStatusId" | "status">): BookingStageKey => {
+      const fromKommo = resolveStageKeyFromKommoStatus(booking.kommoStatusId)
+      if (fromKommo !== "other") return fromKommo
+
       const stageConfig = getStageConfig(booking.kommoStatusId)
       if (stageConfig?.booking_status) {
+        if (stageConfig.booking_status === "preparation") return "confirmed"
         return stageConfig.booking_status as BookingStageKey
       }
       switch (booking.status) {
@@ -95,6 +100,8 @@ export function SalesBookingsBoard({
           return "in-rent"
         case "settlement":
           return "closed"
+        case "preparation":
+          return "confirmed"
         default:
           return "other"
       }
