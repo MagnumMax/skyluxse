@@ -101,20 +101,36 @@ export async function createTestBooking(clientId: string, vehicleId: string) {
 }
 
 export async function cleanupTestData(ids: { bookingId?: string; clientId?: string; vehicleId?: string; taskIds?: string[]; userId?: string }) {
+    // Delete tasks explicitly by ID if provided
     if (ids.taskIds?.length) {
-        await supabase.from('tasks').delete().in('id', ids.taskIds);
+        const { error } = await supabase.from('tasks').delete().in('id', ids.taskIds);
+        if (error) console.error('Error cleaning up tasks by IDs:', error);
     }
+
+    // Delete tasks linked to the booking (if any) before deleting the booking
     if (ids.bookingId) {
-        await supabase.from('bookings').delete().eq('id', ids.bookingId);
+        const { error: tasksError } = await supabase.from('tasks').delete().eq('booking_id', ids.bookingId);
+        if (tasksError) console.error('Error cleaning up tasks by bookingId:', tasksError);
+
+        const { error: bookingError } = await supabase.from('bookings').delete().eq('id', ids.bookingId);
+        if (bookingError) console.error('Error cleaning up booking:', bookingError);
     }
+
     if (ids.clientId) {
-        await supabase.from('clients').delete().eq('id', ids.clientId);
+        const { error } = await supabase.from('clients').delete().eq('id', ids.clientId);
+        if (error) console.error('Error cleaning up client:', error);
     }
+
     if (ids.vehicleId) {
-        await supabase.from('vehicles').delete().eq('id', ids.vehicleId);
+        const { error } = await supabase.from('vehicles').delete().eq('id', ids.vehicleId);
+        if (error) console.error('Error cleaning up vehicle:', error);
     }
+
     if (ids.userId) {
-        await supabase.from('staff_accounts').delete().eq('id', ids.userId);
-        await supabase.auth.admin.deleteUser(ids.userId);
+        const { error: staffError } = await supabase.from('staff_accounts').delete().eq('id', ids.userId);
+        if (staffError) console.error('Error cleaning up staff account:', staffError);
+
+        const { error: authError } = await supabase.auth.admin.deleteUser(ids.userId);
+        if (authError) console.error('Error cleaning up auth user:', authError);
     }
 }
