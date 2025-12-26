@@ -184,7 +184,17 @@ async function kommoGet(path: string, attempt = 1): Promise<any> {
         }
         throw new Error(`Kommo request failed (${resp.status}): ${await resp.text()}`)
     }
-    return resp.json()
+
+    if (resp.status === 204) return null
+
+    const text = await resp.text()
+    if (!text.trim()) return null
+
+    try {
+        return JSON.parse(text)
+    } catch (error) {
+        throw new Error(`Failed to parse Kommo response JSON: ${formatError(error)}. Body: ${text.slice(0, 200)}`)
+    }
 }
 
 function extractFieldValue(contact: any, code: string) {
@@ -800,7 +810,15 @@ async function fetchKommoFileDescriptor(fileUuid: string) {
     if (!resp.ok) {
         throw new Error(`Kommo file metadata request failed (${resp.status}) for ${fileUuid}`)
     }
-    return resp.json()
+
+    const text = await resp.text()
+    if (!text.trim()) return null
+
+    try {
+        return JSON.parse(text)
+    } catch (e) {
+        throw new Error(`Failed to parse file descriptor: ${formatError(e)}. Body: ${text.slice(0, 100)}`)
+    }
 }
 
 function resolveDownloadUrlFromDescriptor(descriptor: any, versionUuid?: string | null) {
@@ -965,6 +983,10 @@ async function handleStatusChange(event: any): Promise<HandleResult> {
     let pipelineId = normalizeStatusId(event.pipeline_id)
 
     const lead = await kommoGet(`/api/v4/leads/${event.id}?with=contacts,custom_fields`)
+    if (!lead) {
+        throw new Error(`Lead ${event.id} not found in Kommo or empty response`)
+    }
+
     const contactId = lead?._embedded?.contacts?.find((c: any) => c.is_main)?.id ?? lead?._embedded?.contacts?.[0]?.id
     const contact = contactId ? await kommoGet(`/api/v4/contacts/${contactId}?with=custom_fields`) : null
     const leadStatusId = normalizeStatusId(lead?.status_id)

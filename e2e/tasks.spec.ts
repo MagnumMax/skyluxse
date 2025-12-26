@@ -71,12 +71,16 @@ test.describe('Task and Booking Flows', () => {
   });
 
   test('should create tasks via API for a valid booking', async ({ request }) => {
-    const { data } = await supabase.auth.signInWithPassword({ email: userEmail, password: userPass });
-    const token = data.session?.access_token;
+    // The API route is protected by CHATBOT_API_KEY, not user auth
+    const apiKey = process.env.CHATBOT_API_KEY;
+    if (!apiKey) {
+      test.skip('CHATBOT_API_KEY not set', () => {});
+      return;
+    }
 
     const response = await request.post('/api/tasks/create', {
       headers: {
-        'Authorization': `Bearer ${token}`,
+        'x-api-key': apiKey,
       },
       data: {
         bookingId: bookingId,
