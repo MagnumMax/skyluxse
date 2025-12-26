@@ -438,26 +438,48 @@ export async function createSalesOrderForBooking(bookingId: string): Promise<Cre
                 };
             }
         } else {
-            // Lock Check
-            const status = currentBooking.zoho_sync_status;
-            if (status === "in_progress") {
+            // Lock Check & Acquire Atomically
+            // We use .is("zoho_sync_status", null) to ensure we only lock if it's not already in progress or synced.
+            // This prevents race conditions where two webhooks arrive simultaneously.
+            const { data: lockedBooking, error: lockError } = await serviceClient
+                .from("bookings")
+                .update({ zoho_sync_status: "in_progress" })
+                .eq("id", bookingId)
+                .is("zoho_sync_status", null)
+                .select("id")
+                .maybeSingle();
+            
+            if (lockError) throw new Error("Failed to acquire lock: " + lockError.message);
+
+            if (!lockedBooking) {
+                // Could not acquire lock. It implies it's either in_progress or synced.
+                // Fetch fresh status to return the correct message.
+                const { data: freshStatus } = await serviceClient
+                    .from("bookings")
+                    .select("zoho_sync_status, zoho_sales_order_id, sales_order_url")
+                    .eq("id", bookingId)
+                    .single();
+
+                if (freshStatus?.zoho_sync_status === 'synced' || freshStatus?.zoho_sales_order_id) {
+                     return {
+                        success: true,
+                        data: {
+                            salesOrderId: freshStatus.zoho_sales_order_id,
+                            salesOrderUrl: freshStatus.sales_order_url || "",
+                            message: "Sales Order already exists",
+                        },
+                    };
+                }
+
                 return {
                     success: true,
                     data: {
-                        salesOrderId: currentBooking.zoho_sales_order_id || "",
-                        salesOrderUrl: currentBooking.sales_order_url || "",
+                        salesOrderId: freshStatus?.zoho_sales_order_id || "",
+                        salesOrderUrl: freshStatus?.sales_order_url || "",
                         message: "Sales Order creation is already in progress",
                     },
                 };
             }
-
-            // Acquire Lock
-            const { error: lockError } = await serviceClient
-                .from("bookings")
-                .update({ zoho_sync_status: "in_progress" })
-                .eq("id", bookingId);
-            
-            if (lockError) throw new Error("Failed to acquire lock");
         }
 
         if (!client) throw new Error("Client not found for this booking");
