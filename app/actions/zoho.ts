@@ -329,7 +329,9 @@ export async function createInvoiceAction(invoiceData: any) {
 export async function createSalesOrderAction(orderData: any) {
     try {
         const { createSalesOrder } = await import("../../lib/zoho/books");
-        const response = await createSalesOrder(orderData);
+        // Force status to be 'draft' as per business requirement
+        const payload = { ...orderData, status: "draft" };
+        const response = await createSalesOrder(payload);
 
         if (response.code === 0) {
             return { success: true, data: response };

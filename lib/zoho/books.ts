@@ -126,18 +126,6 @@ export async function getBooksClient() {
                 body: JSON.stringify(body)
             });
             return res.json();
-        },
-        delete: async (path: string, orgId?: string) => {
-            const url = new URL(`${baseUrl}${path}`);
-            if (orgId) url.searchParams.append("organization_id", orgId);
-
-            const res = await fetchWithRetry(url.toString(), {
-                method: 'DELETE',
-                headers: {
-                    Authorization: `Zoho-oauthtoken ${token}`
-                }
-            });
-            return res.json();
         }
     };
 
@@ -196,9 +184,13 @@ export async function updateSalesOrder(salesOrderId: string, orderData: any) {
 }
 
 export async function deleteSalesOrder(salesOrderId: string) {
+    throw new Error("Deletion is not allowed. Please use 'void' status instead.");
+}
+
+export async function voidSalesOrder(salesOrderId: string) {
     const orgId = await getOrganizationId();
     const client = await getBooksClient();
-    return client.delete(`/salesorders/${salesOrderId}`, orgId);
+    return client.post(`/salesorders/${salesOrderId}/status/void`, {}, orgId);
 }
 
 export async function getSalesOrders(params: { customer_name?: string, email?: string } = {}) {
