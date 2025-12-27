@@ -30,6 +30,7 @@ begin
   end if;
 
   -- Determine assignee: booking driver OR fallback to default driver
+  -- We use coalesce to allow manual override in bookings table if needed
   assignee_id := coalesce(NEW.driver_id, default_driver_id);
 
   -- Determine task properties based on type
@@ -97,8 +98,6 @@ begin
 
   -- Check lead window: only create if deadline is within [now, now + lead_hours]
   if not (target_deadline between utc_now and utc_now + make_interval(hours => lead_hours)) then
-    -- Optional: maybe we want to create them anyway if they don't exist?
-    -- The original logic restricted it. Let's keep it to avoid spamming tasks for future bookings.
     return null;
   end if;
 
