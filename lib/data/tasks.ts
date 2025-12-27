@@ -62,6 +62,11 @@ type TaskRow = {
     name: string | null
     plate_number: string | null
   }[] | null
+  driver_profiles?: {
+    staff_accounts: {
+      full_name: string | null
+    } | null
+  } | null
 }
 
 type TaskInputValueRow = {
@@ -81,7 +86,8 @@ const fetchTaskRows = cache(async (filters?: { driverId?: string; bookingId?: st
       task_required_input_values(key, value_number, value_text, value_json, storage_paths, bucket), 
       clients(name),
       bookings:booking_id(external_code, total_amount, deposit_amount, advance_payment, zoho_sales_order_id, sales_order_url, client_id, vehicle_id),
-      vehicles:vehicle_id(name, plate_number)`
+      vehicles:vehicle_id(name, plate_number),
+      driver_profiles:assignee_driver_id(staff_accounts(full_name))`
     )
     .order("deadline_at", { ascending: true, nullsFirst: false })
 
@@ -97,7 +103,7 @@ const fetchTaskRows = cache(async (filters?: { driverId?: string; bookingId?: st
   if (error) {
     throw new Error(`[supabase] Failed to load tasks: ${error.message}`)
   }
-  return data ?? []
+  return (data as unknown as TaskRow[]) ?? []
 })
 
 export const getOperationsTasks = cache(async (options?: { includeDriverTasks?: boolean }): Promise<OperationsTask[]> => {
@@ -338,6 +344,10 @@ function toBaseTask(
     ? Math.max(0, (booking.totalAmount ?? 0) - (booking.paidAmount ?? 0))
     : Math.max(0, (joinedBooking?.total_amount ?? 0) - ((joinedBooking?.advance_payment ?? 0) + (joinedBooking?.deposit_amount ?? 0)))
 
+  const driverProfile = Array.isArray(row.driver_profiles) ? row.driver_profiles[0] : row.driver_profiles
+  const staffAccount = Array.isArray(driverProfile?.staff_accounts) ? driverProfile.staff_accounts[0] : driverProfile?.staff_accounts
+  const driverName = staffAccount?.full_name || undefined
+
   return {
     id: row.id,
     title: row.title ?? metadata.title ?? "Untitled task",
@@ -349,6 +359,7 @@ function toBaseTask(
     bookingCode: booking?.code ?? joinedBooking?.external_code ?? undefined,
     clientId: booking?.clientId ?? row.client_id ?? undefined,
     clientName: booking?.clientName ?? row.clients?.[0]?.name ?? "Unassigned",
+    driverName,
     vehicleName: (booking?.carName ?? joinedVehicle?.name) || undefined,
     vehiclePlate: booking?.carPlate ?? joinedVehicle?.plate_number ?? undefined,
     vehicleId: row.vehicle_id ?? undefined,

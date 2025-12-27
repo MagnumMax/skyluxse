@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import type { Task } from "@/lib/domain/entities"
 import { cn } from "@/lib/utils"
-import { ArrowDownToLine, CheckCircle2, Hourglass, Loader2, MapPin } from "lucide-react"
+import { ArrowDownToLine, CheckCircle2, Hourglass, Loader2, MapPin, User } from "lucide-react"
 import { formatDateTime } from "@/lib/formatters"
 
 export const taskTypeLabels: Record<Task["type"], string> = {
@@ -123,6 +123,12 @@ export function DriverTaskCard({
             {task.vehicleName ?? task.title}
           </CardTitle>
         </div>
+        {task.driverName ? (
+          <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+            <User className="h-4 w-4 shrink-0 text-muted-foreground/70" />
+            <span className="font-medium text-foreground">{task.driverName}</span>
+          </div>
+        ) : null}
         {showLocationHeader
           ? (() => {
               if (!task.geo) return null

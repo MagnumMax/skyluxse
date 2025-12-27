@@ -79,7 +79,7 @@ async function handleTelegramJob(supabase: SupabaseClient, eventType: string, pa
     const plateNumber = task.vehicles?.plate_number || 'No Plate'
     const clientName = task.clients?.name || 'Unknown Client'
     // @ts-ignore
-    const assigneeName = task.driver_profiles?.staff_accounts?.full_name || 'Unassigned'
+    const driverName = task.driver_profiles?.staff_accounts?.full_name || 'Unassigned'
     const deadline = task.deadline_at ? new Date(task.deadline_at).toLocaleString('ru-RU', { timeZone: 'Asia/Dubai' }) : 'No Deadline'
 
     const message = `
@@ -90,7 +90,7 @@ async function handleTelegramJob(supabase: SupabaseClient, eventType: string, pa
 <b>Booking:</b> ${bookingCode}
 <b>Vehicle:</b> ${vehicleName} (${plateNumber})
 <b>Client:</b> ${clientName}
-<b>Assignee:</b> ${assigneeName}
+<b>Driver:</b> ${driverName}
 <b>Deadline:</b> ${deadline}
 `.trim()
     await sendTelegramMessage(message)

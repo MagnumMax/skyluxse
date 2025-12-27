@@ -297,6 +297,7 @@ export interface Task {
   bookingCode?: string
   clientId?: EntityId
   clientName?: string
+  driverName?: string
   vehicleName?: string
   vehiclePlate?: string
   vehicleId?: EntityId
