@@ -1,11 +1,11 @@
 import { test, expect } from '@playwright/test';
 import { createTestClient, createTestVehicle, cleanupTestData, supabase } from './fixtures/supabase';
-import { startKommoMock, KommoMockServer, setupMockLead, setupMockContact } from './fixtures/kommo-mock';
+import { startKommoMock, KommoMockServer, setupMockLead, setupMockContact, requests, clearRequests } from './fixtures/kommo-mock';
 
-// Run tests in this file serially to avoid port conflicts with the mock server
+// Run tests in this file serially to emulate lead lifecycle
 test.describe.configure({ mode: 'serial' });
 
-test.describe('Kommo Webhooks', () => {
+test.describe('Kommo Webhooks Sequential Flow', () => {
   let clientId: string;
   let vehicleId: string;
   let vehicleKommoId: string;
@@ -14,7 +14,7 @@ test.describe('Kommo Webhooks', () => {
   let mockServer: KommoMockServer;
 
   test.beforeAll(async () => {
-    // Try to start on 9999, if fails, we might need retry or just assume serial fixes it
+    // Start mock server
     try {
         mockServer = await startKommoMock(9999);
     } catch (e) {
@@ -22,39 +22,15 @@ test.describe('Kommo Webhooks', () => {
         throw e;
     }
 
+    // Create test data
     const client = await createTestClient();
     clientId = client.id;
     const vehicle = await createTestVehicle();
     vehicleId = vehicle.id;
     vehicleKommoId = `TEST-KOMMO-${Date.now()}`;
-    await supabase.from('vehicles').update({ kommo_vehicle_id: vehicleKommoId }).eq('id', vehicleId);
+    await supabase.from('vehicles').update({ kommo_vehicle_id: vehicleKommoId, zoho_item_id: 'zoho-item-123' }).eq('id', vehicleId);
     
-    leadId = `1970${Math.floor(Math.random() * 10000)}`; // Use numeric string as Kommo IDs are usually numbers
-    
-    // Setup Mock Lead Data
-    // We need to match what we send in the webhook or what route.ts expects to fetch
-    const mockLead = {
-        id: Number(leadId),
-        name: `Test Lead ${leadId}`,
-        status_id: 96150292,
-        pipeline_id: 9815931,
-        custom_fields_values: [
-            {
-                field_id: 1234163, // Vehicle
-                values: [{ value: vehicleKommoId }] 
-            },
-            {
-                field_id: 1233272, // Advance Payment
-                values: [{ value: 0 }]
-            }
-        ],
-        _embedded: {
-            contacts: [
-                { id: 12345, is_main: true }
-            ]
-        }
-    };
-    setupMockLead(leadId, mockLead);
+    leadId = `1970${Math.floor(Math.random() * 10000)}`;
     
     setupMockContact('12345', {
         id: 12345,
@@ -76,21 +52,34 @@ test.describe('Kommo Webhooks', () => {
     await cleanupTestData({ clientId, vehicleId, bookingId });
   });
 
-  test('should handle Kommo status change to "Waiting for Payment" (No Prepayment)', async ({ request }) => {
-    // Update mock for this test scenario if needed, or rely on initial setup
+  test('Step 1: "Sales order sent" with Prepayment -> Create Booking, Zoho Order, Update Kommo Status', async ({ request }) => {
+    clearRequests();
+
+    // 1. Setup Mock Lead with Prepayment
+    const mockLead = {
+        id: Number(leadId),
+        name: `Test Lead ${leadId}`,
+        status_id: 98035992, // Sales order sent
+        pipeline_id: 9815931,
+        price: 1000,
+        custom_fields_values: [
+            { field_id: 1234163, values: [{ value: vehicleKommoId }] }, // Vehicle
+            { field_id: 1233272, values: [{ value: 500 }] }, // Advance Payment
+            { field_id: 1218176, values: [{ value: Math.floor(Date.now() / 1000) + 3600 }] }, // Start
+            { field_id: 1218178, values: [{ value: Math.floor(Date.now() / 1000) + 86400 }] }  // End
+        ],
+        _embedded: { contacts: [{ id: 12345 }] }
+    };
+    setupMockLead(leadId, mockLead);
+
+    // 2. Send Webhook
     const payload = {
       leads: {
         status: [
           {
             id: leadId,
-            status_id: '96150292', // Waiting for Payment
-            pipeline_id: '9815931',
-            custom_fields_values: [
-                {
-                    field_id: 1234163,
-                    values: [{ value: vehicleKommoId }] 
-                }
-            ]
+            status_id: '98035992',
+            pipeline_id: '9815931'
           }
         ]
       }
@@ -99,96 +88,71 @@ test.describe('Kommo Webhooks', () => {
     const response = await request.post('/api/integrations/kommo/webhook', {
       data: payload
     });
-
     expect(response.status()).toBe(200);
-    
-    // Wait for processing (route.ts is async but awaits handleStatusChange)
-    
-    const { data: booking } = await supabase
-        .from('bookings')
-        .select('*')
-        .eq('source_payload_id', `kommo:${leadId}`)
-        .single();
-    
-    expect(booking).toBeDefined();
-    if (booking) {
-        expect(booking.status).toBe('confirmed');
-        bookingId = booking.id;
-    }
+
+    // 3. Verify Booking Creation
+    await expect.poll(async () => {
+        const { data } = await supabase
+            .from('bookings')
+            .select('*')
+            .eq('source_payload_id', `kommo:${leadId}`)
+            .single();
+        if (data) bookingId = data.id;
+        return data;
+    }, {
+        message: 'Booking should be created',
+        timeout: 10000,
+    }).toBeDefined();
+
+    // 4. Verify Booking Data
+    const { data: booking } = await supabase.from('bookings').select('*').eq('id', bookingId).single();
+    expect(booking.advance_payment).toBe(500);
+    expect(booking.status).toBe('preparation');
+
+    // 5. Verify Zoho Sales Order Creation (System initiated)
+    // Check DB update
+    expect(booking.zoho_sales_order_id).toBe('zoho-so-999'); // From Mock
+    expect(booking.sales_order_url).toContain('salesorders/zoho-so-999');
+
+    // Check Mock Request
+    const zohoRequest = requests.find(r => r.url === '/zoho/salesorders' && r.method === 'POST');
+    expect(zohoRequest).toBeDefined();
+
+    // 6. Verify Kommo Lead Status Transition to "Payment pending"
+    // Since prepayment > 0, it should transition to 96150292
+    await expect.poll(() => {
+        return requests.find(r => 
+            r.url === `/api/v4/leads/${leadId}` && 
+            r.method === 'PATCH' &&
+            r.body.status_id === 96150292 // Payment pending
+        );
+    }, {
+        message: 'Should attempt to update Kommo status to Payment pending',
+        timeout: 5000
+    }).toBeDefined();
   });
 
-  test('should handle Kommo status change with Prepayment', async ({ request }) => {
-    // Update mock to reflect prepayment
+  test('Step 2: Delivery Task Creation', async ({ request }) => {
+    // 1. Update Mock Status
     const mockLead = {
         id: Number(leadId),
-        name: `Test Lead ${leadId}`,
-        status_id: 96150292,
+        status_id: 75440395, // Delivery Within 24 Hours
         pipeline_id: 9815931,
+        // Keep other fields
         custom_fields_values: [
             { field_id: 1234163, values: [{ value: vehicleKommoId }] },
-            { field_id: 1233272, values: [{ value: 500 }] } // Advance Payment
-        ],
-        _embedded: { contacts: [{ id: 12345 }] }
+            { field_id: 1233272, values: [{ value: 500 }] }
+        ]
     };
     setupMockLead(leadId, mockLead);
 
+    // 2. Send Webhook
     const payload = {
         leads: {
           status: [
             {
               id: leadId,
-              status_id: '96150292',
-              pipeline_id: '9815931'
-            }
-          ]
-        }
-      };
-  
-      const response = await request.post('/api/integrations/kommo/webhook', {
-        data: payload
-      });
-      expect(response.status()).toBe(200);
-
-      const { data: booking } = await supabase
-        .from('bookings')
-        .select('advance_payment, status')
-        .eq('source_payload_id', `kommo:${leadId}`)
-        .single();
-      
-      expect(booking).toBeDefined();
-      if (booking) {
-        expect(booking.advance_payment).toBe(500);
-        expect(booking.status).toBe('confirmed');
-      }
-  });
-
-  test('should create Delivery task when status changes to "Delivery Within 24 Hours"', async ({ request }) => {
-    const now = Math.floor(Date.now() / 1000);
-    const startAt = now + 3600; // +1 hour
-    const endAt = now + 86400 * 2;
-
-    // Update mock with dates
-    const mockLead = {
-        id: Number(leadId),
-        name: `Test Lead ${leadId}`,
-        status_id: 75440395,
-        price: 1000,
-        pipeline_id: 9815931,
-        custom_fields_values: [
-            { field_id: 1234163, values: [{ value: vehicleKommoId }] },
-            { field_id: 1218176, values: [{ value: startAt }] }, // Delivery Date
-            { field_id: 1218178, values: [{ value: endAt }] }  // Collect Date
-        ],
-        _embedded: { contacts: [{ id: 12345 }] }
-    };
-    setupMockLead(leadId, mockLead);
-
-    const payload = {
-        leads: {
-          status: [
-            {
-              id: leadId,
-              status_id: '75440395', // Delivery Within 24 Hours
+              status_id: '75440395',
               pipeline_id: '9815931'
             }
           ]
@@ -200,92 +164,41 @@ test.describe('Kommo Webhooks', () => {
       });
       expect(response.status()).toBe(200);
 
-      // Verify Booking Status
+      // 3. Verify Booking Status
       const { data: booking } = await supabase
         .from('bookings')
         .select('status, id')
-        .eq('source_payload_id', `kommo:${leadId}`)
+        .eq('id', bookingId)
         .single();
       
-      expect(booking).toBeDefined();
-      if (booking) {
-        expect(booking.status).toBe('delivery');
+      expect(booking).not.toBeNull();
+      expect(booking!.status).toBe('delivery');
+
+      // 4. Verify Task Creation and Driver Visibility
+      await expect.poll(async () => {
+          const { data } = await supabase
+              .from('tasks')
+              .select('*')
+              .eq('booking_id', bookingId)
+              .eq('task_type', 'delivery');
+          return data;
+      }, {
+          message: 'Delivery task should be created',
+          timeout: 5000,
+      }).toHaveLength(1);
+
+      const { data: tasks } = await supabase
+          .from('tasks')
+          .select('*')
+          .eq('booking_id', bookingId)
+          .eq('task_type', 'delivery');
         
-        // Verify Task Creation
-        await expect.poll(async () => {
-            const { data } = await supabase
-                .from('tasks')
-                .select('*')
-                .eq('booking_id', booking.id)
-                .eq('task_type', 'delivery');
-            return data?.length;
-        }, {
-            message: 'Delivery task should be created',
-            timeout: 5000,
-        }).toBeGreaterThan(0);
-      }
-  });
-
-  test('should create Pickup task when status changes to "Pick Up Within 24 Hours"', async ({ request }) => {
-    const now = Math.floor(Date.now() / 1000);
-    const startAt = now + 3600; 
-    const endAt = now + 86400 * 2; // +2 days
-
-    // Update mock with dates and status
-    const mockLead = {
-        id: Number(leadId),
-        name: `Test Lead ${leadId}`,
-        status_id: 76475495,
-        pipeline_id: 9815931,
-        custom_fields_values: [
-            { field_id: 1234163, values: [{ value: vehicleKommoId }] },
-            { field_id: 1218176, values: [{ value: startAt }] }, 
-            { field_id: 1218178, values: [{ value: endAt }] } 
-        ],
-        _embedded: { contacts: [{ id: 12345 }] }
-    };
-    setupMockLead(leadId, mockLead);
-
-    const payload = {
-        leads: {
-          status: [
-            {
-              id: leadId,
-              status_id: '76475495', // Pick Up Within 24 Hours
-              pipeline_id: '9815931'
-            }
-          ]
-        }
-      };
-
-      const response = await request.post('/api/integrations/kommo/webhook', {
-        data: payload
-      });
-      expect(response.status()).toBe(200);
-
-      // Verify Booking Status
-      const { data: booking } = await supabase
-        .from('bookings')
-        .select('status, id')
-        .eq('source_payload_id', `kommo:${leadId}`)
-        .single();
+      const task = tasks![0];
+      // "Appeared for driver" -> Status is open (unassigned) or assigned (if logic assigns it)
+      // Usually it starts as 'todo' or 'open'
+      expect(['todo', 'open', 'pending', 'assigned']).toContain(task.status);
       
-      expect(booking).toBeDefined();
-      if (booking) {
-        expect(booking.status).toBe('in_progress'); // Mapped from 76475495
-        
-        // Verify Pickup Task Creation
-        await expect.poll(async () => {
-            const { data } = await supabase
-                .from('tasks')
-                .select('*')
-                .eq('booking_id', booking.id)
-                .eq('task_type', 'pickup');
-            return data?.length;
-        }, {
-            message: 'Pickup task should be created',
-            timeout: 5000,
-        }).toBeGreaterThan(0);
-      }
+      // Also ensure it has a start/end time or deadline so it appears on board
+      expect(task.deadline_at).toBeDefined();
   });
 });

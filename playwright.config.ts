@@ -19,7 +19,7 @@ export default defineConfig({
   reporter: 'html',
   timeout: 60 * 1000, // Increased timeout for local testing
   use: {
-    baseURL: 'http://localhost:6767',
+    baseURL: 'http://localhost:6768',
     trace: 'on-first-retry',
   },
   projects: [
@@ -29,13 +29,15 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'npm run dev',
-    url: 'http://localhost:6767',
+    command: 'PORT=6768 KOMMO_BASE_URL=http://localhost:9999 npm run dev',
+    url: 'http://localhost:6768',
     reuseExistingServer: !process.env.CI,
     timeout: 180 * 1000,
     env: {
         KOMMO_BASE_URL: 'http://localhost:9999',
         KOMMO_ACCESS_TOKEN: 'mock-token',
+        ZOHO_BOOKS_API_URL: 'http://localhost:9999/zoho',
+        ZOHO_ORG_ID: 'test-org-123',
     }
   },
 });

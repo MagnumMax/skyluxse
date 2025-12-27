@@ -54,8 +54,8 @@ const KOMMO_STATUS_CONFIG: Record<string, { label: string; bookingStatus: string
     "75440383": { label: "Incoming Leads", bookingStatus: "lead" },
     "79790631": { label: "Request Bot Answering", bookingStatus: "lead" },
     "91703923": { label: "Follow Up", bookingStatus: "lead" },
-    "96150292": { label: "Waiting for Payment", bookingStatus: "confirmed" },
-    "98035992": { label: "Sales order sent", bookingStatus: "confirmed" }, // Added missing status
+    "98035992": { label: "Sales order sent", bookingStatus: "preparation" },
+    "96150292": { label: "Waiting for Payment", bookingStatus: "preparation" },
     "75440391": { label: "Confirmed Bookings", bookingStatus: "confirmed" },
     "75440395": { label: "Delivery Within 24 Hours", bookingStatus: "delivery" },
     "75440399": { label: "Car with Customers", bookingStatus: "in_progress" },
@@ -288,7 +288,7 @@ function extractIntegerField(entity: any, fieldId: number) {
 }
 
 function mapBookingStatus(statusId: string) {
-    return KOMMO_STATUS_CONFIG[statusId]?.bookingStatus ?? "lead"
+    return KOMMO_STATUS_CONFIG[statusId]?.bookingStatus ?? null
 }
 
 function resolveKommoStatusLabel(statusId: string | null) {
@@ -1008,6 +1008,11 @@ async function handleStatusChange(event: any): Promise<HandleResult> {
     const stageId = mapPipelineStage(String(pipelineId ?? event.pipeline_id ?? ""), String(statusId ?? ""))
     await upsertSalesLead(lead, clientId, stageId)
     const bookingStatus = mapBookingStatus(String(statusId ?? ""))
+    
+    if (!bookingStatus) {
+        return { leadId: event.id, skipped: true, statusId, statusLabel: "Ignored" }
+    }
+
     const kommoVehicleId = extractKommoVehicleId(lead)
     let vehicleMatch: { id: string } | null = null
     if (kommoVehicleId) {

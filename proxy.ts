@@ -39,6 +39,7 @@ export function proxy(request: NextRequest) {
     script-src 'self' 'unsafe-eval' 'unsafe-inline' https://va.vercel-scripts.com;
     style-src 'self' 'unsafe-inline';
     img-src 'self' blob: data: https://*.supabase.co https://*.googleusercontent.com;
+    connect-src 'self' https://*.supabase.co https://*.supabase.net wss://*.supabase.co https://va.vercel-scripts.com;
     font-src 'self' data:;
     object-src 'none';
     base-uri 'self';

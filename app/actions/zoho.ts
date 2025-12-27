@@ -594,7 +594,8 @@ export async function createSalesOrderForBooking(bookingId: string): Promise<Cre
             .update({
                 zoho_sales_order_id: salesOrderId,
                 sales_order_url: salesOrderUrl,
-                zoho_sync_status: "synced"
+                zoho_sync_status: "synced",
+                total_amount: booking.totalAmount // Ensure DB reflects the calculated gross amount for notifications
             })
             .eq("id", bookingId);
 
@@ -613,10 +614,9 @@ export async function createSalesOrderForBooking(bookingId: string): Promise<Cre
         
         const servicesText = serviceNames.length > 0 ? `\n<b>Services:</b> ${serviceNames.join(", ")}` : "";
 
-        await sendNotification('telegram', {
-            message: `✅ <b>Sales Order Created</b>\n\n<b>Booking:</b> ${booking.code}\n<b>Sales Order:</b> <a href="${salesOrderUrl}">Link</a>\n<b>Client:</b> ${client.name}\n<b>Auto:</b> ${booking.carName}\n<b>Plate:</b> ${booking.carPlate || "N/A"}\n<b>Amount:</b> ${booking.totalAmount} AED${servicesText}`
-        }).catch(err => console.error("Failed to send success notification", err));
-
+        // Notification is now handled by DB Trigger -> Edge Function (integrations_outbox)
+        // This prevents duplicate notifications.
+  
         await logSystemEvent({
             level: "info",
             category: "zoho",

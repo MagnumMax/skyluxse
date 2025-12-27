@@ -87,7 +87,7 @@ export async function getBooksClient() {
     // But for efficiency, we can cache it or let the caller handle it.
     // For now, let's fetch it if we don't have it, or just return a client that can fetch it.
 
-    const baseUrl = "https://www.zohoapis.com/books/v3";
+    const baseUrl = process.env.ZOHO_BOOKS_API_URL || "https://www.zohoapis.com/books/v3";
 
     const client = {
         get: async (path: string, orgId?: string) => {
