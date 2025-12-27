@@ -6,6 +6,41 @@ import { ProfileMenu } from "@/components/profile-menu"
 
 const pushMock = vi.fn()
 
+// Mock @supabase/ssr to handle the underlying call
+vi.mock("@supabase/ssr", () => ({
+  createBrowserClient: () => ({
+    auth: {
+      getUser: () => Promise.resolve({
+        data: {
+          user: {
+            id: "user-123",
+            email: "alex.kim@skyluxse.com",
+            user_metadata: {
+              full_name: "Alex Kim",
+            },
+          },
+        },
+        error: null,
+      }),
+    },
+    from: () => ({
+      select: () => ({
+        eq: () => ({
+          maybeSingle: () => Promise.resolve({
+            data: {
+              full_name: "Alex Kim",
+              email: "alex.kim@skyluxse.com",
+              role: "admin",
+              avatar_url: null,
+            },
+            error: null,
+          }),
+        }),
+      }),
+    }),
+  }),
+}))
+
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
     push: pushMock,
@@ -22,7 +57,7 @@ describe("ProfileMenu", () => {
 
     render(<ProfileMenu />)
 
-    await user.click(screen.getByRole("button", { name: /open profile menu/i }))
+    await user.click(await screen.findByRole("button", { name: /open profile menu/i }))
 
     const menu = await screen.findByRole("menu")
 
@@ -37,7 +72,7 @@ describe("ProfileMenu", () => {
 
     render(<ProfileMenu onNavigate={onNavigate} />)
 
-    await user.click(screen.getByRole("button", { name: /open profile menu/i }))
+    await user.click(await screen.findByRole("button", { name: /open profile menu/i }))
     const logoutItem = await screen.findByRole("menuitem", { name: /sign out/i })
     await user.click(logoutItem)
 
