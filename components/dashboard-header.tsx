@@ -168,7 +168,7 @@ function MobileNav({ navGroups }: { navGroups: DashboardNavGroup[] }) {
           })}
         </div>
         <div className="border-t border-white/10 bg-white/5 px-6 py-5">
-          <ProfileMenu placement="top" onNavigate={() => setOpen(false)} />
+          <ProfileMenu side="top" onNavigate={() => setOpen(false)} />
         </div>
       </SheetContent>
     </Sheet>

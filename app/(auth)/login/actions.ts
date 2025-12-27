@@ -1,7 +1,7 @@
 "use server"
 
 import { cookies } from "next/headers"
-import { createClient } from "@supabase/supabase-js"
+import { createClient } from "@/lib/supabase/server"
 import { serviceClient } from "@/lib/supabase/service-client"
 
 export async function login(formData: FormData) {
@@ -12,14 +12,8 @@ export async function login(formData: FormData) {
     return { error: "Email and password are required" }
   }
 
-  // 1. Authenticate using a fresh client (to avoid side effects on serviceClient)
-  // We use the anon/publishable key for auth typically
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  
-  const authClient = createClient(supabaseUrl, supabaseKey, {
-    auth: { persistSession: false }
-  })
+  // 1. Authenticate using SSR client (handles cookies automatically)
+  const authClient = await createClient()
 
   const { data: authData, error: authError } = await authClient.auth.signInWithPassword({
     email,

@@ -20,7 +20,10 @@ export function DashboardSidebar({ navGroups }: SidebarProps) {
   const uniqueLinks = links.filter(
     (link, index) => links.findIndex((candidate) => candidate.href === link.href) === index
   )
-  const [collapsed, setCollapsed] = useState(true)
+  const [isHovered, setIsHovered] = useState(false)
+  const [isMenuOpen, setIsMenuOpen] = useState(false)
+  
+  const collapsed = !isHovered && !isMenuOpen
 
   return (
     <aside
@@ -33,8 +36,8 @@ export function DashboardSidebar({ navGroups }: SidebarProps) {
         height: "100vh",
         paddingTop: "var(--dashboard-header-height, 64px)",
       }}
-      onMouseEnter={() => setCollapsed(false)}
-      onMouseLeave={() => setCollapsed(true)}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
     >
       <nav className="relative z-10 flex flex-1 flex-col gap-2 overflow-y-auto px-2.5 pb-2 pt-2.5">
         <div className="space-y-0.5">
@@ -82,13 +85,15 @@ export function DashboardSidebar({ navGroups }: SidebarProps) {
           })}
         </div>
       </nav>
-      <div className="border-t border-white/10 bg-white/5 px-2.5 py-3">
+      <div className="border-t border-white/10 bg-transparent px-2 py-2">
         <ProfileMenu
-          placement="bottom"
+          side={collapsed ? "right" : "top"}
+          align={collapsed ? "start" : "center"}
+          sideOffset={collapsed ? 20 : 10}
           hideDetails={collapsed}
+          onOpenChange={setIsMenuOpen}
           className={cn(
-            "w-full justify-start",
-            collapsed ? "justify-center px-1" : "px-2"
+            collapsed ? "justify-center" : "w-full"
           )}
         />
       </div>

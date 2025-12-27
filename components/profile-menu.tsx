@@ -1,17 +1,20 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { Check, ChevronDown, LogOut } from "lucide-react"
+import { Check, ChevronsUpDown, LogOut, Settings, User } from "lucide-react"
 import { useRouter } from "next/navigation"
 
 import { cn } from "@/lib/utils"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 
 type ProfileMenuProps = {
   className?: string
-  placement?: "top" | "bottom" | "bottom-end"
+  side?: "top" | "bottom" | "left" | "right"
+  sideOffset?: number
+  align?: "start" | "center" | "end"
   onNavigate?: () => void
+  onOpenChange?: (open: boolean) => void
   hideDetails?: boolean
 }
 
@@ -20,13 +23,14 @@ type ProfileState = {
   name: string
   role: string
   email: string
+  avatarUrl?: string
 }
 
 const fallbackProfile: ProfileState = {
-  initials: "AK",
-  name: "Alex Kim",
-  role: "Operations Lead",
-  email: "alex.kim@skyluxse.com",
+  initials: "",
+  name: "",
+  role: "",
+  email: "",
 }
 
 const logoutHref = "/login"
@@ -34,6 +38,7 @@ const logoutHref = "/login"
 type RouterPushInput = Parameters<ReturnType<typeof useRouter>["push"]>[0]
 
 function toInitials(nameOrEmail: string) {
+  if (!nameOrEmail) return ""
   const trimmed = nameOrEmail.trim()
   const parts = trimmed.split(/\s+/).filter(Boolean)
   if (parts.length >= 2) {
@@ -47,32 +52,78 @@ function toInitials(nameOrEmail: string) {
   return trimmed[0]?.toUpperCase() || "U"
 }
 
-export function ProfileMenu({ className, placement = "top", onNavigate, hideDetails = false }: ProfileMenuProps) {
+export function ProfileMenu({ 
+  className, 
+  side = "top", 
+  sideOffset = 8,
+  align = "start",
+  onNavigate, 
+  onOpenChange,
+  hideDetails = false 
+}: ProfileMenuProps) {
   const router = useRouter()
-  const [profile, setProfile] = useState<ProfileState>(fallbackProfile)
+  const [profile, setProfile] = useState<ProfileState | null>(null)
 
   useEffect(() => {
     let cancelled = false
     async function load() {
       try {
-        const mod = await import("@/lib/supabase/browser-client")
-        const client = mod.supabaseBrowser
-        const { data: userData } = await client.auth.getUser()
+        const mod = await import("@/lib/supabase/client")
+        const client = mod.createClient()
+        const { data: userData, error: authError } = await client.auth.getUser()
         const user = userData?.user
-        if (!user || cancelled) return
-        const { data: staff } = await client
-          .from("staff_accounts")
-          .select("full_name,email,role")
-          .eq("id", user.id)
-          .single()
-        const name = staff?.full_name || user.user_metadata?.full_name || user.email || "User"
-        const email = staff?.email || user.email || ""
-        const role = staff?.role || "staff"
-        const initials = toInitials(name || email || "")
-        if (!cancelled) {
-          setProfile({ initials, name, role, email })
+        
+        // DIAGNOSTIC LOG START
+        if (user) {
+          console.group("ProfileMenu Diagnostics")
+          console.log("Auth User ID:", user.id)
+          console.log("Auth Email:", user.email)
+          
+          const { data: directCheck, error: checkError } = await client
+            .from("staff_accounts")
+            .select("*")
+            .eq("id", user.id)
+            .maybeSingle()
+            
+          console.log("Database Lookup Result:", directCheck)
+          console.log("Database Lookup Error:", checkError)
+          console.groupEnd()
         }
-      } catch {
+        // DIAGNOSTIC LOG END
+
+        if (authError || !user) {
+          console.warn("ProfileMenu: Auth error or no user", authError)
+          if (!cancelled) setProfile(fallbackProfile)
+          return
+        }
+
+        const { data: staff, error: staffError } = await client
+          .from("staff_accounts")
+          .select("full_name,email,role,avatar_url")
+          .eq("id", user.id)
+          .maybeSingle()
+        
+        // Priority: 1. Staff Profile 2. Auth Metadata 3. Auth Email
+        const name = staff?.full_name || 
+                    user.user_metadata?.full_name || 
+                    user.user_metadata?.name || 
+                    (user.email ? user.email.split('@')[0] : "Guest")
+                    
+        const email = staff?.email || user.email || "No email"
+        
+        // Format role
+        let role = staff?.role || "user"
+        if (role.toLowerCase() === 'ceo') role = 'CEO'
+        else role = role.charAt(0).toUpperCase() + role.slice(1)
+
+        const avatarUrl = staff?.avatar_url || user.user_metadata?.avatar_url
+        const initials = toInitials(name || email || "")
+        
+        if (!cancelled) {
+          setProfile({ initials, name, role, email, avatarUrl })
+        }
+      } catch (error) {
+        console.error("Profile loading failed:", error)
         if (!cancelled) {
           setProfile(fallbackProfile)
         }
@@ -84,85 +135,117 @@ export function ProfileMenu({ className, placement = "top", onNavigate, hideDeta
     }
   }, [])
 
-  const details = useMemo(
-    () => (!hideDetails ? (
-      <span className="hidden min-w-[140px] flex-col text-left leading-tight sm:flex">
-        <span className="text-sm font-semibold text-white">{profile.name}</span>
-        <span className="text-[11px] text-white/70">{profile.role}</span>
-      </span>
-    ) : null),
-    [hideDetails, profile.name, profile.role]
-  )
-
   const handleNavigate = (href: string) => {
     router.push(href as RouterPushInput)
     onNavigate?.()
   }
 
+  if (!profile) {
+    return (
+      <div className={cn("flex items-center gap-3 rounded-lg p-2", hideDetails ? "justify-center" : "w-full", className)}>
+        <div className="h-9 w-9 animate-pulse rounded-full bg-white/10" />
+        {!hideDetails && (
+          <div className="flex flex-1 flex-col gap-1">
+            <div className="h-3 w-20 animate-pulse rounded bg-white/10" />
+            <div className="h-2 w-28 animate-pulse rounded bg-white/10" />
+          </div>
+        )}
+      </div>
+    )
+  }
+
   return (
-    <DropdownMenu>
+    <DropdownMenu onOpenChange={onOpenChange}>
       <DropdownMenuTrigger asChild>
         <button
           type="button"
           aria-label="Open profile menu"
           className={cn(
-            "group inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-2 py-1 text-sm font-medium text-white shadow-sm transition hover:border-white/25 hover:bg-white/16 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40",
+            "group flex items-center gap-3 rounded-lg p-2 text-left outline-none transition-all hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-emerald-500",
+            hideDetails ? "justify-center" : "w-full",
             className
           )}
         >
-          <span className="relative flex items-center">
-            <Avatar className="h-10 w-10 border border-white/20 bg-white/5">
-              <AvatarFallback className="bg-gradient-to-br from-slate-800 to-slate-900 text-xs font-semibold uppercase text-white">
+          <div className="relative flex shrink-0">
+            <Avatar className="h-9 w-9 border border-white/10 bg-slate-800">
+              {profile.avatarUrl && <AvatarImage src={profile.avatarUrl} alt={profile.name} />}
+              <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-purple-600 text-xs font-semibold text-white">
                 {profile.initials}
               </AvatarFallback>
             </Avatar>
             <span
-              className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-emerald-400 shadow-[0_0_0_2px_rgba(15,23,42,0.95)]"
+              className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-slate-900"
               aria-hidden
             />
-          </span>
-          {details}
-          <ChevronDown className="h-4 w-4 text-white/90 transition-transform group-data-[state=open]:rotate-180" aria-hidden />
+          </div>
+          
+          {!hideDetails && (
+            <>
+              <div className="flex flex-1 flex-col overflow-hidden leading-none">
+                <span className="truncate text-sm font-medium text-slate-200 group-hover:text-white">
+                  {profile.name || "Guest"}
+                </span>
+                <span className="truncate text-xs text-slate-400 group-hover:text-slate-300">
+                  {profile.email}
+                </span>
+              </div>
+              <ChevronsUpDown className="ml-auto h-4 w-4 shrink-0 text-slate-500 transition-colors group-hover:text-slate-300" />
+            </>
+          )}
         </button>
       </DropdownMenuTrigger>
+      
       <DropdownMenuContent
-        align="end"
-        side={placement === "top" ? "top" : "bottom"}
-        sideOffset={10}
-        className="w-72 rounded-2xl border border-border/60 bg-card/95 p-3 shadow-xl backdrop-blur"
+        side={side}
+        sideOffset={sideOffset}
+        align={align}
+        className="w-64 rounded-xl border-white/10 bg-slate-900 p-1 text-slate-200 shadow-xl ring-1 ring-white/10 backdrop-blur-xl"
       >
-        <div className="flex items-start gap-3 px-1 pb-2">
-          <Avatar className="h-12 w-12 border border-border/50 bg-muted/60">
-            <AvatarFallback className="bg-gradient-to-br from-slate-800 to-slate-950 text-sm font-semibold uppercase text-white">
-              {profile.initials}
-            </AvatarFallback>
-          </Avatar>
-          <div className="flex-1 space-y-0.5">
-            <p className="text-sm font-semibold text-foreground">{profile.name}</p>
-            <p className="text-xs text-muted-foreground">{profile.role}</p>
-            <p className="text-xs text-muted-foreground">{profile.email}</p>
+        <DropdownMenuLabel className="p-0 font-normal">
+          <div className="flex items-center gap-3 px-2 py-2.5 text-left text-sm">
+            <Avatar className="h-9 w-9 border border-white/10">
+              {profile.avatarUrl && <AvatarImage src={profile.avatarUrl} alt={profile.name} />}
+              <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-purple-600 text-xs font-semibold text-white">
+                {profile.initials}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex flex-1 flex-col overflow-hidden leading-none">
+              <span className="truncate font-medium text-white">{profile.name}</span>
+              <span className="truncate text-xs text-slate-400">{profile.email}</span>
+            </div>
           </div>
-          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-[11px] font-medium text-emerald-700 ring-1 ring-emerald-100">
-            <span className="h-2 w-2 rounded-full bg-emerald-500" aria-hidden />
-            Online
-          </span>
-        </div>
-
-        <DropdownMenuSeparator />
-
+        </DropdownMenuLabel>
+        
+        <DropdownMenuSeparator className="bg-white/10" />
+        
+        <DropdownMenuGroup>
+          <DropdownMenuItem 
+            className="group flex cursor-pointer items-center gap-2 rounded-lg px-2 py-2 text-sm text-slate-300 focus:bg-white/10 focus:text-white"
+            onSelect={() => handleNavigate("/account")}
+          >
+            <User className="h-4 w-4 text-slate-400 group-focus:text-white" />
+            <span>Account</span>
+          </DropdownMenuItem>
+          <DropdownMenuItem 
+            className="group flex cursor-pointer items-center gap-2 rounded-lg px-2 py-2 text-sm text-slate-300 focus:bg-white/10 focus:text-white"
+            onSelect={() => handleNavigate("/settings")}
+          >
+            <Settings className="h-4 w-4 text-slate-400 group-focus:text-white" />
+            <span>Settings</span>
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
+        
+        <DropdownMenuSeparator className="bg-white/10" />
+        
         <DropdownMenuItem
-          className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-red-600 focus:bg-red-50 focus:text-red-700"
+          className="group flex cursor-pointer items-center gap-2 rounded-lg px-2 py-2 text-sm text-red-400 focus:bg-red-500/10 focus:text-red-400"
           onSelect={(event) => {
             event.preventDefault()
             handleNavigate(logoutHref)
           }}
         >
           <LogOut className="h-4 w-4" aria-hidden />
-          Sign out
-          <span className="ml-auto flex items-center gap-1 text-[11px] font-medium text-red-500">
-            <Check className="h-3 w-3" aria-hidden />
-            Session safe
-          </span>
+          <span>Sign out</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

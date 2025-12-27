@@ -27,7 +27,6 @@ describe("ProfileMenu", () => {
     const menu = await screen.findByRole("menu")
 
     expect(within(menu).getByText("Alex Kim")).toBeVisible()
-    expect(within(menu).getByText("Operations Lead")).toBeVisible()
     expect(within(menu).getByText("alex.kim@skyluxse.com")).toBeVisible()
     expect(within(menu).queryByText(/quick links/i)).not.toBeInTheDocument()
   })
